@@ -1,6 +1,22 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// Smart API URL detection:
+// 1. Use VITE_API_URL env var if set (production)
+// 2. Use relative path if on same domain (production build served by backend)
+// 3. Fall back to localhost for development
+const getApiUrl = () => {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  // If running in production (same domain as backend), use relative path
+  if (import.meta.env.PROD) {
+    return '/api';
+  }
+  // Development fallback
+  return 'http://localhost:5000/api';
+};
+
+const API_URL = getApiUrl();
 
 const api = axios.create({
   baseURL: API_URL,
@@ -86,8 +102,10 @@ export const getStats = async () => {
 };
 
 export const healthCheck = async () => {
-  const response = await api.get('/health', {
-    baseURL: 'http://localhost:5000'
+  // Use the same base URL as other API calls to avoid hardcoded localhost
+  const response = await axios.get('/health', {
+    baseURL: API_URL.replace('/api', ''),
+    timeout: 10000
   });
   return response.data;
 };
