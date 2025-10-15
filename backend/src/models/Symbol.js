@@ -6,8 +6,7 @@ const symbolSchema = new mongoose.Schema({
     required: true,
     unique: true,
     uppercase: true,
-    trim: true,
-    index: true
+    trim: true
   },
   originalSymbol: {
     type: String,
@@ -50,8 +49,7 @@ const symbolSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Index for faster queries
-symbolSchema.index({ symbol: 1 });
+// Index for faster queries (symbol already indexed via unique: true)
 symbolSchema.index({ magicLine: 1 });
 
 // Virtual field for checking if magic line is met

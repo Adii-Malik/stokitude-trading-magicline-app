@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, Minus, RefreshCw, Trash2 } from 'lucide-react';
-import { getSymbols, clearSymbols } from '../services/api';
+import { getSymbols, clearSymbols, fetchPrices } from '../services/api';
 import socketService from '../services/socket';
 
 export default function Dashboard() {
@@ -8,6 +8,8 @@ export default function Dashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(null);
+  const [fetching, setFetching] = useState(false);
+  const [fetchMessage, setFetchMessage] = useState(null);
 
   // Load initial data
   useEffect(() => {
@@ -79,6 +81,52 @@ export default function Dashboard() {
     }
   };
 
+  const handleRefresh = async () => {
+    try {
+      setFetching(true);
+      setFetchMessage(null);
+      
+      console.log('🔄 Triggering smart fetch...');
+      const response = await fetchPrices();
+      
+      console.log('Fetch response:', response);
+      
+      // Update symbols with fresh/cached data
+      if (response.data && response.data.symbols) {
+        setSymbols(response.data.symbols);
+        setLastUpdate(new Date());
+      }
+      
+      // Show user-friendly message
+      if (response.cached) {
+        const minutesAgo = Math.floor((Date.now() - response.data.lastFetchTime) / 60000);
+        const minutesUntilNext = Math.ceil(response.data.nextFetchIn / 60);
+        setFetchMessage({
+          type: 'info',
+          text: `Using cached data from ${minutesAgo} minute${minutesAgo !== 1 ? 's' : ''} ago. Fresh data available in ${minutesUntilNext} minute${minutesUntilNext !== 1 ? 's' : ''}.`
+        });
+      } else {
+        setFetchMessage({
+          type: 'success',
+          text: `✅ Fresh prices fetched from PSX! ${response.data.success} of ${response.data.total} symbols updated.`
+        });
+      }
+      
+      // Clear message after 5 seconds
+      setTimeout(() => setFetchMessage(null), 5000);
+      
+    } catch (error) {
+      console.error('Error fetching prices:', error);
+      setFetchMessage({
+        type: 'error',
+        text: 'Failed to fetch prices. Please try again.'
+      });
+      setTimeout(() => setFetchMessage(null), 5000);
+    } finally {
+      setFetching(false);
+    }
+  };
+
   const handleClearAll = async () => {
     if (!window.confirm('Are you sure you want to clear all symbols?')) {
       return;
@@ -133,11 +181,12 @@ export default function Dashboard() {
         </div>
         <div className="flex gap-2">
           <button
-            onClick={loadSymbols}
-            className="btn btn-primary flex items-center gap-2"
+            onClick={handleRefresh}
+            disabled={fetching}
+            className="btn btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <RefreshCw className="w-4 h-4" />
-            Refresh
+            <RefreshCw className={`w-4 h-4 ${fetching ? 'animate-spin' : ''}`} />
+            {fetching ? 'Fetching...' : 'Refresh Prices'}
           </button>
           <button
             onClick={handleClearAll}
@@ -148,6 +197,17 @@ export default function Dashboard() {
           </button>
         </div>
       </div>
+
+      {/* Fetch Message */}
+      {fetchMessage && (
+        <div className={`p-4 rounded-lg border ${
+          fetchMessage.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' :
+          fetchMessage.type === 'info' ? 'bg-blue-50 border-blue-200 text-blue-800' :
+          'bg-red-50 border-red-200 text-red-800'
+        }`}>
+          {fetchMessage.text}
+        </div>
+      )}
 
       {/* Symbols Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

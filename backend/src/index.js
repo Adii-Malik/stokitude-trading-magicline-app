@@ -7,7 +7,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import config from './config/config.js';
 import { connectDB } from './config/mongodb.js';
-import psxWebSocket from './services/psxWebSocket.js';
+import pricePollingService from './services/pricePollingService.js';
 import db from './db/database.js';
 import uploadRoutes from './routes/upload.js';
 import symbolsRoutes from './routes/symbols.js';
@@ -42,8 +42,9 @@ app.get('/health', async (req, res) => {
     res.json({
       status: 'ok',
       timestamp: new Date().toISOString(),
-      psxWebSocket: psxWebSocket.isConnected() ? 'connected' : 'disconnected',
-      symbolsCount: symbols.length
+      mode: 'on-demand',
+      symbolsCount: symbols.length,
+      dataSource: 'PSX Official (dps.psx.com.pk) - Closing Prices'
     });
   } catch (error) {
     res.status(500).json({
@@ -98,9 +99,9 @@ io.on('connection', async (socket) => {
   });
 });
 
-// Setup PSX WebSocket message handler
-psxWebSocket.onMessage(async (message) => {
-  if (message.data && message.data.symbol) {
+// Setup price polling message handler
+pricePollingService.onMessage(async (message) => {
+  if (message.type === 'priceUpdate' && message.data && message.data.symbol) {
     const symbol = message.data.symbol;
     
     try {
@@ -111,9 +112,6 @@ psxWebSocket.onMessage(async (message) => {
         const currentPrice = message.data.price;
         const isMet = currentPrice >= symbolInfo.magicLine;
         
-        // Update price in database
-        await db.updatePrice(symbol, message.data);
-        
         // Broadcast price update to all connected clients
         io.emit('priceUpdate', {
           symbol: symbol,
@@ -121,7 +119,8 @@ psxWebSocket.onMessage(async (message) => {
           currentPrice: currentPrice,
           priceData: message.data,
           isMet: isMet,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          source: message.data.source
         });
       }
     } catch (error) {
@@ -137,18 +136,21 @@ async function startServer() {
     console.log('🚀 Starting PSX Monitor Backend...');
     await connectDB(config.mongoUri);
     
-    // Start PSX WebSocket connection
-    psxWebSocket.connect();
+    // Automatic polling disabled - fetch prices on-demand only
+    console.log('💡 Automatic polling disabled');
+    console.log('📊 Use manual fetch to get closing prices: POST /api/symbols/fetch-prices');
 
     // Start HTTP server
     httpServer.listen(config.port, () => {
       console.log(`✅ Server running on http://localhost:${config.port}`);
       console.log(`📡 Socket.IO available for real-time updates`);
       console.log(`🍃 MongoDB connected and ready`);
+      console.log(`📌 Data Source: PSX Official (dps.psx.com.pk) - Closing Prices`);
       console.log(`\n📚 API Documentation:`);
       console.log(`   Health Check: GET http://localhost:${config.port}/health`);
       console.log(`   Upload File:  POST http://localhost:${config.port}/api/upload`);
       console.log(`   Get Symbols:  GET http://localhost:${config.port}/api/symbols`);
+      console.log(`   Fetch Prices: POST http://localhost:${config.port}/api/symbols/fetch-prices`);
       console.log(`\n🎯 Ready to monitor PSX stocks!`);
     });
   } catch (error) {
@@ -162,7 +164,6 @@ startServer();
 // Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('⚠️ SIGTERM received, shutting down gracefully...');
-  psxWebSocket.disconnect();
   httpServer.close(() => {
     console.log('👋 Server closed');
     process.exit(0);
@@ -171,7 +172,6 @@ process.on('SIGTERM', () => {
 
 process.on('SIGINT', () => {
   console.log('\n⚠️ SIGINT received, shutting down gracefully...');
-  psxWebSocket.disconnect();
   httpServer.close(() => {
     console.log('👋 Server closed');
     process.exit(0);

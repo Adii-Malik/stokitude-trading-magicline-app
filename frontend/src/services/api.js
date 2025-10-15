@@ -61,5 +61,10 @@ export const healthCheck = async () => {
   return response.data;
 };
 
+export const fetchPrices = async () => {
+  const response = await api.post('/symbols/fetch-prices');
+  return response.data;
+};
+
 export default api;
 

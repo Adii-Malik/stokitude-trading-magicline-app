@@ -6,60 +6,83 @@ Real-time stock price monitoring application for Pakistan Stock Exchange (PSX). 
 ![Node.js](https://img.shields.io/badge/Node.js-v18+-green)
 ![React](https://img.shields.io/badge/React-18-blue)
 
+> **🎉 NEW**: Smart on-demand price fetching with intelligent caching to prevent excessive scraping!
+
 ## 🌟 Features
 
-- **📊 Real-time Price Monitoring**: Live price updates via WebSocket connection to PSX Terminal
+- **📊 On-Demand Price Fetching**: Smart price updates from PSX Official website
+- **⚡ Intelligent Caching**: 30-minute cache prevents excessive scraping and server overload
+- **🔒 Concurrency Protection**: Mutex lock ensures only one fetch at a time
 - **🎯 Magic Line Tracking**: Set threshold prices for each stock
 - **✨ Visual Alerts**: Beautiful green highlighting and animations when thresholds are met
+- **🔄 Real-time Updates**: Live dashboard updates via Socket.IO as prices are fetched
 - **📤 Easy Data Upload**: Support for both CSV files and images (with OCR)
-- **📈 Comprehensive Stats**: Track highs, lows, volume, trades, and more
+- **📈 Comprehensive Stats**: Track highs, lows, volume, change, and more
 - **🎨 Beautiful UI**: Modern, responsive design with Tailwind CSS
-- **🔄 Auto-reconnect**: Resilient WebSocket connection with automatic reconnection
+- **🚀 Scalable**: Handles unlimited concurrent users efficiently
 
 ## 🏗️ Architecture
 
 ```
-┌─────────────────────────────────────────┐
-│     PSX Terminal (psxterminal.com)      │
-│  WebSocket API + REST API               │
-└────────────────┬────────────────────────┘
-                 │
-                 │ Real-time price stream
-                 │
-┌────────────────▼────────────────────────┐
-│       Backend (Node.js + Express)       │
-│  ┌──────────────────────────────────┐   │
-│  │  WebSocket Client                │   │
-│  │  - Connects to PSX Terminal      │   │
-│  │  - Subscribes to market data     │   │
-│  └──────────────────────────────────┘   │
-│  ┌──────────────────────────────────┐   │
-│  │  Socket.IO Server                │   │
-│  │  - Broadcasts to clients         │   │
-│  └──────────────────────────────────┘   │
-│  ┌──────────────────────────────────┐   │
-│  │  REST API                        │   │
-│  │  - Upload CSV/Image              │   │
-│  │  - Manage symbols                │   │
-│  └──────────────────────────────────┘   │
-└─────────────────────────────────────────┘
-                 │
-                 │ Socket.IO + REST
-                 │
-┌────────────────▼────────────────────────┐
-│      Frontend (React + Vite)            │
-│  ┌──────────────────────────────────┐   │
-│  │  Dashboard                       │   │
-│  │  - Real-time price display       │   │
-│  │  - Green highlighting            │   │
-│  │  - Progress indicators           │   │
-│  └──────────────────────────────────┘   │
-│  ┌──────────────────────────────────┐   │
-│  │  Upload Form                     │   │
-│  │  - CSV upload                    │   │
-│  │  - Image upload with OCR         │   │
-│  └──────────────────────────────────┘   │
-└─────────────────────────────────────────┘
+┌─────────────────────────────────────┐
+│         PSX Official Website        │
+│        dps.psx.com.pk               │
+│   (Closing Prices - On-Demand)      │
+└──────────────┬──────────────────────┘
+               │
+               │ Web Scraping
+               │ (HTML parsing with Cheerio)
+               │
+┌──────────────▼──────────────────────┐
+│   Backend (Node.js + Express)       │
+│  ┌──────────────────────────────┐   │
+│  │  PSX Scraper Service         │   │
+│  │  - Fetches closing prices    │   │
+│  │  - Parses HTML with Cheerio  │   │
+│  │  - Extracts price, OHLC, vol │   │
+│  └──────────────────────────────┘   │
+│  ┌──────────────────────────────┐   │
+│  │  Smart Polling Service       │   │
+│  │  - 30-min intelligent cache  │   │
+│  │  - Mutex lock (no overlaps)  │   │
+│  │  - Real-time broadcasting    │   │
+│  │  - Batch processing (5/time) │   │
+│  └──────────────────────────────┘   │
+│  ┌──────────────────────────────┐   │
+│  │  MongoDB Database            │   │
+│  │  - Stores symbols & prices   │   │
+│  │  - Persistent magic lines    │   │
+│  └──────────────────────────────┘   │
+│  ┌──────────────────────────────┐   │
+│  │  Socket.IO Server            │   │
+│  │  - Live price updates        │   │
+│  │  - Multi-user broadcasting   │   │
+│  └──────────────────────────────┘   │
+│  ┌──────────────────────────────┐   │
+│  │  REST API                    │   │
+│  │  - Upload CSV/Image          │   │
+│  │  - Manage symbols            │   │
+│  │  - Trigger price fetch       │   │
+│  └──────────────────────────────┘   │
+└─────────────────┬───────────────────┘
+                  │
+                  │ Socket.IO + REST
+                  │
+┌─────────────────▼───────────────────┐
+│    Frontend (React + Vite)          │
+│  ┌──────────────────────────────┐   │
+│  │  Dashboard                   │   │
+│  │  - Real-time price cards     │   │
+│  │  - Green alert animations    │   │
+│  │  - Cache status messages     │   │
+│  │  - Smart refresh button      │   │
+│  └──────────────────────────────┘   │
+│  ┌──────────────────────────────┐   │
+│  │  Upload Form                 │   │
+│  │  - CSV upload                │   │
+│  │  - Image upload with OCR     │   │
+│  └──────────────────────────────┘   │
+└─────────────────────────────────────┘
 ```
 
 ## 🚀 Quick Start
@@ -152,9 +175,10 @@ psx_terminal_app/
 │   │   │   ├── upload.js         # Upload endpoints
 │   │   │   └── symbols.js        # Symbol management
 │   │   └── services/
-│   │       ├── psxWebSocket.js   # PSX WebSocket client
-│   │       ├── csvParser.js      # CSV parsing
-│   │       └── ocrService.js     # Image OCR
+│   │       ├── psxScraper.js        # PSX web scraper
+│   │       ├── pricePollingService.js  # Smart polling + caching
+│   │       ├── csvParser.js        # CSV parsing
+│   │       └── ocrService.js       # Image OCR
 │   ├── package.json
 │   └── .gitignore
 ├── frontend/
@@ -238,6 +262,29 @@ GET /api/symbols/:symbol
 DELETE /api/symbols
 ```
 
+#### Fetch Latest Prices (Smart Cache)
+```http
+POST /api/symbols/fetch-prices
+```
+Returns cached data if fetched within last 30 minutes, otherwise scrapes PSX.
+
+Response:
+```json
+{
+  "success": true,
+  "cached": true,
+  "message": "Prices were fetched 5 minutes ago. Using cached data.",
+  "data": {
+    "total": 152,
+    "success": 150,
+    "failed": 2,
+    "lastFetchTime": 1697401234567,
+    "nextFetchIn": 1500,
+    "symbols": [...]
+  }
+}
+```
+
 #### Get Statistics
 ```http
 GET /api/symbols/stats/summary
@@ -251,10 +298,12 @@ GET /api/symbols/stats/summary
 
 ## 🎨 Features in Detail
 
-### 1. Real-time Price Updates
-- WebSocket connection to PSX Terminal
-- Automatic reconnection on disconnect
-- Live price updates every few seconds
+### 1. Smart Price Fetching
+- **On-Demand**: Click "Refresh Prices" to fetch latest closing prices
+- **30-Min Cache**: Prevents excessive scraping if data is fresh
+- **Mutex Lock**: Only one user can trigger scraping at a time
+- **Live Updates**: Dashboard updates in real-time as each symbol is scraped
+- **Batch Processing**: Fetches 5 symbols at a time to avoid overload
 
 ### 2. Visual Magic Line Alerts
 When a stock price meets or exceeds its Magic Line:
@@ -337,10 +386,17 @@ fly deploy
 ### Backend (.env)
 ```env
 PORT=5000
-PSX_WEBSOCKET_URL=wss://psxterminal.com/
-PSX_API_URL=https://psxterminal.com/api
 NODE_ENV=development
+MONGO_URI=mongodb://localhost:27017/psx_monitor
+
+# Smart Cache Configuration (optional)
+CACHE_DURATION=1800000  # 30 minutes in milliseconds (default)
 ```
+
+**Adjusting Cache Duration:**
+- 15 minutes: `CACHE_DURATION=900000`
+- 30 minutes: `CACHE_DURATION=1800000` (default)
+- 1 hour: `CACHE_DURATION=3600000`
 
 ### Frontend
 Update `vite.config.js` for production:
@@ -367,9 +423,12 @@ export default defineConfig({
 - Verify WebSocket connection in Network tab
 
 ### No price updates
-- Check backend logs for PSX WebSocket connection status
+- Click "Refresh Prices" button to manually trigger fetch
+- Check backend logs for scraping status
 - Verify symbols are correctly loaded
 - PSX market might be closed (check trading hours)
+- Check if PSX website (dps.psx.com.pk) is accessible
+- If using cache, wait for cache expiry or restart backend
 
 ### OCR not working
 - Ensure image quality is good
@@ -382,9 +441,11 @@ MIT License - Feel free to use for personal or commercial projects
 
 ## 🙏 Credits
 
-- **PSX Terminal**: Data provided by [psxterminal.com](https://psxterminal.com)
+- **Data Source**: PSX Official ([dps.psx.com.pk](https://dps.psx.com.pk))
 - **Icons**: [Lucide React](https://lucide.dev)
 - **Styling**: [Tailwind CSS](https://tailwindcss.com)
+- **Scraping**: [Axios](https://axios-http.com) + [Cheerio](https://cheerio.js.org)
+- **Database**: [MongoDB](https://www.mongodb.com)
 
 ## 📧 Support
 
@@ -392,6 +453,24 @@ For issues or questions:
 1. Check the troubleshooting section
 2. Review backend logs: `cd backend && npm run dev`
 3. Check browser console for frontend errors
+
+---
+
+## 📋 What's New in v2.0
+
+### ✨ Major Changes
+- 🔄 **On-Demand Price Fetching** - No continuous polling, fetch only when needed
+- ⚡ **Smart 30-Min Cache** - Prevents server overload with intelligent caching
+- 🔒 **Concurrency Protection** - Mutex lock ensures single fetch operation
+- 📊 **PSX Official Scraping** - Direct scraping from PSX website for closing prices
+- 🚀 **Real-Time Dashboard Updates** - Live updates via Socket.IO as prices come in
+- 💾 **MongoDB Integration** - Persistent storage for symbols and prices
+
+### 🆕 Dependencies
+- `axios` - HTTP client for scraping
+- `cheerio` - HTML parsing library
+- `mongodb` - Database for persistent storage
+- `socket.io` - Real-time bidirectional communication
 
 ---
 

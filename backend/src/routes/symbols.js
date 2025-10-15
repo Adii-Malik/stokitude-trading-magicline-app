@@ -1,6 +1,6 @@
 import express from 'express';
 import db from '../db/database.js';
-import config from '../config/config.js';
+import pricePollingService from '../services/pricePollingService.js';
 
 const router = express.Router();
 
@@ -104,7 +104,7 @@ router.get('/stats/summary', async (req, res) => {
   }
 });
 
-// POST /api/symbols/fetch-prices - Manually fetch prices from PSX REST API
+// POST /api/symbols/fetch-prices - Fetch closing prices from PSX (on-demand)
 router.post('/fetch-prices', async (req, res) => {
   try {
     const symbols = await db.getAllSymbols();
@@ -116,51 +116,51 @@ router.post('/fetch-prices', async (req, res) => {
       });
     }
 
-    console.log(`🔄 Fetching prices for ${symbols.length} symbols from PSX API...`);
+    console.log(`\n📊 Smart fetch triggered for ${symbols.length} symbols...`);
+    console.log(`⏰ Request at: ${new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' })} PKT`);
     
+    // Smart fetch with caching
+    const fetchResult = await pricePollingService.fetchAllPrices();
+    
+    // Get current data from database
+    const data = await db.getFullData();
+    
+    // Count successes and failures
     let successCount = 0;
     let failCount = 0;
-    const errors = [];
-
-    // Fetch prices for each symbol
-    for (const symbolInfo of symbols) {
-      try {
-        const response = await fetch(`${config.psxApiUrl}/ticks/REG/${symbolInfo.symbol}`);
-        
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.data && data.data.price) {
-            await db.updatePrice(symbolInfo.symbol, data.data);
-            successCount++;
-          } else {
-            failCount++;
-            errors.push(`${symbolInfo.symbol}: No price data`);
-          }
-        } else {
-          failCount++;
-          errors.push(`${symbolInfo.symbol}: HTTP ${response.status}`);
-        }
-      } catch (error) {
+    
+    data.forEach(item => {
+      if (item.currentPrice !== null && item.currentPrice !== undefined) {
+        successCount++;
+      } else {
         failCount++;
-        errors.push(`${symbolInfo.symbol}: ${error.message}`);
       }
+    });
 
-      // Small delay to avoid rate limiting
-      await new Promise(resolve => setTimeout(resolve, 50));
-    }
-
-    console.log(`✅ Price fetch complete: ${successCount} success, ${failCount} failed`);
-
-    res.json({
-      success: true,
-      message: `Fetched prices for ${successCount} symbols`,
+    const response = {
+      success: fetchResult.success,
+      cached: fetchResult.cached,
+      message: fetchResult.message,
       data: {
         total: symbols.length,
         success: successCount,
         failed: failCount,
-        errors: errors.length > 10 ? errors.slice(0, 10) : errors
+        source: 'PSX Official (dps.psx.com.pk)',
+        lastFetchTime: fetchResult.lastFetchTime,
+        nextFetchIn: fetchResult.nextFetchIn, // seconds
+        symbols: data
       }
-    });
+    };
+
+    if (fetchResult.cached) {
+      const minutesAgo = Math.floor((Date.now() - fetchResult.lastFetchTime) / 60000);
+      const minutesUntilNext = Math.ceil(fetchResult.nextFetchIn / 60);
+      console.log(`💾 Returned cached data (${minutesAgo} min ago, next fetch in ${minutesUntilNext} min)\n`);
+    } else {
+      console.log(`✅ Fresh data fetched: ${successCount} success, ${failCount} failed\n`);
+    }
+
+    res.json(response);
 
   } catch (error) {
     console.error('❌ Error fetching prices:', error);
