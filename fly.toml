@@ -12,8 +12,7 @@ primary_region = 'sin'
 [env]
   NODE_ENV = 'production'
   PORT = '8080'
-  PSX_API_URL = 'https://psxterminal.com/api'
-  PSX_WEBSOCKET_URL = 'wss://psxterminal.com/'
+  CACHE_DURATION = '1800000'
 
 [http_service]
   internal_port = 8080
