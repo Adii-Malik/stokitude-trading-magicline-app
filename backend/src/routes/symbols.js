@@ -1,6 +1,7 @@
 import express from 'express';
 import db from '../db/database.js';
 import pricePollingService from '../services/pricePollingService.js';
+import { adminOnly } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -65,8 +66,8 @@ router.get('/:symbol', async (req, res) => {
   }
 });
 
-// DELETE /api/symbols - Clear all symbols
-router.delete('/', async (req, res) => {
+// DELETE /api/symbols - Clear all symbols (Admin only)
+router.delete('/', adminOnly, async (req, res) => {
   try {
     await db.clearSymbols();
     console.log('🗑️ All symbols cleared');

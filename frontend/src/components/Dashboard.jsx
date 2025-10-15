@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, Minus, RefreshCw, Trash2 } from 'lucide-react';
 import { getSymbols, clearSymbols, fetchPrices } from '../services/api';
 import socketService from '../services/socket';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Dashboard() {
   const [symbols, setSymbols] = useState([]);
@@ -10,6 +11,7 @@ export default function Dashboard() {
   const [lastUpdate, setLastUpdate] = useState(null);
   const [fetching, setFetching] = useState(false);
   const [fetchMessage, setFetchMessage] = useState(null);
+  const { user } = useAuth();
 
   // Load initial data
   useEffect(() => {
@@ -138,7 +140,8 @@ export default function Dashboard() {
       setStats(null);
     } catch (error) {
       console.error('Error clearing symbols:', error);
-      alert('Failed to clear symbols');
+      const errorMsg = error.response?.data?.message || 'Failed to clear symbols';
+      alert(errorMsg);
     }
   };
 
@@ -188,13 +191,15 @@ export default function Dashboard() {
             <RefreshCw className={`w-4 h-4 ${fetching ? 'animate-spin' : ''}`} />
             {fetching ? 'Fetching...' : 'Refresh Prices'}
           </button>
-          <button
-            onClick={handleClearAll}
-            className="btn btn-danger flex items-center gap-2"
-          >
-            <Trash2 className="w-4 h-4" />
-            Clear All
-          </button>
+          {user?.role === 'admin' && (
+            <button
+              onClick={handleClearAll}
+              className="btn btn-danger flex items-center gap-2"
+            >
+              <Trash2 className="w-4 h-4" />
+              Clear All
+            </button>
+          )}
         </div>
       </div>
 

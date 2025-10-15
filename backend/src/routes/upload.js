@@ -6,6 +6,7 @@ import { parseCSV } from '../services/csvParser.js';
 import { processImage } from '../services/ocrService.js';
 import db from '../db/database.js';
 import fs from 'fs';
+import { adminOnly } from '../middleware/auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -45,8 +46,8 @@ const upload = multer({
   fileFilter: fileFilter
 });
 
-// POST /api/upload - Upload CSV or image file
-router.post('/', upload.single('file'), async (req, res) => {
+// POST /api/upload - Upload CSV or image file (Admin only)
+router.post('/', adminOnly, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({
@@ -113,8 +114,8 @@ router.post('/', upload.single('file'), async (req, res) => {
   }
 });
 
-// POST /api/upload/manual - Manually add symbols via JSON
-router.post('/manual', express.json(), async (req, res) => {
+// POST /api/upload/manual - Manually add symbols via JSON (Admin only)
+router.post('/manual', adminOnly, express.json(), async (req, res) => {
   try {
     const { symbols } = req.body;
 

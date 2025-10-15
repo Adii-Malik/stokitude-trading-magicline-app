@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import path from 'path';
@@ -11,6 +12,7 @@ import pricePollingService from './services/pricePollingService.js';
 import db from './db/database.js';
 import uploadRoutes from './routes/upload.js';
 import symbolsRoutes from './routes/symbols.js';
+import authRoutes from './routes/auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -28,8 +30,12 @@ const io = new Server(httpServer, {
 });
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: true,
+  credentials: true
+}));
 app.use(express.json());
+app.use(cookieParser());
 
 // Serve static files from React build (production)
 const frontendDistPath = path.join(__dirname, '../../frontend/dist');
@@ -55,6 +61,7 @@ app.get('/health', async (req, res) => {
 });
 
 // API Routes
+app.use('/api/auth', authRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/symbols', symbolsRoutes);
 
@@ -62,17 +69,25 @@ app.use('/api/symbols', symbolsRoutes);
 app.get('/api', (req, res) => {
   res.json({
     name: 'PSX Magic Line Monitor API',
-    version: '1.0.0',
+    version: '2.0.0',
     endpoints: {
       health: '/health',
-      upload: '/api/upload (POST)',
-      uploadManual: '/api/upload/manual (POST)',
+      auth: {
+        signup: '/api/auth/signup (POST)',
+        login: '/api/auth/login (POST)',
+        logout: '/api/auth/logout (POST)',
+        me: '/api/auth/me (GET)',
+        check: '/api/auth/check (GET)'
+      },
+      upload: '/api/upload (POST) [Admin]',
+      uploadManual: '/api/upload/manual (POST) [Admin]',
       symbols: '/api/symbols (GET)',
       symbolDetail: '/api/symbols/:symbol (GET)',
-      clearSymbols: '/api/symbols (DELETE)',
+      clearSymbols: '/api/symbols (DELETE) [Admin]',
       stats: '/api/symbols/stats/summary (GET)'
     },
-    websocket: 'Socket.IO available for real-time updates'
+    websocket: 'Socket.IO available for real-time updates',
+    note: '[Admin] routes require authentication with admin role'
   });
 });
 
