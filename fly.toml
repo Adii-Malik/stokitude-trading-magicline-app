@@ -1,0 +1,31 @@
+# Fly.io deployment configuration for PSX Monitor
+
+app = "psx-magic-line-monitor"
+primary_region = "sin" # Singapore region (closest to Pakistan)
+
+[build]
+  dockerfile = "backend/Dockerfile"
+
+[env]
+  PORT = "8080"
+  PSX_WEBSOCKET_URL = "wss://psxterminal.com/"
+  PSX_API_URL = "https://psxterminal.com/api"
+  NODE_ENV = "production"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "connections"
+    soft_limit = 200
+    hard_limit = 250
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 256
+
