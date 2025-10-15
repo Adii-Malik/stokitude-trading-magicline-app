@@ -5,10 +5,10 @@ import config from '../config/config.js';
 const router = express.Router();
 
 // GET /api/symbols - Get all symbols with their magic lines and current prices
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
-    const data = db.getFullData();
-    const stats = db.getStats();
+    const data = await db.getFullData();
+    const stats = await db.getStats();
 
     res.json({
       success: true,
@@ -28,11 +28,11 @@ router.get('/', (req, res) => {
 });
 
 // GET /api/symbols/:symbol - Get specific symbol data
-router.get('/:symbol', (req, res) => {
+router.get('/:symbol', async (req, res) => {
   try {
     const symbol = req.params.symbol.toUpperCase();
-    const symbolInfo = db.getSymbol(symbol);
-    const priceData = db.getPrice(symbol);
+    const symbolInfo = await db.getSymbol(symbol);
+    const priceData = await db.getPrice(symbol);
 
     if (!symbolInfo) {
       return res.status(404).json({
@@ -52,7 +52,7 @@ router.get('/:symbol', (req, res) => {
         currentPrice: currentPrice,
         priceData: priceData,
         isMet: isMet,
-        addedAt: symbolInfo.addedAt
+        addedAt: symbolInfo.createdAt
       }
     });
   } catch (error) {
@@ -66,9 +66,9 @@ router.get('/:symbol', (req, res) => {
 });
 
 // DELETE /api/symbols - Clear all symbols
-router.delete('/', (req, res) => {
+router.delete('/', async (req, res) => {
   try {
-    db.clearSymbols();
+    await db.clearSymbols();
     console.log('🗑️ All symbols cleared');
 
     res.json({
@@ -86,9 +86,9 @@ router.delete('/', (req, res) => {
 });
 
 // GET /api/symbols/stats - Get statistics
-router.get('/stats/summary', (req, res) => {
+router.get('/stats/summary', async (req, res) => {
   try {
-    const stats = db.getStats();
+    const stats = await db.getStats();
 
     res.json({
       success: true,
@@ -107,7 +107,7 @@ router.get('/stats/summary', (req, res) => {
 // POST /api/symbols/fetch-prices - Manually fetch prices from PSX REST API
 router.post('/fetch-prices', async (req, res) => {
   try {
-    const symbols = db.getAllSymbols();
+    const symbols = await db.getAllSymbols();
     
     if (symbols.length === 0) {
       return res.status(400).json({
@@ -130,7 +130,7 @@ router.post('/fetch-prices', async (req, res) => {
         if (response.ok) {
           const data = await response.json();
           if (data.success && data.data && data.data.price) {
-            db.updatePrice(symbolInfo.symbol, data.data);
+            await db.updatePrice(symbolInfo.symbol, data.data);
             successCount++;
           } else {
             failCount++;

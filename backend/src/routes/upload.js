@@ -79,7 +79,7 @@ router.post('/', upload.single('file'), async (req, res) => {
 
     // Store symbols in database
     if (symbols.length > 0) {
-      db.bulkSetSymbols(symbols);
+      await db.bulkSetSymbols(symbols);
       console.log(`✅ Stored ${symbols.length} symbols in database`);
     }
 
@@ -114,7 +114,7 @@ router.post('/', upload.single('file'), async (req, res) => {
 });
 
 // POST /api/upload/manual - Manually add symbols via JSON
-router.post('/manual', express.json(), (req, res) => {
+router.post('/manual', express.json(), async (req, res) => {
   try {
     const { symbols } = req.body;
 
@@ -134,7 +134,7 @@ router.post('/manual', express.json(), (req, res) => {
       });
     }
 
-    db.bulkSetSymbols(validSymbols);
+    await db.bulkSetSymbols(validSymbols);
     console.log(`✅ Manually added ${validSymbols.length} symbols`);
 
     res.json({
