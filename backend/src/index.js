@@ -155,9 +155,10 @@ async function startServer() {
     console.log('💡 Automatic polling disabled');
     console.log('📊 Use manual fetch to get closing prices: POST /api/symbols/fetch-prices');
 
-    // Start HTTP server
-    httpServer.listen(config.port, () => {
-      console.log(`✅ Server running on http://localhost:${config.port}`);
+    // Start HTTP server - listen on 0.0.0.0 for production (Fly.io)
+    const host = config.nodeEnv === 'production' ? '0.0.0.0' : 'localhost';
+    httpServer.listen(config.port, host, () => {
+      console.log(`✅ Server running on http://${host}:${config.port}`);
       console.log(`📡 Socket.IO available for real-time updates`);
       console.log(`🍃 MongoDB connected and ready`);
       console.log(`📌 Data Source: PSX Official (dps.psx.com.pk) - Closing Prices`);
