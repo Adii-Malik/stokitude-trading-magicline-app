@@ -1,31 +1,33 @@
-# Fly.io deployment configuration for PSX Monitor
+# fly.toml app configuration file generated for psx-magic-line-monitor on 2025-10-15T07:54:15-07:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
 
-app = "psx-magic-line-monitor"
-primary_region = "sin" # Singapore region (closest to Pakistan)
+app = 'psx-magic-line-monitor'
+primary_region = 'sin'
 
 [build]
-  dockerfile = "backend/Dockerfile"
+  dockerfile = 'backend/Dockerfile'
 
 [env]
-  PORT = "8080"
-  PSX_WEBSOCKET_URL = "wss://psxterminal.com/"
-  PSX_API_URL = "https://psxterminal.com/api"
-  NODE_ENV = "production"
+  NODE_ENV = 'production'
+  PORT = '8080'
+  PSX_API_URL = 'https://psxterminal.com/api'
+  PSX_WEBSOCKET_URL = 'wss://psxterminal.com/'
 
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = false
+  auto_stop_machines = 'off'
   auto_start_machines = true
   min_machines_running = 1
 
   [http_service.concurrency]
-    type = "connections"
-    soft_limit = 200
+    type = 'connections'
     hard_limit = 250
+    soft_limit = 200
 
 [[vm]]
-  cpu_kind = "shared"
+  cpu_kind = 'shared'
   cpus = 1
   memory_mb = 256
-
