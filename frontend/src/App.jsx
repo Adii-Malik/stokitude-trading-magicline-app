@@ -94,36 +94,6 @@ function AppContent() {
             <UploadForm onUploadSuccess={handleUploadSuccess} />
           )}
 
-          {/* Show login prompt for non-authenticated users */}
-          {!user && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-blue-900 mb-1">
-                    👋 Welcome to PSX Magic Line Monitor
-                  </h3>
-                  <p className="text-blue-700">
-                    You're viewing in guest mode. Sign in to upload files and manage symbols.
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setCurrentView('login')}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-                  >
-                    Login
-                  </button>
-                  <button
-                    onClick={() => setCurrentView('signup')}
-                    className="px-4 py-2 bg-white text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition"
-                  >
-                    Sign Up
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Dashboard Section - Public Access */}
           <Dashboard key={refreshDashboard} />
         </div>
