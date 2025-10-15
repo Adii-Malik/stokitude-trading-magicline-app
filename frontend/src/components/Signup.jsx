@@ -50,6 +50,11 @@ export default function Signup({ onSwitchToLogin, onBackToDashboard }) {
 
       if (!result.success) {
         setError(result.error);
+      } else {
+        // Successfully signed up, redirect to dashboard
+        if (onBackToDashboard) {
+          onBackToDashboard();
+        }
       }
     } catch (err) {
       setError('An unexpected error occurred');

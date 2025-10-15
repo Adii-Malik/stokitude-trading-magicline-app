@@ -18,6 +18,11 @@ export default function Login({ onSwitchToSignup, onBackToDashboard }) {
       const result = await login(email, password);
       if (!result.success) {
         setError(result.error);
+      } else {
+        // Successfully logged in, redirect to dashboard
+        if (onBackToDashboard) {
+          onBackToDashboard();
+        }
       }
     } catch (err) {
       setError('An unexpected error occurred');

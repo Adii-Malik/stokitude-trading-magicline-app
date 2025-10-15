@@ -132,9 +132,6 @@ function AppContent() {
       <footer className="bg-white border-t border-gray-200 mt-12">
         <div className="container mx-auto px-4 py-6 text-center text-gray-600 text-sm">
           <p>PSX Magic Line Monitor - Real-time Stock Price Monitoring</p>
-          <p className="text-xs text-gray-500 mt-1">
-            Data provided by <a href="https://psxterminal.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">PSX Terminal</a>
-          </p>
         </div>
       </footer>
     </div>
