@@ -18,7 +18,7 @@ const generateToken = (userId) => {
 // POST /api/auth/signup - Register new user
 router.post('/signup', async (req, res) => {
   try {
-    const { username, email, password, adminCode } = req.body;
+    const { username, email, password } = req.body;
 
     // Validate input
     if (!username || !email || !password) {
@@ -42,19 +42,14 @@ router.post('/signup', async (req, res) => {
       });
     }
 
-    // Determine role based on admin code
-    const role = adminCode === config.adminSignupCode ? 'admin' : 'user';
-    
-    // Admins are automatically active, regular users need approval
-    const isActive = role === 'admin';
-
-    // Create new user
+    // All new signups are regular users (role and isActive set by default)
+    // Only super_admin can promote users to admin
     const user = new User({
       username,
       email,
-      password,
-      role,
-      isActive
+      password
+      // role: 'user' (default)
+      // isActive: false (default)
     });
 
     await user.save();
@@ -70,11 +65,11 @@ router.post('/signup', async (req, res) => {
       sameSite: 'lax'
     });
 
-    console.log(`✅ New ${role} registered: ${username} (${email})`);
+    console.log(`✅ New user registered: ${username} (${email}) - Pending approval`);
 
     res.status(201).json({
       success: true,
-      message: 'User registered successfully',
+      message: 'Account created! Please wait for admin approval to access the system.',
       data: {
         user: user.toSafeObject(),
         token
@@ -199,6 +194,68 @@ router.get('/check', authenticate, (req, res) => {
     authenticated: true,
     role: req.user.role
   });
+});
+
+// PUT /api/auth/change-password - Change password
+router.put('/change-password', authenticate, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    // Validate input
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide current and new password'
+      });
+    }
+
+    // Validate new password length
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 6 characters long'
+      });
+    }
+
+    // Get user with password
+    const user = await User.findById(req.user._id).select('+password');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Verify current password
+    const isPasswordValid = await user.comparePassword(currentPassword);
+
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        success: false,
+        message: 'Current password is incorrect'
+      });
+    }
+
+    // Update password
+    user.password = newPassword;
+    await user.save();
+
+    console.log(`✅ Password changed for user: ${user.username}`);
+
+    res.json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+
+  } catch (error) {
+    console.error('❌ Change password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error changing password',
+      error: error.message
+    });
+  }
 });
 
 export default router;

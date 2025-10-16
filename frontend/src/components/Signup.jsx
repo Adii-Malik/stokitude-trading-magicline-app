@@ -7,10 +7,8 @@ export default function Signup({ onSwitchToLogin, onBackToDashboard }) {
     username: '',
     email: '',
     password: '',
-    confirmPassword: '',
-    adminCode: ''
+    confirmPassword: ''
   });
-  const [showAdminCode, setShowAdminCode] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const { signup } = useAuth();
@@ -44,8 +42,7 @@ export default function Signup({ onSwitchToLogin, onBackToDashboard }) {
       const result = await signup(
         formData.username,
         formData.email,
-        formData.password,
-        formData.adminCode || undefined
+        formData.password
       );
 
       if (!result.success) {
@@ -176,42 +173,6 @@ export default function Signup({ onSwitchToLogin, onBackToDashboard }) {
                 placeholder="Re-enter password"
                 disabled={loading}
               />
-            </div>
-
-            {/* Admin Code Toggle */}
-            <div className="border-t border-gray-200 pt-4">
-              <button
-                type="button"
-                onClick={() => setShowAdminCode(!showAdminCode)}
-                className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition"
-              >
-                <Shield className="w-4 h-4" />
-                {showAdminCode ? 'Hide' : 'Have an'} admin code?
-              </button>
-
-              {showAdminCode && (
-                <div className="mt-3">
-                  <label htmlFor="adminCode" className="block text-sm font-medium text-gray-700 mb-2">
-                    Admin Code (Optional)
-                  </label>
-                  <input
-                    id="adminCode"
-                    name="adminCode"
-                    type="text"
-                    value={formData.adminCode}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
-                    placeholder="Enter admin code"
-                    disabled={loading}
-                  />
-                  <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg flex gap-2">
-                    <Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                    <p className="text-xs text-blue-800">
-                      Admin accounts can upload files and delete symbols. Leave blank for regular user account.
-                    </p>
-                  </div>
-                </div>
-              )}
             </div>
 
             <button

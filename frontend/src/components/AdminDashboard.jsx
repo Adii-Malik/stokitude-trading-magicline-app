@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import * as adminAPI from '../services/admin';
 
 const AdminDashboard = () => {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isSuperAdmin } = useAuth();
   const [users, setUsers] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -237,9 +237,10 @@ const AdminDashboard = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-gray-300">{u.email}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          u.role === 'super_admin' ? 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 text-yellow-400 border border-yellow-500/30' :
                           u.role === 'admin' ? 'bg-purple-500/20 text-purple-400' : 'bg-gray-600/50 text-gray-300'
                         }`}>
-                          {u.role}
+                          {u.role === 'super_admin' ? 'Super Admin' : u.role}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -254,35 +255,51 @@ const AdminDashboard = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                         {u._id !== user._id ? (
-                          <div className="flex items-center justify-end gap-2">
-                            {!u.isActive ? (
-                              <button
-                                onClick={() => handleActivate(u._id, u.username)}
-                                className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded transition-colors text-xs font-medium"
-                              >
-                                Activate
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => handleDeactivate(u._id, u.username)}
-                                className="px-3 py-1 bg-yellow-600 hover:bg-yellow-700 text-white rounded transition-colors text-xs font-medium"
-                              >
-                                Deactivate
-                              </button>
-                            )}
-                            <button
-                              onClick={() => handleToggleRole(u._id, u.username, u.role)}
-                              className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded transition-colors text-xs font-medium"
-                            >
-                              {u.role === 'admin' ? 'Make User' : 'Make Admin'}
-                            </button>
-                            <button
-                              onClick={() => handleDelete(u._id, u.username)}
-                              className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded transition-colors text-xs font-medium"
-                            >
-                              Delete
-                            </button>
-                          </div>
+                          // Don't show any actions for super_admin if current user is not super_admin
+                          u.role === 'super_admin' && !isSuperAdmin() ? (
+                            <span className="text-gray-500 text-xs italic">Protected</span>
+                          ) : u.role === 'admin' && !isSuperAdmin() ? (
+                            // Regular admins cannot modify other admins
+                            <span className="text-gray-500 text-xs italic">Admin</span>
+                          ) : (
+                            <div className="flex items-center justify-end gap-2">
+                              {!u.isActive ? (
+                                <button
+                                  onClick={() => handleActivate(u._id, u.username)}
+                                  className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded transition-colors text-xs font-medium"
+                                >
+                                  Activate
+                                </button>
+                              ) : (
+                                // Super admin cannot be deactivated
+                                u.role !== 'super_admin' && (
+                                  <button
+                                    onClick={() => handleDeactivate(u._id, u.username)}
+                                    className="px-3 py-1 bg-yellow-600 hover:bg-yellow-700 text-white rounded transition-colors text-xs font-medium"
+                                  >
+                                    Deactivate
+                                  </button>
+                                )
+                              )}
+                              {u.role !== 'super_admin' && isSuperAdmin() && (
+                                <button
+                                  onClick={() => handleToggleRole(u._id, u.username, u.role)}
+                                  className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded transition-colors text-xs font-medium"
+                                >
+                                  {u.role === 'admin' ? 'Make User' : 'Make Admin'}
+                                </button>
+                              )}
+                              {/* Super admin cannot be deleted */}
+                              {u.role !== 'super_admin' && (
+                                <button
+                                  onClick={() => handleDelete(u._id, u.username)}
+                                  className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded transition-colors text-xs font-medium"
+                                >
+                                  Delete
+                                </button>
+                              )}
+                            </div>
+                          )
                         ) : (
                           <span className="text-gray-500 text-xs">-</span>
                         )}

@@ -1,11 +1,10 @@
 import api from './api';
 
-export const signup = async (username, email, password, adminCode) => {
+export const signup = async (username, email, password) => {
   const response = await api.post('/auth/signup', {
     username,
     email,
-    password,
-    adminCode
+    password
   });
   return response.data;
 };
@@ -30,6 +29,14 @@ export const getCurrentUser = async () => {
 
 export const checkAuth = async () => {
   const response = await api.get('/auth/check');
+  return response.data;
+};
+
+export const changePassword = async (currentPassword, newPassword) => {
+  const response = await api.put('/auth/change-password', {
+    currentPassword,
+    newPassword
+  });
   return response.data;
 };
 

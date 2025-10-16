@@ -56,10 +56,10 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const signup = async (username, email, password, adminCode) => {
+  const signup = async (username, email, password) => {
     try {
       setError(null);
-      const response = await authAPI.signup(username, email, password, adminCode);
+      const response = await authAPI.signup(username, email, password);
       const { user, token } = response.data;
       
       localStorage.setItem('token', token);
@@ -85,7 +85,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   const isAdmin = () => {
-    return user?.role === 'admin';
+    return user?.role === 'admin' || user?.role === 'super_admin';
+  };
+
+  const isSuperAdmin = () => {
+    return user?.role === 'super_admin';
   };
 
   const isActive = () => {
@@ -100,6 +104,7 @@ export const AuthProvider = ({ children }) => {
     signup,
     logout,
     isAdmin,
+    isSuperAdmin,
     isActive,
     isAuthenticated: !!user
   };

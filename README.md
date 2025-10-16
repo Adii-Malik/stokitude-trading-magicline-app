@@ -114,12 +114,11 @@ copy .env.example .env
 # Linux/Mac:
 # cp .env.example .env
 
-# Edit .env and set your JWT_SECRET and ADMIN_SIGNUP_CODE
+# Edit .env and set your JWT_SECRET
 ```
 
-**Important**: Edit the `.env` file and change these values:
+**Important**: Edit the `.env` file and change:
 - `JWT_SECRET`: A secure random string for JWT signing
-- `ADMIN_SIGNUP_CODE`: A secret code required to create admin accounts
 
 3. **Install Frontend Dependencies**
 
@@ -162,43 +161,56 @@ npm start
 
 ### First Time Setup
 
-1. **Open your browser** and navigate to `http://localhost:3000`
+1. **Create Super Admin** (first-time only):
+   ```bash
+   cd backend
+   node src/scripts/createSuperAdmin.js
+   ```
+   This creates the initial super admin account. Use the provided credentials to login.
 
-2. **Create an Admin Account** (first-time only):
-   - Click "Sign up" on the login page
-   - Enter your username, email, and password
-   - Click "Have an admin code?" and enter the `ADMIN_SIGNUP_CODE` from your `.env` file
-   - Submit to create your admin account
-   
-   > 💡 **Tip**: The first user should always be an admin. Regular users can be created later without the admin code.
+2. **Open your browser** and navigate to `http://localhost:3000`
 
-3. **Login** with your credentials
+3. **Login** with super admin credentials
 
-4. **Upload your Magic Line data** (Admin only):
+4. **New User Registration**:
+   - New users can sign up, but need admin approval
+   - Admins activate users via Admin Panel
+   - Only super admin can promote users to admin role
+
+5. **Upload your Magic Line data** (Admin only):
    - **CSV File**: Use the provided `sample-data.csv` or create your own
    - **Image**: Upload a screenshot of your stock table
    - **Manual**: Use the API to add symbols programmatically
 
-5. **Watch the magic happen!** 🎉
+6. **Watch the magic happen!** 🎉
    - Stocks will appear on the dashboard
    - Prices update in real-time
    - When a price meets or exceeds the Magic Line, it turns **GREEN** with animations!
 
 ### 🔐 Authentication & User Roles
 
-**Admin Users Can:**
-- ✅ Upload CSV/image files
-- ✅ Delete individual symbols
-- ✅ Clear all symbols
-- ✅ View dashboard and refresh prices
+**Three-Tier Role System:**
 
-**Regular Users Can:**
-- ✅ View dashboard
-- ✅ Refresh prices
-- ❌ Cannot upload files
-- ❌ Cannot delete symbols
+1. **Super Admin** (System Owner)
+   - ✅ Full system control
+   - ✅ Promote users to admin
+   - ✅ Manage all users
+   - ✅ Upload/delete data
+   - 🛡️ Cannot be deleted or deactivated
 
-**For detailed authentication setup and security information**, see [AUTH_SETUP.md](AUTH_SETUP.md)
+2. **Admin Users**
+   - ✅ Upload CSV/image files
+   - ✅ Delete individual symbols
+   - ✅ Activate/deactivate regular users
+   - ✅ View dashboard and refresh prices
+   - ❌ Cannot create other admins
+
+3. **Regular Users**
+   - ✅ View dashboard (after activation)
+   - ✅ Refresh prices
+   - ❌ Cannot upload files
+   - ❌ Cannot delete symbols
+   - ⚠️ Require admin approval to access system
 
 ## 📁 Project Structure
 
@@ -270,7 +282,7 @@ GET /health
 ```http
 POST /api/auth/signup
 Content-Type: application/json
-{ "username": "...", "email": "...", "password": "...", "adminCode": "..." }
+{ "username": "...", "email": "...", "password": "..." }
 
 POST /api/auth/login
 Content-Type: application/json
@@ -279,6 +291,33 @@ Content-Type: application/json
 POST /api/auth/logout
 
 GET /api/auth/me
+Authorization: Bearer <token>
+
+PUT /api/auth/change-password
+Authorization: Bearer <token>
+Content-Type: application/json
+{ "currentPassword": "...", "newPassword": "..." }
+```
+
+#### Admin User Management (Admin/Super Admin Only)
+```http
+GET /api/admin/users
+Authorization: Bearer <token>
+
+PUT /api/admin/users/:userId/activate
+Authorization: Bearer <token>
+
+PUT /api/admin/users/:userId/deactivate
+Authorization: Bearer <token>
+
+PUT /api/admin/users/:userId/toggle-role
+Authorization: Bearer <token>
+(Super Admin only - promotes user to admin)
+
+DELETE /api/admin/users/:userId
+Authorization: Bearer <token>
+
+GET /api/admin/stats
 Authorization: Bearer <token>
 ```
 
@@ -450,13 +489,12 @@ MONGO_URI=mongodb://localhost:27017/psx_monitor
 # JWT Authentication (REQUIRED)
 JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
 JWT_EXPIRES_IN=7d
-ADMIN_SIGNUP_CODE=admin123
 
 # Smart Cache Configuration (optional)
 CACHE_DURATION=1800000  # 30 minutes in milliseconds (default)
 ```
 
-**⚠️ Security Warning**: Always change `JWT_SECRET` and `ADMIN_SIGNUP_CODE` in production!
+**⚠️ Security Warning**: Always change `JWT_SECRET` in production!
 
 **Adjusting Cache Duration:**
 - 15 minutes: `CACHE_DURATION=900000`
@@ -524,9 +562,11 @@ For issues or questions:
 ## 📋 What's New in v2.1
 
 ### ✨ Major Changes
-- 🔐 **JWT Authentication** - Secure login/signup with JWT tokens (NEW!)
-- 👥 **Role-Based Access Control** - Admin and regular user roles (NEW!)
-- 🛡️ **Protected Routes** - Upload and delete operations require admin access (NEW!)
+- 🔐 **JWT Authentication** - Secure login/signup with JWT tokens
+- 👑 **Three-Tier Role System** - Super Admin, Admin, and User roles
+- 🛡️ **User Approval System** - New users need admin activation
+- 👥 **Admin Dashboard** - Complete user management interface  
+- 🔒 **Protected Routes** - Upload and delete operations require admin access
 - 🔄 **On-Demand Price Fetching** - No continuous polling, fetch only when needed
 - ⚡ **Smart 30-Min Cache** - Prevents server overload with intelligent caching
 - 🔒 **Concurrency Protection** - Mutex lock ensures single fetch operation

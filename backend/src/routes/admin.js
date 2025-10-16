@@ -103,11 +103,8 @@ router.put('/users/:userId/deactivate', async (req, res) => {
       });
     }
     
-    const user = await User.findByIdAndUpdate(
-      userId,
-      { isActive: false },
-      { new: true }
-    ).select('-password');
+    // Get user first to check their role
+    const user = await User.findById(userId).select('-password');
     
     if (!user) {
       return res.status(404).json({
@@ -115,13 +112,32 @@ router.put('/users/:userId/deactivate', async (req, res) => {
         message: 'User not found'
       });
     }
+
+    // Only super_admin can deactivate admins or super_admins
+    if ((user.role === 'admin' || user.role === 'super_admin') && req.user.role !== 'super_admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only Super Admin can deactivate admin users'
+      });
+    }
+
+    // Super admins cannot be deactivated
+    if (user.role === 'super_admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Super Admin cannot be deactivated'
+      });
+    }
+
+    user.isActive = false;
+    await user.save();
     
-    console.log(`❌ User deactivated: ${user.username} by admin ${req.user.username}`);
+    console.log(`❌ User deactivated: ${user.username} by ${req.user.role} ${req.user.username}`);
     
     res.json({
       success: true,
       message: 'User deactivated successfully',
-      data: { user }
+      data: { user: user.toSafeObject() }
     });
   } catch (error) {
     console.error('Error deactivating user:', error);
@@ -133,7 +149,7 @@ router.put('/users/:userId/deactivate', async (req, res) => {
   }
 });
 
-// PUT /api/admin/users/:userId/toggle-role - Toggle user role (admin/user)
+// PUT /api/admin/users/:userId/toggle-role - Toggle user role (only super_admin can create admins)
 router.put('/users/:userId/toggle-role', async (req, res) => {
   try {
     const { userId } = req.params;
@@ -155,7 +171,31 @@ router.put('/users/:userId/toggle-role', async (req, res) => {
       });
     }
     
-    // Toggle role
+    // Only super_admin can promote users to admin
+    if (user.role === 'user' && req.user.role !== 'super_admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only Super Admin can promote users to admin role'
+      });
+    }
+
+    // Prevent non-super_admin from demoting admins or super_admins
+    if ((user.role === 'admin' || user.role === 'super_admin') && req.user.role !== 'super_admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only Super Admin can change admin roles'
+      });
+    }
+
+    // Super admins cannot be demoted
+    if (user.role === 'super_admin') {
+      return res.status(400).json({
+        success: false,
+        message: 'Super Admin role cannot be changed'
+      });
+    }
+    
+    // Toggle role between user and admin
     user.role = user.role === 'admin' ? 'user' : 'admin';
     
     // If promoting to admin, automatically activate
@@ -165,7 +205,7 @@ router.put('/users/:userId/toggle-role', async (req, res) => {
     
     await user.save();
     
-    console.log(`🔄 User role changed: ${user.username} is now ${user.role}`);
+    console.log(`🔄 User role changed: ${user.username} is now ${user.role} by ${req.user.role} ${req.user.username}`);
     
     res.json({
       success: true,
@@ -195,7 +235,8 @@ router.delete('/users/:userId', async (req, res) => {
       });
     }
     
-    const user = await User.findByIdAndDelete(userId);
+    // Get user first to check their role
+    const user = await User.findById(userId);
     
     if (!user) {
       return res.status(404).json({
@@ -203,8 +244,26 @@ router.delete('/users/:userId', async (req, res) => {
         message: 'User not found'
       });
     }
+
+    // Only super_admin can delete admins or super_admins
+    if ((user.role === 'admin' || user.role === 'super_admin') && req.user.role !== 'super_admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only Super Admin can delete admin users'
+      });
+    }
+
+    // Super admins cannot be deleted at all
+    if (user.role === 'super_admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Super Admin cannot be deleted'
+      });
+    }
     
-    console.log(`🗑️ User deleted: ${user.username} by admin ${req.user.username}`);
+    await User.findByIdAndDelete(userId);
+    
+    console.log(`🗑️ User deleted: ${user.username} by ${req.user.role} ${req.user.username}`);
     
     res.json({
       success: true,
