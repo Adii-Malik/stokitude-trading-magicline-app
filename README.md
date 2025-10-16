@@ -1,4 +1,4 @@
-# PSX Magic Line Monitor
+# PSX SmartDesk
 
 Real-time stock price monitoring application for Pakistan Stock Exchange (PSX). Track multiple stocks and get visual alerts when prices meet or exceed your "Magic Line" thresholds.
 

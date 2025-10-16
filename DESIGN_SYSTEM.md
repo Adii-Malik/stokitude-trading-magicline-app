@@ -1,4 +1,4 @@
-# PSX Terminal App - Design System
+# PSX SmartDesk - Design System
 
 ## 🎨 Color Palette
 
@@ -152,6 +152,15 @@ ring-2 ring-green-200 dark:ring-green-500/20 rounded-lg p-6"
 dark:border-gray-700 rounded-lg p-6 shadow-md">
   <div className="text-gray-600 dark:text-gray-400 text-sm mb-1">Label</div>
   <div className="text-3xl font-bold text-gray-900 dark:text-white">Value</div>
+</div>
+```
+
+### Inline Stats Badge (Theme-Aware)
+```jsx
+<div className="bg-gray-100 dark:bg-white/10 backdrop-blur px-4 py-2 rounded-lg 
+border border-gray-200 dark:border-gray-700">
+  <div className="text-xl font-bold text-gray-900 dark:text-white">Value</div>
+  <div className="text-xs text-gray-600 dark:text-gray-300">Label</div>
 </div>
 ```
 
@@ -312,7 +321,7 @@ focus:ring-cyan-500 focus:border-transparent"
 
 ## 🎨 Brand Identity
 
-**App Name:** PSX Terminal App
+**App Name:** PSX SmartDesk
 **Tagline:** Real-time Stock Monitoring & Trading Signals
 **Primary Color:** Blue (#2563eb)
 **Accent Color:** Cyan (#06b6d4)

@@ -1,4 +1,4 @@
-# PSX Terminal App - Implementation Plan
+# PSX SmartDesk - Implementation Plan
 
 ## Overview
 This document outlines the implementation plan for three major features:

@@ -32,7 +32,7 @@ export default function Header({
           >
             <TrendingUp className="w-7 h-7 text-cyan-500 dark:text-cyan-400 group-hover:scale-110 transition-transform" />
             <div className="text-left">
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white group-hover:text-cyan-500 dark:group-hover:text-cyan-400 transition-colors">PSX Terminal</h1>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white group-hover:text-cyan-500 dark:group-hover:text-cyan-400 transition-colors">PSX SmartDesk</h1>
               <p className="text-gray-600 dark:text-gray-400 text-xs hidden md:block">Real-time Monitoring</p>
             </div>
           </button>
@@ -91,20 +91,20 @@ export default function Header({
               )}
             </button>
 
-            {/* Stats */}
-            {stats && (
-              <div className="hidden lg:flex items-center gap-6 bg-white/10 backdrop-blur px-4 py-2 rounded-lg">
+            {/* Stats - Only show on Dashboard (Magic Line feature) */}
+            {stats && currentPage === 'dashboard' && (
+              <div className="hidden lg:flex items-center gap-6 bg-gray-100 dark:bg-white/10 backdrop-blur px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700">
                 <div className="text-center">
-                  <div className="text-xl font-bold">{stats.totalSymbols}</div>
-                  <div className="text-xs text-blue-100">Total</div>
+                  <div className="text-xl font-bold text-gray-900 dark:text-white">{stats.totalSymbols}</div>
+                  <div className="text-xs text-gray-600 dark:text-gray-300">Total</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-xl font-bold text-green-300">{stats.metThreshold}</div>
-                  <div className="text-xs text-blue-100">Met</div>
+                  <div className="text-xl font-bold text-green-600 dark:text-green-400">{stats.metThreshold}</div>
+                  <div className="text-xs text-gray-600 dark:text-gray-300">Met</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-xl font-bold text-yellow-300">{stats.belowThreshold}</div>
-                  <div className="text-xs text-blue-100">Below</div>
+                  <div className="text-xl font-bold text-yellow-600 dark:text-yellow-400">{stats.belowThreshold}</div>
+                  <div className="text-xs text-gray-600 dark:text-gray-300">Below</div>
                 </div>
               </div>
             )}

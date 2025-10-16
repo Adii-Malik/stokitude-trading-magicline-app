@@ -1,7 +1,7 @@
 {
-  "name": "psx-monitor-backend",
+  "name": "psx-smartdesk-backend",
   "version": "1.0.0",
-  "description": "PSX Stock Price Monitor - Backend API",
+  "description": "PSX SmartDesk - Backend API",
   "main": "src/index.js",
   "type": "module",
   "scripts": {
