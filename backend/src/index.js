@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url';
 import config from './config/config.js';
 import { connectDB } from './config/mongodb.js';
 import pricePollingService from './services/pricePollingService.js';
+import tradePlanPollingService from './services/tradePlanPollingService.js';
 import db from './db/database.js';
 import uploadRoutes from './routes/upload.js';
 import symbolsRoutes from './routes/symbols.js';
@@ -159,6 +160,22 @@ pricePollingService.onMessage(async (message) => {
   }
 });
 
+// Setup trade plan polling message handler
+tradePlanPollingService.onMessage(async (message) => {
+  if (message.type === 'tradePlanUpdate' && message.data) {
+    // Broadcast trade plan updates to all connected clients
+    io.emit('tradePlanUpdate', {
+      checked: message.data.checked,
+      updated: message.data.updated,
+      updates: message.data.updates,
+      notifications: message.data.notifications,
+      timestamp: new Date().toISOString()
+    });
+    
+    console.log('📢 Broadcasting trade plan updates to all clients');
+  }
+});
+
 // Start application
 async function startServer() {
   try {
@@ -166,9 +183,20 @@ async function startServer() {
     console.log('🚀 Starting PSX Monitor Backend...');
     await connectDB(config.mongoUri);
     
-    // Automatic polling disabled - fetch prices on-demand only
-    console.log('💡 Automatic polling disabled');
-    console.log('📊 Use manual fetch to get closing prices: POST /api/symbols/fetch-prices');
+    // Start Auto-Checkers (only during market hours)
+    console.log('\n📊 Starting Market-Hours-Aware Auto-Checkers...');
+    console.log('⏰ PSX Market Hours:');
+    console.log('   • Monday-Thursday: 9:15 AM - 3:30 PM PKT');
+    console.log('   • Friday: 9:15 AM - 12:00 PM & 2:30 PM - 4:30 PM PKT');
+    console.log('   • Weekends: Closed\n');
+    
+    // Start Magic Line Price Checker (every 15 minutes during market hours)
+    pricePollingService.start(15 * 60 * 1000); // 15 minutes
+    console.log('✅ Magic Line Auto-Checker started (15 min interval)');
+    
+    // Start Trade Plan Auto-Checker (every 15 minutes during market hours)
+    tradePlanPollingService.start(15 * 60 * 1000); // 15 minutes
+    console.log('✅ Trade Plan Auto-Checker started (15 min interval)');
 
     // Start HTTP server - ALWAYS listen on 0.0.0.0 for external access
     // Use 0.0.0.0 to accept connections from any IP (required for Fly.io and mobile)

@@ -3,7 +3,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 
 export default function Header({ 
-  stats, 
   isConnected, 
   currentPage,
   onNavigateToDashboard,
@@ -93,23 +92,6 @@ export default function Header({
               )}
             </button>
 
-            {/* Stats - Only show on Dashboard (Magic Line feature) */}
-            {stats && currentPage === 'dashboard' && (
-              <div className="hidden lg:flex items-center gap-6 bg-gray-100 dark:bg-white/10 backdrop-blur px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700">
-                <div className="text-center">
-                  <div className="text-xl font-bold text-gray-900 dark:text-white">{stats.totalSymbols}</div>
-                  <div className="text-xs text-gray-600 dark:text-gray-300">Total</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-xl font-bold text-green-600 dark:text-green-400">{stats.metThreshold}</div>
-                  <div className="text-xs text-gray-600 dark:text-gray-300">Met</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-xl font-bold text-yellow-600 dark:text-yellow-400">{stats.belowThreshold}</div>
-                  <div className="text-xs text-gray-600 dark:text-gray-300">Below</div>
-                </div>
-              </div>
-            )}
 
             {/* Stock Management & Admin Panel Buttons (Admins Only) */}
             {isAdmin() && (
@@ -118,8 +100,8 @@ export default function Header({
                   onClick={onNavigateToStocks}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 font-medium ${
                     currentPage === 'stocks'
-                      ? 'bg-blue-600 text-white shadow-lg'
-                      : 'bg-gray-100 dark:bg-gray-800/50 hover:bg-blue-100 dark:hover:bg-blue-600/90 text-gray-700 dark:text-gray-300 hover:text-blue-700 dark:hover:text-white border border-gray-300 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-500'
+                      ? 'bg-cyan-500 text-white shadow-lg'
+                      : 'bg-gray-100 dark:bg-gray-800/50 hover:bg-cyan-100 dark:hover:bg-cyan-600/90 text-gray-700 dark:text-gray-300 hover:text-cyan-700 dark:hover:text-white border border-gray-300 dark:border-gray-700 hover:border-cyan-300 dark:hover:border-cyan-500'
                   }`}
                   title="Stock Management"
                 >
@@ -131,13 +113,13 @@ export default function Header({
                   onClick={onNavigateToAdmin}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 font-medium ${
                     currentPage === 'admin'
-                      ? 'bg-purple-600 text-white shadow-lg'
-                      : 'bg-gray-100 dark:bg-gray-800/50 hover:bg-purple-100 dark:hover:bg-purple-600/90 text-gray-700 dark:text-gray-300 hover:text-purple-700 dark:hover:text-white border border-gray-300 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-500'
+                      ? 'bg-cyan-500 text-white shadow-lg'
+                      : 'bg-gray-100 dark:bg-gray-800/50 hover:bg-cyan-100 dark:hover:bg-cyan-600/90 text-gray-700 dark:text-gray-300 hover:text-cyan-700 dark:hover:text-white border border-gray-300 dark:border-gray-700 hover:border-cyan-300 dark:hover:border-cyan-500'
                   }`}
-                  title="Admin Panel"
+                  title="Users Panel"
                 >
                   <Settings className="w-4 h-4" />
-                  <span className="hidden md:inline">Admin</span>
+                  <span className="hidden md:inline">Users</span>
                 </button>
               </div>
             )}

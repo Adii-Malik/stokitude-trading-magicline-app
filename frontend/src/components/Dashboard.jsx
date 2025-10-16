@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, Minus, RefreshCw, Trash2, ArrowUp, Search, Filter } from 'lucide-react';
-import { getSymbols, clearSymbols, fetchPrices } from '../services/api';
+import { TrendingUp, TrendingDown, Minus, Trash2, ArrowUp, Search, Filter, Loader2 } from 'lucide-react';
+import { getSymbols, clearSymbols } from '../services/api';
 import socketService from '../services/socket';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -9,8 +9,6 @@ export default function Dashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(null);
-  const [fetching, setFetching] = useState(false);
-  const [fetchMessage, setFetchMessage] = useState(null);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all'); // 'all', 'met', 'not-met'
   const [searchQuery, setSearchQuery] = useState('');
@@ -100,75 +98,6 @@ export default function Dashboard() {
     }
   };
 
-  const handleRefresh = async () => {
-    try {
-      setFetching(true);
-      setFetchMessage(null);
-      
-      console.log('🔄 Triggering smart fetch...');
-      const response = await fetchPrices();
-      
-      console.log('Fetch response:', response);
-      
-      // Update symbols with fresh/cached data
-      if (response.data && response.data.symbols) {
-        setSymbols(response.data.symbols);
-        // Use actual fetch time from server, not current time
-        if (response.data.lastFetchTime) {
-          setLastUpdate(new Date(response.data.lastFetchTime));
-        }
-      }
-      
-      // Show user-friendly message
-      if (response.cached) {
-        // Helper function to format time in a user-friendly way
-        const formatTimeAgo = (timestamp) => {
-          if (!timestamp) return 'recently';
-          const seconds = Math.floor((Date.now() - timestamp) / 1000);
-          if (seconds < 60) return 'just now';
-          const minutes = Math.floor(seconds / 60);
-          if (minutes < 60) return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
-          const hours = Math.floor(minutes / 60);
-          return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
-        };
-
-        const formatWaitTime = (seconds) => {
-          if (!seconds || seconds <= 0) return 'now';
-          if (seconds < 60) return 'less than a minute';
-          const minutes = Math.ceil(seconds / 60);
-          if (minutes < 60) return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
-          const hours = Math.floor(minutes / 60);
-          return `${hours} hour${hours !== 1 ? 's' : ''}`;
-        };
-
-        const timeAgo = formatTimeAgo(response.data?.lastFetchTime);
-        const waitTime = formatWaitTime(response.data?.nextFetchIn);
-
-        setFetchMessage({
-          type: 'info',
-          text: `📊 Showing recent data (updated ${timeAgo}). New data available in ${waitTime}.`
-        });
-      } else {
-        setFetchMessage({
-          type: 'success',
-          text: `✅ Fresh prices fetched from PSX! ${response.data.success} of ${response.data.total} symbols updated.`
-        });
-      }
-      
-      // Clear message after 5 seconds
-      setTimeout(() => setFetchMessage(null), 5000);
-      
-    } catch (error) {
-      console.error('Error fetching prices:', error);
-      setFetchMessage({
-        type: 'error',
-        text: '⚠️ Could not fetch prices. Please check your connection and try again.'
-      });
-      setTimeout(() => setFetchMessage(null), 5000);
-    } finally {
-      setFetching(false);
-    }
-  };
 
   const handleClearAll = async () => {
     if (!window.confirm('Are you sure you want to clear all symbols?')) {
@@ -217,7 +146,7 @@ export default function Dashboard() {
     return (
       <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-md">
         <div className="flex items-center justify-center py-12">
-          <RefreshCw className="w-8 h-8 text-cyan-500 animate-spin" />
+          <Loader2 className="w-8 h-8 text-cyan-500 animate-spin" />
           <span className="ml-3 text-lg text-gray-700 dark:text-gray-300">Loading symbols...</span>
         </div>
       </div>
@@ -251,26 +180,17 @@ export default function Dashboard() {
               </span>
             )}
           </div>
-          <div className="flex gap-2">
-          <button
-            onClick={handleRefresh}
-            disabled={fetching}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <RefreshCw className={`w-4 h-4 ${fetching ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">{fetching ? 'Fetching...' : 'Refresh Prices'}</span>
-          </button>
-            {user?.role === 'admin' && (
-              <button
-                onClick={handleClearAll}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors duration-200 flex items-center gap-2"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span className="hidden sm:inline">Clear All</span>
-              </button>
-            )}
-          </div>
+          {user?.role === 'admin' && (
+            <button
+              onClick={handleClearAll}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors duration-200 flex items-center gap-2"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span className="hidden sm:inline">Clear All</span>
+            </button>
+          )}
         </div>
+      </div>
 
         {/* Filter and Search Section */}
         <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm p-4">
@@ -334,18 +254,6 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Fetch Message */}
-      {fetchMessage && (
-        <div className={`p-4 rounded-lg border ${
-          fetchMessage.type === 'success' ? 'bg-green-500/10 border-green-500/50 text-green-400' :
-          fetchMessage.type === 'info' ? 'bg-blue-500/10 border-blue-500/50 text-blue-400' :
-          'bg-red-500/10 border-red-500/50 text-red-400'
-        }`}>
-          {fetchMessage.text}
-        </div>
-      )}
 
       {/* Results Info */}
       {(searchQuery || filterStatus !== 'all') && (

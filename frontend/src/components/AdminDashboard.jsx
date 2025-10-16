@@ -142,7 +142,7 @@ export default function AdminDashboard() {
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
-            <Shield className="w-8 h-8 text-purple-500 dark:text-purple-400" />
+            <Shield className="w-8 h-8 text-cyan-500 dark:text-cyan-400" />
             <div>
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white">User Management</h1>
               <p className="text-gray-600 dark:text-gray-400">Manage users, roles, and permissions</p>
@@ -192,12 +192,12 @@ export default function AdminDashboard() {
                 </div>
                 <div className="text-3xl font-bold text-yellow-600 dark:text-yellow-400">{stats.pendingUsers}</div>
               </div>
-              <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-purple-200 dark:border-purple-500/30 rounded-lg p-6">
+              <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-cyan-200 dark:border-cyan-500/30 rounded-lg p-6">
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-gray-600 dark:text-gray-400 text-sm">Admins</div>
-                  <ShieldCheck className="w-5 h-5 text-purple-500 dark:text-purple-400" />
+                  <ShieldCheck className="w-5 h-5 text-cyan-500 dark:text-cyan-400" />
                 </div>
-                <div className="text-3xl font-bold text-purple-600 dark:text-purple-400">{stats.adminUsers}</div>
+                <div className="text-3xl font-bold text-cyan-600 dark:text-cyan-400">{stats.adminUsers}</div>
               </div>
             </div>
           )}
@@ -213,7 +213,7 @@ export default function AdminDashboard() {
                   onClick={() => setFilter('all')}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                     filter === 'all'
-                      ? 'bg-purple-600 text-white shadow-md'
+                      ? 'bg-cyan-600 text-white shadow-md'
                       : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                   }`}
                 >
@@ -245,7 +245,7 @@ export default function AdminDashboard() {
                   onClick={() => setFilter('admins')}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-1 ${
                     filter === 'admins'
-                      ? 'bg-purple-600 text-white shadow-md'
+                      ? 'bg-cyan-600 text-white shadow-md'
                       : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                   }`}
                 >
@@ -262,7 +262,7 @@ export default function AdminDashboard() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search users..."
-                  className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                  className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
                 />
                 {searchQuery && (
                   <button
@@ -278,9 +278,9 @@ export default function AdminDashboard() {
 
           {/* Results Info */}
           {(searchQuery || filter !== 'all') && (
-            <div className="mt-4 bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/50 rounded-lg p-3 flex items-center gap-2">
-              <Filter className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-              <span className="text-sm text-purple-800 dark:text-purple-300">
+            <div className="mt-4 bg-cyan-50 dark:bg-cyan-500/10 border border-cyan-200 dark:border-cyan-500/50 rounded-lg p-3 flex items-center gap-2">
+              <Filter className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+              <span className="text-sm text-cyan-800 dark:text-cyan-300">
                 Showing <span className="font-bold">{filteredUsers.length}</span> of {users.length} users
                 {searchQuery && <span> matching "<span className="font-semibold">{searchQuery}</span>"</span>}
               </span>
@@ -290,7 +290,7 @@ export default function AdminDashboard() {
                     setSearchQuery('');
                     setFilter('all');
                   }}
-                  className="ml-auto text-sm text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300 font-medium hover:underline"
+                  className="ml-auto text-sm text-cyan-600 dark:text-cyan-400 hover:text-cyan-800 dark:hover:text-cyan-300 font-medium hover:underline"
                 >
                   Clear filters
                 </button>
@@ -303,7 +303,7 @@ export default function AdminDashboard() {
         <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden shadow-md">
           {loading ? (
             <div className="p-12 text-center">
-              <div className="animate-spin w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full mx-auto"></div>
+              <div className="animate-spin w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full mx-auto"></div>
               <p className="mt-4 text-gray-600 dark:text-gray-400">Loading users...</p>
             </div>
           ) : filteredUsers.length === 0 ? (
@@ -322,7 +322,7 @@ export default function AdminDashboard() {
                     setSearchQuery('');
                     setFilter('all');
                   }}
-                  className="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors"
+                  className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg transition-colors"
                 >
                   Clear Filters
                 </button>
@@ -346,14 +346,14 @@ export default function AdminDashboard() {
                     <tr key={u._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
-                          <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold">
+                          <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-full flex items-center justify-center text-white font-bold">
                             {u.username.charAt(0).toUpperCase()}
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
                               <span className="text-gray-900 dark:text-white font-medium">{u.username}</span>
                               {u._id === user._id && (
-                                <span className="text-xs text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-500/20 px-2 py-0.5 rounded">(You)</span>
+                                <span className="text-xs text-cyan-600 dark:text-cyan-400 bg-cyan-100 dark:bg-cyan-500/20 px-2 py-0.5 rounded">(You)</span>
                               )}
                             </div>
                           </div>
@@ -365,7 +365,7 @@ export default function AdminDashboard() {
                           u.role === 'super_admin' 
                             ? 'bg-gradient-to-r from-yellow-100 to-orange-100 dark:from-yellow-500/20 dark:to-orange-500/20 text-yellow-700 dark:text-yellow-400 border border-yellow-300 dark:border-yellow-500/30' 
                             : u.role === 'admin' 
-                            ? 'bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-400 border border-purple-200 dark:border-purple-500/30' 
+                            ? 'bg-cyan-100 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-400 border border-cyan-200 dark:border-cyan-500/30' 
                             : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
                         }`}>
                           {u.role === 'super_admin' ? 'Super Admin' : u.role}
@@ -413,7 +413,7 @@ export default function AdminDashboard() {
                               {u.role !== 'super_admin' && isSuperAdmin() && (
                                 <button
                                   onClick={() => handleToggleRole(u._id, u.username, u.role)}
-                                  className="p-2 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-500/20 rounded-lg transition"
+                                  className="p-2 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-500/20 rounded-lg transition"
                                   title={u.role === 'admin' ? 'Make User' : 'Make Admin'}
                                 >
                                   <ShieldCheck className="w-4 h-4" />

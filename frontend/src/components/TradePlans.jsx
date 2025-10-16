@@ -32,6 +32,7 @@ import {
   clearAllTradePlans
 } from '../services/tradePlans';
 import { searchStocks } from '../services/stocks';
+import socket from '../services/socket';
 
 export default function TradePlans() {
   const { isAdmin } = useAuth();
@@ -103,6 +104,34 @@ export default function TradePlans() {
     };
   }, []);
 
+  // Listen for auto trade plan updates via Socket.IO
+  useEffect(() => {
+    const handleTradePlanUpdate = (data) => {
+      console.log('📢 Trade plan update received:', data);
+      
+      if (data.updates) {
+        const messages = [];
+        if (data.updates.buyHits > 0) messages.push(`${data.updates.buyHits} buy level(s)`);
+        if (data.updates.tpHits > 0) messages.push(`${data.updates.tpHits} target(s)`);
+        if (data.updates.slHits > 0) messages.push(`${data.updates.slHits} stop loss(es)`);
+        
+        if (messages.length > 0) {
+          showMessage(`🎯 Auto-check: ${messages.join(', ')} hit!`, 'success');
+        }
+      }
+      
+      // Reload plans and stats to show updates
+      loadPlans();
+      loadStats();
+    };
+
+    socket.on('tradePlanUpdate', handleTradePlanUpdate);
+
+    return () => {
+      socket.off('tradePlanUpdate', handleTradePlanUpdate);
+    };
+  }, []);
+
   const loadPlans = async () => {
     try {
       setLoading(true);
@@ -161,6 +190,7 @@ export default function TradePlans() {
       showMessage(error.response?.data?.message || 'Failed to clear trade calls', 'error');
     }
   };
+
 
   const handleAdd = () => {
     setFormData({
@@ -908,9 +938,19 @@ function TradePlanCard({ plan, onEdit, onDelete, getStatusBadge, isAdmin }) {
           {plan.companyName && (
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{plan.companyName}</p>
           )}
-          <p className="text-xs text-gray-500 dark:text-gray-500">
-            Posted: {new Date(plan.createdAt).toLocaleDateString()}
-          </p>
+          <div className="flex items-center gap-3 mt-2">
+            {plan.currentPrice && (
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-500/10 dark:to-emerald-500/10 border border-green-200 dark:border-green-500/30 rounded-lg">
+                <Activity className="w-4 h-4 text-green-600 dark:text-green-400" />
+                <span className="text-sm font-semibold text-green-700 dark:text-green-400">
+                  Current: Rs. {plan.currentPrice.toFixed(2)}
+                </span>
+              </div>
+            )}
+            <p className="text-xs text-gray-500 dark:text-gray-500">
+              Posted: {new Date(plan.createdAt).toLocaleDateString()}
+            </p>
+          </div>
         </div>
         
         {isAdmin && (

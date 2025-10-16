@@ -67,3 +67,9 @@ export const clearAllTradePlans = async () => {
   return response.data;
 };
 
+// Check prices against TPs and SLs
+export const checkTradePlanPrices = async () => {
+  const response = await api.post('/trade-plans/check-prices');
+  return response.data;
+};
+

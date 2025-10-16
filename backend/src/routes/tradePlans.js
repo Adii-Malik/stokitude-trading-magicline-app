@@ -5,6 +5,7 @@ import { Readable } from 'stream';
 import TradePlan from '../models/TradePlan.js';
 import Stock from '../models/Stock.js';
 import { authenticate, adminOnly } from '../middleware/auth.js';
+import marketHoursService from '../services/marketHoursService.js';
 
 const router = express.Router();
 
@@ -530,20 +531,135 @@ router.post('/upload/csv', adminOnly, upload.single('file'), async (req, res) =>
   }
 });
 
-// Manual price check - Check all active plans (All authenticated users)
-router.post('/check-prices', authenticate, async (req, res) => {
+// Get market status
+router.get('/market-status', authenticate, async (req, res) => {
   try {
-    // This is a placeholder for future integration with price checking
-    // For now, it just returns a success message
-    
-    const activePlans = await TradePlan.find({ isActive: true });
+    const status = marketHoursService.getMarketStatus();
+    const minutesUntilOpen = marketHoursService.getMinutesUntilOpen();
+    const minutesUntilClose = marketHoursService.getMinutesUntilClose();
     
     res.json({
       success: true,
-      message: 'Price check feature coming soon',
+      data: {
+        ...status,
+        minutesUntilOpen,
+        minutesUntilClose
+      }
+    });
+  } catch (error) {
+    console.error('Error getting market status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get market status',
+      error: error.message
+    });
+  }
+});
+
+// Manual price check - Check all active plans (All authenticated users)
+// Note: This is now automatic during market hours, but kept for manual override if needed
+router.post('/check-prices', authenticate, async (req, res) => {
+  try {
+    // Get all active trade plans
+    const activePlans = await TradePlan.find({ isActive: true, status: 'active' });
+    
+    if (activePlans.length === 0) {
+      return res.json({
+        success: true,
+        message: 'No active trade plans to check',
+        data: {
+          checked: 0,
+          updates: { buyHits: 0, tpHits: 0, slHits: 0 }
+        }
+      });
+    }
+    
+    // Get unique symbols
+    const symbols = [...new Set(activePlans.map(plan => plan.symbol))];
+    
+    // Import PSX scraper
+    const { default: psxScraper } = await import('../services/psxScraper.js');
+    
+    // Fetch current prices for all symbols
+    const priceResults = {};
+    const errors = [];
+    
+    for (const symbol of symbols) {
+      try {
+        const stockData = await psxScraper.getStockPrice(symbol);
+        priceResults[symbol] = stockData.price;
+      } catch (error) {
+        console.error(`Failed to fetch price for ${symbol}:`, error.message);
+        errors.push({ symbol, error: error.message });
+      }
+    }
+    
+    // Track updates
+    let buyHits = 0;
+    let tpHits = 0;
+    let slHits = 0;
+    let plansUpdated = 0;
+    
+    // Check each trade plan
+    for (const plan of activePlans) {
+      const currentPrice = priceResults[plan.symbol];
+      
+      if (!currentPrice) {
+        continue; // Skip if price not available
+      }
+      
+      let planModified = false;
+      const now = new Date();
+      
+      // Update current price
+      plan.currentPrice = currentPrice;
+      
+      // Check buy levels (if price is within range)
+      for (const buyLevel of plan.buyLevels) {
+        if (!buyLevel.isHit && currentPrice >= buyLevel.priceFrom && currentPrice <= buyLevel.priceTo) {
+          buyLevel.isHit = true;
+          buyLevel.hitDate = now;
+          buyHits++;
+          planModified = true;
+        }
+      }
+      
+      // Check target prices (if current price >= target)
+      for (const target of plan.targetPrices) {
+        if (!target.isHit && currentPrice >= target.price) {
+          target.isHit = true;
+          target.hitDate = now;
+          tpHits++;
+          planModified = true;
+        }
+      }
+      
+      // Check stop loss (if current price <= stop loss)
+      if (plan.stopLoss && !plan.stopLoss.isHit && currentPrice <= plan.stopLoss.price) {
+        plan.stopLoss.isHit = true;
+        plan.stopLoss.hitDate = now;
+        plan.status = 'sl_hit';
+        plan.isActive = false; // Move to historical
+        plan.exitDate = now;
+        slHits++;
+        planModified = true;
+      }
+      
+      // Save if modified
+      if (planModified) {
+        await plan.save();
+        plansUpdated++;
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: `Checked ${activePlans.length} trade plans`,
       data: {
         checked: activePlans.length,
-        note: 'Manual price updates can be done via Edit for now'
+        updated: plansUpdated,
+        updates: { buyHits, tpHits, slHits },
+        errors: errors.length > 0 ? errors : undefined
       }
     });
   } catch (error) {

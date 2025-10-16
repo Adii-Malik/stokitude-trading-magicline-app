@@ -81,7 +81,6 @@ function AppContent() {
     return (
       <>
         <Header 
-          stats={stats} 
           isConnected={isConnected}
           currentPage="trade-signals"
           onNavigateToDashboard={() => setCurrentView('dashboard')}
@@ -101,7 +100,6 @@ function AppContent() {
     return (
       <>
         <Header 
-          stats={stats} 
           isConnected={isConnected}
           currentPage="stocks"
           onNavigateToDashboard={() => setCurrentView('dashboard')}
@@ -121,7 +119,6 @@ function AppContent() {
     return (
       <>
         <Header 
-          stats={stats} 
           isConnected={isConnected}
           currentPage="admin"
           onNavigateToDashboard={() => setCurrentView('dashboard')}
@@ -140,7 +137,6 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300">
       <Header 
-        stats={stats} 
         isConnected={isConnected}
         currentPage={currentView}
         onNavigateToDashboard={() => {

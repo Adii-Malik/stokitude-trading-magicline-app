@@ -1,15 +1,17 @@
 import psxScraper from './psxScraper.js';
 import db from '../db/database.js';
 import config from '../config/config.js';
+import marketHoursService from './marketHoursService.js';
 
 class PricePollingService {
   constructor() {
-    this.pollingInterval = 60000; // 60 seconds default
+    this.pollingInterval = 60000; // 60 seconds default (15 min for market hours)
     this.isPolling = false;
     this.pollingTimer = null;
     this.failureCount = new Map();
     this.maxFailures = 3;
     this.messageHandlers = [];
+    this.skipCount = 0; // Track how many times we skipped due to market closed
     
     // Smart caching to prevent excessive scraping
     this.lastFetchTime = null;
@@ -65,6 +67,28 @@ class PricePollingService {
    */
   async poll() {
     try {
+      const currentTime = new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Karachi', hour12: false });
+      
+      // Check if market is open
+      if (!marketHoursService.isMarketOpen()) {
+        this.skipCount++;
+        const status = marketHoursService.getMarketStatus();
+        
+        // Log every 4th skip (every hour if checking every 15 min)
+        if (this.skipCount % 4 === 1) {
+          console.log(`\n⏸️  [${currentTime} PKT] Magic Line - Market is ${status.status}`);
+          console.log(`   ${status.message}`);
+          if (status.nextOpen) {
+            console.log(`   Next opening: ${status.nextOpen} PKT`);
+          }
+        }
+        
+        return;
+      }
+      
+      // Reset skip counter when market is open
+      this.skipCount = 0;
+
       const symbols = await db.getAllSymbols();
 
       if (symbols.length === 0) {
@@ -72,7 +96,8 @@ class PricePollingService {
         return;
       }
 
-      console.log(`🔄 Polling prices for ${symbols.length} symbols...`);
+      console.log(`\n📊 [${currentTime} PKT] Magic Line - Polling prices for ${symbols.length} symbols...`);
+      console.log(`   ✅ Market is OPEN - Fetching live prices`);
 
       let successCount = 0;
       let failureCount = 0;
