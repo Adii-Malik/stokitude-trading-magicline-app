@@ -1,0 +1,37 @@
+import mongoose from 'mongoose';
+
+const stockSchema = new mongoose.Schema({
+  symbol: {
+    type: String,
+    required: true,
+    unique: true,
+    uppercase: true,
+    trim: true,
+    index: true
+  },
+  companyName: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  sector: {
+    type: String,
+    trim: true,
+    default: null
+  },
+  shariahCompliant: {
+    type: String,
+    enum: [null, 'Yes', 'No'],
+    default: null
+  }
+}, {
+  timestamps: true
+});
+
+// Text index for search/autocomplete
+stockSchema.index({ symbol: 'text', companyName: 'text' });
+
+const Stock = mongoose.model('Stock', stockSchema);
+
+export default Stock;
+

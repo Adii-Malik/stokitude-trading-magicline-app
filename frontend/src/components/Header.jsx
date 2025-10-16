@@ -1,4 +1,4 @@
-import { TrendingUp, LogOut, User, Shield, Settings, BarChart3, Target, Sun, Moon } from 'lucide-react';
+import { TrendingUp, LogOut, User, Shield, Settings, BarChart3, Target, Sun, Moon, Database } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -6,7 +6,8 @@ export default function Header({
   stats, 
   isConnected, 
   currentPage,
-  onNavigateToDashboard, 
+  onNavigateToDashboard,
+  onNavigateToStocks,
   onNavigateToTradeSignals,
   onNavigateToAdmin, 
   onNavigateToLogin, 
@@ -110,20 +111,35 @@ export default function Header({
               </div>
             )}
 
-            {/* Admin Panel Button (Admins Only) */}
+            {/* Stock Management & Admin Panel Buttons (Admins Only) */}
             {isAdmin() && (
-              <button
-                onClick={onNavigateToAdmin}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 font-medium ${
-                  currentPage === 'admin'
-                    ? 'bg-purple-600 text-white shadow-lg'
-                    : 'bg-gray-100 dark:bg-gray-800/50 hover:bg-purple-100 dark:hover:bg-purple-600/90 text-gray-700 dark:text-gray-300 hover:text-purple-700 dark:hover:text-white border border-gray-300 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-500'
-                }`}
-                title="Admin Panel"
-              >
-                <Settings className="w-4 h-4" />
-                <span className="hidden md:inline">Admin</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={onNavigateToStocks}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 font-medium ${
+                    currentPage === 'stocks'
+                      ? 'bg-blue-600 text-white shadow-lg'
+                      : 'bg-gray-100 dark:bg-gray-800/50 hover:bg-blue-100 dark:hover:bg-blue-600/90 text-gray-700 dark:text-gray-300 hover:text-blue-700 dark:hover:text-white border border-gray-300 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-500'
+                  }`}
+                  title="Stock Management"
+                >
+                  <Database className="w-4 h-4" />
+                  <span className="hidden md:inline">Stocks</span>
+                </button>
+                
+                <button
+                  onClick={onNavigateToAdmin}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 font-medium ${
+                    currentPage === 'admin'
+                      ? 'bg-purple-600 text-white shadow-lg'
+                      : 'bg-gray-100 dark:bg-gray-800/50 hover:bg-purple-100 dark:hover:bg-purple-600/90 text-gray-700 dark:text-gray-300 hover:text-purple-700 dark:hover:text-white border border-gray-300 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-500'
+                  }`}
+                  title="Admin Panel"
+                >
+                  <Settings className="w-4 h-4" />
+                  <span className="hidden md:inline">Admin</span>
+                </button>
+              </div>
             )}
 
             {/* User Info & Logout OR Login/Signup Buttons */}

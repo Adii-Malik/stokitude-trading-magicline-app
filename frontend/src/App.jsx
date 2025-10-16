@@ -4,6 +4,7 @@ import Header from './components/Header';
 import UploadForm from './components/UploadForm';
 import Dashboard from './components/Dashboard';
 import AdminDashboard from './components/AdminDashboard';
+import StockManagement from './components/StockManagement';
 import Login from './components/Login';
 import Signup from './components/Signup';
 import socketService from './services/socket';
@@ -13,7 +14,7 @@ function AppContent() {
   const [isConnected, setIsConnected] = useState(false);
   const [refreshDashboard, setRefreshDashboard] = useState(0);
   const [showSignup, setShowSignup] = useState(false);
-  const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard', 'admin', 'login', 'signup'
+  const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard', 'stocks', 'admin', 'login', 'signup'
   const { user, loading } = useAuth();
 
   useEffect(() => {
@@ -74,6 +75,26 @@ function AppContent() {
     );
   }
 
+  // Show Stock Management (Admin only)
+  if (currentView === 'stocks') {
+    return (
+      <>
+        <Header 
+          stats={stats} 
+          isConnected={isConnected}
+          currentPage="stocks"
+          onNavigateToDashboard={() => setCurrentView('dashboard')}
+          onNavigateToStocks={() => setCurrentView('stocks')}
+          onNavigateToTradeSignals={() => setCurrentView('trade-signals')}
+          onNavigateToAdmin={() => setCurrentView('admin')}
+          onNavigateToLogin={() => setCurrentView('login')}
+          onNavigateToSignup={() => setCurrentView('signup')}
+        />
+        <StockManagement />
+      </>
+    );
+  }
+
   // Show admin dashboard
   if (currentView === 'admin') {
     return (
@@ -83,6 +104,7 @@ function AppContent() {
           isConnected={isConnected}
           currentPage="admin"
           onNavigateToDashboard={() => setCurrentView('dashboard')}
+          onNavigateToStocks={() => setCurrentView('stocks')}
           onNavigateToTradeSignals={() => setCurrentView('trade-signals')}
           onNavigateToAdmin={() => setCurrentView('admin')}
           onNavigateToLogin={() => setCurrentView('login')}
@@ -104,6 +126,7 @@ function AppContent() {
           setCurrentView('dashboard');
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
+        onNavigateToStocks={() => setCurrentView('stocks')}
         onNavigateToTradeSignals={() => setCurrentView('trade-signals')}
         onNavigateToAdmin={() => setCurrentView('admin')}
         onNavigateToLogin={() => setCurrentView('login')}
