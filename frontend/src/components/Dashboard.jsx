@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, Minus, RefreshCw, Trash2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, RefreshCw, Trash2, ArrowUp, Search, Filter } from 'lucide-react';
 import { getSymbols, clearSymbols, fetchPrices } from '../services/api';
 import socketService from '../services/socket';
 import { useAuth } from '../contexts/AuthContext';
@@ -11,6 +11,9 @@ export default function Dashboard() {
   const [lastUpdate, setLastUpdate] = useState(null);
   const [fetching, setFetching] = useState(false);
   const [fetchMessage, setFetchMessage] = useState(null);
+  const [showBackToTop, setShowBackToTop] = useState(false);
+  const [filterStatus, setFilterStatus] = useState('all'); // 'all', 'met', 'not-met'
+  const [searchQuery, setSearchQuery] = useState('');
   const { user } = useAuth();
 
   // Load initial data
@@ -70,6 +73,20 @@ export default function Dashboard() {
     };
   }, []);
 
+  // Handle scroll to show/hide back to top button
+  useEffect(() => {
+    const handleScroll = () => {
+      // Show button when scrolled down more than 400px
+      setShowBackToTop(window.scrollY > 400);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
   const loadSymbols = async () => {
     try {
       setLoading(true);
@@ -96,16 +113,40 @@ export default function Dashboard() {
       // Update symbols with fresh/cached data
       if (response.data && response.data.symbols) {
         setSymbols(response.data.symbols);
-        setLastUpdate(new Date());
+        // Use actual fetch time from server, not current time
+        if (response.data.lastFetchTime) {
+          setLastUpdate(new Date(response.data.lastFetchTime));
+        }
       }
       
       // Show user-friendly message
       if (response.cached) {
-        const minutesAgo = Math.floor((Date.now() - response.data.lastFetchTime) / 60000);
-        const minutesUntilNext = Math.ceil(response.data.nextFetchIn / 60);
+        // Helper function to format time in a user-friendly way
+        const formatTimeAgo = (timestamp) => {
+          if (!timestamp) return 'recently';
+          const seconds = Math.floor((Date.now() - timestamp) / 1000);
+          if (seconds < 60) return 'just now';
+          const minutes = Math.floor(seconds / 60);
+          if (minutes < 60) return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
+          const hours = Math.floor(minutes / 60);
+          return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
+        };
+
+        const formatWaitTime = (seconds) => {
+          if (!seconds || seconds <= 0) return 'now';
+          if (seconds < 60) return 'less than a minute';
+          const minutes = Math.ceil(seconds / 60);
+          if (minutes < 60) return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
+          const hours = Math.floor(minutes / 60);
+          return `${hours} hour${hours !== 1 ? 's' : ''}`;
+        };
+
+        const timeAgo = formatTimeAgo(response.data?.lastFetchTime);
+        const waitTime = formatWaitTime(response.data?.nextFetchIn);
+
         setFetchMessage({
           type: 'info',
-          text: `Using cached data from ${minutesAgo} minute${minutesAgo !== 1 ? 's' : ''} ago. Fresh data available in ${minutesUntilNext} minute${minutesUntilNext !== 1 ? 's' : ''}.`
+          text: `📊 Showing recent data (updated ${timeAgo}). New data available in ${waitTime}.`
         });
       } else {
         setFetchMessage({
@@ -121,7 +162,7 @@ export default function Dashboard() {
       console.error('Error fetching prices:', error);
       setFetchMessage({
         type: 'error',
-        text: 'Failed to fetch prices. Please try again.'
+        text: '⚠️ Could not fetch prices. Please check your connection and try again.'
       });
       setTimeout(() => setFetchMessage(null), 5000);
     } finally {
@@ -144,6 +185,33 @@ export default function Dashboard() {
       alert(errorMsg);
     }
   };
+
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  };
+
+  // Filter symbols based on status and search query
+  const filteredSymbols = symbols.filter(symbol => {
+    // Filter by status
+    if (filterStatus === 'met' && !symbol.isMet) return false;
+    if (filterStatus === 'not-met' && symbol.isMet) return false;
+    
+    // Filter by search query
+    if (searchQuery.trim() !== '') {
+      const query = searchQuery.toLowerCase();
+      const symbolName = symbol.symbol.toLowerCase();
+      return symbolName.includes(query);
+    }
+    
+    return true;
+  });
+
+  // Calculate filter stats
+  const metCount = symbols.filter(s => s.isMet).length;
+  const notMetCount = symbols.filter(s => !s.isMet).length;
 
   if (loading) {
     return (
@@ -173,33 +241,97 @@ export default function Dashboard() {
   return (
     <div className="space-y-4">
       {/* Controls */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <h2 className="text-xl font-bold">Monitoring {symbols.length} Symbols</h2>
-          {lastUpdate && (
-            <span className="text-sm text-gray-500">
-              Last update: {lastUpdate.toLocaleTimeString()}
-            </span>
-          )}
-        </div>
-        <div className="flex gap-2">
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <h2 className="text-xl font-bold">Monitoring {symbols.length} Symbols</h2>
+            {lastUpdate && (
+              <span className="text-sm text-gray-500">
+                Last update: {lastUpdate.toLocaleTimeString()}
+              </span>
+            )}
+          </div>
+          <div className="flex gap-2">
           <button
             onClick={handleRefresh}
             disabled={fetching}
             className="btn btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <RefreshCw className={`w-4 h-4 ${fetching ? 'animate-spin' : ''}`} />
-            {fetching ? 'Fetching...' : 'Refresh Prices'}
+            <span className="hidden sm:inline">{fetching ? 'Fetching...' : 'Refresh Prices'}</span>
           </button>
-          {user?.role === 'admin' && (
-            <button
-              onClick={handleClearAll}
-              className="btn btn-danger flex items-center gap-2"
-            >
-              <Trash2 className="w-4 h-4" />
-              Clear All
-            </button>
-          )}
+            {user?.role === 'admin' && (
+              <button
+                onClick={handleClearAll}
+                className="btn btn-danger flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span className="hidden sm:inline">Clear All</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Filter and Search Section */}
+        <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+            {/* Filter Buttons */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <Filter className="w-4 h-4 text-gray-500" />
+              <span className="text-sm font-medium text-gray-600">Filter:</span>
+              <button
+                onClick={() => setFilterStatus('all')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  filterStatus === 'all'
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                All ({symbols.length})
+              </button>
+              <button
+                onClick={() => setFilterStatus('met')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-1 ${
+                  filterStatus === 'met'
+                    ? 'bg-green-600 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <TrendingUp className="w-4 h-4" />
+                Met ({metCount})
+              </button>
+              <button
+                onClick={() => setFilterStatus('not-met')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  filterStatus === 'not-met'
+                    ? 'bg-orange-600 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Not Met ({notMetCount})
+              </button>
+            </div>
+
+            {/* Search Input */}
+            <div className="relative w-full md:w-64">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search symbols..."
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -214,12 +346,69 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* Results Info */}
+      {(searchQuery || filterStatus !== 'all') && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-2">
+          <Filter className="w-4 h-4 text-blue-600" />
+          <span className="text-sm text-blue-800">
+            Showing <span className="font-bold">{filteredSymbols.length}</span> of {symbols.length} symbols
+            {searchQuery && <span> matching "<span className="font-semibold">{searchQuery}</span>"</span>}
+          </span>
+          {(searchQuery || filterStatus !== 'all') && (
+            <button
+              onClick={() => {
+                setSearchQuery('');
+                setFilterStatus('all');
+              }}
+              className="ml-auto text-sm text-blue-600 hover:text-blue-800 font-medium hover:underline"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Symbols Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {symbols.map((symbol) => (
-          <SymbolCard key={symbol.symbol} symbol={symbol} />
-        ))}
-      </div>
+      {filteredSymbols.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {filteredSymbols.map((symbol) => (
+            <SymbolCard key={symbol.symbol} symbol={symbol} />
+          ))}
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg shadow-sm p-12 text-center border border-gray-200">
+          <Search className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-700 mb-2">No symbols found</h3>
+          <p className="text-gray-500 mb-4">
+            {searchQuery 
+              ? `No symbols match "${searchQuery}"`
+              : filterStatus === 'met'
+              ? 'No symbols have met their magic line yet'
+              : 'No symbols in this category'
+            }
+          </p>
+          <button
+            onClick={() => {
+              setSearchQuery('');
+              setFilterStatus('all');
+            }}
+            className="btn btn-primary"
+          >
+            Clear filters
+          </button>
+        </div>
+      )}
+
+      {/* Back to Top Button */}
+      {showBackToTop && (
+        <button
+          onClick={scrollToTop}
+          className="fixed bottom-8 right-8 bg-blue-600 hover:bg-blue-700 text-white rounded-full p-4 shadow-lg transition-all duration-300 hover:scale-110 hover:shadow-xl z-50 group"
+          aria-label="Back to top"
+        >
+          <ArrowUp className="w-6 h-6 group-hover:animate-bounce" />
+        </button>
+      )}
     </div>
   );
 }
