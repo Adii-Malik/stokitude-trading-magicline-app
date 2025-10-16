@@ -13,6 +13,7 @@ import db from './db/database.js';
 import uploadRoutes from './routes/upload.js';
 import symbolsRoutes from './routes/symbols.js';
 import authRoutes from './routes/auth.js';
+import adminRoutes from './routes/admin.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -62,6 +63,7 @@ app.get('/health', async (req, res) => {
 
 // API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/symbols', symbolsRoutes);
 
@@ -78,6 +80,15 @@ app.get('/api', (req, res) => {
         logout: '/api/auth/logout (POST)',
         me: '/api/auth/me (GET)',
         check: '/api/auth/check (GET)'
+      },
+      admin: {
+        users: '/api/admin/users (GET) [Admin]',
+        pendingUsers: '/api/admin/users/pending (GET) [Admin]',
+        activateUser: '/api/admin/users/:userId/activate (PUT) [Admin]',
+        deactivateUser: '/api/admin/users/:userId/deactivate (PUT) [Admin]',
+        toggleRole: '/api/admin/users/:userId/toggle-role (PUT) [Admin]',
+        deleteUser: '/api/admin/users/:userId (DELETE) [Admin]',
+        stats: '/api/admin/stats (GET) [Admin]'
       },
       upload: '/api/upload (POST) [Admin]',
       uploadManual: '/api/upload/manual (POST) [Admin]',

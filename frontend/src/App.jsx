@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Header from './components/Header';
 import UploadForm from './components/UploadForm';
 import Dashboard from './components/Dashboard';
+import AdminDashboard from './components/AdminDashboard';
 import Login from './components/Login';
 import Signup from './components/Signup';
 import socketService from './services/socket';
@@ -12,7 +13,7 @@ function AppContent() {
   const [isConnected, setIsConnected] = useState(false);
   const [refreshDashboard, setRefreshDashboard] = useState(0);
   const [showSignup, setShowSignup] = useState(false);
-  const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard', 'login', 'signup'
+  const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard', 'admin', 'login', 'signup'
   const { user, loading } = useAuth();
 
   useEffect(() => {
@@ -73,6 +74,23 @@ function AppContent() {
     );
   }
 
+  // Show admin dashboard
+  if (currentView === 'admin') {
+    return (
+      <>
+        <Header 
+          stats={stats} 
+          isConnected={isConnected}
+          onNavigateToDashboard={() => setCurrentView('dashboard')}
+          onNavigateToAdmin={() => setCurrentView('admin')}
+          onNavigateToLogin={() => setCurrentView('login')}
+          onNavigateToSignup={() => setCurrentView('signup')}
+        />
+        <AdminDashboard />
+      </>
+    );
+  }
+
   // Show main app (dashboard is public for now)
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -83,6 +101,7 @@ function AppContent() {
           setCurrentView('dashboard');
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
+        onNavigateToAdmin={() => setCurrentView('admin')}
         onNavigateToLogin={() => setCurrentView('login')}
         onNavigateToSignup={() => setCurrentView('signup')}
       />

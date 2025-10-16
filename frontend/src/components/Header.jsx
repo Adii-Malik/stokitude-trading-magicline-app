@@ -1,8 +1,8 @@
-import { TrendingUp, LogOut, User, Shield, Home } from 'lucide-react';
+import { TrendingUp, LogOut, User, Shield, Home, Settings } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
-export default function Header({ stats, isConnected, onNavigateToDashboard, onNavigateToLogin, onNavigateToSignup }) {
-  const { user, logout } = useAuth();
+export default function Header({ stats, isConnected, onNavigateToDashboard, onNavigateToAdmin, onNavigateToLogin, onNavigateToSignup }) {
+  const { user, logout, isAdmin } = useAuth();
 
   const handleLogout = async () => {
     if (window.confirm('Are you sure you want to logout?')) {
@@ -50,6 +50,18 @@ export default function Header({ stats, isConnected, onNavigateToDashboard, onNa
                   <div className="text-xs text-blue-100">Below</div>
                 </div>
               </div>
+            )}
+
+            {/* Admin Panel Button (Admins Only) */}
+            {isAdmin() && (
+              <button
+                onClick={onNavigateToAdmin}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600/90 hover:bg-purple-600 backdrop-blur rounded-lg transition font-medium"
+                title="Admin Panel"
+              >
+                <Settings className="w-4 h-4" />
+                <span className="hidden md:inline">Admin Panel</span>
+              </button>
             )}
 
             {/* User Info & Logout OR Login/Signup Buttons */}

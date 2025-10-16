@@ -39,6 +39,14 @@ export const authenticate = async (req, res, next) => {
       });
     }
 
+    // Check if user account is active
+    if (!user.isActive) {
+      return res.status(403).json({
+        success: false,
+        message: 'Your account is not active. Please wait for admin approval.'
+      });
+    }
+
     // Attach user to request
     req.user = user;
     next();

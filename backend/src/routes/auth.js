@@ -44,13 +44,17 @@ router.post('/signup', async (req, res) => {
 
     // Determine role based on admin code
     const role = adminCode === config.adminSignupCode ? 'admin' : 'user';
+    
+    // Admins are automatically active, regular users need approval
+    const isActive = role === 'admin';
 
     // Create new user
     const user = new User({
       username,
       email,
       password,
-      role
+      role,
+      isActive
     });
 
     await user.save();
@@ -117,6 +121,14 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({
         success: false,
         message: 'Invalid email or password'
+      });
+    }
+
+    // Check if user account is active
+    if (!user.isActive) {
+      return res.status(403).json({
+        success: false,
+        message: 'Your account is pending admin approval. Please wait for activation.'
       });
     }
 

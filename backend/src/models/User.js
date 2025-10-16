@@ -28,6 +28,10 @@ const userSchema = new mongoose.Schema({
     enum: ['admin', 'user'],
     default: 'user'
   },
+  isActive: {
+    type: Boolean,
+    default: false // New users need admin approval
+  },
   createdAt: {
     type: Date,
     default: Date.now

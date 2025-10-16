@@ -88,6 +88,10 @@ export const AuthProvider = ({ children }) => {
     return user?.role === 'admin';
   };
 
+  const isActive = () => {
+    return user?.isActive === true;
+  };
+
   const value = {
     user,
     loading,
@@ -96,6 +100,7 @@ export const AuthProvider = ({ children }) => {
     signup,
     logout,
     isAdmin,
+    isActive,
     isAuthenticated: !!user
   };
 
