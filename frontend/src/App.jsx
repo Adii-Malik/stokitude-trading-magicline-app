@@ -5,6 +5,7 @@ import UploadForm from './components/UploadForm';
 import Dashboard from './components/Dashboard';
 import AdminDashboard from './components/AdminDashboard';
 import StockManagement from './components/StockManagement';
+import TradePlans from './components/TradePlans';
 import Login from './components/Login';
 import Signup from './components/Signup';
 import socketService from './services/socket';
@@ -72,6 +73,26 @@ function AppContent() {
         onSwitchToLogin={() => setCurrentView('login')}
         onBackToDashboard={() => setCurrentView('dashboard')}
       />
+    );
+  }
+
+  // Show Trade Signals
+  if (currentView === 'trade-signals') {
+    return (
+      <>
+        <Header 
+          stats={stats} 
+          isConnected={isConnected}
+          currentPage="trade-signals"
+          onNavigateToDashboard={() => setCurrentView('dashboard')}
+          onNavigateToStocks={() => setCurrentView('stocks')}
+          onNavigateToTradeSignals={() => setCurrentView('trade-signals')}
+          onNavigateToAdmin={() => setCurrentView('admin')}
+          onNavigateToLogin={() => setCurrentView('login')}
+          onNavigateToSignup={() => setCurrentView('signup')}
+        />
+        <TradePlans />
+      </>
     );
   }
 

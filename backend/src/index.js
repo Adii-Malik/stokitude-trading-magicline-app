@@ -15,6 +15,7 @@ import symbolsRoutes from './routes/symbols.js';
 import authRoutes from './routes/auth.js';
 import adminRoutes from './routes/admin.js';
 import stocksRoutes from './routes/stocks.js';
+import tradePlansRoutes from './routes/tradePlans.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -68,6 +69,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/symbols', symbolsRoutes);
 app.use('/api/stocks', stocksRoutes);
+app.use('/api/trade-plans', tradePlansRoutes);
 
 // Root API endpoint
 app.get('/api', (req, res) => {
