@@ -52,7 +52,8 @@ export default function Header({
                 Magic Line
               </button>
               
-              {onNavigateToTradeSignals && (
+              {/* Trade Signals - Hidden until feature is implemented */}
+              {/* {onNavigateToTradeSignals && (
                 <button
                   onClick={onNavigateToTradeSignals}
                   className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 ${
@@ -64,7 +65,7 @@ export default function Header({
                   <BarChart3 className="w-4 h-4" />
                   Trade Signals
                 </button>
-              )}
+              )} */}
             </nav>
           )}
 
