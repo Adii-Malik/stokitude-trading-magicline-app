@@ -215,10 +215,10 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="card">
+      <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-md">
         <div className="flex items-center justify-center py-12">
-          <RefreshCw className="w-8 h-8 text-blue-600 animate-spin" />
-          <span className="ml-3 text-lg text-gray-600">Loading symbols...</span>
+          <RefreshCw className="w-8 h-8 text-cyan-500 animate-spin" />
+          <span className="ml-3 text-lg text-gray-700 dark:text-gray-300">Loading symbols...</span>
         </div>
       </div>
     );
@@ -226,11 +226,11 @@ export default function Dashboard() {
 
   if (symbols.length === 0) {
     return (
-      <div className="card">
+      <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-md">
         <div className="text-center py-12">
-          <TrendingUp className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-700 mb-2">No Symbols Loaded</h3>
-          <p className="text-gray-500">
+          <TrendingUp className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">No Symbols Loaded</h3>
+          <p className="text-gray-600 dark:text-gray-400">
             Upload a CSV file or image to start monitoring stocks
           </p>
         </div>
@@ -244,9 +244,9 @@ export default function Dashboard() {
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <h2 className="text-xl font-bold">Monitoring {symbols.length} Symbols</h2>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Monitoring {symbols.length} Symbols</h2>
             {lastUpdate && (
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-gray-600 dark:text-gray-400">
                 Last update: {lastUpdate.toLocaleTimeString()}
               </span>
             )}
@@ -255,7 +255,7 @@ export default function Dashboard() {
           <button
             onClick={handleRefresh}
             disabled={fetching}
-            className="btn btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <RefreshCw className={`w-4 h-4 ${fetching ? 'animate-spin' : ''}`} />
             <span className="hidden sm:inline">{fetching ? 'Fetching...' : 'Refresh Prices'}</span>
@@ -263,7 +263,7 @@ export default function Dashboard() {
             {user?.role === 'admin' && (
               <button
                 onClick={handleClearAll}
-                className="btn btn-danger flex items-center gap-2"
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors duration-200 flex items-center gap-2"
               >
                 <Trash2 className="w-4 h-4" />
                 <span className="hidden sm:inline">Clear All</span>
@@ -273,18 +273,18 @@ export default function Dashboard() {
         </div>
 
         {/* Filter and Search Section */}
-        <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+        <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm p-4">
           <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
             {/* Filter Buttons */}
             <div className="flex items-center gap-2 flex-wrap">
-              <Filter className="w-4 h-4 text-gray-500" />
-              <span className="text-sm font-medium text-gray-600">Filter:</span>
+              <Filter className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Filter:</span>
               <button
                 onClick={() => setFilterStatus('all')}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                   filterStatus === 'all'
-                    ? 'bg-blue-600 text-white shadow-md'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-cyan-500 text-white shadow-md'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
               >
                 All ({symbols.length})
@@ -294,7 +294,7 @@ export default function Dashboard() {
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-1 ${
                   filterStatus === 'met'
                     ? 'bg-green-600 text-white shadow-md'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
               >
                 <TrendingUp className="w-4 h-4" />
@@ -302,30 +302,31 @@ export default function Dashboard() {
               </button>
               <button
                 onClick={() => setFilterStatus('not-met')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-1 ${
                   filterStatus === 'not-met'
-                    ? 'bg-orange-600 text-white shadow-md'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-red-600 text-white shadow-md'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
               >
+                <Minus className="w-3 h-3" />
                 Not Met ({notMetCount})
               </button>
             </div>
 
             {/* Search Input */}
             <div className="relative w-full md:w-64">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search symbols..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white"
                 >
                   ✕
                 </button>
@@ -338,9 +339,9 @@ export default function Dashboard() {
       {/* Fetch Message */}
       {fetchMessage && (
         <div className={`p-4 rounded-lg border ${
-          fetchMessage.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' :
-          fetchMessage.type === 'info' ? 'bg-blue-50 border-blue-200 text-blue-800' :
-          'bg-red-50 border-red-200 text-red-800'
+          fetchMessage.type === 'success' ? 'bg-green-500/10 border-green-500/50 text-green-400' :
+          fetchMessage.type === 'info' ? 'bg-blue-500/10 border-blue-500/50 text-blue-400' :
+          'bg-red-500/10 border-red-500/50 text-red-400'
         }`}>
           {fetchMessage.text}
         </div>
@@ -348,9 +349,9 @@ export default function Dashboard() {
 
       {/* Results Info */}
       {(searchQuery || filterStatus !== 'all') && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-2">
-          <Filter className="w-4 h-4 text-blue-600" />
-          <span className="text-sm text-blue-800">
+        <div className="bg-cyan-500/10 border border-cyan-500/50 rounded-lg p-3 flex items-center gap-2">
+          <Filter className="w-4 h-4 text-cyan-400" />
+          <span className="text-sm text-cyan-300">
             Showing <span className="font-bold">{filteredSymbols.length}</span> of {symbols.length} symbols
             {searchQuery && <span> matching "<span className="font-semibold">{searchQuery}</span>"</span>}
           </span>
@@ -360,7 +361,7 @@ export default function Dashboard() {
                 setSearchQuery('');
                 setFilterStatus('all');
               }}
-              className="ml-auto text-sm text-blue-600 hover:text-blue-800 font-medium hover:underline"
+              className="ml-auto text-sm text-cyan-400 hover:text-cyan-300 font-medium hover:underline"
             >
               Clear filters
             </button>
@@ -376,10 +377,10 @@ export default function Dashboard() {
           ))}
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow-sm p-12 text-center border border-gray-200">
-          <Search className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-700 mb-2">No symbols found</h3>
-          <p className="text-gray-500 mb-4">
+        <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg shadow-sm p-12 text-center">
+          <Search className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-white mb-2">No symbols found</h3>
+          <p className="text-gray-400 mb-4">
             {searchQuery 
               ? `No symbols match "${searchQuery}"`
               : filterStatus === 'met'
@@ -392,7 +393,7 @@ export default function Dashboard() {
               setSearchQuery('');
               setFilterStatus('all');
             }}
-            className="btn btn-primary"
+            className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white font-medium rounded-lg transition-colors duration-200"
           >
             Clear filters
           </button>
@@ -403,7 +404,7 @@ export default function Dashboard() {
       {showBackToTop && (
         <button
           onClick={scrollToTop}
-          className="fixed bottom-8 right-8 bg-blue-600 hover:bg-blue-700 text-white rounded-full p-4 shadow-lg transition-all duration-300 hover:scale-110 hover:shadow-xl z-50 group"
+          className="fixed bottom-8 right-8 bg-cyan-500 hover:bg-cyan-600 text-white rounded-full p-4 shadow-lg border border-cyan-400 transition-all duration-300 hover:scale-110 hover:shadow-xl z-50 group"
           aria-label="Back to top"
         >
           <ArrowUp className="w-6 h-6 group-hover:animate-bounce" />
@@ -427,10 +428,10 @@ function SymbolCard({ symbol }) {
   return (
     <div
       className={`
-        relative overflow-hidden rounded-lg shadow-md transition-all duration-300 hover:shadow-xl
+        relative overflow-hidden rounded-lg shadow-md transition-all duration-300 hover:shadow-xl hover:scale-105
         ${isMet 
-          ? 'bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-400 ring-2 ring-green-200 animate-pulse-slow' 
-          : 'bg-white border border-gray-200'
+          ? 'bg-gradient-to-br from-green-50 to-green-100 dark:from-green-500/10 dark:to-emerald-500/10 border-2 border-green-400 dark:border-green-500/50 ring-2 ring-green-200 dark:ring-green-500/20' 
+          : 'bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700'
         }
       `}
     >
@@ -447,35 +448,35 @@ function SymbolCard({ symbol }) {
       <div className="p-4">
         {/* Symbol Name */}
         <div className="mb-3">
-          <h3 className={`text-xl font-bold ${isMet ? 'text-green-900' : 'text-gray-900'}`}>
+          <h3 className={`text-xl font-bold ${isMet ? 'text-green-700 dark:text-green-400' : 'text-gray-900 dark:text-white'}`}>
             {name}
           </h3>
         </div>
 
         {/* Magic Line */}
         <div className="mb-3">
-          <div className="text-xs text-gray-500 mb-1">Magic Line (Target)</div>
-          <div className={`text-2xl font-bold ${isMet ? 'text-green-700' : 'text-blue-600'}`}>
+          <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Magic Line (Target)</div>
+          <div className={`text-2xl font-bold ${isMet ? 'text-green-700 dark:text-green-400' : 'text-cyan-600 dark:text-cyan-400'}`}>
             {magicLine.toFixed(2)}
           </div>
         </div>
 
         {/* Current Price */}
         <div className="mb-3">
-          <div className="text-xs text-gray-500 mb-1">Current Price</div>
+          <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Current Price</div>
           {hasPrice ? (
             <div className="flex items-baseline gap-2">
-              <div className={`text-2xl font-bold ${isMet ? 'text-green-700' : 'text-gray-900'}`}>
+              <div className={`text-2xl font-bold ${isMet ? 'text-green-700 dark:text-green-400' : 'text-gray-900 dark:text-white'}`}>
                 {currentPrice.toFixed(2)}
               </div>
               {isPositive ? (
-                <TrendingUp className="w-4 h-4 text-green-600" />
+                <TrendingUp className="w-4 h-4 text-green-500 dark:text-green-500" />
               ) : (
-                <TrendingDown className="w-4 h-4 text-red-600" />
+                <TrendingDown className="w-4 h-4 text-red-500 dark:text-red-500" />
               )}
             </div>
           ) : (
-            <div className="text-lg text-gray-400 flex items-center gap-2">
+            <div className="text-lg text-gray-400 dark:text-gray-500 flex items-center gap-2">
               <Minus className="w-4 h-4" />
               No data
             </div>
@@ -486,7 +487,9 @@ function SymbolCard({ symbol }) {
         {hasPrice && (
           <div className="mb-3">
             <div className={`inline-flex items-center gap-1 px-2 py-1 rounded text-sm font-medium
-              ${isPositive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}
+              ${isPositive 
+                ? 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400 border border-green-300 dark:border-green-500/30' 
+                : 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 border border-red-300 dark:border-red-500/30'}`}
             >
               {isPositive ? '+' : ''}{change.toFixed(2)} ({isPositive ? '+' : ''}{(changePercent * 100).toFixed(2)}%)
             </div>
@@ -496,18 +499,18 @@ function SymbolCard({ symbol }) {
         {/* Progress Bar */}
         {hasPrice && (
           <div className="mt-3">
-            <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
+            <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
               <span>Progress</span>
-              <span className="font-semibold">{percentToTarget.toFixed(1)}%</span>
+              <span className="font-semibold text-gray-700 dark:text-gray-300">{percentToTarget.toFixed(1)}%</span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
               <div
                 className={`h-2 rounded-full transition-all duration-500 ${
                   isMet 
                     ? 'bg-gradient-to-r from-green-500 to-green-600' 
                     : percentToTarget >= 90
                     ? 'bg-gradient-to-r from-yellow-400 to-yellow-500'
-                    : 'bg-gradient-to-r from-blue-400 to-blue-500'
+                    : 'bg-gradient-to-r from-cyan-400 to-cyan-500'
                 }`}
                 style={{ width: `${Math.min(percentToTarget, 100)}%` }}
               />
@@ -517,24 +520,24 @@ function SymbolCard({ symbol }) {
 
         {/* Additional Info */}
         {hasPrice && priceData && (
-          <div className="mt-3 pt-3 border-t border-gray-200 grid grid-cols-2 gap-2 text-xs">
+          <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-2 text-xs">
             <div>
-              <div className="text-gray-500">High</div>
-              <div className="font-semibold text-gray-700">{priceData.high?.toFixed(2) || '-'}</div>
+              <div className="text-gray-600 dark:text-gray-400">High</div>
+              <div className="font-semibold text-gray-900 dark:text-gray-300">{priceData.high?.toFixed(2) || '-'}</div>
             </div>
             <div>
-              <div className="text-gray-500">Low</div>
-              <div className="font-semibold text-gray-700">{priceData.low?.toFixed(2) || '-'}</div>
+              <div className="text-gray-600 dark:text-gray-400">Low</div>
+              <div className="font-semibold text-gray-900 dark:text-gray-300">{priceData.low?.toFixed(2) || '-'}</div>
             </div>
             <div>
-              <div className="text-gray-500">Volume</div>
-              <div className="font-semibold text-gray-700">
+              <div className="text-gray-600 dark:text-gray-400">Volume</div>
+              <div className="font-semibold text-gray-900 dark:text-gray-300">
                 {priceData.volume ? (priceData.volume / 1000).toFixed(1) + 'K' : '-'}
               </div>
             </div>
             <div>
-              <div className="text-gray-500">Trades</div>
-              <div className="font-semibold text-gray-700">{priceData.trades || '-'}</div>
+              <div className="text-gray-600 dark:text-gray-400">Trades</div>
+              <div className="font-semibold text-gray-900 dark:text-gray-300">{priceData.trades || '-'}</div>
             </div>
           </div>
         )}

@@ -81,7 +81,9 @@ function AppContent() {
         <Header 
           stats={stats} 
           isConnected={isConnected}
+          currentPage="admin"
           onNavigateToDashboard={() => setCurrentView('dashboard')}
+          onNavigateToTradeSignals={() => setCurrentView('trade-signals')}
           onNavigateToAdmin={() => setCurrentView('admin')}
           onNavigateToLogin={() => setCurrentView('login')}
           onNavigateToSignup={() => setCurrentView('signup')}
@@ -91,16 +93,18 @@ function AppContent() {
     );
   }
 
-  // Show main app (dashboard is public for now)
+  // Show main app
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300">
       <Header 
         stats={stats} 
         isConnected={isConnected}
+        currentPage={currentView}
         onNavigateToDashboard={() => {
           setCurrentView('dashboard');
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
+        onNavigateToTradeSignals={() => setCurrentView('trade-signals')}
         onNavigateToAdmin={() => setCurrentView('admin')}
         onNavigateToLogin={() => setCurrentView('login')}
         onNavigateToSignup={() => setCurrentView('signup')}
