@@ -10,6 +10,7 @@ import config from './config/config.js';
 import { connectDB } from './config/mongodb.js';
 import pricePollingService from './services/pricePollingService.js';
 import tradePlanPollingService from './services/tradePlanPollingService.js';
+import marketHoursService from './services/marketHoursService.js';
 import db from './db/database.js';
 import uploadRoutes from './routes/upload.js';
 import symbolsRoutes from './routes/symbols.js';
@@ -120,7 +121,37 @@ io.on('connection', async (socket) => {
   try {
     const initialData = await db.getFullData();
     const stats = await db.getStats();
-    socket.emit('initialData', { symbols: initialData, stats });
+    
+    // Get last price update time (check both in-memory and database)
+    let lastUpdate = null;
+    
+    // First, check in-memory polling service
+    if (pricePollingService.lastFetchTime) {
+      lastUpdate = new Date(pricePollingService.lastFetchTime).toISOString();
+    } else {
+      // If server just restarted, check database for most recent price update
+      const Symbol = (await import('./models/Symbol.js')).default;
+      const mostRecentSymbol = await Symbol.findOne({ currentPrice: { $ne: null } })
+        .sort({ lastUpdated: -1 })
+        .select('lastUpdated')
+        .lean();
+      
+      if (mostRecentSymbol && mostRecentSymbol.lastUpdated) {
+        lastUpdate = new Date(mostRecentSymbol.lastUpdated).toISOString();
+      }
+    }
+    
+    socket.emit('initialData', { 
+      symbols: initialData, 
+      stats,
+      lastUpdate 
+    });
+    
+    if (lastUpdate) {
+      console.log(`   📊 Last price update: ${new Date(lastUpdate).toLocaleString('en-US', { timeZone: 'Asia/Karachi' })} PKT`);
+    } else {
+      console.log(`   ⚠️ No price data available yet - waiting for first fetch`);
+    }
   } catch (error) {
     console.error('Error sending initial data:', error);
   }
@@ -197,6 +228,21 @@ async function startServer() {
     // Start Trade Plan Auto-Checker (every 15 minutes during market hours)
     tradePlanPollingService.start(15 * 60 * 1000); // 15 minutes
     console.log('✅ Trade Plan Auto-Checker started (15 min interval)');
+    
+    // Trigger initial price check if market is open and symbols exist
+    setTimeout(async () => {
+      try {
+        const symbols = await db.getAllSymbols();
+        if (symbols.length > 0 && marketHoursService.isMarketOpen()) {
+          console.log('\n🔄 Triggering initial price fetch (market is open)...');
+          await pricePollingService.fetchAllPrices();
+        } else if (symbols.length > 0) {
+          console.log('\n⏸️ Market is closed - price fetch will occur during next market hours');
+        }
+      } catch (error) {
+        console.log('ℹ️ Skipping initial fetch:', error.message);
+      }
+    }, 3000); // Wait 3 seconds after startup
 
     // Start HTTP server - ALWAYS listen on 0.0.0.0 for external access
     // Use 0.0.0.0 to accept connections from any IP (required for Fly.io and mobile)

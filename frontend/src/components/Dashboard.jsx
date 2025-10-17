@@ -12,7 +12,7 @@ export default function Dashboard() {
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all'); // 'all', 'met', 'not-met'
   const [searchQuery, setSearchQuery] = useState('');
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   // Load initial data
   useEffect(() => {
@@ -180,7 +180,7 @@ export default function Dashboard() {
               </span>
             )}
           </div>
-          {user?.role === 'admin' && (
+          {isAdmin() && (
             <button
               onClick={handleClearAll}
               className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors duration-200 flex items-center gap-2"

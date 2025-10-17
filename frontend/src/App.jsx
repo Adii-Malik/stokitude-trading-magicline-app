@@ -16,7 +16,9 @@ function AppContent() {
   const [refreshDashboard, setRefreshDashboard] = useState(0);
   const [showSignup, setShowSignup] = useState(false);
   const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard', 'stocks', 'admin', 'login', 'signup'
-  const { user, loading } = useAuth();
+  const [lastPriceUpdate, setLastPriceUpdate] = useState(null);
+  const [marketStatus, setMarketStatus] = useState('closed');
+  const { user, loading, isAdmin } = useAuth();
 
   useEffect(() => {
     // Connect to socket
@@ -27,16 +29,50 @@ function AppContent() {
       setIsConnected(socketService.isConnected());
     }, 1000);
 
-    // Listen for initial data to update stats
+    // Listen for initial data to update stats and last update time
     const handleInitialData = (data) => {
       setStats(data.stats);
+      if (data.lastUpdate) {
+        setLastPriceUpdate(new Date(data.lastUpdate));
+      }
     };
 
+    // Listen for price updates
+    const handlePriceUpdate = (data) => {
+      setLastPriceUpdate(new Date());
+    };
+
+    // Listen for trade plan updates
+    const handleTradePlanUpdate = (data) => {
+      setLastPriceUpdate(new Date());
+    };
+
+    // Fetch market status on mount
+    const fetchMarketStatus = async () => {
+      try {
+        const response = await fetch('/api/trade-plans/market-status');
+        const data = await response.json();
+        setMarketStatus(data.isOpen ? 'open' : 'closed');
+      } catch (error) {
+        console.error('Error fetching market status:', error);
+      }
+    };
+
+    fetchMarketStatus();
+    
+    // Check market status every 5 minutes
+    const marketStatusInterval = setInterval(fetchMarketStatus, 5 * 60 * 1000);
+
     socketService.on('initialData', handleInitialData);
+    socketService.on('priceUpdate', handlePriceUpdate);
+    socketService.on('tradePlanUpdate', handleTradePlanUpdate);
 
     return () => {
       clearInterval(checkConnection);
+      clearInterval(marketStatusInterval);
       socketService.off('initialData', handleInitialData);
+      socketService.off('priceUpdate', handlePriceUpdate);
+      socketService.off('tradePlanUpdate', handleTradePlanUpdate);
     };
   }, []);
 
@@ -79,10 +115,12 @@ function AppContent() {
   // Show Trade Signals
   if (currentView === 'trade-signals') {
     return (
-      <>
+      <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300">
         <Header 
           isConnected={isConnected}
           currentPage="trade-signals"
+          lastPriceUpdate={lastPriceUpdate}
+          marketStatus={marketStatus}
           onNavigateToDashboard={() => setCurrentView('dashboard')}
           onNavigateToStocks={() => setCurrentView('stocks')}
           onNavigateToTradeSignals={() => setCurrentView('trade-signals')}
@@ -90,18 +128,27 @@ function AppContent() {
           onNavigateToLogin={() => setCurrentView('login')}
           onNavigateToSignup={() => setCurrentView('signup')}
         />
-        <TradePlans />
-      </>
+        <div className="flex-1">
+          <TradePlans />
+        </div>
+        <footer className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 mt-12 transition-colors duration-300">
+          <div className="container mx-auto px-4 py-6 text-center text-gray-600 dark:text-gray-400 text-sm">
+            <p>PSX SmartDesk - Real-time Stock Price Monitoring & Trade Management</p>
+          </div>
+        </footer>
+      </div>
     );
   }
 
   // Show Stock Management (Admin only)
   if (currentView === 'stocks') {
     return (
-      <>
+      <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300">
         <Header 
           isConnected={isConnected}
           currentPage="stocks"
+          lastPriceUpdate={lastPriceUpdate}
+          marketStatus={marketStatus}
           onNavigateToDashboard={() => setCurrentView('dashboard')}
           onNavigateToStocks={() => setCurrentView('stocks')}
           onNavigateToTradeSignals={() => setCurrentView('trade-signals')}
@@ -109,18 +156,27 @@ function AppContent() {
           onNavigateToLogin={() => setCurrentView('login')}
           onNavigateToSignup={() => setCurrentView('signup')}
         />
-        <StockManagement />
-      </>
+        <div className="flex-1">
+          <StockManagement />
+        </div>
+        <footer className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 mt-12 transition-colors duration-300">
+          <div className="container mx-auto px-4 py-6 text-center text-gray-600 dark:text-gray-400 text-sm">
+            <p>PSX SmartDesk - Real-time Stock Price Monitoring & Trade Management</p>
+          </div>
+        </footer>
+      </div>
     );
   }
 
   // Show admin dashboard
   if (currentView === 'admin') {
     return (
-      <>
+      <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300">
         <Header 
           isConnected={isConnected}
           currentPage="admin"
+          lastPriceUpdate={lastPriceUpdate}
+          marketStatus={marketStatus}
           onNavigateToDashboard={() => setCurrentView('dashboard')}
           onNavigateToStocks={() => setCurrentView('stocks')}
           onNavigateToTradeSignals={() => setCurrentView('trade-signals')}
@@ -128,8 +184,15 @@ function AppContent() {
           onNavigateToLogin={() => setCurrentView('login')}
           onNavigateToSignup={() => setCurrentView('signup')}
         />
-        <AdminDashboard />
-      </>
+        <div className="flex-1">
+          <AdminDashboard />
+        </div>
+        <footer className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 mt-12 transition-colors duration-300">
+          <div className="container mx-auto px-4 py-6 text-center text-gray-600 dark:text-gray-400 text-sm">
+            <p>PSX SmartDesk - Real-time Stock Price Monitoring & Trade Management</p>
+          </div>
+        </footer>
+      </div>
     );
   }
 
@@ -139,6 +202,8 @@ function AppContent() {
       <Header 
         isConnected={isConnected}
         currentPage={currentView}
+        lastPriceUpdate={lastPriceUpdate}
+        marketStatus={marketStatus}
         onNavigateToDashboard={() => {
           setCurrentView('dashboard');
           window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -153,7 +218,7 @@ function AppContent() {
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-7xl mx-auto space-y-8">
           {/* Upload Section - Only for authenticated admins */}
-          {user?.role === 'admin' && (
+          {isAdmin() && (
             <UploadForm onUploadSuccess={handleUploadSuccess} />
           )}
 
@@ -162,9 +227,9 @@ function AppContent() {
         </div>
       </main>
 
-      <footer className="bg-white border-t border-gray-200 mt-12">
-        <div className="container mx-auto px-4 py-6 text-center text-gray-600 text-sm">
-          <p>PSX Magic Line Monitor - Real-time Stock Price Monitoring</p>
+      <footer className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 mt-12 transition-colors duration-300">
+        <div className="container mx-auto px-4 py-6 text-center text-gray-600 dark:text-gray-400 text-sm">
+          <p>PSX SmartDesk - Real-time Stock Price Monitoring & Trade Management</p>
         </div>
       </footer>
     </div>
