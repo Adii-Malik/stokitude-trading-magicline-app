@@ -25,59 +25,55 @@ Real-time stock price monitoring application for Pakistan Stock Exchange (PSX). 
 
 ## 🏗️ Architecture
 
+### Centralized Price Storage (v2.0)
+
+PSX SmartDesk now uses a **centralized price storage** architecture for optimal performance and data consistency:
+
+- **Single Source of Truth**: All stock prices stored in `Stock` model
+- **Fetch Once, Use Everywhere**: One service fetches prices, all features read from it
+- **Reduced PSX Load**: Each symbol fetched only once per cycle
+- **Better Performance**: Fewer database writes, consistent data
+
+📖 **[Read Full Architecture Documentation](./CENTRALIZED_PRICE_ARCHITECTURE.md)**
+
 ```
 ┌─────────────────────────────────────┐
 │         PSX Official Website        │
 │        dps.psx.com.pk               │
-│   (Closing Prices - On-Demand)      │
 └──────────────┬──────────────────────┘
                │
-               │ Web Scraping
-               │ (HTML parsing with Cheerio)
-               │
-┌──────────────▼──────────────────────┐
-│   Backend (Node.js + Express)       │
-│  ┌──────────────────────────────┐   │
-│  │  PSX Scraper Service         │   │
-│  │  - Fetches closing prices    │   │
-│  │  - Parses HTML with Cheerio  │   │
-│  │  - Extracts price, OHLC, vol │   │
-│  └──────────────────────────────┘   │
-│  ┌──────────────────────────────┐   │
-│  │  Smart Polling Service       │   │
-│  │  - 30-min intelligent cache  │   │
-│  │  - Mutex lock (no overlaps)  │   │
-│  │  - Real-time broadcasting    │   │
-│  │  - Batch processing (5/time) │   │
-│  └──────────────────────────────┘   │
-│  ┌──────────────────────────────┐   │
-│  │  MongoDB Database            │   │
-│  │  - Stores symbols & prices   │   │
-│  │  - Persistent magic lines    │   │
-│  └──────────────────────────────┘   │
-│  ┌──────────────────────────────┐   │
-│  │  Socket.IO Server            │   │
-│  │  - Live price updates        │   │
-│  │  - Multi-user broadcasting   │   │
-│  └──────────────────────────────┘   │
-│  ┌──────────────────────────────┐   │
-│  │  REST API                    │   │
-│  │  - Upload CSV/Image          │   │
-│  │  - Manage symbols            │   │
-│  │  - Trigger price fetch       │   │
-│  └──────────────────────────────┘   │
-└─────────────────┬───────────────────┘
-                  │
-                  │ Socket.IO + REST
-                  │
-┌─────────────────▼───────────────────┐
+               ▼
+   ┌────────────────────────────┐
+   │ CentralizedPriceService    │
+   │ (Fetches & Updates Prices) │
+   └────────────┬───────────────┘
+                │
+                ▼
+       ┌────────────────┐
+       │  Stock Model   │  ◄─── Single Source of Truth
+       │ (Central Store)│
+       └────────┬───────┘
+                │
+    ┌───────────┴───────────┐
+    │                       │
+    ▼                       ▼
+┌──────────────┐    ┌──────────────┐
+│Magic Line    │    │Trade Plan    │
+│Status Service│    │Status Service│
+└──────┬───────┘    └──────┬───────┘
+       │                   │
+       ▼                   ▼
+  ┌─────────┐        ┌───────────┐
+  │ Symbol  │        │TradePlan  │
+  │(Status) │        │ (Status)  │
+  └─────────┘        └───────────┘
+
+┌─────────────────────────────────────┐
 │    Frontend (React + Vite)          │
 │  ┌──────────────────────────────┐   │
-│  │  Dashboard                   │   │
-│  │  - Real-time price cards     │   │
-│  │  - Green alert animations    │   │
-│  │  - Cache status messages     │   │
-│  │  - Smart refresh button      │   │
+│  │  Dashboard (Magic Line)      │   │
+│  │  - Real-time price updates   │   │
+│  │  - Visual threshold alerts   │   │
 │  └──────────────────────────────┘   │
 │  ┌──────────────────────────────┐   │
 │  │  Upload Form                 │   │

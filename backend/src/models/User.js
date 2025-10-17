@@ -31,11 +31,9 @@ const userSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: false // New users need admin approval
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
   }
+}, {
+  timestamps: true // Auto-manage createdAt and updatedAt
 });
 
 // Hash password before saving

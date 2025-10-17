@@ -6,7 +6,8 @@ const symbolSchema = new mongoose.Schema({
     required: true,
     unique: true,
     uppercase: true,
-    trim: true
+    trim: true,
+    index: true
   },
   originalSymbol: {
     type: String,
@@ -14,48 +15,30 @@ const symbolSchema = new mongoose.Schema({
   },
   magicLine: {
     type: Number,
-    required: true
+    required: true,
+    index: true
   },
-  currentPrice: {
-    type: Number,
-    default: null
+  // Status tracking (updated by magicLineStatusService)
+  status: {
+    type: String,
+    enum: ['pending', 'met'],
+    default: 'pending',
+    index: true
   },
-  priceData: {
-    market: String,
-    st: String,
-    price: Number,
-    change: Number,
-    changePercent: Number,
-    volume: Number,
-    trades: Number,
-    value: Number,
-    high: Number,
-    low: Number,
-    bid: Number,
-    ask: Number,
-    bidVol: Number,
-    askVol: Number,
-    timestamp: Number
+  isActive: {
+    type: Boolean,
+    default: true,
+    index: true
   },
-  lastUpdated: {
-    type: Date,
-    default: Date.now
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  }
+  // Note: Prices are stored centrally in Stock model
+  // createdAt and updatedAt are auto-managed by timestamps: true
 }, {
   timestamps: true
 });
 
-// Index for faster queries (symbol already indexed via unique: true)
-symbolSchema.index({ magicLine: 1 });
-
-// Virtual field for checking if magic line is met
-symbolSchema.virtual('isMet').get(function() {
-  return this.currentPrice !== null && this.currentPrice >= this.magicLine;
-});
+// Compound indexes for complex queries
+symbolSchema.index({ isActive: 1, status: 1 });
+symbolSchema.index({ symbol: 1, isActive: 1 });
 
 // Ensure virtuals are included when converting to JSON
 symbolSchema.set('toJSON', { virtuals: true });

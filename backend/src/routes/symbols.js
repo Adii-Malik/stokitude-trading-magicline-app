@@ -1,6 +1,6 @@
 import express from 'express';
 import db from '../db/database.js';
-import pricePollingService from '../services/pricePollingService.js';
+import centralizedPriceService from '../services/centralizedPriceService.js';
 import { adminOnly } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -106,6 +106,7 @@ router.get('/stats/summary', async (req, res) => {
 });
 
 // POST /api/symbols/fetch-prices - Fetch closing prices from PSX (on-demand)
+// This endpoint triggers the centralized price service
 router.post('/fetch-prices', async (req, res) => {
   try {
     const symbols = await db.getAllSymbols();
@@ -117,13 +118,13 @@ router.post('/fetch-prices', async (req, res) => {
       });
     }
 
-    console.log(`\n📊 Smart fetch triggered for ${symbols.length} symbols...`);
+    console.log(`\n📊 Manual fetch triggered via API...`);
     console.log(`⏰ Request at: ${new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' })} PKT`);
     
-    // Smart fetch with caching
-    const fetchResult = await pricePollingService.fetchAllPrices();
+    // Trigger centralized price service
+    const fetchResult = await centralizedPriceService.checkPrices();
     
-    // Get current data from database
+    // Get current data from database (reads from Stock model)
     const data = await db.getFullData();
     
     // Count successes and failures
@@ -139,27 +140,22 @@ router.post('/fetch-prices', async (req, res) => {
     });
 
     const response = {
-      success: fetchResult.success,
-      cached: fetchResult.cached,
-      message: fetchResult.message,
+      success: !fetchResult.error,
+      skipped: fetchResult.skipped || false,
+      message: fetchResult.skipped 
+        ? `Market is ${fetchResult.status} - ${fetchResult.message}` 
+        : `Successfully fetched prices for ${fetchResult.updated || 0} stocks`,
       data: {
         total: symbols.length,
         success: successCount,
         failed: failCount,
-        source: 'PSX Official (dps.psx.com.pk)',
-        lastFetchTime: fetchResult.lastFetchTime,
-        nextFetchIn: fetchResult.nextFetchIn, // seconds
+        source: 'PSX Official (dps.psx.com.pk) - Centralized',
+        lastCheckTime: centralizedPriceService.lastCheckTime,
         symbols: data
       }
     };
 
-    if (fetchResult.cached) {
-      const minutesAgo = Math.floor((Date.now() - fetchResult.lastFetchTime) / 60000);
-      const minutesUntilNext = Math.ceil(fetchResult.nextFetchIn / 60);
-      console.log(`💾 Returned cached data (${minutesAgo} min ago, next fetch in ${minutesUntilNext} min)\n`);
-    } else {
-      console.log(`✅ Fresh data fetched: ${successCount} success, ${failCount} failed\n`);
-    }
+    console.log(`✅ Response: ${successCount} success, ${failCount} failed\n`);
 
     res.json(response);
 

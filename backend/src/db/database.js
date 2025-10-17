@@ -1,5 +1,6 @@
 // MongoDB-based database for storing magic line thresholds
 import Symbol from '../models/Symbol.js';
+import Stock from '../models/Stock.js';
 
 class Database {
   constructor() {
@@ -87,79 +88,40 @@ class Database {
     }
   }
 
-  // Update latest price for a symbol
-  async updatePrice(symbol, priceData) {
-    try {
-      const normalized = this.normalizeSymbol(symbol);
-      
-      // Validate price data to prevent NaN errors
-      const cleanPriceData = {
-        ...priceData,
-        price: this.validateNumber(priceData.price),
-        change: this.validateNumber(priceData.change),
-        changePercent: this.validateNumber(priceData.changePercent),
-        high: this.validateNumber(priceData.high),
-        low: this.validateNumber(priceData.low),
-        volume: this.validateNumber(priceData.volume, 0),
-        open: this.validateNumber(priceData.open),
-        previousClose: this.validateNumber(priceData.previousClose)
-      };
-      
-      const updated = await Symbol.findOneAndUpdate(
-        { symbol: normalized },
-        {
-          $set: {
-            currentPrice: cleanPriceData.price,
-            priceData: cleanPriceData,
-            lastUpdated: new Date()
-          }
-        },
-        { new: true }
-      );
-
-      return updated;
-    } catch (error) {
-      console.error(`Error updating price for ${symbol}:`, error);
-      return null;
-    }
-  }
-
-  // Helper to validate numbers and prevent NaN
-  validateNumber(value, defaultValue = null) {
-    if (value === null || value === undefined) return defaultValue;
-    const num = typeof value === 'number' ? value : parseFloat(value);
-    return (isNaN(num) || !isFinite(num)) ? defaultValue : num;
-  }
-
-  // Get latest price for a symbol
-  async getPrice(symbol) {
-    try {
-      const normalized = this.normalizeSymbol(symbol);
-      const symbolDoc = await Symbol.findOne({ symbol: normalized }).lean();
-      return symbolDoc?.priceData || null;
-    } catch (error) {
-      console.error(`Error getting price for ${symbol}:`, error);
-      return null;
-    }
-  }
+  // Note: Price updates are now handled centrally by Stock model
+  // Symbol model only tracks magic line thresholds and status
 
   // Get all symbols with their current prices and magic lines
   async getFullData() {
     try {
       const symbols = await Symbol.find({}).lean();
       
+      // Get all stocks with prices (centralized)
+      const stocks = await Stock.find({}).lean();
+      const stockMap = {};
+      stocks.forEach(stock => {
+        stockMap[stock.symbol] = stock;
+      });
+      
       return symbols.map(symbolInfo => {
-        const currentPrice = symbolInfo.currentPrice || null;
+        // Read price from Stock model (centralized)
+        const stock = stockMap[symbolInfo.symbol];
+        const currentPrice = stock?.currentPrice || null;
         const isMet = currentPrice !== null && currentPrice >= symbolInfo.magicLine;
         
         return {
           symbol: symbolInfo.symbol,
           magicLine: symbolInfo.magicLine,
           currentPrice: currentPrice,
-          priceData: symbolInfo.priceData || null,
+          priceData: stock ? {
+            price: stock.currentPrice,
+            change: stock.priceChange,
+            changePercent: stock.priceChangePercent,
+            previousClose: stock.previousPrice
+          } : null,
           isMet: isMet,
           addedAt: symbolInfo.createdAt,
-          lastUpdated: symbolInfo.lastUpdated
+          lastUpdated: stock?.lastUpdated || symbolInfo.lastUpdated
         };
       });
     } catch (error) {
@@ -205,10 +167,33 @@ class Database {
     try {
       const symbols = await Symbol.find({}).lean();
       
+      // Get all stocks with prices (centralized)
+      const stocks = await Stock.find({}).lean();
+      const stockMap = {};
+      stocks.forEach(stock => {
+        stockMap[stock.symbol] = stock;
+      });
+      
       const totalSymbols = symbols.length;
-      const metCount = symbols.filter(s => s.currentPrice !== null && s.currentPrice >= s.magicLine).length;
-      const unmetCount = symbols.filter(s => s.currentPrice !== null && s.currentPrice < s.magicLine).length;
-      const noDataCount = symbols.filter(s => s.currentPrice === null).length;
+      let metCount = 0;
+      let unmetCount = 0;
+      let noDataCount = 0;
+      
+      symbols.forEach(symbolInfo => {
+        // Read price from Stock model (centralized)
+        const stock = stockMap[symbolInfo.symbol];
+        const currentPrice = stock?.currentPrice;
+        
+        if (currentPrice !== null && currentPrice !== undefined) {
+          if (currentPrice >= symbolInfo.magicLine) {
+            metCount++;
+          } else {
+            unmetCount++;
+          }
+        } else {
+          noDataCount++;
+        }
+      });
 
       return {
         totalSymbols,

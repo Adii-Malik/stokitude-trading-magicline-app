@@ -8,8 +8,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import config from './config/config.js';
 import { connectDB } from './config/mongodb.js';
-import pricePollingService from './services/pricePollingService.js';
-import tradePlanPollingService from './services/tradePlanPollingService.js';
+import centralizedPriceService from './services/centralizedPriceService.js';
+import magicLineStatusService from './services/magicLineStatusService.js';
+import tradePlanStatusService from './services/tradePlanStatusService.js';
 import marketHoursService from './services/marketHoursService.js';
 import db from './db/database.js';
 import uploadRoutes from './routes/upload.js';
@@ -122,23 +123,18 @@ io.on('connection', async (socket) => {
     const initialData = await db.getFullData();
     const stats = await db.getStats();
     
-    // Get last price update time (check both in-memory and database)
+    // Get last price update time from Stock model (centralized)
     let lastUpdate = null;
     
-    // First, check in-memory polling service
-    if (pricePollingService.lastFetchTime) {
-      lastUpdate = new Date(pricePollingService.lastFetchTime).toISOString();
-    } else {
-      // If server just restarted, check database for most recent price update
-      const Symbol = (await import('./models/Symbol.js')).default;
-      const mostRecentSymbol = await Symbol.findOne({ currentPrice: { $ne: null } })
-        .sort({ lastUpdated: -1 })
-        .select('lastUpdated')
-        .lean();
-      
-      if (mostRecentSymbol && mostRecentSymbol.lastUpdated) {
-        lastUpdate = new Date(mostRecentSymbol.lastUpdated).toISOString();
-      }
+    // Check Stock model for most recent price update
+    const Stock = (await import('./models/Stock.js')).default;
+    const mostRecentStock = await Stock.findOne({ currentPrice: { $ne: null } })
+      .sort({ lastUpdated: -1 })
+      .select('lastUpdated')
+      .lean();
+    
+    if (mostRecentStock && mostRecentStock.lastUpdated) {
+      lastUpdate = new Date(mostRecentStock.lastUpdated).toISOString();
     }
     
     socket.emit('initialData', { 
@@ -161,50 +157,45 @@ io.on('connection', async (socket) => {
   });
 });
 
-// Setup price polling message handler
-pricePollingService.onMessage(async (message) => {
-  if (message.type === 'priceUpdate' && message.data && message.data.symbol) {
-    const symbol = message.data.symbol;
+// Setup centralized price service handler
+centralizedPriceService.onUpdate(async (data) => {
+  if (data.type === 'priceUpdate') {
+    // Broadcast price update to all connected clients
+    io.emit('priceUpdate', {
+      checked: data.data.checked,
+      updated: data.data.updated,
+      timestamp: data.data.timestamp,
+      errors: data.data.errors
+    });
     
-    try {
-      const symbolInfo = await db.getSymbol(symbol);
-      
-      // Only emit if we're tracking this symbol
-      if (symbolInfo) {
-        const currentPrice = message.data.price;
-        const isMet = currentPrice >= symbolInfo.magicLine;
-        
-        // Broadcast price update to all connected clients
-        io.emit('priceUpdate', {
-          symbol: symbol,
-          magicLine: symbolInfo.magicLine,
-          currentPrice: currentPrice,
-          priceData: message.data,
-          isMet: isMet,
-          timestamp: new Date().toISOString(),
-          source: message.data.source
-        });
-      }
-    } catch (error) {
-      console.error(`Error processing price update for ${symbol}:`, error);
-    }
+    console.log('📢 Broadcasting price updates to all clients');
   }
 });
 
-// Setup trade plan polling message handler
-tradePlanPollingService.onMessage(async (message) => {
-  if (message.type === 'tradePlanUpdate' && message.data) {
-    // Broadcast trade plan updates to all connected clients
-    io.emit('tradePlanUpdate', {
-      checked: message.data.checked,
-      updated: message.data.updated,
-      updates: message.data.updates,
-      notifications: message.data.notifications,
+// Setup Magic Line status service handler
+magicLineStatusService.onUpdate(async (data) => {
+  if (data.type === 'statusUpdate') {
+    // Broadcast status change to all connected clients
+    io.emit('magicLineUpdate', {
+      symbol: data.data.symbol,
+      status: data.data.status,
+      currentPrice: data.data.currentPrice,
+      targetPrice: data.data.targetPrice,
       timestamp: new Date().toISOString()
     });
-    
-    console.log('📢 Broadcasting trade plan updates to all clients');
   }
+});
+
+// Setup Trade Plan status service handler
+tradePlanStatusService.onUpdate(async (data) => {
+  // Broadcast trade plan updates to all connected clients
+  io.emit('tradePlanUpdate', {
+    type: data.type,
+    data: data.data,
+    timestamp: new Date().toISOString()
+  });
+  
+  console.log(`📢 Broadcasting ${data.type} to all clients`);
 });
 
 // Start application
@@ -214,30 +205,39 @@ async function startServer() {
     console.log('🚀 Starting PSX Monitor Backend...');
     await connectDB(config.mongoUri);
     
-    // Start Auto-Checkers (only during market hours)
-    console.log('\n📊 Starting Market-Hours-Aware Auto-Checkers...');
+    // Start Centralized Price Service & Status Checkers (only during market hours)
+    console.log('\n📊 Starting Centralized Price & Status Services...');
     console.log('⏰ PSX Market Hours:');
     console.log('   • Monday-Thursday: 9:15 AM - 3:30 PM PKT');
     console.log('   • Friday: 9:15 AM - 12:00 PM & 2:30 PM - 4:30 PM PKT');
     console.log('   • Weekends: Closed\n');
     
-    // Start Magic Line Price Checker (every 15 minutes during market hours)
-    pricePollingService.start(15 * 60 * 1000); // 15 minutes
-    console.log('✅ Magic Line Auto-Checker started (15 min interval)');
+    // Start Centralized Price Service (fetches prices from PSX and updates Stock model)
+    centralizedPriceService.start(15); // 15 minutes
+    console.log('✅ Centralized Price Service started (15 min interval)');
+    console.log('   → Updates Stock model with live prices from PSX');
     
-    // Start Trade Plan Auto-Checker (every 15 minutes during market hours)
-    tradePlanPollingService.start(15 * 60 * 1000); // 15 minutes
-    console.log('✅ Trade Plan Auto-Checker started (15 min interval)');
+    // Start Magic Line Status Service (reads from Stock model)
+    magicLineStatusService.start(15); // 15 minutes
+    console.log('✅ Magic Line Status Service started (15 min interval)');
+    console.log('   → Reads prices from Stock model (centralized)');
     
-    // Trigger initial price check if market is open and symbols exist
+    // Start Trade Plan Status Service (reads from Stock model)
+    tradePlanStatusService.start(15); // 15 minutes
+    console.log('✅ Trade Plan Status Service started (15 min interval)');
+    console.log('   → Reads prices from Stock model (centralized)');
+    
+    // Trigger initial price check if market is open
     setTimeout(async () => {
       try {
-        const symbols = await db.getAllSymbols();
-        if (symbols.length > 0 && marketHoursService.isMarketOpen()) {
+        const status = marketHoursService.isMarketOpen();
+        if (status.isOpen) {
           console.log('\n🔄 Triggering initial price fetch (market is open)...');
-          await pricePollingService.fetchAllPrices();
-        } else if (symbols.length > 0) {
-          console.log('\n⏸️ Market is closed - price fetch will occur during next market hours');
+          await centralizedPriceService.checkPrices();
+          await magicLineStatusService.checkStatuses();
+          await tradePlanStatusService.checkStatuses();
+        } else {
+          console.log('\n⏸️ Market is closed - services will activate during next market hours');
         }
       } catch (error) {
         console.log('ℹ️ Skipping initial fetch:', error.message);

@@ -279,9 +279,9 @@ router.put('/:id', adminOnly, async (req, res) => {
       buyLevels,
       targetPrices,
       stopLoss,
-      currentPrice,
       analysis
     } = req.body;
+    // Note: currentPrice is no longer stored in TradePlan (read from Stock model)
     
     // Update fields if provided
     if (symbol) {
@@ -322,7 +322,6 @@ router.put('/:id', adminOnly, async (req, res) => {
         hitDate: stopLoss.hitDate || null
       };
     }
-    if (currentPrice !== undefined) plan.currentPrice = currentPrice ? parseFloat(currentPrice) : null;
     if (analysis !== undefined) plan.analysis = analysis?.trim() || null;
     
     await plan.save();
@@ -345,7 +344,8 @@ router.put('/:id', adminOnly, async (req, res) => {
 // Update trade plan status (Admin only)
 router.put('/:id/status', adminOnly, async (req, res) => {
   try {
-    const { status, currentPrice } = req.body;
+    const { status } = req.body;
+    // Note: currentPrice is no longer stored in TradePlan (read from Stock model)
     
     const plan = await TradePlan.findById(req.params.id);
     
@@ -356,19 +356,14 @@ router.put('/:id/status', adminOnly, async (req, res) => {
       });
     }
     
-    // Update current price
-    if (currentPrice) {
-      plan.currentPrice = parseFloat(currentPrice);
-    }
-    
     // Update status
     if (status) {
       plan.status = status;
       
-      // If closed or SL hit, mark as inactive
+      // If closed or SL hit, mark as inactive and set exitDate
       if (status === 'closed' || status === 'sl_hit' || status === 'cancelled') {
         plan.isActive = false;
-        plan.closedAt = new Date();
+        plan.exitDate = new Date();
       }
     }
     
@@ -598,121 +593,9 @@ router.get('/market-status', authenticate, async (req, res) => {
   }
 });
 
-// Manual price check - Check all active plans (All authenticated users)
-// Note: This is now automatic during market hours, but kept for manual override if needed
-router.post('/check-prices', authenticate, async (req, res) => {
-  try {
-    // Get all active trade plans
-    const activePlans = await TradePlan.find({ isActive: true, status: 'active' });
-    
-    if (activePlans.length === 0) {
-      return res.json({
-        success: true,
-        message: 'No active trade plans to check',
-        data: {
-          checked: 0,
-          updates: { buyHits: 0, tpHits: 0, slHits: 0 }
-        }
-      });
-    }
-    
-    // Get unique symbols
-    const symbols = [...new Set(activePlans.map(plan => plan.symbol))];
-    
-    // Import PSX scraper
-    const { default: psxScraper } = await import('../services/psxScraper.js');
-    
-    // Fetch current prices for all symbols
-    const priceResults = {};
-    const errors = [];
-    
-    for (const symbol of symbols) {
-      try {
-        const stockData = await psxScraper.getStockPrice(symbol);
-        priceResults[symbol] = stockData.price;
-      } catch (error) {
-        console.error(`Failed to fetch price for ${symbol}:`, error.message);
-        errors.push({ symbol, error: error.message });
-      }
-    }
-    
-    // Track updates
-    let buyHits = 0;
-    let tpHits = 0;
-    let slHits = 0;
-    let plansUpdated = 0;
-    
-    // Check each trade plan
-    for (const plan of activePlans) {
-      const currentPrice = priceResults[plan.symbol];
-      
-      if (!currentPrice) {
-        continue; // Skip if price not available
-      }
-      
-      let planModified = false;
-      const now = new Date();
-      
-      // Update current price
-      plan.currentPrice = currentPrice;
-      
-      // Check buy levels (if price is within range)
-      for (const buyLevel of plan.buyLevels) {
-        if (!buyLevel.isHit && currentPrice >= buyLevel.priceFrom && currentPrice <= buyLevel.priceTo) {
-          buyLevel.isHit = true;
-          buyLevel.hitDate = now;
-          buyHits++;
-          planModified = true;
-        }
-      }
-      
-      // Check target prices (if current price >= target)
-      for (const target of plan.targetPrices) {
-        if (!target.isHit && currentPrice >= target.price) {
-          target.isHit = true;
-          target.hitDate = now;
-          tpHits++;
-          planModified = true;
-        }
-      }
-      
-      // Check stop loss (if current price <= stop loss)
-      if (plan.stopLoss && !plan.stopLoss.isHit && currentPrice <= plan.stopLoss.price) {
-        plan.stopLoss.isHit = true;
-        plan.stopLoss.hitDate = now;
-        plan.status = 'sl_hit';
-        plan.isActive = false; // Move to historical
-        plan.exitDate = now;
-        slHits++;
-        planModified = true;
-      }
-      
-      // Save if modified
-      if (planModified) {
-        await plan.save();
-        plansUpdated++;
-      }
-    }
-    
-    res.json({
-      success: true,
-      message: `Checked ${activePlans.length} trade plans`,
-      data: {
-        checked: activePlans.length,
-        updated: plansUpdated,
-        updates: { buyHits, tpHits, slHits },
-        errors: errors.length > 0 ? errors : undefined
-      }
-    });
-  } catch (error) {
-    console.error('Error checking prices:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to check prices',
-      error: error.message
-    });
-  }
-});
+// Note: Price checking is now handled automatically by TradePlanStatusService
+// which runs every 15 minutes during market hours and reads from the centralized Stock model
+// Manual price checking endpoint has been removed in favor of the automated centralized approach
 
 // ============================================
 // TEST API - For Manual Testing Only

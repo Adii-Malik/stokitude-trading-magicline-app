@@ -102,11 +102,7 @@ const tradePlanSchema = new mongoose.Schema({
     trim: true
   },
   
-  // Current Price (for tracking)
-  currentPrice: {
-    type: Number,
-    default: null
-  },
+  // Note: Current prices are stored centrally in Stock model
   
   // Status Tracking
   status: {
@@ -116,34 +112,26 @@ const tradePlanSchema = new mongoose.Schema({
     index: true
   },
   
-  // Meta
-  createdBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  entryDate: {
-    type: Date,
-    default: Date.now
-  },
-  exitDate: {
-    type: Date
-  },
-  closedAt: {
-    type: Date
-  },
   isActive: {
     type: Boolean,
     default: true,
     index: true
   },
   
-  // Performance (optional, for tracking)
-  performance: {
-    entryPrice: Number,
-    exitPrice: Number,
-    profitLossPercent: Number
-  }
+  // Meta
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  
+  exitDate: {
+    type: Date,
+    default: null
+  },
+  
+  // Note: Entry date is managed by createdAt (timestamps: true)
+  // Note: Last update is managed by updatedAt (timestamps: true)
 }, {
   timestamps: true
 });

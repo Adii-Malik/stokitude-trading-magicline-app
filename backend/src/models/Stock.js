@@ -23,6 +23,27 @@ const stockSchema = new mongoose.Schema({
     type: String,
     enum: [null, 'Yes', 'No'],
     default: null
+  },
+  // Centralized price data (single source of truth)
+  currentPrice: {
+    type: Number,
+    default: null
+  },
+  previousPrice: {
+    type: Number,
+    default: null
+  },
+  priceChange: {
+    type: Number,
+    default: null
+  },
+  priceChangePercent: {
+    type: Number,
+    default: null
+  },
+  lastUpdated: {
+    type: Date,
+    default: null
   }
 }, {
   timestamps: true
