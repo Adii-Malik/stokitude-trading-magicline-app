@@ -714,4 +714,176 @@ router.post('/check-prices', authenticate, async (req, res) => {
   }
 });
 
+// ============================================
+// TEST API - For Manual Testing Only
+// ============================================
+
+// POST /api/trade-plans/test/mock-hit
+// Simulate hitting buy levels, TPs, or SL for testing
+router.post('/test/mock-hit', adminOnly, async (req, res) => {
+  try {
+    const { planId, action, level } = req.body;
+    
+    if (!planId || !action) {
+      return res.status(400).json({
+        success: false,
+        message: 'planId and action are required'
+      });
+    }
+
+    const plan = await TradePlan.findById(planId);
+    
+    if (!plan) {
+      return res.status(404).json({
+        success: false,
+        message: 'Trade plan not found'
+      });
+    }
+
+    const now = new Date();
+    let updated = false;
+    let message = '';
+
+    switch (action) {
+      case 'hitBuyLevel':
+        if (!level) {
+          return res.status(400).json({
+            success: false,
+            message: 'level is required for hitBuyLevel action (1, 2, or 3)'
+          });
+        }
+        const buyLevel = plan.buyLevels.find(bl => bl.level === parseInt(level));
+        if (buyLevel) {
+          buyLevel.isHit = true;
+          buyLevel.hitDate = now;
+          updated = true;
+          message = `Buy Level ${level} marked as HIT`;
+        } else {
+          return res.status(404).json({
+            success: false,
+            message: `Buy Level ${level} not found`
+          });
+        }
+        break;
+
+      case 'hitTP':
+        if (!level) {
+          return res.status(400).json({
+            success: false,
+            message: 'level is required for hitTP action (1, 2, or 3)'
+          });
+        }
+        const tp = plan.targetPrices.find(t => t.level === parseInt(level));
+        if (tp) {
+          // Check if any buy level is hit first
+          const anyBuyLevelHit = plan.buyLevels.some(bl => bl.isHit);
+          if (!anyBuyLevelHit) {
+            return res.status(400).json({
+              success: false,
+              message: 'Cannot hit TP without hitting a buy level first'
+            });
+          }
+          tp.isHit = true;
+          tp.hitDate = now;
+          updated = true;
+          message = `TP${level} marked as HIT`;
+
+          // Check if all TPs are hit
+          const allTPsHit = plan.targetPrices.every(t => t.isHit);
+          if (allTPsHit) {
+            plan.status = 'tp_hit';
+            plan.isActive = false;
+            plan.exitDate = now;
+            message += ' - ALL TARGETS HIT! Moved to Historical';
+          }
+        } else {
+          return res.status(404).json({
+            success: false,
+            message: `TP${level} not found`
+          });
+        }
+        break;
+
+      case 'hitSL':
+        if (plan.stopLoss) {
+          plan.stopLoss.isHit = true;
+          plan.stopLoss.hitDate = now;
+          plan.status = 'sl_hit';
+          plan.isActive = false;
+          plan.exitDate = now;
+          updated = true;
+          message = 'Stop Loss HIT! Moved to Historical';
+        } else {
+          return res.status(404).json({
+            success: false,
+            message: 'Stop Loss not found'
+          });
+        }
+        break;
+
+      case 'reset':
+        // Reset all hits for testing
+        plan.buyLevels.forEach(bl => {
+          bl.isHit = false;
+          bl.hitDate = null;
+        });
+        plan.targetPrices.forEach(tp => {
+          tp.isHit = false;
+          tp.hitDate = null;
+        });
+        if (plan.stopLoss) {
+          plan.stopLoss.isHit = false;
+          plan.stopLoss.hitDate = null;
+        }
+        plan.status = 'active';
+        plan.isActive = true;
+        plan.exitDate = null;
+        updated = true;
+        message = 'All hits reset - Call is now Active';
+        break;
+
+      default:
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid action. Use: hitBuyLevel, hitTP, hitSL, or reset'
+        });
+    }
+
+    if (updated) {
+      await plan.save();
+    }
+
+    res.json({
+      success: true,
+      message,
+      data: {
+        symbol: plan.symbol,
+        status: plan.status,
+        isActive: plan.isActive,
+        buyLevels: plan.buyLevels.map(bl => ({
+          level: bl.level,
+          range: `${bl.priceFrom} - ${bl.priceTo}`,
+          isHit: bl.isHit
+        })),
+        targetPrices: plan.targetPrices.map(tp => ({
+          level: tp.level,
+          price: tp.price,
+          isHit: tp.isHit
+        })),
+        stopLoss: plan.stopLoss ? {
+          price: plan.stopLoss.price,
+          isHit: plan.stopLoss.isHit
+        } : null
+      }
+    });
+  } catch (error) {
+    console.error('Error in mock-hit test API:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to mock hit',
+      error: error.message
+    });
+  }
+});
+
 export default router;
