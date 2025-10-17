@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Header from './components/Header';
 import UploadForm from './components/UploadForm';
@@ -6,6 +7,7 @@ import Dashboard from './components/Dashboard';
 import AdminDashboard from './components/AdminDashboard';
 import StockManagement from './components/StockManagement';
 import TradePlans from './components/TradePlans';
+import Settings from './components/Settings';
 import Login from './components/Login';
 import Signup from './components/Signup';
 import socketService from './services/socket';
@@ -125,6 +127,7 @@ function AppContent() {
           onNavigateToStocks={() => setCurrentView('stocks')}
           onNavigateToTradeSignals={() => setCurrentView('trade-signals')}
           onNavigateToAdmin={() => setCurrentView('admin')}
+          onNavigateToSettings={() => setCurrentView('settings')}
           onNavigateToLogin={() => setCurrentView('login')}
           onNavigateToSignup={() => setCurrentView('signup')}
         />
@@ -153,6 +156,7 @@ function AppContent() {
           onNavigateToStocks={() => setCurrentView('stocks')}
           onNavigateToTradeSignals={() => setCurrentView('trade-signals')}
           onNavigateToAdmin={() => setCurrentView('admin')}
+          onNavigateToSettings={() => setCurrentView('settings')}
           onNavigateToLogin={() => setCurrentView('login')}
           onNavigateToSignup={() => setCurrentView('signup')}
         />
@@ -181,11 +185,41 @@ function AppContent() {
           onNavigateToStocks={() => setCurrentView('stocks')}
           onNavigateToTradeSignals={() => setCurrentView('trade-signals')}
           onNavigateToAdmin={() => setCurrentView('admin')}
+          onNavigateToSettings={() => setCurrentView('settings')}
           onNavigateToLogin={() => setCurrentView('login')}
           onNavigateToSignup={() => setCurrentView('signup')}
         />
         <div className="flex-1">
           <AdminDashboard />
+        </div>
+        <footer className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 mt-12 transition-colors duration-300">
+          <div className="container mx-auto px-4 py-6 text-center text-gray-600 dark:text-gray-400 text-sm">
+            <p>PSX SmartDesk - Real-time Stock Price Monitoring & Trade Management</p>
+          </div>
+        </footer>
+      </div>
+    );
+  }
+
+  // Show Settings (Admin only)
+  if (currentView === 'settings') {
+    return (
+      <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300">
+        <Header 
+          isConnected={isConnected}
+          currentPage="settings"
+          lastPriceUpdate={lastPriceUpdate}
+          marketStatus={marketStatus}
+          onNavigateToDashboard={() => setCurrentView('dashboard')}
+          onNavigateToStocks={() => setCurrentView('stocks')}
+          onNavigateToTradeSignals={() => setCurrentView('trade-signals')}
+          onNavigateToAdmin={() => setCurrentView('admin')}
+          onNavigateToSettings={() => setCurrentView('settings')}
+          onNavigateToLogin={() => setCurrentView('login')}
+          onNavigateToSignup={() => setCurrentView('signup')}
+        />
+        <div className="flex-1">
+          <Settings />
         </div>
         <footer className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 mt-12 transition-colors duration-300">
           <div className="container mx-auto px-4 py-6 text-center text-gray-600 dark:text-gray-400 text-sm">
@@ -211,6 +245,7 @@ function AppContent() {
         onNavigateToStocks={() => setCurrentView('stocks')}
         onNavigateToTradeSignals={() => setCurrentView('trade-signals')}
         onNavigateToAdmin={() => setCurrentView('admin')}
+        onNavigateToSettings={() => setCurrentView('settings')}
         onNavigateToLogin={() => setCurrentView('login')}
         onNavigateToSignup={() => setCurrentView('signup')}
       />
@@ -239,6 +274,30 @@ function AppContent() {
 function App() {
   return (
     <AuthProvider>
+      <Toaster 
+        position="top-right"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: '#363636',
+            color: '#fff',
+          },
+          success: {
+            duration: 3000,
+            iconTheme: {
+              primary: '#10b981',
+              secondary: '#fff',
+            },
+          },
+          error: {
+            duration: 4000,
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#fff',
+            },
+          },
+        }}
+      />
       <AppContent />
     </AuthProvider>
   );

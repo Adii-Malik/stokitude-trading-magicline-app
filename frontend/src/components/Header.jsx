@@ -11,7 +11,8 @@ export default function Header({
   onNavigateToDashboard,
   onNavigateToStocks,
   onNavigateToTradeSignals,
-  onNavigateToAdmin, 
+  onNavigateToAdmin,
+  onNavigateToSettings, 
   onNavigateToLogin, 
   onNavigateToSignup 
 }) {
@@ -221,17 +222,20 @@ export default function Header({
                         <span>My Profile</span>
                       </button>
 
-                      <button
-                        onClick={() => {
-                          setUserDropdownOpen(false);
-                          // TODO: Navigate to settings page
-                          console.log('Navigate to Settings');
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-                      >
-                        <Settings className="w-4 h-4" />
-                        <span>Settings</span>
-                      </button>
+                      {/* Settings - Admin Only */}
+                      {isAdmin() && (
+                        <button
+                          onClick={() => {
+                            setUserDropdownOpen(false);
+                            setMobileMenuOpen(false);
+                            onNavigateToSettings?.();
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                        >
+                          <Settings className="w-4 h-4" />
+                          <span>Settings</span>
+                        </button>
+                      )}
 
                       <button
                         onClick={() => {

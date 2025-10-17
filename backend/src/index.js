@@ -19,6 +19,7 @@ import authRoutes from './routes/auth.js';
 import adminRoutes from './routes/admin.js';
 import stocksRoutes from './routes/stocks.js';
 import tradePlansRoutes from './routes/tradePlans.js';
+import settingsRoutes from './routes/settings.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -73,6 +74,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/symbols', symbolsRoutes);
 app.use('/api/stocks', stocksRoutes);
 app.use('/api/trade-plans', tradePlansRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Root API endpoint
 app.get('/api', (req, res) => {
@@ -205,6 +207,15 @@ async function startServer() {
     console.log('🚀 Starting PSX Monitor Backend...');
     await connectDB(config.mongoUri);
     
+    // Initialize System Settings
+    const Settings = (await import('./models/Settings.js')).default;
+    const settings = await Settings.getSettings();
+    const pollingInterval = settings.pricePolling.intervalMinutes;
+    
+    console.log('\n⚙️  System Settings Loaded:');
+    console.log(`   Polling Interval: ${pollingInterval} minutes`);
+    console.log(`   Polling Enabled: ${settings.pricePolling.enabled}`);
+    
     // Start Centralized Price Service & Status Checkers (only during market hours)
     console.log('\n📊 Starting Centralized Price & Status Services...');
     console.log('⏰ PSX Market Hours:');
@@ -213,18 +224,18 @@ async function startServer() {
     console.log('   • Weekends: Closed\n');
     
     // Start Centralized Price Service (fetches prices from PSX and updates Stock model)
-    centralizedPriceService.start(15); // 15 minutes
-    console.log('✅ Centralized Price Service started (15 min interval)');
+    centralizedPriceService.start(pollingInterval);
+    console.log(`✅ Centralized Price Service started (${pollingInterval} min interval)`);
     console.log('   → Updates Stock model with live prices from PSX');
     
     // Start Magic Line Status Service (reads from Stock model)
-    magicLineStatusService.start(15); // 15 minutes
-    console.log('✅ Magic Line Status Service started (15 min interval)');
+    magicLineStatusService.start(pollingInterval);
+    console.log(`✅ Magic Line Status Service started (${pollingInterval} min interval)`);
     console.log('   → Reads prices from Stock model (centralized)');
     
     // Start Trade Plan Status Service (reads from Stock model)
-    tradePlanStatusService.start(15); // 15 minutes
-    console.log('✅ Trade Plan Status Service started (15 min interval)');
+    tradePlanStatusService.start(pollingInterval);
+    console.log(`✅ Trade Plan Status Service started (${pollingInterval} min interval)`);
     console.log('   → Reads prices from Stock model (centralized)');
     
     // Trigger initial price check if market is open

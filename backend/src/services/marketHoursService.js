@@ -285,6 +285,35 @@ class MarketHoursService {
   }
 
   /**
+   * Update market hours configuration from Settings
+   */
+  updateConfig(newConfig) {
+    if (newConfig.regularMarketOpen) {
+      this.regularMarketOpen = newConfig.regularMarketOpen;
+    }
+    if (newConfig.regularMarketClose) {
+      this.regularMarketClose = newConfig.regularMarketClose;
+    }
+    if (newConfig.fridayMorningOpen) {
+      this.fridayMorningOpen = newConfig.fridayMorningOpen;
+    }
+    if (newConfig.fridayMorningClose) {
+      this.fridayMorningClose = newConfig.fridayMorningClose;
+    }
+    if (newConfig.fridayAfternoonOpen) {
+      this.fridayAfternoonOpen = newConfig.fridayAfternoonOpen;
+    }
+    if (newConfig.fridayAfternoonClose) {
+      this.fridayAfternoonClose = newConfig.fridayAfternoonClose;
+    }
+    if (newConfig.publicHolidays) {
+      this.publicHolidays = newConfig.publicHolidays;
+    }
+    
+    console.log('✅ Market hours configuration updated');
+  }
+
+  /**
    * Log current market status (for debugging)
    */
   logStatus() {
