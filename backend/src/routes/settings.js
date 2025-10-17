@@ -2,8 +2,8 @@ import express from 'express';
 import Settings from '../models/Settings.js';
 import { adminOnly } from '../middleware/auth.js';
 import centralizedPriceService from '../services/centralizedPriceService.js';
-import magicLineStatusService from '../services/magicLineStatusService.js';
-import tradePlanStatusService from '../services/tradePlanStatusService.js';
+import magicLineHandler from '../handlers/magicLineHandler.js';
+import tradePlanHandler from '../handlers/tradePlanHandler.js';
 import marketHoursService from '../services/marketHoursService.js';
 
 const router = express.Router();
@@ -97,32 +97,32 @@ router.put('/', adminOnly, async (req, res) => {
 });
 
 // POST /api/settings/refresh-prices - Manual price refresh (Admin only)
+// Centralized approach: Trigger price fetch, handlers react automatically
 router.post('/refresh-prices', adminOnly, async (req, res) => {
   try {
-    console.log('🔄 Manual price refresh triggered by admin');
+    console.log('🔄 Manual price refresh triggered by admin:', req.user?.username);
     
-    // Check if market is open
+    // Check market status (for info only)
     const marketStatus = marketHoursService.isMarketOpen();
+    console.log('   Market status:', marketStatus.isOpen ? 'OPEN' : 'CLOSED');
     
-    if (!marketStatus.isOpen) {
+    // Trigger centralized price fetch
+    // This will automatically notify all handlers (Magic Line, Trade Plans)
+    console.log('   📊 Fetching prices from PSX...');
+    const priceResult = await centralizedPriceService.checkPrices();
+    
+    if (priceResult.skipped) {
+      // Market is closed and no prices fetched
       return res.json({
         success: true,
         skipped: true,
-        message: `Market is ${marketStatus.status} - ${marketStatus.message}`,
+        message: `Market is ${priceResult.status} - ${priceResult.message}`,
         data: {
-          marketStatus
+          marketStatus,
+          timestamp: new Date()
         }
       });
     }
-    
-    // Trigger centralized price fetch
-    const priceResult = await centralizedPriceService.checkPrices();
-    
-    // Trigger status checks
-    await Promise.all([
-      magicLineStatusService.checkStatuses(),
-      tradePlanStatusService.checkStatuses()
-    ]);
     
     // Update last manual refresh time
     await Settings.updateSettings({
@@ -131,16 +131,20 @@ router.post('/refresh-prices', adminOnly, async (req, res) => {
       }
     });
     
+    console.log('   ✅ Manual refresh complete! Handlers notified automatically.');
+    
     res.json({
       success: true,
       message: 'Prices refreshed successfully',
       data: {
         priceResult,
+        marketStatus,
         timestamp: new Date()
       }
     });
   } catch (error) {
-    console.error('Error refreshing prices:', error);
+    console.error('❌ Error refreshing prices:', error);
+    console.error('   Stack:', error.stack);
     res.status(500).json({
       success: false,
       message: 'Failed to refresh prices',
@@ -156,8 +160,6 @@ router.get('/status', adminOnly, async (req, res) => {
     const marketStatus = marketHoursService.isMarketOpen();
     
     const priceServiceStatus = centralizedPriceService.getStatus();
-    const magicLineStatus = magicLineStatusService.getStatus();
-    const tradePlanStatus = tradePlanStatusService.getStatus();
     
     res.json({
       success: true,
@@ -170,17 +172,18 @@ router.get('/status', adminOnly, async (req, res) => {
           priceService: {
             running: priceServiceStatus.isRunning,
             lastCheck: priceServiceStatus.lastCheckTime,
-            lastCheckAgo: priceServiceStatus.lastCheckAgo
+            lastCheckAgo: priceServiceStatus.lastCheckAgo,
+            description: 'Fetches prices from PSX, updates Stock model, notifies handlers'
+          }
+        },
+        handlers: {
+          magicLine: {
+            description: 'Listens to price updates, checks magic line hits',
+            triggeredBy: 'centralizedPriceService'
           },
-          magicLineService: {
-            running: magicLineStatus.isRunning,
-            lastCheck: magicLineStatus.lastCheckTime,
-            lastCheckAgo: magicLineStatus.lastCheckAgo
-          },
-          tradePlanService: {
-            running: tradePlanStatus.isRunning,
-            lastCheck: tradePlanStatus.lastCheckTime,
-            lastCheckAgo: tradePlanStatus.lastCheckAgo
+          tradePlans: {
+            description: 'Listens to price updates, checks buy levels/targets/SL',
+            triggeredBy: 'centralizedPriceService'
           }
         }
       }

@@ -9,8 +9,8 @@ import { fileURLToPath } from 'url';
 import config from './config/config.js';
 import { connectDB } from './config/mongodb.js';
 import centralizedPriceService from './services/centralizedPriceService.js';
-import magicLineStatusService from './services/magicLineStatusService.js';
-import tradePlanStatusService from './services/tradePlanStatusService.js';
+import magicLineHandler from './handlers/magicLineHandler.js';
+import tradePlanHandler from './handlers/tradePlanHandler.js';
 import marketHoursService from './services/marketHoursService.js';
 import db from './db/database.js';
 import uploadRoutes from './routes/upload.js';
@@ -159,10 +159,17 @@ io.on('connection', async (socket) => {
   });
 });
 
-// Setup centralized price service handler
+// ===== CENTRALIZED EVENT ARCHITECTURE =====
+// 1. Centralized Price Service fetches prices and emits event
+// 2. Handlers listen to price updates and execute their logic
+// 3. Handlers emit their own events for Socket.IO broadcasting
+
+// Setup centralized price service handler - When prices update, notify all listeners
 centralizedPriceService.onUpdate(async (data) => {
   if (data.type === 'priceUpdate') {
-    // Broadcast price update to all connected clients
+    console.log('📢 Price update received - notifying all feature handlers');
+    
+    // Broadcast to frontend
     io.emit('priceUpdate', {
       checked: data.data.checked,
       updated: data.data.updated,
@@ -170,34 +177,40 @@ centralizedPriceService.onUpdate(async (data) => {
       errors: data.data.errors
     });
     
-    console.log('📢 Broadcasting price updates to all clients');
+    // Trigger feature handlers to check their logic
+    await magicLineHandler.checkMagicLines();
+    await tradePlanHandler.checkTradePlans();
   }
 });
 
-// Setup Magic Line status service handler
-magicLineStatusService.onUpdate(async (data) => {
-  if (data.type === 'statusUpdate') {
-    // Broadcast status change to all connected clients
+// Setup Magic Line handler - Broadcasts when magic line status changes
+magicLineHandler.onUpdate(async (data) => {
+  if (data.type === 'magicLineUpdate') {
     io.emit('magicLineUpdate', {
       symbol: data.data.symbol,
       status: data.data.status,
       currentPrice: data.data.currentPrice,
-      targetPrice: data.data.targetPrice,
-      timestamp: new Date().toISOString()
+      magicLine: data.data.magicLine,
+      timestamp: data.data.timestamp
     });
   }
 });
 
-// Setup Trade Plan status service handler
-tradePlanStatusService.onUpdate(async (data) => {
-  // Broadcast trade plan updates to all connected clients
-  io.emit('tradePlanUpdate', {
-    type: data.type,
-    data: data.data,
-    timestamp: new Date().toISOString()
-  });
-  
-  console.log(`📢 Broadcasting ${data.type} to all clients`);
+// Setup Trade Plan handler - Broadcasts when trade plan updates
+tradePlanHandler.onUpdate(async (data) => {
+  if (data.type === 'tradePlanUpdate') {
+    io.emit('tradePlanUpdate', {
+      planId: data.data.planId,
+      symbol: data.data.symbol,
+      currentPrice: data.data.currentPrice,
+      updates: data.data.updates,
+      buyLevels: data.data.buyLevels,
+      targetPrices: data.data.targetPrices,
+      stopLoss: data.data.stopLoss,
+      isActive: data.data.isActive,
+      timestamp: data.data.timestamp
+    });
+  }
 });
 
 // Start application
@@ -216,27 +229,22 @@ async function startServer() {
     console.log(`   Polling Interval: ${pollingInterval} minutes`);
     console.log(`   Polling Enabled: ${settings.pricePolling.enabled}`);
     
-    // Start Centralized Price Service & Status Checkers (only during market hours)
-    console.log('\n📊 Starting Centralized Price & Status Services...');
+    // Start Centralized Price Service (ONLY ONE SERVICE!)
+    console.log('\n📊 Starting Centralized Price Service...');
     console.log('⏰ PSX Market Hours:');
     console.log('   • Monday-Thursday: 9:15 AM - 3:30 PM PKT');
     console.log('   • Friday: 9:15 AM - 12:00 PM & 2:30 PM - 4:30 PM PKT');
     console.log('   • Weekends: Closed\n');
     
-    // Start Centralized Price Service (fetches prices from PSX and updates Stock model)
+    // Start ONLY the centralized price service
     centralizedPriceService.start(pollingInterval);
     console.log(`✅ Centralized Price Service started (${pollingInterval} min interval)`);
-    console.log('   → Updates Stock model with live prices from PSX');
-    
-    // Start Magic Line Status Service (reads from Stock model)
-    magicLineStatusService.start(pollingInterval);
-    console.log(`✅ Magic Line Status Service started (${pollingInterval} min interval)`);
-    console.log('   → Reads prices from Stock model (centralized)');
-    
-    // Start Trade Plan Status Service (reads from Stock model)
-    tradePlanStatusService.start(pollingInterval);
-    console.log(`✅ Trade Plan Status Service started (${pollingInterval} min interval)`);
-    console.log('   → Reads prices from Stock model (centralized)');
+    console.log('   → Fetches prices from PSX');
+    console.log('   → Updates Stock model (single source of truth)');
+    console.log('   → Notifies all feature handlers');
+    console.log('\n🎯 Feature Handlers (listen to price updates):');
+    console.log('   • Magic Line Handler - checks magic line hits');
+    console.log('   • Trade Plan Handler - checks buy levels, targets, stop loss');
     
     // Trigger initial price check if market is open
     setTimeout(async () => {
@@ -245,10 +253,9 @@ async function startServer() {
         if (status.isOpen) {
           console.log('\n🔄 Triggering initial price fetch (market is open)...');
           await centralizedPriceService.checkPrices();
-          await magicLineStatusService.checkStatuses();
-          await tradePlanStatusService.checkStatuses();
+          // Handlers will be triggered automatically by the price update event
         } else {
-          console.log('\n⏸️ Market is closed - services will activate during next market hours');
+          console.log('\n⏸️ Market is closed - service will activate during next market hours');
         }
       } catch (error) {
         console.log('ℹ️ Skipping initial fetch:', error.message);

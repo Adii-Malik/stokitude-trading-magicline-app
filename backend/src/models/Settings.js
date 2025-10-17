@@ -101,13 +101,61 @@ settingsSchema.statics.getSettings = async function() {
 settingsSchema.statics.updateSettings = async function(updates) {
   const settings = await this.getSettings();
   
-  // Merge updates
+  // Merge updates deeply to preserve existing fields
   if (updates.pricePolling) {
-    Object.assign(settings.pricePolling, updates.pricePolling);
+    // Deep merge for pricePolling - preserve existing fields
+    const currentPolling = settings.pricePolling.toObject ? settings.pricePolling.toObject() : settings.pricePolling;
+    settings.pricePolling = {
+      ...currentPolling,
+      ...updates.pricePolling
+    };
   }
   if (updates.marketHours) {
-    Object.assign(settings.marketHours, updates.marketHours);
+    // Deep merge for marketHours
+    if (updates.marketHours.regularMarketOpen) {
+      settings.marketHours.regularMarketOpen = {
+        ...settings.marketHours.regularMarketOpen,
+        ...updates.marketHours.regularMarketOpen
+      };
+    }
+    if (updates.marketHours.regularMarketClose) {
+      settings.marketHours.regularMarketClose = {
+        ...settings.marketHours.regularMarketClose,
+        ...updates.marketHours.regularMarketClose
+      };
+    }
+    if (updates.marketHours.fridayMorningOpen) {
+      settings.marketHours.fridayMorningOpen = {
+        ...settings.marketHours.fridayMorningOpen,
+        ...updates.marketHours.fridayMorningOpen
+      };
+    }
+    if (updates.marketHours.fridayMorningClose) {
+      settings.marketHours.fridayMorningClose = {
+        ...settings.marketHours.fridayMorningClose,
+        ...updates.marketHours.fridayMorningClose
+      };
+    }
+    if (updates.marketHours.fridayAfternoonOpen) {
+      settings.marketHours.fridayAfternoonOpen = {
+        ...settings.marketHours.fridayAfternoonOpen,
+        ...updates.marketHours.fridayAfternoonOpen
+      };
+    }
+    if (updates.marketHours.fridayAfternoonClose) {
+      settings.marketHours.fridayAfternoonClose = {
+        ...settings.marketHours.fridayAfternoonClose,
+        ...updates.marketHours.fridayAfternoonClose
+      };
+    }
+    if (updates.marketHours.publicHolidays !== undefined) {
+      settings.marketHours.publicHolidays = updates.marketHours.publicHolidays;
+    }
   }
+  
+  // Mark the nested paths as modified for Mongoose
+  settings.markModified('pricePolling');
+  settings.markModified('marketHours');
   
   await settings.save();
   console.log('✅ System settings updated');
