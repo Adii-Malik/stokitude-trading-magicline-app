@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, Minus, Trash2, ArrowUp, Search, Filter, Loader2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Trash2, ArrowUp, Search, Filter, Loader2, X } from 'lucide-react';
 import { getSymbols, clearSymbols } from '../services/api';
 import socketService from '../services/socket';
 import { useAuth } from '../contexts/AuthContext';
@@ -257,23 +257,25 @@ export default function Dashboard() {
 
       {/* Results Info */}
       {(searchQuery || filterStatus !== 'all') && (
-        <div className="bg-cyan-500/10 border border-cyan-500/50 rounded-lg p-3 flex items-center gap-2">
-          <Filter className="w-4 h-4 text-cyan-400" />
-          <span className="text-sm text-cyan-300">
-            Showing <span className="font-bold">{filteredSymbols.length}</span> of {symbols.length} symbols
-            {searchQuery && <span> matching "<span className="font-semibold">{searchQuery}</span>"</span>}
-          </span>
-          {(searchQuery || filterStatus !== 'all') && (
-            <button
-              onClick={() => {
-                setSearchQuery('');
-                setFilterStatus('all');
-              }}
-              className="ml-auto text-sm text-cyan-400 hover:text-cyan-300 font-medium hover:underline"
-            >
-              Clear filters
-            </button>
-          )}
+        <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-lg p-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+            <span className="text-sm text-gray-700 dark:text-gray-300">
+              Showing <span className="font-bold">{filteredSymbols.length}</span> of <span className="font-bold">{symbols.length}</span> symbols
+              {searchQuery && <span className="text-gray-600 dark:text-gray-400"> matching "<span className="font-semibold text-gray-900 dark:text-white">{searchQuery}</span>"</span>}
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              setSearchQuery('');
+              setFilterStatus('all');
+            }}
+            className="px-2 sm:px-3 py-1.5 bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 rounded-lg text-xs font-medium hover:bg-red-200 dark:hover:bg-red-500/30 transition flex items-center gap-1"
+          >
+            <X className="w-3 h-3" />
+            <span className="hidden sm:inline">Clear Filters</span>
+            <span className="sm:hidden">Clear</span>
+          </button>
         </div>
       )}
 
