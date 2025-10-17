@@ -32,8 +32,9 @@ router.get('/', authenticate, async (req, res) => {
       symbol = '', 
       isActive = '',
       tradeType = '',
-      sortBy = 'createdAt',
-      sortOrder = 'desc'
+      outcome = '',
+      timeFilter = '',
+      sortOrder = 'newest'
     } = req.query;
     
     const query = {};
@@ -58,10 +59,51 @@ router.get('/', authenticate, async (req, res) => {
       query.tradeType = tradeType;
     }
     
+    // Filter by outcome (success = TP hit, failed = SL hit, closed = manually closed)
+    if (outcome === 'success') {
+      query['targetPrices.isHit'] = true;
+    } else if (outcome === 'failed') {
+      query['stopLoss.isHit'] = true;
+      query['targetPrices.isHit'] = { $ne: true }; // No TPs hit
+    } else if (outcome === 'closed') {
+      query.status = 'closed';
+    }
+    
+    // Filter by time period
+    if (timeFilter) {
+      const now = new Date();
+      let startDate;
+      
+      switch (timeFilter) {
+        case 'week':
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case 'month':
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          break;
+        case '3months':
+          startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+          break;
+        case 'year':
+          startDate = new Date(now.getFullYear(), 0, 1);
+          break;
+        default:
+          startDate = null;
+      }
+      
+      if (startDate) {
+        query.createdAt = { $gte: startDate };
+      }
+    }
+    
+    // Determine sort order
+    const sortField = 'createdAt';
+    const sortDirection = sortOrder === 'oldest' ? 1 : -1;
+    
     const total = await TradePlan.countDocuments(query);
     const plans = await TradePlan.find(query)
       .populate('createdBy', 'username')
-      .sort({ [sortBy]: sortOrder === 'desc' ? -1 : 1 })
+      .sort({ [sortField]: sortDirection })
       .limit(parseInt(limit))
       .skip((parseInt(page) - 1) * parseInt(limit));
     

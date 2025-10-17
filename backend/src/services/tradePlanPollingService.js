@@ -167,22 +167,40 @@ class TradePlanPollingService {
           }
         }
 
-        // Check target prices (if current price >= target)
-        for (const target of plan.targetPrices) {
-          if (!target.isHit && currentPrice >= target.price) {
-            target.isHit = true;
-            target.hitDate = now;
-            tpHits++;
-            planModified = true;
-            notifications.push({
-              type: 'tpHit',
-              symbol: plan.symbol,
-              level: target.level,
-              price: currentPrice,
-              targetPrice: target.price
-            });
-            console.log(`  🎉 ${plan.symbol} - TP${target.level} HIT! Price: Rs. ${currentPrice} (Target: Rs. ${target.price})`);
+        // Check target prices (only if at least one buy level was hit)
+        const anyBuyLevelHit = plan.buyLevels.some(bl => bl.isHit);
+        if (anyBuyLevelHit) {
+          for (const target of plan.targetPrices) {
+            if (!target.isHit && currentPrice >= target.price) {
+              target.isHit = true;
+              target.hitDate = now;
+              tpHits++;
+              planModified = true;
+              notifications.push({
+                type: 'tpHit',
+                symbol: plan.symbol,
+                level: target.level,
+                price: currentPrice,
+                targetPrice: target.price
+              });
+              console.log(`  🎉 ${plan.symbol} - TP${target.level} HIT! Price: Rs. ${currentPrice} (Target: Rs. ${target.price})`);
+            }
           }
+        }
+
+        // Check if ALL target prices are hit
+        const allTPsHit = plan.targetPrices.length > 0 && plan.targetPrices.every(tp => tp.isHit);
+        if (allTPsHit && plan.isActive) {
+          plan.status = 'tp_hit';
+          plan.isActive = false; // Move to historical
+          plan.exitDate = now;
+          planModified = true;
+          notifications.push({
+            type: 'allTPsHit',
+            symbol: plan.symbol,
+            price: currentPrice
+          });
+          console.log(`  ✅ ${plan.symbol} - ALL TARGETS ACHIEVED! Moving to Historical. Price: Rs. ${currentPrice}`);
         }
 
         // Check stop loss (if current price <= stop loss)

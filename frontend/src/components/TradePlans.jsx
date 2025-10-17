@@ -18,7 +18,9 @@ import {
   Activity,
   History,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Calendar,
+  Clock
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { 
@@ -42,6 +44,9 @@ export default function TradePlans() {
   const [activeTab, setActiveTab] = useState('active'); // 'active' or 'historical'
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [outcomeFilter, setOutcomeFilter] = useState(''); // 'success', 'failed', ''
+  const [timeFilter, setTimeFilter] = useState(''); // 'week', 'month', '3months', 'year', ''
+  const [sortOrder, setSortOrder] = useState('newest'); // 'newest', 'oldest'
   const [pagination, setPagination] = useState({ page: 1, limit: 50, total: 0, pages: 0 });
   
   // Modal states
@@ -84,7 +89,7 @@ export default function TradePlans() {
   // Load trade calls
   useEffect(() => {
     loadPlans();
-  }, [pagination.page, activeTab, searchQuery, statusFilter]);
+  }, [pagination.page, activeTab, searchQuery, statusFilter, outcomeFilter, timeFilter, sortOrder]);
 
   // Load stats
   useEffect(() => {
@@ -140,7 +145,10 @@ export default function TradePlans() {
         limit: pagination.limit,
         symbol: searchQuery,
         status: statusFilter,
-        isActive: activeTab === 'active' ? 'true' : 'false'
+        isActive: activeTab === 'active' ? 'true' : 'false',
+        outcome: outcomeFilter,
+        timeFilter: timeFilter,
+        sortOrder: sortOrder
       };
       
       const response = await getTradePlans(params);
@@ -251,6 +259,18 @@ export default function TradePlans() {
     } catch (error) {
       console.error('Error deleting trade call:', error);
       showMessage(error.response?.data?.message || 'Failed to delete trade call', 'error');
+    }
+  };
+
+  const handleCloseCall = async (planId) => {
+    try {
+      await updateTradePlanStatus(planId, { status: 'closed', isActive: false });
+      showMessage('Trade call closed successfully');
+      loadPlans();
+      loadStats();
+    } catch (error) {
+      console.error('Error closing trade call:', error);
+      showMessage(error.response?.data?.message || 'Failed to close trade call', 'error');
     }
   };
 
@@ -411,14 +431,14 @@ export default function TradePlans() {
                   className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white font-medium rounded-lg transition-colors duration-200 flex items-center gap-2"
                 >
                   <Plus className="w-4 h-4" />
-                  Add Trade Call
+                  <span className="hidden sm:inline">Add Trade Call</span>
                 </button>
                 <button
                   onClick={() => setShowUploadModal(true)}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200 flex items-center gap-2"
                 >
                   <Upload className="w-4 h-4" />
-                  Upload CSV
+                  <span className="hidden sm:inline">Upload CSV</span>
                 </button>
                 {plans.length > 0 && (
                   <button
@@ -426,7 +446,7 @@ export default function TradePlans() {
                     className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors duration-200 flex items-center gap-2"
                   >
                     <Trash2 className="w-4 h-4" />
-                    Clear All Calls
+                    <span className="hidden sm:inline">Clear All Calls</span>
                   </button>
                 )}
               </div>
@@ -478,30 +498,32 @@ export default function TradePlans() {
 
           {/* Tabs and Search */}
           <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-            <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+            <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between mb-4">
               {/* Tabs */}
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setActiveTab('active')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
+                  className={`px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
                     activeTab === 'active'
-                      ? 'bg-blue-600 text-white shadow-md'
+                      ? 'bg-cyan-600 text-white shadow-md'
                       : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                   }`}
                 >
                   <Activity className="w-4 h-4" />
-                  Active Calls
+                  <span className="hidden xs:inline">Active Calls</span>
+                  <span className="xs:hidden">Active</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('historical')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
+                  className={`px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
                     activeTab === 'historical'
-                      ? 'bg-purple-600 text-white shadow-md'
+                      ? 'bg-slate-600 text-white shadow-md'
                       : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                   }`}
                 >
                   <History className="w-4 h-4" />
-                  Historical
+                  <span className="hidden xs:inline">Historical</span>
+                  <span className="xs:hidden">History</span>
                 </button>
               </div>
 
@@ -524,6 +546,111 @@ export default function TradePlans() {
                   </button>
                 )}
               </div>
+            </div>
+
+            {/* Filters Row */}
+            <div className="flex flex-col lg:flex-row gap-3 items-start lg:items-center">
+              {/* Outcome Filter (Historical only) */}
+              {activeTab === 'historical' && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <Filter className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300 hidden sm:inline">Outcome:</span>
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    <button
+                      onClick={() => setOutcomeFilter('')}
+                      className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                        outcomeFilter === ''
+                          ? 'bg-cyan-500 text-white'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      All
+                    </button>
+                    <button
+                      onClick={() => setOutcomeFilter('success')}
+                      className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                        outcomeFilter === 'success'
+                          ? 'bg-green-500 text-white'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      ✅ <span className="hidden sm:inline">Success (TP Hit)</span>
+                      <span className="sm:hidden">Success</span>
+                    </button>
+                    <button
+                      onClick={() => setOutcomeFilter('failed')}
+                      className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                        outcomeFilter === 'failed'
+                          ? 'bg-red-500 text-white'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      ❌ <span className="hidden sm:inline">Failed (SL Hit)</span>
+                      <span className="sm:hidden">Failed</span>
+                    </button>
+                    <button
+                      onClick={() => setOutcomeFilter('closed')}
+                      className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                        outcomeFilter === 'closed'
+                          ? 'bg-gray-500 text-white'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      🔒 <span className="hidden sm:inline">Closed/Expired</span>
+                      <span className="sm:hidden">Closed</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Time Period Filter */}
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300 hidden sm:inline">Period:</span>
+                <select
+                  value={timeFilter}
+                  onChange={(e) => setTimeFilter(e.target.value)}
+                  className="px-2 sm:px-3 py-1.5 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg text-xs font-medium focus:ring-2 focus:ring-cyan-500 transition"
+                >
+                  <option value="">All Time</option>
+                  <option value="week">This Week</option>
+                  <option value="month">This Month</option>
+                  <option value="3months">Last 3 Months</option>
+                  <option value="year">This Year</option>
+                </select>
+              </div>
+
+              {/* Sort Order */}
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300 hidden sm:inline">Sort:</span>
+                <select
+                  value={sortOrder}
+                  onChange={(e) => setSortOrder(e.target.value)}
+                  className="px-2 sm:px-3 py-1.5 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg text-xs font-medium focus:ring-2 focus:ring-cyan-500 transition"
+                >
+                  <option value="newest">Newest First</option>
+                  <option value="oldest">Oldest First</option>
+                </select>
+              </div>
+
+              {/* Clear Filters */}
+              {(outcomeFilter || timeFilter || sortOrder !== 'newest') && (
+                <button
+                  onClick={() => {
+                    setOutcomeFilter('');
+                    setTimeFilter('');
+                    setSortOrder('newest');
+                  }}
+                  className="px-2 sm:px-3 py-1.5 bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 rounded-lg text-xs font-medium hover:bg-red-200 dark:hover:bg-red-500/30 transition flex items-center gap-1"
+                >
+                  <X className="w-3 h-3" />
+                  <span className="hidden sm:inline">Clear Filters</span>
+                  <span className="sm:hidden">Clear</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -565,6 +692,7 @@ export default function TradePlans() {
                 plan={plan} 
                 onEdit={handleEdit}
                 onDelete={handleDelete}
+                onClose={handleCloseCall}
                 getStatusBadge={getStatusBadge}
                 isAdmin={isAdmin()}
               />
@@ -895,9 +1023,44 @@ export default function TradePlans() {
   );
 }
 
+// Helper functions for date formatting
+function formatDate(dateString) {
+  if (!dateString) return null;
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function getDaysAgo(dateString) {
+  if (!dateString) return null;
+  const now = new Date();
+  const created = new Date(dateString);
+  const diffTime = Math.abs(now - created);
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return '1 day ago';
+  if (diffDays < 7) return `${diffDays} days ago`;
+  if (diffDays < 30) {
+    const weeks = Math.floor(diffDays / 7);
+    return `${weeks} week${weeks > 1 ? 's' : ''} ago`;
+  }
+  if (diffDays < 365) {
+    const months = Math.floor(diffDays / 30);
+    return `${months} month${months > 1 ? 's' : ''} ago`;
+  }
+  const years = Math.floor(diffDays / 365);
+  return `${years} year${years > 1 ? 's' : ''} ago`;
+}
+
 // Trade Call Card Component
-function TradePlanCard({ plan, onEdit, onDelete, getStatusBadge, isAdmin }) {
+function TradePlanCard({ plan, onEdit, onDelete, onClose, getStatusBadge, isAdmin }) {
   const [isAnalysisExpanded, setIsAnalysisExpanded] = useState(false);
+
+  const handleCloseTradePlan = async (tradePlan) => {
+    if (window.confirm(`Are you sure you want to close this call for ${tradePlan.symbol}? This will mark it as expired.`)) {
+      await onClose(tradePlan._id);
+    }
+  };
   const statusBadge = getStatusBadge(plan.status);
   const stopLossPrice = plan.stopLoss?.price || plan.stopLoss;
 
@@ -906,16 +1069,38 @@ function TradePlanCard({ plan, onEdit, onDelete, getStatusBadge, isAdmin }) {
     ? plan.analysis.substring(0, 100) + '...' 
     : plan.analysis;
   const hasLongAnalysis = plan.analysis && plan.analysis.length > 100;
+  
+  // Date context
+  const createdDate = formatDate(plan.createdAt);
+  const daysAgo = getDaysAgo(plan.createdAt);
 
   return (
     <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-md hover:shadow-lg transition-all duration-200">
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2 flex-wrap">
+          {/* Symbol and Current Price */}
+          <div className="flex items-center gap-3 mb-2 flex-wrap">
             <h3 className="text-2xl font-bold text-cyan-600 dark:text-cyan-400">{plan.symbol}</h3>
+            {plan.currentPrice && (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
+                <span className="text-base font-bold text-gray-900 dark:text-white">
+                  Rs. {plan.currentPrice.toFixed(2)}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Company Name */}
+          {plan.companyName && (
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{plan.companyName}</p>
+          )}
+          
+          {/* Status Badges with Date */}
+          <div className="flex items-center gap-2 flex-wrap">
             <span className={`px-2 py-1 rounded text-xs font-medium border ${statusBadge.color}`}>
               {statusBadge.label}
+              {daysAgo && <span className="ml-1 opacity-75">• {daysAgo}</span>}
             </span>
             {plan.tradeType === 'short' && (
               <span className="px-2 py-1 rounded text-xs font-medium bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-500/30">
@@ -925,7 +1110,7 @@ function TradePlanCard({ plan, onEdit, onDelete, getStatusBadge, isAdmin }) {
             {plan.setupQuality && (
               <span className={`px-2 py-1 rounded text-xs font-medium ${
                 plan.setupQuality === 'excellent' ? 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-500/30' :
-                plan.setupQuality === 'good' ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-500/30' :
+                plan.setupQuality === 'good' ? 'bg-teal-100 dark:bg-teal-500/20 text-teal-700 dark:text-teal-400 border border-teal-200 dark:border-teal-500/30' :
                 plan.setupQuality === 'fair' ? 'bg-yellow-100 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-500/30' :
                 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-500/30'
               }`}>
@@ -935,33 +1120,28 @@ function TradePlanCard({ plan, onEdit, onDelete, getStatusBadge, isAdmin }) {
               </span>
             )}
           </div>
-          {plan.companyName && (
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{plan.companyName}</p>
-          )}
-          <div className="flex items-center gap-3 mt-2">
-            {plan.currentPrice && (
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-500/10 dark:to-emerald-500/10 border border-green-200 dark:border-green-500/30 rounded-lg">
-                <Activity className="w-4 h-4 text-green-600 dark:text-green-400" />
-                <span className="text-sm font-semibold text-green-700 dark:text-green-400">
-                  Current: Rs. {plan.currentPrice.toFixed(2)}
-                </span>
-              </div>
-            )}
-            <p className="text-xs text-gray-500 dark:text-gray-500">
-              Posted: {new Date(plan.createdAt).toLocaleDateString()}
-            </p>
-          </div>
         </div>
         
         {isAdmin && (
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => onEdit(plan)}
-              className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/20 rounded-lg transition"
-              title="Edit"
-            >
-              <Edit2 className="w-4 h-4" />
-            </button>
+            {plan.isActive && (
+              <button
+                onClick={() => onEdit(plan)}
+                className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/20 rounded-lg transition"
+                title="Edit"
+              >
+                <Edit2 className="w-4 h-4" />
+              </button>
+            )}
+            {plan.isActive && (
+              <button
+                onClick={() => handleCloseTradePlan(plan)}
+                className="p-2 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-500/20 rounded-lg transition"
+                title="Close Call"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
             <button
               onClick={() => onDelete(plan)}
               className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/20 rounded-lg transition"
@@ -976,7 +1156,7 @@ function TradePlanCard({ plan, onEdit, onDelete, getStatusBadge, isAdmin }) {
       {/* Buy Levels */}
       {plan.buyLevels && plan.buyLevels.length > 0 && (
         <div className="mb-4">
-          <div className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2">Buy Levels:</div>
+          <div className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-2">Buy Levels:</div>
           <div className="flex flex-wrap gap-2">
             {plan.buyLevels.map((level, index) => (
               <div 
@@ -987,7 +1167,7 @@ function TradePlanCard({ plan, onEdit, onDelete, getStatusBadge, isAdmin }) {
                     : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600'
                 }`}
               >
-                <span className="text-xs opacity-75">L{level.level}: </span>
+                <span className="text-xs font-bold opacity-90">L{level.level}: </span>
                 {level.priceFrom.toFixed(2)} - {level.priceTo.toFixed(2)}
                 {level.isHit && <CheckCircle className="w-3 h-3 inline ml-1" />}
               </div>
@@ -999,29 +1179,42 @@ function TradePlanCard({ plan, onEdit, onDelete, getStatusBadge, isAdmin }) {
       {/* Target Prices & Stop Loss */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         {plan.targetPrices && plan.targetPrices.length > 0 && plan.targetPrices.map((tp, index) => (
-          <div key={index}>
-            <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">TP{tp.level || index + 1}</div>
-            <div className={`text-lg font-bold ${tp.isHit ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'}`}>
+          <div 
+            key={index}
+            className={`p-3 rounded-lg border ${
+              tp.isHit 
+                ? 'bg-green-50 dark:bg-green-500/10 border-green-200 dark:border-green-500/30' 
+                : 'bg-gray-50 dark:bg-gray-700/30 border-gray-200 dark:border-gray-600'
+            }`}
+          >
+            <div className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">TP{tp.level || index + 1}</div>
+            <div className={`text-lg font-bold flex items-center gap-1 ${
+              tp.isHit ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'
+            }`}>
               {tp.price.toFixed(2)}
-              {tp.isHit && <CheckCircle className="w-4 h-4 inline ml-1" />}
+              {tp.isHit && <CheckCircle className="w-4 h-4" />}
             </div>
           </div>
         ))}
         
-        <div>
-          <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Stop Loss</div>
-          <div className="text-lg font-bold text-red-600 dark:text-red-400">
+        <div className={`p-3 rounded-lg border ${
+          plan.stopLoss?.isHit 
+            ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/30' 
+            : 'bg-gray-50 dark:bg-gray-700/30 border-gray-200 dark:border-gray-600'
+        }`}>
+          <div className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Stop Loss</div>
+          <div className="text-lg font-bold text-red-600 dark:text-red-400 flex items-center gap-1">
             {stopLossPrice.toFixed(2)}
-            {plan.stopLoss?.isHit && <span className="text-xs ml-1">✗ Hit</span>}
+            {plan.stopLoss?.isHit && <span className="text-xs">✗</span>}
           </div>
         </div>
       </div>
 
       {/* Target Range */}
       {plan.shortTermTPRange && plan.shortTermTPRange.from && plan.shortTermTPRange.to && (
-        <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-lg">
-          <div className="text-xs text-blue-700 dark:text-blue-400 mb-1">Target Range</div>
-          <div className="text-sm font-bold text-blue-900 dark:text-blue-300">
+        <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-lg">
+          <div className="text-xs text-amber-700 dark:text-amber-400 mb-1 font-bold">Target Range</div>
+          <div className="text-sm font-bold text-amber-900 dark:text-amber-300">
             Rs. {plan.shortTermTPRange.from.toFixed(2)} - {plan.shortTermTPRange.to.toFixed(2)}
           </div>
         </div>
@@ -1029,9 +1222,12 @@ function TradePlanCard({ plan, onEdit, onDelete, getStatusBadge, isAdmin }) {
 
       {/* Analysis */}
       {plan.analysis && (
-        <div className="bg-cyan-50 dark:bg-cyan-500/10 border border-cyan-200 dark:border-cyan-500/30 rounded-lg p-3">
-          <div className="flex items-center justify-between mb-1">
-            <div className="text-xs font-semibold text-cyan-700 dark:text-cyan-400">Analysis</div>
+        <div className="bg-gray-50 dark:bg-gray-700/30 border border-gray-200 dark:border-gray-600 rounded-lg p-3">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1.5">
+              <FileText className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
+              <div className="text-xs font-semibold text-gray-700 dark:text-gray-300">Analysis</div>
+            </div>
             {hasLongAnalysis && (
               <button
                 onClick={() => setIsAnalysisExpanded(!isAnalysisExpanded)}
@@ -1051,7 +1247,7 @@ function TradePlanCard({ plan, onEdit, onDelete, getStatusBadge, isAdmin }) {
               </button>
             )}
           </div>
-          <p className="text-sm text-cyan-900 dark:text-cyan-300">
+          <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
             {isAnalysisExpanded || !hasLongAnalysis ? plan.analysis : analysisPreview}
           </p>
         </div>

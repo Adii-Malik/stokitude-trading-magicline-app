@@ -204,14 +204,14 @@ export default function StockManagement() {
                 className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white font-medium rounded-lg transition-colors duration-200 flex items-center gap-2"
               >
                 <Plus className="w-4 h-4" />
-                Add Stock
+                <span className="hidden sm:inline">Add Stock</span>
               </button>
               <button
                 onClick={() => setShowUploadModal(true)}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200 flex items-center gap-2"
               >
                 <Upload className="w-4 h-4" />
-                Upload CSV
+                <span className="hidden sm:inline">Upload CSV</span>
               </button>
             </div>
           </div>
