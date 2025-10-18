@@ -81,23 +81,24 @@ export const uploadManual = async (symbols) => {
   return response.data;
 };
 
+// Magic Line API
 export const getSymbols = async () => {
-  const response = await api.get('/symbols');
+  const response = await api.get('/magic-line');
   return response.data;
 };
 
 export const getSymbol = async (symbol) => {
-  const response = await api.get(`/symbols/${symbol}`);
+  const response = await api.get(`/magic-line/${symbol}`);
   return response.data;
 };
 
 export const clearSymbols = async () => {
-  const response = await api.delete('/symbols');
+  const response = await api.delete('/magic-line');
   return response.data;
 };
 
 export const getStats = async () => {
-  const response = await api.get('/symbols/stats/summary');
+  const response = await api.get('/magic-line/stats/summary');
   return response.data;
 };
 
@@ -111,7 +112,7 @@ export const healthCheck = async () => {
 };
 
 export const fetchPrices = async () => {
-  const response = await api.post('/symbols/fetch-prices');
+  const response = await api.post('/magic-line/fetch-prices');
   return response.data;
 };
 

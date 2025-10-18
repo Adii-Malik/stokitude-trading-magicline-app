@@ -14,7 +14,7 @@ import tradePlanHandler from './handlers/tradePlanHandler.js';
 import marketHoursService from './services/marketHoursService.js';
 import db from './db/database.js';
 import uploadRoutes from './routes/upload.js';
-import symbolsRoutes from './routes/symbols.js';
+import magicLineRoutes from './routes/magicLine.js';
 import authRoutes from './routes/auth.js';
 import adminRoutes from './routes/admin.js';
 import stocksRoutes from './routes/stocks.js';
@@ -71,7 +71,7 @@ app.get('/health', async (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadRoutes);
-app.use('/api/symbols', symbolsRoutes);
+app.use('/api/magic-line', magicLineRoutes);
 app.use('/api/stocks', stocksRoutes);
 app.use('/api/trade-plans', tradePlansRoutes);
 app.use('/api/settings', settingsRoutes);
@@ -101,10 +101,10 @@ app.get('/api', (req, res) => {
       },
       upload: '/api/upload (POST) [Admin]',
       uploadManual: '/api/upload/manual (POST) [Admin]',
-      symbols: '/api/symbols (GET)',
-      symbolDetail: '/api/symbols/:symbol (GET)',
-      clearSymbols: '/api/symbols (DELETE) [Admin]',
-      stats: '/api/symbols/stats/summary (GET)'
+      magicLine: '/api/magic-line (GET)',
+      magicLineDetail: '/api/magic-line/:symbol (GET)',
+      clearMagicLine: '/api/magic-line (DELETE) [Admin]',
+      stats: '/api/magic-line/stats/summary (GET)'
     },
     websocket: 'Socket.IO available for real-time updates',
     note: '[Admin] routes require authentication with admin role'
@@ -272,10 +272,11 @@ async function startServer() {
       console.log(`🍃 MongoDB connected and ready`);
       console.log(`📌 Data Source: PSX Official (dps.psx.com.pk) - Closing Prices`);
       console.log(`\n📚 API Documentation:`);
-      console.log(`   Health Check: GET http://localhost:${config.port}/health`);
-      console.log(`   Upload File:  POST http://localhost:${config.port}/api/upload`);
-      console.log(`   Get Symbols:  GET http://localhost:${config.port}/api/symbols`);
-      console.log(`   Fetch Prices: POST http://localhost:${config.port}/api/symbols/fetch-prices`);
+      console.log(`   Health Check:  GET http://localhost:${config.port}/health`);
+      console.log(`   Upload File:   POST http://localhost:${config.port}/api/upload`);
+      console.log(`   Magic Line:    GET http://localhost:${config.port}/api/magic-line`);
+      console.log(`   Trade Plans:   GET http://localhost:${config.port}/api/trade-plans`);
+      console.log(`   Fetch Prices:  POST http://localhost:${config.port}/api/magic-line/fetch-prices`);
       console.log(`\n🎯 Ready to monitor PSX stocks!`);
     });
   } catch (error) {

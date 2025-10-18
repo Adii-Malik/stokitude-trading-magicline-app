@@ -1,5 +1,5 @@
 import Stock from '../models/Stock.js';
-import Symbol from '../models/Symbol.js';
+import MagicLine from '../models/MagicLine.js';
 import TradePlan from '../models/TradePlan.js';
 import psxScraper from './psxScraper.js';
 import marketHoursService from './marketHoursService.js';
@@ -112,7 +112,7 @@ class CentralizedPriceService {
       const tradePlanSymbols = await TradePlan.find({ isActive: true }).distinct('symbol');
       
       // Get symbols from active magic line entries
-      const magicLineSymbols = await Symbol.find({ isActive: true }).distinct('symbol');
+      const magicLineSymbols = await MagicLine.find({ isActive: true }).distinct('symbol');
       
       // Combine and deduplicate
       const activeSymbols = [...new Set([...tradePlanSymbols, ...magicLineSymbols])];

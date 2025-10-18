@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Header from './components/Header';
 import UploadForm from './components/UploadForm';
 import Dashboard from './components/Dashboard';
+import MagicLine from './components/MagicLine';
 import AdminDashboard from './components/AdminDashboard';
 import StockManagement from './components/StockManagement';
 import TradePlans from './components/TradePlans';
@@ -155,6 +156,36 @@ function AppContent() {
               lastPriceUpdate={lastPriceUpdate}
               marketStatus={marketStatus}
               onNavigateToDashboard={() => navigate('/dashboard')}
+              onNavigateToMagicLine={() => navigate('/magic-line')}
+              onNavigateToStocks={() => navigate('/stocks')}
+              onNavigateToTradeSignals={() => navigate('/trade-signals')}
+              onNavigateToAdmin={() => navigate('/admin')}
+              onNavigateToSettings={() => navigate('/settings')}
+              onNavigateToLogin={() => navigate('/login')}
+              onNavigateToSignup={() => navigate('/signup')}
+            />
+            
+            <Dashboard />
+
+            <footer className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 mt-12 transition-colors duration-300">
+              <div className="container mx-auto px-4 py-6 text-center text-gray-600 dark:text-gray-400 text-sm">
+                <p>PSX SmartDesk - Real-time Stock Price Monitoring & Trade Management</p>
+              </div>
+            </footer>
+          </div>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/magic-line" element={
+        <ProtectedRoute>
+          <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300">
+            <Header 
+              isConnected={isConnected}
+              currentPage="magic-line"
+              lastPriceUpdate={lastPriceUpdate}
+              marketStatus={marketStatus}
+              onNavigateToDashboard={() => navigate('/dashboard')}
+              onNavigateToMagicLine={() => navigate('/magic-line')}
               onNavigateToStocks={() => navigate('/stocks')}
               onNavigateToTradeSignals={() => navigate('/trade-signals')}
               onNavigateToAdmin={() => navigate('/admin')}
@@ -168,7 +199,7 @@ function AppContent() {
                 {isAdmin() && (
                   <UploadForm onUploadSuccess={handleUploadSuccess} />
                 )}
-                <Dashboard key={refreshDashboard} />
+                <MagicLine key={refreshDashboard} />
               </div>
             </main>
 

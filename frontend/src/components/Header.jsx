@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { TrendingUp, LogOut, User, Shield, Settings, BarChart3, Target, Sun, Moon, Database, Menu, X, ChevronDown, UserCircle, Lock } from 'lucide-react';
+import { TrendingUp, LogOut, User, Shield, Settings, BarChart3, Target, Sun, Moon, Database, Menu, X, ChevronDown, UserCircle, Lock, Home } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -9,6 +9,7 @@ export default function Header({
   lastPriceUpdate,
   marketStatus,
   onNavigateToDashboard,
+  onNavigateToMagicLine,
   onNavigateToStocks,
   onNavigateToTradeSignals,
   onNavigateToAdmin,
@@ -86,6 +87,18 @@ export default function Header({
                 onClick={() => handleNavigation(onNavigateToDashboard)}
                 className={`px-3 py-2 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${
                   currentPage === 'dashboard'
+                    ? 'bg-cyan-500 text-white'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                }`}
+              >
+                <Home className="w-4 h-4" />
+                <span>Dashboard</span>
+              </button>
+
+              <button
+                onClick={() => handleNavigation(onNavigateToMagicLine)}
+                className={`px-3 py-2 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${
+                  currentPage === 'magic-line'
                     ? 'bg-cyan-500 text-white'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
                 }`}
@@ -359,6 +372,18 @@ export default function Header({
               onClick={() => handleNavigation(onNavigateToDashboard)}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${
                 currentPage === 'dashboard'
+                  ? 'bg-cyan-500 text-white'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+              }`}
+            >
+              <Home className="w-5 h-5" />
+              <span>Dashboard</span>
+            </button>
+
+            <button
+              onClick={() => handleNavigation(onNavigateToMagicLine)}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${
+                currentPage === 'magic-line'
                   ? 'bg-cyan-500 text-white'
                   : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
               }`}

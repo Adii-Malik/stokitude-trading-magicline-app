@@ -1,5 +1,5 @@
 // MongoDB-based database for storing magic line thresholds
-import Symbol from '../models/Symbol.js';
+import MagicLine from '../models/MagicLine.js';
 import Stock from '../models/Stock.js';
 
 class Database {
@@ -17,7 +17,7 @@ class Database {
     try {
       const normalized = this.normalizeSymbol(symbol);
       
-      const symbolDoc = await Symbol.findOneAndUpdate(
+      const symbolDoc = await MagicLine.findOneAndUpdate(
         { symbol: normalized },
         {
           symbol: normalized,
@@ -58,7 +58,7 @@ class Database {
         };
       });
 
-      const result = await Symbol.bulkWrite(operations);
+      const result = await MagicLine.bulkWrite(operations);
       console.log(`✅ Bulk inserted/updated ${result.upsertedCount + result.modifiedCount} symbols`);
       return result;
     } catch (error) {
@@ -70,7 +70,7 @@ class Database {
   // Get all symbols with their magic lines
   async getAllSymbols() {
     try {
-      const symbols = await Symbol.find({}).lean();
+      const symbols = await MagicLine.find({}).lean();
       return symbols;
     } catch (error) {
       console.error('Error getting all symbols:', error);
@@ -82,7 +82,7 @@ class Database {
   async getSymbol(symbol) {
     try {
       const normalized = this.normalizeSymbol(symbol);
-      const symbolDoc = await Symbol.findOne({ symbol: normalized }).lean();
+      const symbolDoc = await MagicLine.findOne({ symbol: normalized }).lean();
       return symbolDoc;
     } catch (error) {
       console.error(`Error getting symbol ${symbol}:`, error);
@@ -96,7 +96,7 @@ class Database {
   // Get all symbols with their current prices and magic lines
   async getFullData() {
     try {
-      const symbols = await Symbol.find({}).lean();
+      const symbols = await MagicLine.find({}).lean();
       
       // 🚀 OPTIMIZED: Only fetch stocks for the symbols we need (not all stocks in DB)
       const symbolNames = symbols.map(s => s.symbol);
@@ -139,7 +139,7 @@ class Database {
   // Clear all symbols
   async clearSymbols() {
     try {
-      const result = await Symbol.deleteMany({});
+      const result = await MagicLine.deleteMany({});
       console.log(`🗑️ Cleared ${result.deletedCount} symbols`);
       return result;
     } catch (error) {
@@ -151,7 +151,7 @@ class Database {
   // Clear all prices (keep symbols, remove price data)
   async clearPrices() {
     try {
-      const result = await Symbol.updateMany(
+      const result = await MagicLine.updateMany(
         {},
         {
           $set: {
@@ -171,7 +171,7 @@ class Database {
   // Get statistics
   async getStats() {
     try {
-      const symbols = await Symbol.find({}).lean();
+      const symbols = await MagicLine.find({}).lean();
       
       // 🚀 OPTIMIZED: Only fetch stocks for the symbols we need (not all stocks in DB)
       const symbolNames = symbols.map(s => s.symbol);

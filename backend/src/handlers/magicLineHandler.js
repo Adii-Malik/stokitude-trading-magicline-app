@@ -1,4 +1,4 @@
-import Symbol from '../models/Symbol.js';
+import MagicLine from '../models/MagicLine.js';
 import Stock from '../models/Stock.js';
 
 /**
@@ -28,7 +28,7 @@ class MagicLineHandler {
       console.log(`\n🎯 [${currentTime} PKT] Checking Magic Line statuses...`);
       
       // Get all active Magic Line symbols
-      const magicLineSymbols = await Symbol.find({ isActive: true });
+      const magicLineSymbols = await MagicLine.find({ isActive: true });
       
       if (magicLineSymbols.length === 0) {
         console.log('   ℹ️ No active magic line symbols');
