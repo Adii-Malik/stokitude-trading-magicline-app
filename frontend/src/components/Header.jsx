@@ -92,7 +92,7 @@ export default function Header({
                 }`}
               >
                 <Home className="w-4 h-4" />
-                <span>Dashboard</span>
+                <span>Home</span>
               </button>
 
               <button
@@ -377,7 +377,7 @@ export default function Header({
               }`}
             >
               <Home className="w-5 h-5" />
-              <span>Dashboard</span>
+              <span>Home</span>
             </button>
 
             <button
