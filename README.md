@@ -1,212 +1,331 @@
 # PSX SmartDesk
 
-Real-time stock price monitoring application for Pakistan Stock Exchange (PSX). Track multiple stocks and get visual alerts when prices meet or exceed your "Magic Line" thresholds.
+**Intelligent Trading Platform for Pakistan Stock Exchange (PSX)**
 
-![PSX Monitor](https://img.shields.io/badge/PSX-Monitor-blue)
+Real-time stock monitoring and trade management platform featuring Magic Line price alerts, comprehensive trade plan tracking, and automated price updates from PSX official website.
+
+![PSX SmartDesk](https://img.shields.io/badge/PSX-SmartDesk-cyan)
 ![Node.js](https://img.shields.io/badge/Node.js-v18+-green)
 ![React](https://img.shields.io/badge/React-18-blue)
+![MongoDB](https://img.shields.io/badge/MongoDB-7.0-green)
+![License](https://img.shields.io/badge/License-MIT-yellow)
 
-> **🎉 NEW**: Smart on-demand price fetching with intelligent caching to prevent excessive scraping!
+---
 
-## 🌟 Features
+## 🌟 Key Features
 
-- **🔐 Admin Authentication**: JWT-based auth with role-based access control (NEW!)
-- **👥 User Management**: Separate admin and regular user accounts (NEW!)
-- **📊 On-Demand Price Fetching**: Smart price updates from PSX Official website
-- **⚡ Intelligent Caching**: 30-minute cache prevents excessive scraping and server overload
-- **🔒 Concurrency Protection**: Mutex lock ensures only one fetch at a time
-- **🎯 Magic Line Tracking**: Set threshold prices for each stock
-- **✨ Visual Alerts**: Beautiful green highlighting and animations when thresholds are met
-- **🔄 Real-time Updates**: Live dashboard updates via Socket.IO as prices are fetched
-- **📤 Easy Data Upload**: Support for both CSV files and images (with OCR) - Admin only
-- **📈 Comprehensive Stats**: Track highs, lows, volume, change, and more
-- **🎨 Beautiful UI**: Modern, responsive design with Tailwind CSS
-- **🚀 Scalable**: Handles unlimited concurrent users efficiently
+### 🎯 Magic Line Analysis
+- **Smart Price Alerts**: Set custom price thresholds for any PSX stock
+- **Real-Time Monitoring**: Automatic status updates when prices hit targets
+- **Visual Indicators**: Color-coded status (Green=Met, Orange=Pending)
+- **Bulk Upload**: CSV file import or manual entry
+- **Live Statistics**: Track total, met, and pending magic lines
 
-## 🏗️ Architecture
+### 📊 Trade Plans & Signals
+- **Multi-Level Plans**: Define multiple buy levels with quantities
+- **Target Management**: Set multiple price targets
+- **Stop Loss Protection**: Automatic stop loss monitoring
+- **Status Tracking**: Real-time updates on met/pending levels
+- **Trade Notes**: Add notes and strategies for each plan
 
-### Centralized Price Storage (v2.0)
+### 💼 User Management
+- **Role-Based Access**: Super Admin, Admin, and User roles
+- **Approval System**: New user registrations require admin approval
+- **Secure Authentication**: JWT-based authentication with bcrypt encryption
+- **User Dashboard**: Complete user management interface for admins
 
-PSX SmartDesk now uses a **centralized price storage** architecture for optimal performance and data consistency:
+### 📈 Centralized Price Service
+- **Single Source of Truth**: All prices stored in centralized Stock model
+- **Smart Polling**: Configurable intervals (default: 15 minutes)
+- **Market Hours Aware**: Only fetches during PSX trading hours
+- **Bulk Scraping**: Fetches all market data in one call for efficiency
+- **Socket.IO Updates**: Real-time price updates to all connected clients
 
-- **Single Source of Truth**: All stock prices stored in `Stock` model
-- **Fetch Once, Use Everywhere**: One service fetches prices, all features read from it
-- **Reduced PSX Load**: Each symbol fetched only once per cycle
-- **Better Performance**: Fewer database writes, consistent data
+### 🎨 Modern UI/UX
+- **Responsive Design**: Works seamlessly on desktop, tablet, and mobile
+- **Dark Mode**: Built-in dark/light theme with persistence
+- **Beautiful Gradients**: Modern cyan-based color scheme
+- **Smooth Animations**: Polished transitions and hover effects
+- **Intuitive Navigation**: Clean header with role-based menu items
 
-📖 **[Read Full Architecture Documentation](./CENTRALIZED_PRICE_ARCHITECTURE.md)**
+### 🔐 Security & Authentication
+- **JWT Tokens**: Secure authentication with 7-day expiration
+- **Protected Routes**: Frontend and backend route protection
+- **Password Hashing**: Bcrypt with salt rounds
+- **Role-Based Access Control**: Fine-grained permissions
+
+---
+
+## 🏗️ System Architecture
+
+### High-Level Overview
 
 ```
-┌─────────────────────────────────────┐
-│         PSX Official Website        │
-│        dps.psx.com.pk               │
-└──────────────┬──────────────────────┘
-               │
-               ▼
-   ┌────────────────────────────┐
-   │ CentralizedPriceService    │
-   │ (Fetches & Updates Prices) │
-   └────────────┬───────────────┘
-                │
-                ▼
-       ┌────────────────┐
-       │  Stock Model   │  ◄─── Single Source of Truth
-       │ (Central Store)│
-       └────────┬───────┘
-                │
-    ┌───────────┴───────────┐
-    │                       │
-    ▼                       ▼
-┌──────────────┐    ┌──────────────┐
-│Magic Line    │    │Trade Plan    │
-│Status Service│    │Status Service│
-└──────┬───────┘    └──────┬───────┘
-       │                   │
-       ▼                   ▼
-  ┌─────────┐        ┌───────────┐
-  │ Symbol  │        │TradePlan  │
-  │(Status) │        │ (Status)  │
-  └─────────┘        └───────────┘
-
-┌─────────────────────────────────────┐
-│    Frontend (React + Vite)          │
-│  ┌──────────────────────────────┐   │
-│  │  Dashboard (Magic Line)      │   │
-│  │  - Real-time price updates   │   │
-│  │  - Visual threshold alerts   │   │
-│  └──────────────────────────────┘   │
-│  ┌──────────────────────────────┐   │
-│  │  Upload Form                 │   │
-│  │  - CSV upload                │   │
-│  │  - Image upload with OCR     │   │
-│  └──────────────────────────────┘   │
-└─────────────────────────────────────┘
+┌─────────────────────────────────────────────┐
+│          PSX Official Website               │
+│         https://dps.psx.com.pk              │
+└──────────────────┬──────────────────────────┘
+                   │ (Web Scraping)
+                   ▼
+         ┌─────────────────────┐
+         │  PSX Scraper        │
+         │  (Bulk Fetch)       │
+         └──────────┬──────────┘
+                    │
+                    ▼
+         ┌──────────────────────────┐
+         │ Centralized Price Service│
+         │ - Market hours check     │
+         │ - Smart polling (15 min) │
+         │ - Bulk price updates     │
+         └──────────┬───────────────┘
+                    │
+                    ▼
+         ┌─────────────────────┐
+         │   Stock Model       │  ◄─── SINGLE SOURCE OF TRUTH
+         │ (All Price Data)    │
+         └──────────┬──────────┘
+                    │
+         ┌──────────┴──────────┐
+         │                     │
+         ▼                     ▼
+┌────────────────┐    ┌────────────────┐
+│ MagicLine      │    │ TradePlan      │
+│ Handler        │    │ Handler        │
+│ (Status Check) │    │ (Level Check)  │
+└────────┬───────┘    └────────┬───────┘
+         │                     │
+         ▼                     ▼
+┌────────────────┐    ┌────────────────┐
+│ MagicLine Model│    │ TradePlan Model│
+│ (Thresholds)   │    │ (Buy/Target/SL)│
+└────────────────┘    └────────────────┘
+         │                     │
+         └──────────┬──────────┘
+                    │
+                    ▼
+         ┌─────────────────────┐
+         │   Socket.IO Server  │
+         │ (Real-time Events)  │
+         └──────────┬──────────┘
+                    │
+                    ▼
+┌────────────────────────────────────────────┐
+│        React Frontend (Vite)               │
+│  ┌──────────────────────────────────────┐ │
+│  │  React Router (URL-based navigation) │ │
+│  └──────────────────────────────────────┘ │
+│                                            │
+│  Public Routes:                            │
+│  • / (Landing Page)                        │
+│  • /login                                  │
+│  • /signup                                 │
+│                                            │
+│  Protected Routes:                         │
+│  • /dashboard (Overview)                   │
+│  • /magic-line (Magic Line Feature)        │
+│  • /trade-signals (Trade Plans)            │
+│                                            │
+│  Admin Only Routes:                        │
+│  • /stocks (Stock Management)              │
+│  • /admin (User Management)                │
+│  • /settings (System Settings)             │
+└────────────────────────────────────────────┘
 ```
+
+### Data Flow
+
+1. **Price Fetching**: Centralized service scrapes PSX website every 15 minutes (configurable)
+2. **Data Storage**: Prices stored in Stock model (single source of truth)
+3. **Event Emission**: Price updates trigger handlers
+4. **Status Updates**: Handlers check MagicLine and TradePlan conditions
+5. **Real-time Push**: Socket.IO broadcasts updates to all connected clients
+6. **UI Refresh**: Frontend updates in real-time without page reload
+
+---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- Node.js v18 or higher
-- npm or yarn
+- **Node.js**: v18 or higher
+- **MongoDB**: v7.0+ (local or cloud)
+- **npm**: v9+ or yarn
 
 ### Installation
 
-1. **Clone or navigate to the project directory**
+#### 1. Clone the Repository
 
 ```bash
+git clone <repository-url>
 cd psx_terminal_app
 ```
 
-2. **Setup Backend**
+#### 2. Setup Backend
 
 ```bash
 cd backend
 npm install
-
-# Create .env file from template
-# Windows PowerShell:
-copy .env.example .env
-# Linux/Mac:
-# cp .env.example .env
-
-# Edit .env and set your JWT_SECRET
 ```
 
-**Important**: Edit the `.env` file and change:
-- `JWT_SECRET`: A secure random string for JWT signing
+**Create `.env` file:**
+```env
+# Server Configuration
+PORT=5000
+NODE_ENV=development
 
-3. **Install Frontend Dependencies**
+# Database
+MONGODB_URI=mongodb://localhost:27017/psx_smartdesk
+
+# JWT Authentication (REQUIRED - Change in production!)
+JWT_SECRET=your-super-secret-jwt-key-at-least-32-characters-long
+JWT_EXPIRES_IN=7d
+
+# Frontend URL (for CORS)
+FRONTEND_URL=http://localhost:3000
+
+# Price Polling (Optional)
+POLLING_INTERVAL=15  # minutes
+```
+
+**⚠️ IMPORTANT**: Change `JWT_SECRET` to a strong, random string in production!
+
+#### 3. Create Super Admin
 
 ```bash
-cd ../frontend
+cd backend
+npm run create-admin
+```
+
+Follow the prompts to create your first super admin account.
+
+#### 4. Setup Frontend
+
+```bash
+cd frontend
 npm install
+```
+
+**Create `.env` file (optional):**
+```env
+VITE_API_URL=http://localhost:5000/api
 ```
 
 ### Running the Application
 
-#### Option 1: Run Both Services Separately
+#### Development Mode (Recommended)
 
 **Terminal 1 - Backend:**
 ```bash
 cd backend
 npm run dev
 ```
-Backend will start on `http://localhost:5000`
+Backend starts on `http://localhost:5000`
 
 **Terminal 2 - Frontend:**
 ```bash
 cd frontend
 npm run dev
 ```
-Frontend will start on `http://localhost:3000`
+Frontend starts on `http://localhost:3000`
 
-#### Option 2: Production Build
+#### Production Mode
 
-**Build Frontend:**
+**Build frontend:**
 ```bash
 cd frontend
 npm run build
 ```
 
-**Serve via Backend:**
+**Start backend (serves frontend):**
 ```bash
 cd backend
 npm start
 ```
 
-### First Time Setup
+Application available at `http://localhost:5000`
 
-1. **Create Super Admin** (first-time only):
-   ```bash
-   cd backend
-   node src/scripts/createSuperAdmin.js
-   ```
-   This creates the initial super admin account. Use the provided credentials to login.
+---
 
-2. **Open your browser** and navigate to `http://localhost:3000`
+## 📱 Using the Application
 
-3. **Login** with super admin credentials
+### First Login
 
-4. **New User Registration**:
-   - New users can sign up, but need admin approval
-   - Admins activate users via Admin Panel
-   - Only super admin can promote users to admin role
+1. Open browser: `http://localhost:3000`
+2. Login with super admin credentials (created earlier)
+3. You'll land on the **Dashboard** (overview page)
 
-5. **Upload your Magic Line data** (Admin only):
-   - **CSV File**: Use the provided `sample-data.csv` or create your own
-   - **Image**: Upload a screenshot of your stock table
-   - **Manual**: Use the API to add symbols programmatically
+### Dashboard (Home)
 
-6. **Watch the magic happen!** 🎉
-   - Stocks will appear on the dashboard
-   - Prices update in real-time
-   - When a price meets or exceeds the Magic Line, it turns **GREEN** with animations!
+The main dashboard provides quick access to all features:
+- **Magic Line Analysis** - Monitor price thresholds
+- **Trade Calls & Plans** - Manage trading strategies
+- **Stock Management** (Admin) - View all stocks
+- **User Management** (Admin) - Manage users
+- **Application Settings** (Admin) - Configure system
 
-### 🔐 Authentication & User Roles
+### Magic Line Feature
 
-**Three-Tier Role System:**
+**Upload Magic Line Data (Admin only):**
+1. Navigate to **Magic Line** from header
+2. Click **Upload CSV**
+3. Select your CSV file (format: Symbol, Magic Line)
+4. Data is processed and displayed
 
-1. **Super Admin** (System Owner)
-   - ✅ Full system control
-   - ✅ Promote users to admin
-   - ✅ Manage all users
-   - ✅ Upload/delete data
-   - 🛡️ Cannot be deleted or deactivated
+**Monitor Status:**
+- **Green cards** = Price has met or exceeded magic line
+- **Orange cards** = Price is pending (below magic line)
+- Real-time updates via Socket.IO
 
-2. **Admin Users**
-   - ✅ Upload CSV/image files
-   - ✅ Delete individual symbols
-   - ✅ Activate/deactivate regular users
-   - ✅ View dashboard and refresh prices
-   - ❌ Cannot create other admins
+**CSV Format:**
+```csv
+Scrip,Magic Line
+ABL,205
+OGDC,140
+PPL,95
+```
 
-3. **Regular Users**
-   - ✅ View dashboard (after activation)
-   - ✅ Refresh prices
-   - ❌ Cannot upload files
-   - ❌ Cannot delete symbols
-   - ⚠️ Require admin approval to access system
+### Trade Plans Feature
+
+**Create a Trade Plan:**
+1. Navigate to **Trade Calls** from header
+2. Click **Create New Trade Plan**
+3. Enter:
+   - Symbol name
+   - Buy levels (with quantities)
+   - Target prices
+   - Stop loss price
+   - Notes (optional)
+4. Save
+
+**Monitor Trade Plans:**
+- View all active trade plans
+- Real-time price updates
+- Status indicators for met/pending levels
+- Edit or delete plans as needed
+
+### User Management (Admin)
+
+**Approve New Users:**
+1. Navigate to **Users** (admin menu)
+2. View pending users
+3. Click **Activate** to approve
+4. User can now login
+
+**Manage Existing Users:**
+- Deactivate/reactivate users
+- Promote users to admin (super admin only)
+- Delete users (cannot delete super admin)
+
+### Settings (Admin)
+
+Configure system parameters:
+- **Polling Interval**: How often to fetch prices (minutes)
+- **Enable/Disable Polling**: Turn automatic updates on/off
+- **Market Hours**: Configure PSX trading hours
+- **Market Status**: View current market status
+
+---
 
 ## 📁 Project Structure
 
@@ -214,374 +333,413 @@ npm start
 psx_terminal_app/
 ├── backend/
 │   ├── src/
-│   │   ├── index.js              # Main Express app
 │   │   ├── config/
-│   │   │   └── config.js         # Configuration
+│   │   │   ├── config.js          # Environment configuration
+│   │   │   └── mongodb.js          # MongoDB connection
 │   │   ├── db/
-│   │   │   └── database.js       # In-memory database
+│   │   │   └── database.js         # Database helper functions
+│   │   ├── handlers/
+│   │   │   ├── magicLineHandler.js    # Magic line status logic
+│   │   │   └── tradePlanHandler.js    # Trade plan level checks
+│   │   ├── middleware/
+│   │   │   └── auth.js             # JWT authentication
+│   │   ├── models/
+│   │   │   ├── MagicLine.js        # Magic line thresholds
+│   │   │   ├── Stock.js            # Stock prices (single source)
+│   │   │   ├── TradePlan.js        # Trade plans
+│   │   │   ├── User.js             # User accounts
+│   │   │   └── Settings.js         # System settings
 │   │   ├── routes/
-│   │   │   ├── upload.js         # Upload endpoints
-│   │   │   └── symbols.js        # Symbol management
-│   │   └── services/
-│   │       ├── psxScraper.js        # PSX web scraper
-│   │       ├── pricePollingService.js  # Smart polling + caching
-│   │       ├── csvParser.js        # CSV parsing
-│   │       └── ocrService.js       # Image OCR
+│   │   │   ├── admin.js            # User management
+│   │   │   ├── auth.js             # Authentication
+│   │   │   ├── magicLine.js        # Magic line API
+│   │   │   ├── settings.js         # Settings API
+│   │   │   ├── stocks.js           # Stock data API
+│   │   │   ├── tradePlans.js       # Trade plans API
+│   │   │   └── upload.js           # File uploads
+│   │   ├── scripts/
+│   │   │   └── createSuperAdmin.js # Create super admin
+│   │   ├── services/
+│   │   │   ├── centralizedPriceService.js  # Main price service
+│   │   │   ├── csvParser.js        # CSV parsing
+│   │   │   ├── marketHoursService.js       # Market hours logic
+│   │   │   ├── ocrService.js       # OCR processing
+│   │   │   └── psxScraper.js       # PSX web scraper
+│   │   └── index.js                # Express app entry
+│   ├── uploads/                    # Uploaded files
+│   ├── Dockerfile                  # Docker configuration
 │   ├── package.json
-│   └── .gitignore
+│   └── .env
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── Dashboard.jsx     # Main dashboard
-│   │   │   ├── Header.jsx        # Header with stats
-│   │   │   └── UploadForm.jsx    # File upload form
+│   │   │   ├── AdminDashboard.jsx     # User management UI
+│   │   │   ├── Dashboard.jsx          # Main overview page
+│   │   │   ├── Header.jsx             # Navigation header
+│   │   │   ├── Landing.jsx            # Public landing page
+│   │   │   ├── Login.jsx              # Login form
+│   │   │   ├── MagicLine.jsx          # Magic line feature
+│   │   │   ├── Settings.jsx           # Settings UI
+│   │   │   ├── Signup.jsx             # Signup form
+│   │   │   ├── StockManagement.jsx    # Stock management
+│   │   │   ├── TradePlans.jsx         # Trade plans UI
+│   │   │   └── UploadForm.jsx         # File upload component
+│   │   ├── contexts/
+│   │   │   ├── AuthContext.jsx        # Auth state management
+│   │   │   └── ThemeContext.jsx       # Theme (dark/light)
 │   │   ├── services/
-│   │   │   ├── api.js            # REST API client
-│   │   │   └── socket.js         # Socket.IO client
-│   │   ├── App.jsx               # Main app component
-│   │   ├── main.jsx              # Entry point
-│   │   └── index.css             # Tailwind CSS
+│   │   │   ├── admin.js               # Admin API calls
+│   │   │   ├── api.js                 # Main API client
+│   │   │   ├── auth.js                # Auth API calls
+│   │   │   ├── settings.js            # Settings API
+│   │   │   ├── socket.js              # Socket.IO client
+│   │   │   ├── stocks.js              # Stocks API
+│   │   │   └── tradePlans.js          # Trade plans API
+│   │   ├── App.jsx                    # Main app with routing
+│   │   ├── main.jsx                   # Entry point
+│   │   └── index.css                  # Global styles
+│   ├── dist/                          # Build output
+│   ├── index.html
 │   ├── package.json
+│   ├── tailwind.config.js
 │   ├── vite.config.js
-│   └── tailwind.config.js
-├── sample-data.csv               # Sample Magic Line data
-└── README.md
+│   └── postcss.config.js
+├── BACKEND.md                     # Backend technical docs
+├── FRONTEND.md                    # Frontend technical docs
+├── SCHEMA.md                      # Database schema docs
+├── DESIGN_SYSTEM.md               # UI/UX design guide
+├── README.md                      # This file
+├── fly.toml                       # Fly.io deployment config
+├── sample-data-corrected.csv      # Sample data
+├── stocks-template.csv            # Stock template
+└── trade-plans-template.csv       # Trade plan template
 ```
 
-## 📊 CSV Format
+---
 
-Your CSV file should have two columns:
+## 🔌 API Endpoints
 
-```csv
-Scrip,Magic Lin
-ABL,205
-Dyno,341
-LCI,336
-Spwl,11
-...
+### Authentication
+```
+POST   /api/auth/signup          - Register new user
+POST   /api/auth/login           - User login
+POST   /api/auth/logout          - User logout
+GET    /api/auth/me              - Get current user
+GET    /api/auth/check           - Check auth status
 ```
 
-**Column Names (flexible):**
-- Symbol: `Scrip`, `Symbol`, `scrip`, or `symbol`
-- Magic Line: `Magic Lin`, `Magic Line`, `MagicLine`, or `Threshold`
-
-## 🔌 API Documentation
-
-### Backend API Endpoints
-
-#### Health Check
-```http
-GET /health
+### Magic Line
+```
+GET    /api/magic-line           - Get all magic lines
+GET    /api/magic-line/:symbol   - Get specific symbol
+POST   /api/magic-line/upload    - Upload CSV (admin)
+POST   /api/magic-line/manual    - Manual entry (admin)
+DELETE /api/magic-line           - Clear all (admin)
+GET    /api/magic-line/stats/summary  - Get statistics
+POST   /api/magic-line/fetch-prices   - Trigger price fetch
 ```
 
-#### Authentication Endpoints
-```http
-POST /api/auth/signup
-Content-Type: application/json
-{ "username": "...", "email": "...", "password": "..." }
-
-POST /api/auth/login
-Content-Type: application/json
-{ "email": "...", "password": "..." }
-
-POST /api/auth/logout
-
-GET /api/auth/me
-Authorization: Bearer <token>
-
-PUT /api/auth/change-password
-Authorization: Bearer <token>
-Content-Type: application/json
-{ "currentPassword": "...", "newPassword": "..." }
+### Trade Plans
+```
+GET    /api/trade-plans          - Get all trade plans
+GET    /api/trade-plans/:id      - Get specific plan
+POST   /api/trade-plans          - Create trade plan
+PUT    /api/trade-plans/:id      - Update trade plan
+DELETE /api/trade-plans/:id      - Delete trade plan
+GET    /api/trade-plans/market-status  - Market status
 ```
 
-#### Admin User Management (Admin/Super Admin Only)
-```http
-GET /api/admin/users
-Authorization: Bearer <token>
-
-PUT /api/admin/users/:userId/activate
-Authorization: Bearer <token>
-
-PUT /api/admin/users/:userId/deactivate
-Authorization: Bearer <token>
-
-PUT /api/admin/users/:userId/toggle-role
-Authorization: Bearer <token>
-(Super Admin only - promotes user to admin)
-
-DELETE /api/admin/users/:userId
-Authorization: Bearer <token>
-
-GET /api/admin/stats
-Authorization: Bearer <token>
+### Admin
+```
+GET    /api/admin/users                    - Get all users
+GET    /api/admin/users/pending            - Get pending users
+PUT    /api/admin/users/:id/activate       - Activate user
+PUT    /api/admin/users/:id/deactivate     - Deactivate user
+PUT    /api/admin/users/:id/toggle-role    - Toggle admin role
+DELETE /api/admin/users/:id                - Delete user
+GET    /api/admin/stats                    - Get system stats
 ```
 
-#### Upload CSV/Image (Admin Only)
-```http
-POST /api/upload
-Authorization: Bearer <token>
-Content-Type: multipart/form-data
-
-file: <your-file>
+### Settings
+```
+GET    /api/settings             - Get settings (admin)
+PUT    /api/settings             - Update settings (admin)
 ```
 
-#### Upload Manual Data
-```http
-POST /api/upload/manual
-Content-Type: application/json
-
-{
-  "symbols": [
-    { "symbol": "ABL", "magicLine": 205 },
-    { "symbol": "Dyno", "magicLine": 341 }
-  ]
-}
+### Stocks
+```
+GET    /api/stocks               - Get all stocks (admin)
+GET    /api/stocks/:symbol       - Get specific stock (admin)
+POST   /api/stocks/fetch-all     - Fetch all prices (admin)
+DELETE /api/stocks               - Clear all stocks (admin)
 ```
 
-#### Get All Symbols
-```http
-GET /api/symbols
-```
+---
 
-#### Get Single Symbol
-```http
-GET /api/symbols/:symbol
-```
+## 📊 Database Schema
 
-#### Clear All Symbols (Admin Only)
-```http
-DELETE /api/symbols
-Authorization: Bearer <token>
-```
+### Collections
 
-#### Fetch Latest Prices (Smart Cache)
-```http
-POST /api/symbols/fetch-prices
-```
-Returns cached data if fetched within last 30 minutes, otherwise scrapes PSX.
+- **users** - User accounts and roles
+- **magiclines** - Magic line thresholds
+- **stocks** - Stock prices (centralized)
+- **tradeplans** - Trade plans with levels
+- **settings** - System configuration
 
-Response:
-```json
-{
-  "success": true,
-  "cached": true,
-  "message": "Prices were fetched 5 minutes ago. Using cached data.",
-  "data": {
-    "total": 152,
-    "success": 150,
-    "failed": 2,
-    "lastFetchTime": 1697401234567,
-    "nextFetchIn": 1500,
-    "symbols": [...]
-  }
-}
-```
+**See [SCHEMA.md](SCHEMA.md) for detailed schema documentation.**
 
-#### Get Statistics
-```http
-GET /api/symbols/stats/summary
-```
+---
 
-### Socket.IO Events
+## 🎨 Design System
 
-**Client receives:**
-- `initialData` - Initial symbol data and stats when connecting
-- `priceUpdate` - Real-time price updates for tracked symbols
+**Color Scheme:**
+- Primary: Cyan-500 (#06B6D4)
+- Success: Green-500 (#22C55E)
+- Warning: Orange-500 (#F97316)
+- Error: Red-500 (#EF4444)
 
-## 🎨 Features in Detail
+**Dark Mode:**
+- Fully supported with persistent theme storage
+- Tailwind CSS class-based implementation
 
-### 1. Smart Price Fetching
-- **On-Demand**: Click "Refresh Prices" to fetch latest closing prices
-- **30-Min Cache**: Prevents excessive scraping if data is fresh
-- **Mutex Lock**: Only one user can trigger scraping at a time
-- **Live Updates**: Dashboard updates in real-time as each symbol is scraped
-- **Batch Processing**: Fetches 5 symbols at a time to avoid overload
+**See [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) for complete design guidelines.**
 
-### 2. Visual Magic Line Alerts
-When a stock price meets or exceeds its Magic Line:
-- ✅ Background turns **green gradient**
-- ✅ Border highlights with green ring
-- ✅ "MET!" badge appears
-- ✅ Pulse and bounce animations
-- ✅ Progress bar turns green
+---
 
-### 3. Comprehensive Stock Info
-Each card shows:
-- Symbol name
-- Magic Line (threshold)
-- Current price
-- Change amount and percentage
-- High/Low for the day
-- Volume and trades
-- Progress bar to threshold
+## 🚀 Deployment
 
-### 4. Upload Flexibility
-- **CSV Files**: Standard format
-- **Images**: Automatic OCR extraction (table detection)
-- **Manual API**: Programmatic symbol addition
+### Fly.io Deployment
 
-## 🚀 Deployment to Fly.io
-
-### Prerequisites
-- Install Fly CLI: `curl -L https://fly.io/install.sh | sh`
-- Sign up: `fly auth signup`
-
-### Deploy Backend
-
-1. **Create Dockerfile** (backend/Dockerfile):
-```dockerfile
-FROM node:18-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --production
-COPY . .
-EXPOSE 5000
-CMD ["node", "src/index.js"]
-```
-
-2. **Initialize Fly app**:
+**Prerequisites:**
 ```bash
-cd backend
+# Install Fly CLI
+curl -L https://fly.io/install.sh | sh
+
+# Login to Fly.io
+fly auth login
+```
+
+**Deploy:**
+```bash
+# Launch app (first time)
 fly launch
-```
 
-3. **Deploy**:
-```bash
+# Set secrets
+fly secrets set JWT_SECRET=your-secret-here
+fly secrets set MONGODB_URI=your-mongo-connection-string
+
+# Deploy
 fly deploy
+
+# Check status
+fly status
+
+# View logs
+fly logs
 ```
 
-### Deploy Frontend
+**Important:**
+- Use MongoDB Atlas for cloud database
+- Set all environment variables as Fly secrets
+- Frontend is served from backend's `frontend/dist/` directory
 
-1. **Build frontend**:
-```bash
-cd frontend
-npm run build
-```
-
-2. **Update backend to serve static files** (add to backend/src/index.js):
-```javascript
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-app.use(express.static(path.join(__dirname, '../../frontend/dist')));
-```
-
-3. **Redeploy backend**:
-```bash
-cd backend
-fly deploy
-```
+---
 
 ## 🔧 Configuration
 
-### Backend (.env)
-```env
-PORT=5000
-NODE_ENV=development
-MONGO_URI=mongodb://localhost:27017/psx_monitor
+### Backend Environment Variables
 
-# JWT Authentication (REQUIRED)
-JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+```env
+# Server
+PORT=5000
+NODE_ENV=production
+
+# Database
+MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/psx_smartdesk
+
+# Authentication (CRITICAL - Use strong secret!)
+JWT_SECRET=use-a-strong-random-string-at-least-32-chars-long
 JWT_EXPIRES_IN=7d
 
-# Smart Cache Configuration (optional)
-CACHE_DURATION=1800000  # 30 minutes in milliseconds (default)
+# CORS
+FRONTEND_URL=https://your-domain.com
+
+# Price Polling
+POLLING_INTERVAL=15  # minutes (default: 15)
 ```
 
-**⚠️ Security Warning**: Always change `JWT_SECRET` in production!
+### Market Hours Configuration
 
-**Adjusting Cache Duration:**
-- 15 minutes: `CACHE_DURATION=900000`
-- 30 minutes: `CACHE_DURATION=1800000` (default)
-- 1 hour: `CACHE_DURATION=3600000`
+**Default PSX Hours:**
+- **Monday-Thursday**: 9:15 AM - 3:30 PM PKT
+- **Friday**: 
+  - 9:15 AM - 12:00 PM PKT
+  - 2:30 PM - 4:30 PM PKT
+- **Saturday-Sunday**: Closed
 
-### Frontend
-Update `vite.config.js` for production:
-```javascript
-export default defineConfig({
-  server: {
-    proxy: {
-      '/api': 'https://your-app.fly.dev'
-    }
-  }
-})
-```
+Configure via Settings UI or Settings model in database.
+
+---
 
 ## 🐛 Troubleshooting
 
-### Backend won't start
-- Check Node.js version: `node --version` (should be v18+)
-- Delete `node_modules` and reinstall: `rm -rf node_modules && npm install`
-- Check if port 5000 is available
+### Backend Issues
 
-### Frontend won't connect
+**MongoDB Connection Failed:**
+```bash
+# Check MongoDB is running
+mongod --version
+
+# Verify connection string in .env
+MONGODB_URI=mongodb://localhost:27017/psx_smartdesk
+```
+
+**Port Already in Use:**
+```bash
+# Windows
+netstat -ano | findstr :5000
+taskkill /PID <PID> /F
+
+# Linux/Mac
+lsof -ti:5000 | xargs kill -9
+```
+
+**JWT Token Invalid:**
+- Ensure JWT_SECRET is set in .env
+- Token expires after 7 days (re-login)
+- Clear browser localStorage and re-login
+
+### Frontend Issues
+
+**Cannot Connect to Backend:**
 - Ensure backend is running on port 5000
-- Check browser console for errors
-- Verify WebSocket connection in Network tab
+- Check VITE_API_URL in .env
+- Verify CORS settings in backend
 
-### No price updates
-- Click "Refresh Prices" button to manually trigger fetch
-- Check backend logs for scraping status
-- Verify symbols are correctly loaded
-- PSX market might be closed (check trading hours)
-- Check if PSX website (dps.psx.com.pk) is accessible
-- If using cache, wait for cache expiry or restart backend
+**Dark Mode Not Persisting:**
+- Check browser localStorage
+- Clear cache and cookies
+- Verify ThemeContext initialization
 
-### OCR not working
-- Ensure image quality is good
-- Table should be clearly visible
-- Try using CSV format instead
+**Socket.IO Not Connecting:**
+- Check backend Socket.IO server is running
+- Verify WebSocket support in browser
+- Check network tab for WebSocket connection
+
+### Price Fetching Issues
+
+**No Price Updates:**
+- Check if market is open (PSX trading hours)
+- Verify PSX website is accessible (https://dps.psx.com.pk)
+- Check backend logs for scraping errors
+- Ensure polling is enabled in Settings
+
+**Slow Price Updates:**
+- PSX website may be slow
+- Increase polling interval in Settings
+- Check network connection
+
+---
+
+## 📚 Documentation
+
+- **[BACKEND.md](BACKEND.md)** - Backend technical documentation
+- **[FRONTEND.md](FRONTEND.md)** - Frontend technical documentation
+- **[SCHEMA.md](SCHEMA.md)** - Database schema and relationships
+- **[DESIGN_SYSTEM.md](DESIGN_SYSTEM.md)** - UI/UX design guidelines
+
+---
+
+## 🔒 Security Best Practices
+
+1. **Change JWT_SECRET** in production (use strong random string)
+2. **Use HTTPS** in production (Fly.io provides free SSL)
+3. **Secure MongoDB** with authentication and network restrictions
+4. **Rate Limiting** on API endpoints (TODO)
+5. **Input Validation** on all user inputs
+6. **XSS Protection** via React's built-in escaping
+7. **CSRF Protection** via JWT tokens (no cookies)
+
+---
+
+## 🛣️ Roadmap
+
+### Planned Features
+- [ ] Email notifications for magic line hits
+- [ ] SMS alerts for trade plan levels
+- [ ] Advanced charting (TradingView integration)
+- [ ] Portfolio management
+- [ ] Profit/loss tracking
+- [ ] Historical data analysis
+- [ ] Mobile app (React Native)
+- [ ] Export to PDF/Excel
+- [ ] Multi-language support
+- [ ] API rate limiting
+- [ ] Redis caching layer
+- [ ] Automated testing suite
+
+---
 
 ## 📝 License
 
-MIT License - Feel free to use for personal or commercial projects
+MIT License - See LICENSE file for details
 
-## 🙏 Credits
+---
 
-- **Data Source**: PSX Official ([dps.psx.com.pk](https://dps.psx.com.pk))
-- **Icons**: [Lucide React](https://lucide.dev)
-- **Styling**: [Tailwind CSS](https://tailwindcss.com)
-- **Scraping**: [Axios](https://axios-http.com) + [Cheerio](https://cheerio.js.org)
-- **Database**: [MongoDB](https://www.mongodb.com)
+## 🙏 Credits & Acknowledgments
+
+**Data Source:** [Pakistan Stock Exchange (PSX)](https://dps.psx.com.pk)
+
+**Technologies:**
+- [Node.js](https://nodejs.org/) - Backend runtime
+- [Express.js](https://expressjs.com/) - Web framework
+- [MongoDB](https://www.mongodb.com/) - Database
+- [React](https://react.dev/) - Frontend library
+- [Vite](https://vitejs.dev/) - Build tool
+- [Tailwind CSS](https://tailwindcss.com/) - CSS framework
+- [Socket.IO](https://socket.io/) - Real-time communication
+- [Axios](https://axios-http.com/) - HTTP client
+- [Cheerio](https://cheerio.js.org/) - Web scraping
+- [Lucide React](https://lucide.dev/) - Icons
+- [React Router](https://reactrouter.com/) - Routing
+
+---
 
 ## 📧 Support
 
-For issues or questions:
-1. Check the troubleshooting section
+For technical support:
+1. Check [Troubleshooting](#-troubleshooting) section
 2. Review backend logs: `cd backend && npm run dev`
 3. Check browser console for frontend errors
+4. Read documentation files in repository
 
 ---
 
-## 📋 What's New in v2.1
+## 🎉 What's New in Version 3.0
 
-### ✨ Major Changes
-- 🔐 **JWT Authentication** - Secure login/signup with JWT tokens
-- 👑 **Three-Tier Role System** - Super Admin, Admin, and User roles
-- 🛡️ **User Approval System** - New users need admin activation
-- 👥 **Admin Dashboard** - Complete user management interface  
-- 🔒 **Protected Routes** - Upload and delete operations require admin access
-- 🔄 **On-Demand Price Fetching** - No continuous polling, fetch only when needed
-- ⚡ **Smart 30-Min Cache** - Prevents server overload with intelligent caching
-- 🔒 **Concurrency Protection** - Mutex lock ensures single fetch operation
-- 📊 **PSX Official Scraping** - Direct scraping from PSX website for closing prices
-- 🚀 **Real-Time Dashboard Updates** - Live updates via Socket.IO as prices come in
-- 💾 **MongoDB Integration** - Persistent storage for symbols, prices, and users
+### Major Features
+- ✅ **Complete Routing System** - React Router for bookmarkable URLs
+- ✅ **Landing Page** - Professional public homepage
+- ✅ **Dashboard Overview** - Central hub for quick feature access
+- ✅ **Magic Line Refactor** - Renamed from "Symbols" for clarity
+- ✅ **Centralized Architecture** - Single source of truth for prices
+- ✅ **Smart Price Polling** - Market-hours-aware automatic updates
+- ✅ **Bulk Scraping** - Fetch all prices in one HTTP call
+- ✅ **Real-time Socket.IO** - Live updates without page refresh
+- ✅ **User Approval System** - Admin approval for new signups
+- ✅ **Protected Routes** - Frontend and backend route protection
+- ✅ **Dark Mode** - Persistent theme with smooth transitions
 
-### 🆕 Dependencies
-- `bcryptjs` - Password hashing
-- `jsonwebtoken` - JWT authentication
-- `cookie-parser` - Cookie parsing middleware
-- `axios` - HTTP client for scraping
-- `cheerio` - HTML parsing library
-- `mongoose` - MongoDB ODM
-- `socket.io` - Real-time bidirectional communication
+### Recent Improvements
+- Fixed Magic Line upload merge behavior (update existing, add new)
+- Added comprehensive trading data (high, low, volume, change %)
+- Removed outdated system status sections
+- Improved error handling and debugging
+- Enhanced UI with gradient cards and animations
+- Updated documentation structure
 
 ---
 
-**Built with ❤️ for PSX traders**
+**Built with ❤️ for PSX Traders**
 
-🚀 **Happy Trading!**
-
+🚀 **Start Trading Smarter Today!**

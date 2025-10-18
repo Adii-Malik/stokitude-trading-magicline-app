@@ -221,6 +221,7 @@ function AppContent() {
               lastPriceUpdate={lastPriceUpdate}
               marketStatus={marketStatus}
               onNavigateToDashboard={() => navigate('/dashboard')}
+              onNavigateToMagicLine={() => navigate('/magic-line')}
               onNavigateToStocks={() => navigate('/stocks')}
               onNavigateToTradeSignals={() => navigate('/trade-signals')}
               onNavigateToAdmin={() => navigate('/admin')}
@@ -250,6 +251,7 @@ function AppContent() {
               lastPriceUpdate={lastPriceUpdate}
               marketStatus={marketStatus}
               onNavigateToDashboard={() => navigate('/dashboard')}
+              onNavigateToMagicLine={() => navigate('/magic-line')}
               onNavigateToStocks={() => navigate('/stocks')}
               onNavigateToTradeSignals={() => navigate('/trade-signals')}
               onNavigateToAdmin={() => navigate('/admin')}
@@ -278,6 +280,7 @@ function AppContent() {
               lastPriceUpdate={lastPriceUpdate}
               marketStatus={marketStatus}
               onNavigateToDashboard={() => navigate('/dashboard')}
+              onNavigateToMagicLine={() => navigate('/magic-line')}
               onNavigateToStocks={() => navigate('/stocks')}
               onNavigateToTradeSignals={() => navigate('/trade-signals')}
               onNavigateToAdmin={() => navigate('/admin')}
@@ -306,6 +309,7 @@ function AppContent() {
               lastPriceUpdate={lastPriceUpdate}
               marketStatus={marketStatus}
               onNavigateToDashboard={() => navigate('/dashboard')}
+              onNavigateToMagicLine={() => navigate('/magic-line')}
               onNavigateToStocks={() => navigate('/stocks')}
               onNavigateToTradeSignals={() => navigate('/trade-signals')}
               onNavigateToAdmin={() => navigate('/admin')}

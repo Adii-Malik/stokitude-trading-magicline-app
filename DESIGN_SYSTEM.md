@@ -1,332 +1,606 @@
 # PSX SmartDesk - Design System
 
-## 🎨 Color Palette
+## Brand Identity
 
-> **Theme Toggle**: Users can switch between light and dark themes using the sun/moon icon in the header. Theme preference is stored in localStorage.
+**Application Name:** PSX SmartDesk  
+**Tagline:** "Intelligent Trading Platform for Pakistan Stock Exchange"  
+**Purpose:** Professional-grade stock monitoring and trading tools
 
-### Dark Theme
+---
+
+## Color System
+
+### Primary Color: Cyan
+
 ```
-Background: 
-- Primary: from-gray-900 via-gray-800 to-gray-900
-- Cards: bg-gray-800/50 backdrop-blur-sm
-- Borders: border-gray-700
-
-Text:
-- Primary: text-white
-- Secondary: text-gray-300
-- Muted: text-gray-400
-
-Accents:
-- Cyan (Primary): bg-cyan-500 (Interactive elements)
-- Blue: bg-blue-600 hover:bg-blue-700
-- Green (Success): bg-green-600 hover:bg-green-700
-- Red (Danger): bg-red-600 hover:bg-red-700
-- Yellow (Warning): bg-yellow-600 hover:bg-yellow-700
-- Purple (Admin): bg-purple-600 hover:bg-purple-700
+Cyan-50:  #ECFEFF  (Lightest - backgrounds)
+Cyan-100: #CFFAFE  (Light backgrounds)
+Cyan-400: #22D3EE  (Accents)
+Cyan-500: #06B6D4  ★ PRIMARY ★ (Buttons, links, highlights)
+Cyan-600: #0891B2  (Hover states)
+Cyan-700: #0E7490  (Active states)
+Cyan-900: #164E63  (Darkest)
 ```
 
-### Light Theme
-```
-Background:
-- Primary: from-gray-50 to-gray-100
-- Cards: bg-white with shadow-md
-- Borders: border-gray-200
+**Usage:**
+- Primary buttons
+- Active navigation items
+- Links and CTAs
+- Icon highlights
+- Progress indicators
 
-Text:
-- Primary: text-gray-900
-- Secondary: text-gray-700
-- Muted: text-gray-600
+---
 
-Accents:
-- Cyan (Primary): bg-cyan-500 (Interactive elements)
-- Blue: bg-blue-600 hover:bg-blue-700
-- Green (Success): bg-green-600 hover:bg-green-700
-- Red (Danger): bg-red-600 hover:bg-red-700
-- Yellow (Warning): bg-yellow-600 hover:bg-yellow-700
-- Purple (Admin): bg-purple-600 hover:bg-purple-700
+### Neutral Colors
+
+**Light Mode:**
+```
+Gray-50:  #F9FAFB  (Page backgrounds)
+Gray-100: #F3F4F6  (Card backgrounds)
+Gray-200: #E5E7EB  (Borders)
+Gray-300: #D1D5DB  (Dividers)
+Gray-600: #4B5563  (Secondary text)
+Gray-700: #374151  (Body text)
+Gray-900: #111827  (Headings)
 ```
 
-### Auth Pages (Gradient Backgrounds)
+**Dark Mode:**
 ```
-Login: from-blue-50 to-indigo-100
-Signup: from-purple-50 to-pink-100
-Cards: bg-white with shadow-xl
+Gray-700: #374151  (Borders)
+Gray-800: #1F2937  (Card backgrounds)
+Gray-900: #111827  (Page backgrounds)
+White:    #FFFFFF  (Text)
+Gray-300: #D1D5DB  (Secondary text)
 ```
 
 ---
 
-## 📐 Layout Structure
+### Semantic Colors
 
-### Navigation System
+**Success:**
 ```
-Header (Fixed Top)
-├── Logo/Brand
-├── Navigation Links (Main Features)
-│   ├── Dashboard (Magic Line)
-│   ├── Trade Signals
-│   ├── Watchlist (Future)
-│   └── Admin Panel (Admin/Super Admin Only)
-└── User Menu
-    ├── Profile
-    ├── Settings
-    └── Logout
+Green-400: #4ADE80  (Success text)
+Green-500: #22C55E  (Success buttons)
+Green-600: #16A34A  (Success hover)
 ```
 
-### Page Layout
+**Warning:**
 ```
-<div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-  <Header />
-  <main className="container mx-auto px-4 py-8">
-    <PageContent />
-  </main>
-  <Footer /> (Optional)
+Yellow-400: #FACC15  (Warning text)
+Orange-500: #F97316  (Warning buttons)
+Orange-600: #EA580C  (Warning hover)
+```
+
+**Error:**
+```
+Red-400: #F87171    (Error text)
+Red-500: #EF4444    (Error buttons)
+Red-600: #DC2626    (Error hover)
+```
+
+**Info:**
+```
+Blue-400: #60A5FA   (Info text)
+Blue-500: #3B82F6   (Info buttons)
+Blue-600: #2563EB   (Info hover)
+```
+
+---
+
+### Status Colors
+
+**Magic Line Status:**
+- **Met (Green):** Price >= Magic Line threshold
+- **Pending (Orange):** Price < Magic Line threshold
+- **No Data (Gray):** No price available
+
+**Market Status:**
+- **Open (Green):** Market is currently trading
+- **Closed (Orange):** Market is closed
+
+**Trade Plan Status:**
+- **Buy Level Met (Green)**
+- **Target Hit (Green)**
+- **Stop Loss Hit (Red)**
+- **Pending (Gray)**
+
+---
+
+## Typography
+
+### Font Family
+
+**Primary:** System Fonts
+```css
+font-family: 
+  system-ui,
+  -apple-system,
+  BlinkMacSystemFont,
+  'Segoe UI',
+  Roboto,
+  'Helvetica Neue',
+  Arial,
+  sans-serif;
+```
+
+**Monospace:** (for prices, numbers)
+```css
+font-family: 
+  'Monaco',
+  'Courier New',
+  monospace;
+```
+
+---
+
+### Font Sizes
+
+```
+text-xs:    0.75rem  (12px) - Small labels, captions
+text-sm:    0.875rem (14px) - Body text, secondary info
+text-base:  1rem     (16px) - Primary body text
+text-lg:    1.125rem (18px) - Lead text
+text-xl:    1.25rem  (20px) - Small headings
+text-2xl:   1.5rem   (24px) - Card titles
+text-3xl:   1.875rem (30px) - Section headers
+text-4xl:   2.25rem  (36px) - Page titles
+text-5xl:   3rem     (48px) - Hero text
+text-6xl:   3.75rem  (60px) - Landing page hero
+```
+
+---
+
+### Font Weights
+
+```
+font-normal:   400 - Body text
+font-medium:   500 - Emphasized text
+font-semibold: 600 - Subheadings
+font-bold:     700 - Headings, buttons
+font-extrabold: 800 - Hero headings
+```
+
+---
+
+### Line Heights
+
+```
+leading-tight:  1.25  - Headings
+leading-snug:   1.375 - Subheadings
+leading-normal: 1.5   - Body text
+leading-relaxed: 1.625 - Long-form content
+```
+
+---
+
+## Spacing System
+
+**Tailwind Spacing Scale:**
+```
+0:   0px
+1:   0.25rem  (4px)
+2:   0.5rem   (8px)
+3:   0.75rem  (12px)
+4:   1rem     (16px)
+5:   1.25rem  (20px)
+6:   1.5rem   (24px)
+8:   2rem     (32px)
+10:  2.5rem   (40px)
+12:  3rem     (48px)
+16:  4rem     (64px)
+20:  5rem     (80px)
+```
+
+**Common Uses:**
+- `gap-2` - Small spacing between items
+- `gap-4` - Default spacing
+- `gap-6` - Large spacing
+- `p-4` - Card padding
+- `p-6` - Large card padding
+- `p-8` - Section padding
+- `py-12` - Vertical section padding
+
+---
+
+## Border Radius
+
+```
+rounded-none: 0px
+rounded-sm:   0.125rem (2px)
+rounded:      0.25rem  (4px)  - Default
+rounded-md:   0.375rem (6px)
+rounded-lg:   0.5rem   (8px)  - Cards, buttons
+rounded-xl:   0.75rem  (12px) - Large cards
+rounded-2xl:  1rem     (16px) - Hero cards
+rounded-full: 9999px          - Badges, avatars
+```
+
+**Usage:**
+- Buttons: `rounded-lg`
+- Cards: `rounded-xl` or `rounded-2xl`
+- Inputs: `rounded-lg`
+- Badges: `rounded-full`
+- Images: `rounded-xl`
+
+---
+
+## Shadows
+
+```
+shadow-sm:  Small shadow - Subtle elevation
+shadow:     Default shadow - Cards at rest
+shadow-md:  Medium shadow - Elevated cards
+shadow-lg:  Large shadow - Dropdowns, modals
+shadow-xl:  Extra large - Sticky headers
+shadow-2xl: Huge shadow - Hero sections
+```
+
+**Dark Mode Shadows:**
+- Shadows are less prominent in dark mode
+- Use border highlights instead for elevation
+
+---
+
+## Components
+
+### 1. Buttons
+
+**Primary Button:**
+```jsx
+<button className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white font-medium rounded-lg transition-colors shadow-lg">
+  Click Me
+</button>
+```
+
+**Secondary Button:**
+```jsx
+<button className="px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-lg transition-colors">
+  Click Me
+</button>
+```
+
+**Danger Button:**
+```jsx
+<button className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-medium rounded-lg transition-colors">
+  Delete
+</button>
+```
+
+**Button Sizes:**
+- Small: `px-3 py-1.5 text-sm`
+- Medium: `px-4 py-2 text-base` (default)
+- Large: `px-6 py-3 text-lg`
+
+---
+
+### 2. Cards
+
+**Basic Card:**
+```jsx
+<div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+  {/* Content */}
+</div>
+```
+
+**Hover Card (Interactive):**
+```jsx
+<div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-2xl p-6 border border-gray-200 dark:border-gray-700 transition-all hover:-translate-y-1 cursor-pointer">
+  {/* Content */}
+</div>
+```
+
+**Gradient Card:**
+```jsx
+<div className="bg-gradient-to-br from-cyan-50 to-blue-50 dark:from-cyan-900/20 dark:to-blue-900/20 rounded-xl border border-cyan-200 dark:border-cyan-800 p-6">
+  {/* Content */}
 </div>
 ```
 
 ---
 
-## 🔘 Button Styles
+### 3. Inputs
 
-### Primary Button
+**Text Input:**
 ```jsx
-className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg 
-transition-colors duration-200 flex items-center gap-2 disabled:opacity-50 
-disabled:cursor-not-allowed"
+<input 
+  type="text"
+  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition"
+  placeholder="Enter text"
+/>
 ```
 
-### Success Button
+**Input with Icon:**
 ```jsx
-className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg 
-transition-colors duration-200"
+<div className="relative">
+  <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+  <input className="pl-10 ..." />
+</div>
 ```
 
-### Danger Button
+---
+
+### 4. Badges
+
+**Status Badge:**
 ```jsx
-className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg 
-transition-colors duration-200"
+<span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
+  Active
+</span>
 ```
 
-### Ghost Button (Theme-Aware)
+**Badge Colors:**
+- Success: `bg-green-100 text-green-700`
+- Warning: `bg-orange-100 text-orange-700`
+- Error: `bg-red-100 text-red-700`
+- Info: `bg-blue-100 text-blue-700`
+- Neutral: `bg-gray-100 text-gray-700`
+
+---
+
+### 5. Navigation
+
+**Header:**
+- Height: `py-3` or `py-4`
+- Background: `bg-white dark:bg-gray-900`
+- Border: `border-b border-gray-200 dark:border-gray-700`
+- Shadow: `shadow-lg`
+- Sticky: `sticky top-0 z-50`
+
+**Nav Button (Active):**
 ```jsx
-className="px-4 py-2 bg-gray-100 dark:bg-gray-700/50 hover:bg-gray-200 
-dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 hover:text-gray-900 
-dark:hover:text-white border border-gray-300 dark:border-gray-600 rounded-lg 
-transition-all duration-200"
+<button className="px-3 py-2 rounded-lg font-medium bg-cyan-500 text-white transition-all flex items-center gap-2 text-sm">
+  <Icon />
+  <span>Label</span>
+</button>
 ```
 
-### Theme Toggle Button
+**Nav Button (Inactive):**
 ```jsx
-<button
-  onClick={toggleTheme}
-  className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800/50 hover:bg-gray-200 
-  dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 transition-all duration-200"
->
-  {theme === 'dark' ? <Sun className="w-5 h-5 text-yellow-500" /> : <Moon className="w-5 h-5 text-gray-700" />}
+<button className="px-3 py-2 rounded-lg font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all flex items-center gap-2 text-sm">
+  <Icon />
+  <span>Label</span>
 </button>
 ```
 
 ---
 
-## 📦 Card Styles
+### 6. Modals & Dropdowns
 
-### Standard Card (Theme-Aware)
+**Dropdown:**
 ```jsx
-className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 
-dark:border-gray-700 rounded-lg p-6 shadow-md"
-```
-
-### Highlighted Card (Met Threshold - Theme-Aware)
-```jsx
-className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-500/10 
-dark:to-emerald-500/10 border-2 border-green-400 dark:border-green-500/50 
-ring-2 ring-green-200 dark:ring-green-500/20 rounded-lg p-6"
-```
-
----
-
-## 🎯 Component Patterns
-
-### Stats Card (Theme-Aware)
-```jsx
-<div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 
-dark:border-gray-700 rounded-lg p-6 shadow-md">
-  <div className="text-gray-600 dark:text-gray-400 text-sm mb-1">Label</div>
-  <div className="text-3xl font-bold text-gray-900 dark:text-white">Value</div>
+<div className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
+  {/* Dropdown items */}
 </div>
 ```
 
-### Inline Stats Badge (Theme-Aware)
+**Modal Backdrop:**
 ```jsx
-<div className="bg-gray-100 dark:bg-white/10 backdrop-blur px-4 py-2 rounded-lg 
-border border-gray-200 dark:border-gray-700">
-  <div className="text-xl font-bold text-gray-900 dark:text-white">Value</div>
-  <div className="text-xs text-gray-600 dark:text-gray-300">Label</div>
+<div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" />
+```
+
+---
+
+### 7. Loading States
+
+**Spinner:**
+```jsx
+<div className="w-8 h-8 border-4 border-cyan-600 border-t-transparent rounded-full animate-spin" />
+```
+
+**Skeleton:**
+```jsx
+<div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-4 rounded" />
+```
+
+---
+
+### 8. Icons
+
+**Library:** Lucide React
+
+**Common Icons:**
+- `Home` - Home/Dashboard
+- `BarChart3` - Magic Line
+- `Target` - Trade Plans
+- `TrendingUp` - Stocks/Logo
+- `Settings` - Settings
+- `Users` - User Management
+- `Database` - Data Management
+- `LogOut` - Logout
+- `Sun/Moon` - Theme toggle
+
+**Icon Sizes:**
+- Small: `w-4 h-4`
+- Medium: `w-5 h-5` (default)
+- Large: `w-6 h-6`
+- Extra Large: `w-8 h-8`
+
+**Icon Colors:**
+- Primary: `text-cyan-500`
+- Success: `text-green-500`
+- Warning: `text-orange-500`
+- Error: `text-red-500`
+- Neutral: `text-gray-500`
+
+---
+
+## Layout Patterns
+
+### 1. Page Layout
+
+```jsx
+<div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300">
+  <Header />
+  <main className="container mx-auto px-4 py-8">
+    {/* Content */}
+  </main>
+  <Footer />
 </div>
 ```
 
-### Table (Theme-Aware)
+---
+
+### 2. Grid Layouts
+
+**Responsive Grid:**
 ```jsx
-<div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 
-dark:border-gray-700 rounded-lg overflow-hidden shadow-md">
-  <table className="w-full">
-    <thead className="bg-gray-50 dark:bg-gray-900/50">
-      <tr>
-        <th className="px-6 py-4 text-left text-xs font-medium text-gray-600 
-        dark:text-gray-400 uppercase">...</th>
-      </tr>
-    </thead>
-    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-      <tr className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
-        <td className="px-6 py-4 text-gray-900 dark:text-gray-300">...</td>
-      </tr>
-    </tbody>
-  </table>
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+  {/* Items */}
 </div>
 ```
 
-### Filter Tabs (Theme-Aware)
+**Common Grid Patterns:**
+- 1 column: Mobile
+- 2 columns: Tablet
+- 3 columns: Desktop
+- 4 columns: Large desktop
+
+---
+
+### 3. Flexbox Layouts
+
+**Center Content:**
 ```jsx
-<div className="flex gap-2">
-  <button className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-    active 
-      ? 'bg-cyan-500 text-white shadow-md' 
-      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-  }`}>
-    Label
-  </button>
+<div className="flex items-center justify-center min-h-screen">
+  {/* Centered content */}
+</div>
+```
+
+**Space Between:**
+```jsx
+<div className="flex items-center justify-between">
+  {/* Content */}
 </div>
 ```
 
 ---
 
-## 🧭 Navigation Structure (Current + Future)
+## Dark Mode
 
-### Level 1: Main Navigation
-```
-1. Dashboard (Magic Line Feature)
-2. Trade Signals
-3. Watchlist (Future)
-4. Admin Panel (Role-based)
-```
+### Implementation
 
-### Level 2: Sub-Navigation (Trade Signals Example)
-```
-Trade Signals Page:
-├── Active Signals Tab
-└── Historical Signals Tab
+**Tailwind Config:**
+```javascript
+darkMode: 'class'  // Use class-based dark mode
 ```
 
-### Level 3: Admin Sub-Menu
+**Toggle:**
+```javascript
+document.documentElement.classList.toggle('dark');
 ```
-Admin Panel:
-├── Users Management
-├── Stock Database (Feature 2)
-├── Trade Plans Management
-└── System Settings (Future)
+
+**Usage:**
+```jsx
+className="bg-white dark:bg-gray-800"
+className="text-gray-900 dark:text-white"
+```
+
+### Dark Mode Color Adjustments
+
+**Backgrounds:**
+- Light: `bg-white` / `bg-gray-50`
+- Dark: `bg-gray-800` / `bg-gray-900`
+
+**Text:**
+- Light: `text-gray-900` / `text-gray-700`
+- Dark: `text-white` / `text-gray-300`
+
+**Borders:**
+- Light: `border-gray-200` / `border-gray-300`
+- Dark: `border-gray-700` / `border-gray-600`
+
+---
+
+## Transitions & Animations
+
+**Standard Transition:**
+```jsx
+className="transition-colors duration-300"
+className="transition-all duration-200"
+```
+
+**Hover Effects:**
+```jsx
+className="hover:shadow-xl hover:-translate-y-1 transition-all"
+```
+
+**Animations:**
+- `animate-spin` - Loading spinner
+- `animate-pulse` - Skeleton loading
+- `animate-bounce` - Attention grabber
+
+---
+
+## Responsive Breakpoints
+
+**Mobile First Approach:**
+```jsx
+// Base: Mobile
+className="text-sm"
+
+// Tablet
+className="md:text-base"
+
+// Desktop
+className="lg:text-lg"
+```
+
+**Visibility:**
+```jsx
+className="block lg:hidden"        // Mobile only
+className="hidden lg:block"        // Desktop only
+className="hidden md:block"        // Tablet and up
 ```
 
 ---
 
-## 📱 Responsive Breakpoints
+## Accessibility
 
+**Focus States:**
+```jsx
+className="focus:ring-2 focus:ring-cyan-500 focus:outline-none"
 ```
-Mobile: < 640px
-Tablet: 640px - 1024px  
-Desktop: > 1024px
 
-Usage:
-- Stack navigation on mobile
-- Show full navigation on desktop
-- Use hamburger menu for mobile (if needed)
+**Screen Readers:**
+```jsx
+<span className="sr-only">Hidden text for screen readers</span>
+```
+
+**ARIA Labels:**
+```jsx
+<button aria-label="Close menu">
+  <X className="w-5 h-5" />
+</button>
 ```
 
 ---
 
-## 🎭 Animation Standards
+## Brand Assets
 
-### Transitions
-```css
-transition-colors duration-200  /* For color changes */
-transition-all duration-200     /* For size/position */
-transition-transform duration-300 /* For hover effects */
-```
-
-### Hover Effects
-```jsx
-hover:scale-105         /* Cards */
-hover:shadow-lg         /* Elevation */
-hover:-translate-y-1    /* Lift effect */
-```
-
-### Loading States
-```jsx
-<RefreshCw className="w-5 h-5 animate-spin" />
-```
+**Logo:** TrendingUp icon in cyan-500  
+**App Icon:** Cyan gradient with TrendingUp symbol  
+**Favicon:** Simple chart icon  
 
 ---
 
-## 🔔 Notification Styles (Theme-Aware)
+## Design Principles
 
-### Success Toast
-```jsx
-Light: bg-green-50 border border-green-200 text-green-700
-Dark: bg-green-500/10 border border-green-500/50 text-green-400
-```
-
-### Error Toast
-```jsx
-Light: bg-red-50 border border-red-200 text-red-700
-Dark: bg-red-500/10 border border-red-500/50 text-red-400
-```
-
-### Info Toast
-```jsx
-Light: bg-cyan-50 border border-cyan-200 text-cyan-700
-Dark: bg-cyan-500/10 border border-cyan-500/50 text-cyan-400
-```
+1. **Consistency:** Use the same patterns throughout
+2. **Hierarchy:** Clear visual hierarchy with typography and spacing
+3. **Contrast:** Ensure text is readable (WCAG AA minimum)
+4. **Feedback:** Provide visual feedback for all interactions
+5. **Performance:** Optimize for fast loading and smooth transitions
+6. **Responsive:** Mobile-first, works on all screen sizes
+7. **Accessibility:** Keyboard navigation and screen reader support
 
 ---
 
-## 📋 Form Inputs (Theme-Aware)
+## Future Design Enhancements
 
-### Text Input
-```jsx
-className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-300 
-dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 
-dark:placeholder-gray-400 focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition"
-```
-
-### Select Dropdown
-```jsx
-className="px-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 
-dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 
-focus:ring-cyan-500 focus:border-transparent"
-```
-
----
-
-## ✅ Implementation Checklist
-
-- [x] ThemeContext - Theme management with localStorage
-- [x] Theme Toggle - Sun/Moon button in Header
-- [x] AdminDashboard - Theme-aware styling
-- [x] Dashboard (Magic Line) - Theme-aware styling
-- [x] UploadForm - Theme-aware styling
-- [x] Header - Theme-aware with navigation system
-- [ ] Trade Signals Page - Theme-aware (Feature 3)
-- [ ] Stock Management Page - Theme-aware (Feature 2)
-- [ ] Settings Page - Theme-aware (Future)
-
----
-
-## 🎨 Brand Identity
-
-**App Name:** PSX SmartDesk
-**Tagline:** Real-time Stock Monitoring & Trading Signals
-**Primary Color:** Blue (#2563eb)
-**Accent Color:** Cyan (#06b6d4)
-**Theme:** Dual (Light/Dark) with Toggle
-**Vibe:** Modern, Clean, Professional Trading Platform
-**Default Theme:** Light (Clean, accessible interface)
-**Theme Persistence:** localStorage (user preference saved)
-
+- [ ] Custom illustrations
+- [ ] Advanced data visualizations (charts)
+- [ ] Micro-interactions and animations
+- [ ] Custom icon set
+- [ ] Print stylesheet
+- [ ] High contrast mode
+- [ ] Reduced motion preferences

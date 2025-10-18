@@ -89,8 +89,8 @@ export default function MagicLine() {
     try {
       setLoading(true);
       const response = await getSymbols();
-      setSymbols(response.data.symbols || []);
-      setStats(response.data.stats || null);
+      setSymbols(response.symbols || []);
+      setStats(response.stats || null);
     } catch (error) {
       console.error('Error loading symbols:', error);
     } finally {
