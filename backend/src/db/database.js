@@ -23,6 +23,7 @@ class Database {
           symbol: normalized,
           originalSymbol: symbol,
           magicLine: parseFloat(magicLine),
+          isActive: true,  // ✅ Explicitly set as active
           lastUpdated: new Date()
         },
         { upsert: true, new: true }
@@ -48,6 +49,7 @@ class Database {
                 symbol: normalized,
                 originalSymbol: symbol,
                 magicLine: parseFloat(magicLine),
+                isActive: true,  // ✅ Explicitly set as active
                 lastUpdated: new Date()
               }
             },
@@ -96,8 +98,9 @@ class Database {
     try {
       const symbols = await Symbol.find({}).lean();
       
-      // Get all stocks with prices (centralized)
-      const stocks = await Stock.find({}).lean();
+      // 🚀 OPTIMIZED: Only fetch stocks for the symbols we need (not all stocks in DB)
+      const symbolNames = symbols.map(s => s.symbol);
+      const stocks = await Stock.find({ symbol: { $in: symbolNames } }).lean();
       const stockMap = {};
       stocks.forEach(stock => {
         stockMap[stock.symbol] = stock;
@@ -116,8 +119,11 @@ class Database {
           priceData: stock ? {
             price: stock.currentPrice,
             change: stock.priceChange,
-            changePercent: stock.priceChangePercent,
-            previousClose: stock.previousPrice
+            changePercent: stock.priceChangePercent,  // ✅ Change % (for display instead of Trades)
+            previousClose: stock.previousPrice,
+            high: stock.high,           // ✅ Day High
+            low: stock.low,             // ✅ Day Low
+            volume: stock.volume        // ✅ Trading Volume
           } : null,
           isMet: isMet,
           addedAt: symbolInfo.createdAt,
@@ -167,8 +173,9 @@ class Database {
     try {
       const symbols = await Symbol.find({}).lean();
       
-      // Get all stocks with prices (centralized)
-      const stocks = await Stock.find({}).lean();
+      // 🚀 OPTIMIZED: Only fetch stocks for the symbols we need (not all stocks in DB)
+      const symbolNames = symbols.map(s => s.symbol);
+      const stocks = await Stock.find({ symbol: { $in: symbolNames } }).lean();
       const stockMap = {};
       stocks.forEach(stock => {
         stockMap[stock.symbol] = stock;

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Settings as SettingsIcon, RefreshCw, Clock, Calendar, TrendingUp, Activity, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import * as settingsService from '../services/settings';
+import socket from '../services/socket';
 import { toast } from 'react-hot-toast';
 
 const Settings = () => {
@@ -25,6 +26,20 @@ const Settings = () => {
 
   useEffect(() => {
     loadSettings();
+    
+    // Listen for price updates from Socket.IO
+    const handlePriceUpdate = (data) => {
+      console.log('Price update received:', data);
+      toast.success(`✅ Prices updated! (${data.updated} stocks refreshed)`);
+      setRefreshing(false);
+      loadSettings(); // Refresh the status
+    };
+    
+    socket.on('priceUpdate', handlePriceUpdate);
+    
+    return () => {
+      socket.off('priceUpdate', handlePriceUpdate);
+    };
   }, []);
 
   const loadSettings = async () => {
@@ -116,19 +131,26 @@ const Settings = () => {
       const response = await settingsService.refreshPrices();
 
       if (response.success) {
-        if (response.skipped) {
-          toast(response.message, { icon: '⏸️' });
-        } else {
-          toast.success('Prices refreshed successfully!');
-        }
-        loadSettings();
+        // Backend started the refresh in background
+        toast.success('🔄 Fetching prices in background...', {
+          duration: 3000,
+          icon: '📊'
+        });
+        // Keep spinner going - will be stopped when Socket.IO 'priceUpdate' event arrives
+      } else if (response.data?.status === 'already_fetching') {
+        // Already fetching - show warning
+        toast('⏳ Price fetch already in progress', {
+          icon: '⚠️',
+          duration: 2000
+        });
+        setRefreshing(false);
       }
     } catch (error) {
       console.error('Error refreshing prices:', error);
-      toast.error('Failed to refresh prices');
-    } finally {
+      toast.error('Failed to start price refresh');
       setRefreshing(false);
     }
+    // Note: Don't stop refreshing here if success - wait for Socket.IO event
   };
 
   const formatTime = (hour, minute) => {
@@ -197,17 +219,6 @@ const Settings = () => {
                   <Clock className="w-5 h-5" />
                   <span className="font-medium">Market Hours</span>
                 </button>
-                <button
-                  onClick={() => setActiveMenu('system-status')}
-                  className={`w-full text-left px-4 py-3 rounded-lg transition-colors flex items-center gap-3 ${
-                    activeMenu === 'system-status'
-                      ? 'bg-cyan-500 text-white'
-                      : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
-                  }`}
-                >
-                  <Activity className="w-5 h-5" />
-                  <span className="font-medium">System Status</span>
-                </button>
               </nav>
             </div>
           </div>
@@ -219,11 +230,34 @@ const Settings = () => {
               <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">General Settings</h2>
 
+                {/* Market Status - Useful Info */}
+                {status?.marketStatus && (
+                  <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">PSX Market Status</h3>
+                      {status.marketStatus.isOpen ? (
+                        <span className="flex items-center gap-2 text-green-600 dark:text-green-400 font-medium">
+                          <CheckCircle className="w-5 h-5" />
+                          OPEN
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-2 text-orange-600 dark:text-orange-400 font-medium">
+                          <XCircle className="w-5 h-5" />
+                          CLOSED
+                        </span>
+                      )}
+                    </div>
+                    {status.marketStatus.message && (
+                      <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{status.marketStatus.message}</p>
+                    )}
+                  </div>
+                )}
+
                 {/* Manual Price Refresh */}
                 <div className="mb-8 p-4 bg-cyan-50 dark:bg-cyan-500/10 rounded-lg border border-cyan-200 dark:border-cyan-500/30">
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Manual Price Refresh</h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    Manually fetch latest prices from PSX (only works during market hours)
+                    Manually fetch latest prices from PSX (works anytime, bypasses market hours check)
                   </p>
                   <button
                     onClick={handleRefreshPrices}
@@ -501,127 +535,6 @@ const Settings = () => {
               </div>
             )}
 
-            {/* System Status */}
-            {activeMenu === 'system-status' && status && (
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">System Status</h2>
-
-                {/* Market Status */}
-                <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Market Status</h3>
-                    {status.marketStatus?.isOpen ? (
-                      <span className="flex items-center gap-2 text-green-600 dark:text-green-400 font-medium">
-                        <CheckCircle className="w-5 h-5" />
-                        OPEN
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-2 text-orange-600 dark:text-orange-400 font-medium">
-                        <XCircle className="w-5 h-5" />
-                        CLOSED
-                      </span>
-                    )}
-                  </div>
-                  {status.marketStatus?.message && (
-                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{status.marketStatus.message}</p>
-                  )}
-                </div>
-
-                {/* Services Status */}
-                <div className="space-y-4">
-                  {/* Price Service */}
-                  <div className="p-4 bg-cyan-50 dark:bg-cyan-500/10 rounded-lg border border-cyan-200 dark:border-cyan-500/30">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-semibold text-gray-900 dark:text-white">Centralized Price Service</h4>
-                      {status.services?.priceService?.running ? (
-                        <span className="flex items-center gap-1 text-green-600 dark:text-green-400 text-sm">
-                          <Activity className="w-4 h-4" />
-                          Running
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1 text-gray-500 text-sm">
-                          <AlertCircle className="w-4 h-4" />
-                          Stopped
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Last check: {formatTimeAgo(status.services?.priceService?.lastCheckAgo)}
-                    </p>
-                  </div>
-
-                  {/* Magic Line Service */}
-                  <div className="p-4 bg-blue-50 dark:bg-blue-500/10 rounded-lg border border-blue-200 dark:border-blue-500/30">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-semibold text-gray-900 dark:text-white">Magic Line Status Service</h4>
-                      {status.services?.magicLineService?.running ? (
-                        <span className="flex items-center gap-1 text-green-600 dark:text-green-400 text-sm">
-                          <Activity className="w-4 h-4" />
-                          Running
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1 text-gray-500 text-sm">
-                          <AlertCircle className="w-4 h-4" />
-                          Stopped
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Last check: {formatTimeAgo(status.services?.magicLineService?.lastCheckAgo)}
-                    </p>
-                  </div>
-
-                  {/* Trade Plan Service */}
-                  <div className="p-4 bg-purple-50 dark:bg-purple-500/10 rounded-lg border border-purple-200 dark:border-purple-500/30">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-semibold text-gray-900 dark:text-white">Trade Plan Status Service</h4>
-                      {status.services?.tradePlanService?.running ? (
-                        <span className="flex items-center gap-1 text-green-600 dark:text-green-400 text-sm">
-                          <Activity className="w-4 h-4" />
-                          Running
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1 text-gray-500 text-sm">
-                          <AlertCircle className="w-4 h-4" />
-                          Stopped
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Last check: {formatTimeAgo(status.services?.tradePlanService?.lastCheckAgo)}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Current Config */}
-                <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                  <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Current Configuration</h4>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Polling Interval:</span>
-                      <span className="font-medium text-gray-900 dark:text-white">{status.currentInterval} minutes</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Polling Enabled:</span>
-                      <span className="font-medium text-gray-900 dark:text-white">
-                        {status.pollingEnabled ? 'Yes' : 'No'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Refresh Button */}
-                <div className="mt-6 flex justify-end">
-                  <button
-                    onClick={loadSettings}
-                    className="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white rounded-lg transition-colors flex items-center gap-2"
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                    Refresh Status
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>

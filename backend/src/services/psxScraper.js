@@ -260,7 +260,142 @@ class PSXScraper {
   }
 
   /**
-   * Fetch multiple stocks at once (more efficient)
+   * 🚀 NEW: Fetch ALL stock prices from market-watch page in ONE call
+   * Much more efficient than fetching one by one
+   * Source: https://dps.psx.com.pk/market-watch
+   */
+  async getAllStockPrices() {
+    try {
+      console.log('🌐 Fetching ALL stock prices from market-watch...');
+      
+      const url = `${this.baseUrl}/market-watch`;
+      
+      const response = await axios.get(url, {
+        timeout: 20000, // 20 seconds (large page)
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Connection': 'keep-alive',
+        }
+      });
+
+      // Parse the HTML table
+      const $ = cheerio.load(response.data);
+      const stockPrices = new Map();
+      
+      // Find all rows in the table
+      // The table has columns: SYMBOL | SECTOR | LISTED IN | LDCP | OPEN | HIGH | LOW | CURRENT | CHANGE | CHANGE (%) | VOLUME
+      $('table tr').each((i, row) => {
+        try {
+          const cells = $(row).find('td');
+          
+          if (cells.length >= 8) {
+            // Extract symbol (first column, might have link)
+            const symbolElement = $(cells[0]).find('a').first();
+            const symbol = symbolElement.text().trim().toUpperCase();
+            
+            if (!symbol || symbol.length === 0) return; // Skip empty rows
+            
+            // Extract prices from correct columns
+            const ldcp = parseFloat($(cells[3]).text().trim().replace(/,/g, '')) || null;
+            const open = parseFloat($(cells[4]).text().trim().replace(/,/g, '')) || null;
+            const high = parseFloat($(cells[5]).text().trim().replace(/,/g, '')) || null;
+            const low = parseFloat($(cells[6]).text().trim().replace(/,/g, '')) || null;
+            const current = parseFloat($(cells[7]).text().trim().replace(/,/g, '')) || null;
+            const change = parseFloat($(cells[8]).text().trim().replace(/,/g, '')) || null;
+            
+            // Parse changePercent - try both text and data attributes
+            let changePercent = null;
+            const changePercentText = $(cells[9]).text().trim().replace(/[%,]/g, '');
+            const changePercentData = $(cells[9]).attr('data-value') || $(cells[9]).attr('data-percent');
+            
+            if (changePercentData) {
+              changePercent = parseFloat(changePercentData.replace(/[%,]/g, ''));
+            } else if (changePercentText) {
+              changePercent = parseFloat(changePercentText);
+            }
+            
+            const volume = parseInt($(cells[10]).text().trim().replace(/,/g, '')) || null;
+            
+            // Debug log for first few symbols to see what we're getting
+            if (stockPrices.size < 3) {
+              console.log(`   📝 ${symbol}: current=${current}, change=${change}, changePercent=${changePercent} (text="${$(cells[9]).text().trim()}", data="${changePercentData}")`);
+            }
+            
+            // Current price is what we need
+            if (current && current > 0) {
+              stockPrices.set(symbol, {
+                symbol,
+                price: current,
+                previousClose: ldcp,
+                open,
+                high,
+                low,
+                change,
+                changePercent,
+                volume,
+                lastTradeTime: new Date().toISOString(),
+                source: 'psx-market-watch'
+              });
+            }
+          }
+        } catch (error) {
+          // Skip problematic rows
+        }
+      });
+      
+      console.log(`✅ Scraped ${stockPrices.size} stock prices from market-watch`);
+      return stockPrices;
+      
+    } catch (error) {
+      console.error('❌ Error scraping market-watch:', error.message);
+      throw new Error(`Failed to fetch market-watch data: ${error.message}`);
+    }
+  }
+
+  /**
+   * Fetch prices for specific symbols using bulk market-watch data
+   * This is the NEW recommended method - much faster than one-by-one
+   */
+  async getStockPricesForSymbols(symbols) {
+    try {
+      // Fetch all prices in one call
+      const allPrices = await this.getAllStockPrices();
+      
+      const results = [];
+      const notFound = [];
+      
+      for (const symbol of symbols) {
+        const symbolUpper = symbol.toUpperCase();
+        const priceData = allPrices.get(symbolUpper);
+        
+        if (priceData) {
+          results.push(priceData);
+        } else {
+          notFound.push(symbolUpper);
+        }
+      }
+      
+      if (notFound.length > 0) {
+        console.log(`⚠️ ${notFound.length} symbols not found in market-watch: ${notFound.slice(0, 5).join(', ')}${notFound.length > 5 ? '...' : ''}`);
+      }
+      
+      return {
+        success: results,
+        notFound
+      };
+      
+    } catch (error) {
+      console.error('❌ Error in getStockPricesForSymbols:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch multiple stocks at once (OLD method - kept for backward compatibility)
+   * @deprecated Use getStockPricesForSymbols() instead - much faster
    */
   async getMultipleStocks(symbols) {
     const results = [];

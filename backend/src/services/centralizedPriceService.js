@@ -12,6 +12,7 @@ class CentralizedPriceService {
     this.handlers = [];
     this.skipCount = 0;
     this.MAX_SKIPS = 4; // Log status every 4 skips
+    this.isFetching = false; // Lock to prevent concurrent fetches
   }
 
   // Register handlers for Socket.IO broadcasting
@@ -57,15 +58,26 @@ class CentralizedPriceService {
   }
 
   // Main price checking logic
-  async checkPrices() {
+  // @param {boolean} skipMarketCheck - If true, fetch prices regardless of market hours (for manual refresh)
+  async checkPrices(skipMarketCheck = false) {
     const startTime = Date.now();
     const currentTime = new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' });
 
     try {
-      // Check if market is open
+      // Check if already fetching (prevent concurrent requests)
+      if (this.isFetching) {
+        console.log(`\n⚠️ [${currentTime} PKT] Price fetch already in progress, skipping...`);
+        return {
+          skipped: true,
+          reason: 'already_fetching',
+          message: 'Price fetch already in progress'
+        };
+      }
+      
+      // Check if market is open (unless skipped for manual refresh)
       const status = marketHoursService.isMarketOpen();
       
-      if (!status.isOpen) {
+      if (!skipMarketCheck && !status.isOpen) {
         this.skipCount++;
         if (this.skipCount >= this.MAX_SKIPS) {
           console.log(`\n⏸️ [${currentTime} PKT] Market is ${status.status.toUpperCase()}`);
@@ -82,43 +94,95 @@ class CentralizedPriceService {
         };
       }
       
+      // Set lock - prevent concurrent fetches
+      this.isFetching = true;
+      
       // Reset skip counter when market is open
       this.skipCount = 0;
       
-      console.log(`\n💰 [${currentTime} PKT] Fetching centralized stock prices...`);
-      console.log(`   ✅ Market is OPEN - Updating price database`);
+      if (skipMarketCheck) {
+        console.log(`\n💪 [${currentTime} PKT] MANUAL REFRESH - Fetching prices (market check bypassed)`);
+      } else {
+        console.log(`\n💰 [${currentTime} PKT] Fetching centralized stock prices...`);
+        console.log(`   ✅ Market is OPEN - Updating price database`);
+      }
 
-      // Get all unique symbols that need price updates
-      const [magicLineSymbols, tradePlanSymbols] = await Promise.all([
-        Symbol.find({ isActive: true }).distinct('symbol'),
-        TradePlan.find({ isActive: true }).distinct('symbol')
-      ]);
-
-      const allSymbols = [...new Set([...magicLineSymbols, ...tradePlanSymbols])];
+      // 🎯 SMART STRATEGY: Only fetch prices for symbols actively in use
+      // Get symbols from active trade plans
+      const tradePlanSymbols = await TradePlan.find({ isActive: true }).distinct('symbol');
       
-      if (allSymbols.length === 0) {
-        console.log('ℹ️ No active symbols to check');
+      // Get symbols from active magic line entries
+      const magicLineSymbols = await Symbol.find({ isActive: true }).distinct('symbol');
+      
+      // Combine and deduplicate
+      const activeSymbols = [...new Set([...tradePlanSymbols, ...magicLineSymbols])];
+      
+      if (activeSymbols.length === 0) {
+        console.log('⚠️ No active symbols found');
+        console.log('   No active trade plans or magic line symbols to update');
         this.lastCheckTime = Date.now();
         return {
           checked: 0,
-          updated: 0
+          updated: 0,
+          message: 'No active symbols to update'
         };
       }
+      
+      console.log(`📊 Active symbols breakdown:`);
+      console.log(`   📈 Trade Plans: ${tradePlanSymbols.length} symbols`);
+      console.log(`   🎯 Magic Lines: ${magicLineSymbols.length} symbols`);
+      console.log(`   ✨ Total Unique: ${activeSymbols.length} symbols`);
 
-      console.log(`📊 Found ${allSymbols.length} unique symbols to update`);
+      console.log(`🌐 Fetching prices using BULK market-watch scraper (1 call for all symbols)...`);
 
-      // Fetch prices from PSX
+      // 🚀 NEW: Use bulk scraper - fetch ALL prices in ONE call
       const priceResults = {};
       const errors = [];
+      let successCount = 0;
+      let failedCount = 0;
       
-      for (const symbol of allSymbols) {
-        try {
-          const stockData = await psxScraper.getStockPrice(symbol);
-          priceResults[symbol] = stockData.price;
-          console.log(`  ✓ ${symbol}: Rs. ${stockData.price}`);
-        } catch (error) {
-          console.error(`  ✗ ${symbol}: ${error.message}`);
-          errors.push({ symbol, error: error.message });
+      try {
+        // Fetch all prices using the new bulk method
+        const bulkResult = await psxScraper.getStockPricesForSymbols(activeSymbols);
+        
+        // Process successful results
+        for (const stockData of bulkResult.success) {
+          priceResults[stockData.symbol] = stockData; // ✅ Store full data, not just price
+          successCount++;
+          
+          // Log for small batches or first few stocks
+          if (activeSymbols.length <= 10 || successCount <= 5) {
+            console.log(`  ✓ ${stockData.symbol}: Rs. ${stockData.price}`);
+          }
+        }
+        
+        // Track symbols not found
+        for (const symbol of bulkResult.notFound) {
+          errors.push({ symbol, error: 'Symbol not found in market-watch' });
+          failedCount++;
+        }
+        
+      } catch (error) {
+        // Fallback to old method if bulk scraper fails
+        console.error(`⚠️ Bulk scraper failed, falling back to one-by-one method: ${error.message}`);
+        
+        for (const symbol of activeSymbols) {
+          try {
+            const stockData = await psxScraper.getStockPrice(symbol);
+            
+            if (stockData && stockData.price) {
+              priceResults[symbol] = stockData; // ✅ Store full data, not just price
+              successCount++;
+              
+              if (activeSymbols.length <= 10 || successCount <= 5) {
+                console.log(`  ✓ ${symbol}: Rs. ${stockData.price}`);
+              }
+            }
+          } catch (err) {
+            console.error(`  ✗ ${symbol}: Failed - ${err.message}`);
+            errors.push({ symbol, error: err.message });
+            failedCount++;
+          }
         }
       }
 
@@ -126,26 +190,26 @@ class CentralizedPriceService {
       let stocksUpdated = 0;
       const now = new Date();
 
-      for (const symbol of allSymbols) {
-        const newPrice = priceResults[symbol];
-        if (!newPrice) continue;
+      for (const symbol of activeSymbols) {
+        const stockData = priceResults[symbol];
+        if (!stockData) continue;
 
         try {
           const stock = await Stock.findOne({ symbol });
           
           if (stock) {
-            // Calculate price change
-            const previousPrice = stock.currentPrice || newPrice;
-            const priceChange = newPrice - previousPrice;
-            const priceChangePercent = previousPrice !== 0 
-              ? ((priceChange / previousPrice) * 100) 
-              : 0;
-
-            // Update stock with new price
-            stock.previousPrice = stock.currentPrice || newPrice;
+            const newPrice = stockData.price;
+            
+            // ✅ Use data from PSX scraper (don't calculate, use what PSX provides)
+            stock.previousPrice = stockData.previousClose || stock.previousPrice;
             stock.currentPrice = newPrice;
-            stock.priceChange = priceChange;
-            stock.priceChangePercent = priceChangePercent;
+            stock.priceChange = stockData.change || null;  // ✅ From scraper
+            stock.priceChangePercent = stockData.changePercent || null;  // ✅ From scraper (today's change)
+            // ✅ Save additional trading data
+            stock.high = stockData.high || null;
+            stock.low = stockData.low || null;
+            stock.open = stockData.open || null;
+            stock.volume = stockData.volume || null;
             stock.lastUpdated = now;
             
             await stock.save();
@@ -162,9 +226,11 @@ class CentralizedPriceService {
 
       const duration = ((Date.now() - startTime) / 1000).toFixed(2);
       console.log(`\n✅ Centralized price update complete in ${duration}s`);
-      console.log(`   📊 Checked: ${allSymbols.length} symbols`);
-      console.log(`   🔄 Updated: ${stocksUpdated} stocks`);
-      if (errors.length > 0) console.log(`   ⚠️ Errors: ${errors.length}`);
+      console.log(`   📊 Active Symbols Checked: ${activeSymbols.length}`);
+      console.log(`   🔄 Database Records Updated: ${stocksUpdated}`);
+      console.log(`   ✅ Successfully Fetched: ${successCount}`);
+      if (failedCount > 0) console.log(`   ❌ Failed: ${failedCount}`);
+      console.log(`   ⚡ Method: Bulk market-watch scraper (1 HTTP call)`);
 
       this.lastCheckTime = Date.now();
 
@@ -172,7 +238,7 @@ class CentralizedPriceService {
       this.notifyHandlers({
         type: 'priceUpdate',
         data: {
-          checked: allSymbols.length,
+          checked: activeSymbols.length,
           updated: stocksUpdated,
           timestamp: now,
           errors
@@ -180,7 +246,7 @@ class CentralizedPriceService {
       });
 
       return {
-        checked: allSymbols.length,
+        checked: activeSymbols.length,
         updated: stocksUpdated,
         errors
       };
@@ -189,6 +255,9 @@ class CentralizedPriceService {
       return {
         error: error.message
       };
+    } finally {
+      // Release lock - allow next fetch
+      this.isFetching = false;
     }
   }
 
@@ -196,6 +265,7 @@ class CentralizedPriceService {
   getStatus() {
     return {
       isRunning: this.isRunning,
+      isFetching: this.isFetching,
       lastCheckTime: this.lastCheckTime,
       lastCheckAgo: this.lastCheckTime ? Date.now() - this.lastCheckTime : null
     };

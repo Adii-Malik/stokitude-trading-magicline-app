@@ -401,7 +401,7 @@ function SymbolCard({ symbol }) {
                 ? 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400 border border-green-300 dark:border-green-500/30' 
                 : 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 border border-red-300 dark:border-red-500/30'}`}
             >
-              {isPositive ? '+' : ''}{change.toFixed(2)} ({isPositive ? '+' : ''}{(changePercent * 100).toFixed(2)}%)
+              {isPositive ? '+' : ''}{change.toFixed(2)} ({isPositive ? '+' : ''}{changePercent.toFixed(2)}%)
             </div>
           </div>
         )}
@@ -446,8 +446,16 @@ function SymbolCard({ symbol }) {
               </div>
             </div>
             <div>
-              <div className="text-gray-600 dark:text-gray-400">Trades</div>
-              <div className="font-semibold text-gray-900 dark:text-gray-300">{priceData.trades || '-'}</div>
+              <div className="text-gray-600 dark:text-gray-400">Change %</div>
+              <div className={`font-semibold ${
+                priceData.changePercent >= 0 
+                  ? 'text-green-600 dark:text-green-400' 
+                  : 'text-red-600 dark:text-red-400'
+              }`}>
+                {priceData.changePercent ? 
+                  `${priceData.changePercent >= 0 ? '+' : ''}${priceData.changePercent.toFixed(2)}%` 
+                  : '-'}
+              </div>
             </div>
           </div>
         )}

@@ -107,10 +107,29 @@ router.get('/', authenticate, async (req, res) => {
       .limit(parseInt(limit))
       .skip((parseInt(page) - 1) * parseInt(limit));
     
+    // 🔥 ENRICH: Add current prices from Stock model (centralized storage)
+    const symbols = [...new Set(plans.map(p => p.symbol))];
+    const stocks = await Stock.find({ symbol: { $in: symbols } });
+    const stockMap = {};
+    stocks.forEach(s => {
+      stockMap[s.symbol] = s;
+    });
+    
+    // Add currentPrice to each plan
+    const enrichedPlans = plans.map(plan => {
+      const planObj = plan.toObject();
+      const stock = stockMap[plan.symbol];
+      planObj.currentPrice = stock?.currentPrice || null;
+      planObj.priceChange = stock?.priceChange || null;
+      planObj.priceChangePercent = stock?.priceChangePercent || null;
+      planObj.lastUpdated = stock?.lastUpdated || null;
+      return planObj;
+    });
+    
     res.json({
       success: true,
       data: {
-        plans,
+        plans: enrichedPlans,
         pagination: {
           total,
           page: parseInt(page),
@@ -129,34 +148,7 @@ router.get('/', authenticate, async (req, res) => {
   }
 });
 
-// Get trade plan by ID
-router.get('/:id', authenticate, async (req, res) => {
-  try {
-    const plan = await TradePlan.findById(req.params.id)
-      .populate('createdBy', 'username');
-    
-    if (!plan) {
-      return res.status(404).json({
-        success: false,
-        message: 'Trade plan not found'
-      });
-    }
-    
-    res.json({
-      success: true,
-      data: plan
-    });
-  } catch (error) {
-    console.error('Error fetching trade plan:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch trade plan',
-      error: error.message
-    });
-  }
-});
-
-// Get statistics
+// Get statistics (MUST be before /:id)
 router.get('/stats/summary', authenticate, async (req, res) => {
   try {
     const totalPlans = await TradePlan.countDocuments();
@@ -182,6 +174,66 @@ router.get('/stats/summary', authenticate, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch statistics',
+      error: error.message
+    });
+  }
+});
+
+// Get market status (MUST be before /:id)
+router.get('/market-status', authenticate, async (req, res) => {
+  try {
+    const status = marketHoursService.getMarketStatus();
+    const minutesUntilOpen = marketHoursService.getMinutesUntilOpen();
+    const minutesUntilClose = marketHoursService.getMinutesUntilClose();
+    
+    res.json({
+      success: true,
+      data: {
+        ...status,
+        minutesUntilOpen,
+        minutesUntilClose
+      }
+    });
+  } catch (error) {
+    console.error('Error getting market status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get market status',
+      error: error.message
+    });
+  }
+});
+
+// Get trade plan by ID (MUST be after all specific routes)
+router.get('/:id', authenticate, async (req, res) => {
+  try {
+    const plan = await TradePlan.findById(req.params.id)
+      .populate('createdBy', 'username');
+    
+    if (!plan) {
+      return res.status(404).json({
+        success: false,
+        message: 'Trade plan not found'
+      });
+    }
+    
+    // 🔥 ENRICH: Add current price from Stock model (centralized storage)
+    const stock = await Stock.findOne({ symbol: plan.symbol });
+    const enrichedPlan = plan.toObject();
+    enrichedPlan.currentPrice = stock?.currentPrice || null;
+    enrichedPlan.priceChange = stock?.priceChange || null;
+    enrichedPlan.priceChangePercent = stock?.priceChangePercent || null;
+    enrichedPlan.lastUpdated = stock?.lastUpdated || null;
+    
+    res.json({
+      success: true,
+      data: enrichedPlan
+    });
+  } catch (error) {
+    console.error('Error fetching trade plan:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch trade plan',
       error: error.message
     });
   }
@@ -568,34 +620,10 @@ router.post('/upload/csv', adminOnly, upload.single('file'), async (req, res) =>
   }
 });
 
-// Get market status
-router.get('/market-status', authenticate, async (req, res) => {
-  try {
-    const status = marketHoursService.getMarketStatus();
-    const minutesUntilOpen = marketHoursService.getMinutesUntilOpen();
-    const minutesUntilClose = marketHoursService.getMinutesUntilClose();
-    
-    res.json({
-      success: true,
-      data: {
-        ...status,
-        minutesUntilOpen,
-        minutesUntilClose
-      }
-    });
-  } catch (error) {
-    console.error('Error getting market status:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get market status',
-      error: error.message
-    });
-  }
-});
-
-// Note: Price checking is now handled automatically by TradePlanStatusService
-// which runs every 15 minutes during market hours and reads from the centralized Stock model
-// Manual price checking endpoint has been removed in favor of the automated centralized approach
+// Note: Price checking is now handled automatically by centralized event architecture:
+// - centralizedPriceService fetches prices every 15 minutes (during market hours)
+// - tradePlanHandler listens to price updates and checks buy levels/targets/SL automatically
+// - No manual price checking endpoint needed
 
 // ============================================
 // TEST API - For Manual Testing Only

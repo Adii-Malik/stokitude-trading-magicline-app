@@ -41,6 +41,23 @@ const stockSchema = new mongoose.Schema({
     type: Number,
     default: null
   },
+  // Daily trading data
+  high: {
+    type: Number,
+    default: null
+  },
+  low: {
+    type: Number,
+    default: null
+  },
+  open: {
+    type: Number,
+    default: null
+  },
+  volume: {
+    type: Number,
+    default: null
+  },
   lastUpdated: {
     type: Date,
     default: null
