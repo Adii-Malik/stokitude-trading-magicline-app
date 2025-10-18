@@ -54,25 +54,17 @@ router.post('/signup', async (req, res) => {
 
     await user.save();
 
-    // Generate token
-    const token = generateToken(user._id);
-
-    // Set cookie
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      sameSite: 'lax'
-    });
-
+    // ⚠️ DON'T generate token or set cookie for inactive users
+    // They need admin approval first
+    
     console.log(`✅ New user registered: ${username} (${email}) - Pending approval`);
 
     res.status(201).json({
       success: true,
-      message: 'Account created! Please wait for admin approval to access the system.',
+      message: 'Account created successfully! Please wait for admin approval before you can log in.',
       data: {
         user: user.toSafeObject(),
-        token
+        pendingApproval: true
       }
     });
 

@@ -60,10 +60,22 @@ export const AuthProvider = ({ children }) => {
     try {
       setError(null);
       const response = await authAPI.signup(username, email, password);
-      const { user, token } = response.data;
+      const { user, token, pendingApproval } = response.data;
       
-      localStorage.setItem('token', token);
-      setUser(user);
+      // If account is pending approval, don't log them in
+      if (pendingApproval) {
+        return { 
+          success: true, 
+          pendingApproval: true,
+          message: 'Account created! Waiting for admin approval.'
+        };
+      }
+      
+      // If they have a token (immediately approved), log them in
+      if (token) {
+        localStorage.setItem('token', token);
+        setUser(user);
+      }
       
       return { success: true };
     } catch (error) {

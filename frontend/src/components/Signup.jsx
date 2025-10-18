@@ -11,6 +11,7 @@ export default function Signup({ onSwitchToLogin, onBackToDashboard }) {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(false);
   const { signup } = useAuth();
 
   const handleChange = (e) => {
@@ -48,9 +49,21 @@ export default function Signup({ onSwitchToLogin, onBackToDashboard }) {
       if (!result.success) {
         setError(result.error);
       } else {
-        // Successfully signed up, redirect to dashboard
-        if (onBackToDashboard) {
-          onBackToDashboard();
+        // Check if account is pending approval
+        if (result.pendingApproval) {
+          setSuccess(true);
+          // Clear form
+          setFormData({
+            fullName: '',
+            email: '',
+            password: '',
+            confirmPassword: ''
+          });
+        } else {
+          // If somehow they're approved immediately, redirect to dashboard
+          if (onBackToDashboard) {
+            onBackToDashboard();
+          }
         }
       }
     } catch (err) {
@@ -94,6 +107,19 @@ export default function Signup({ onSwitchToLogin, onBackToDashboard }) {
               </p>
             </div>
           </div>
+
+          {/* Success Alert */}
+          {success && (
+            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-start gap-3">
+              <Shield className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm text-green-800 font-medium mb-1">Account Created Successfully!</p>
+                <p className="text-xs text-green-700">
+                  Your account has been created and is pending admin approval. You'll receive an email once your account is activated. You can try logging in after approval.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Error Alert */}
           {error && (

@@ -1,12 +1,12 @@
 import express from 'express';
 import db from '../db/database.js';
 import centralizedPriceService from '../services/centralizedPriceService.js';
-import { adminOnly } from '../middleware/auth.js';
+import { authenticate, adminOnly } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// GET /api/symbols - Get all symbols with their magic lines and current prices
-router.get('/', async (req, res) => {
+// GET /api/symbols - Get all symbols with their magic lines and current prices (Auth required)
+router.get('/', authenticate, async (req, res) => {
   try {
     const data = await db.getFullData();
     const stats = await db.getStats();
@@ -28,8 +28,8 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET /api/symbols/:symbol - Get specific symbol data
-router.get('/:symbol', async (req, res) => {
+// GET /api/symbols/:symbol - Get specific symbol data (Auth required)
+router.get('/:symbol', authenticate, async (req, res) => {
   try {
     const symbol = req.params.symbol.toUpperCase();
     const symbolInfo = await db.getSymbol(symbol);
@@ -86,8 +86,8 @@ router.delete('/', adminOnly, async (req, res) => {
   }
 });
 
-// GET /api/symbols/stats - Get statistics
-router.get('/stats/summary', async (req, res) => {
+// GET /api/symbols/stats - Get statistics (Auth required)
+router.get('/stats/summary', authenticate, async (req, res) => {
   try {
     const stats = await db.getStats();
 
@@ -105,9 +105,9 @@ router.get('/stats/summary', async (req, res) => {
   }
 });
 
-// POST /api/symbols/fetch-prices - Fetch closing prices from PSX (on-demand)
+// POST /api/symbols/fetch-prices - Fetch closing prices from PSX (on-demand, Auth required)
 // This endpoint triggers the centralized price service
-router.post('/fetch-prices', async (req, res) => {
+router.post('/fetch-prices', authenticate, async (req, res) => {
   try {
     const symbols = await db.getAllSymbols();
     
