@@ -8,6 +8,7 @@ class CentralizedPriceService {
   constructor() {
     this.isRunning = false;
     this.intervalId = null;
+    this.currentInterval = null; // Track current interval from settings
     this.lastCheckTime = null;
     this.handlers = [];
     this.skipCount = 0;
@@ -32,11 +33,11 @@ class CentralizedPriceService {
     }
 
     this.isRunning = true;
+    this.currentInterval = intervalMinutes;
     const intervalMs = intervalMinutes * 60 * 1000;
 
     console.log(`\n🚀 Starting Centralized Price Polling Service`);
-    console.log(`   Interval: Every ${intervalMinutes} minutes`);
-    console.log(`   Market Hours: Mon-Thu 9:15 AM - 3:30 PM PKT, Fri 9:15 AM - 12:00 PM & 2:30 PM - 4:30 PM PKT`);
+    console.log(`   Interval: Every ${intervalMinutes} minutes (from settings)`);
 
     // Run immediately on start
     this.checkPrices();
@@ -100,40 +101,25 @@ class CentralizedPriceService {
       // Reset skip counter when market is open
       this.skipCount = 0;
       
-      if (skipMarketCheck) {
-        console.log(`\n💪 [${currentTime} PKT] MANUAL REFRESH - Fetching prices (market check bypassed)`);
-      } else {
-        console.log(`\n💰 [${currentTime} PKT] Fetching centralized stock prices...`);
-        console.log(`   ✅ Market is OPEN - Updating price database`);
-      }
+      const isManual = skipMarketCheck;
+      console.log(`\n💰 [${currentTime} PKT] ${isManual ? 'Manual' : 'Automatic'} price fetch initiated`);
 
-      // 🎯 SMART STRATEGY: Only fetch prices for symbols actively in use
-      // Get symbols from active trade plans
+      // Get symbols from active trade plans and magic line entries
       const tradePlanSymbols = await TradePlan.find({ isActive: true }).distinct('symbol');
-      
-      // Get symbols from active magic line entries
       const magicLineSymbols = await MagicLine.find({ isActive: true }).distinct('symbol');
-      
-      // Combine and deduplicate
       const activeSymbols = [...new Set([...tradePlanSymbols, ...magicLineSymbols])];
       
       if (activeSymbols.length === 0) {
-        console.log('⚠️ No active symbols found');
-        console.log('   No active trade plans or magic line symbols to update');
+        console.log('⚠️ No active symbols to update');
         this.lastCheckTime = Date.now();
         return {
           checked: 0,
           updated: 0,
-          message: 'No active symbols to update'
+          message: 'No active symbols'
         };
       }
       
-      console.log(`📊 Active symbols breakdown:`);
-      console.log(`   📈 Trade Plans: ${tradePlanSymbols.length} symbols`);
-      console.log(`   🎯 Magic Lines: ${magicLineSymbols.length} symbols`);
-      console.log(`   ✨ Total Unique: ${activeSymbols.length} symbols`);
-
-      console.log(`🌐 Fetching prices using BULK market-watch scraper (1 call for all symbols)...`);
+      console.log(`📊 Fetching ${activeSymbols.length} active symbols from PSX...`);
 
       // 🚀 NEW: Use bulk scraper - fetch ALL prices in ONE call
       const priceResults = {};
@@ -142,44 +128,33 @@ class CentralizedPriceService {
       let failedCount = 0;
       
       try {
-        // Fetch all prices using the new bulk method
+        // Fetch all prices using bulk method
         const bulkResult = await psxScraper.getStockPricesForSymbols(activeSymbols);
         
         // Process successful results
         for (const stockData of bulkResult.success) {
-          priceResults[stockData.symbol] = stockData; // ✅ Store full data, not just price
+          priceResults[stockData.symbol] = stockData;
           successCount++;
-          
-          // Log for small batches or first few stocks
-          if (activeSymbols.length <= 10 || successCount <= 5) {
-            console.log(`  ✓ ${stockData.symbol}: Rs. ${stockData.price}`);
-          }
         }
         
         // Track symbols not found
         for (const symbol of bulkResult.notFound) {
-          errors.push({ symbol, error: 'Symbol not found in market-watch' });
+          errors.push({ symbol, error: 'Symbol not found' });
           failedCount++;
         }
         
       } catch (error) {
-        // Fallback to old method if bulk scraper fails
-        console.error(`⚠️ Bulk scraper failed, falling back to one-by-one method: ${error.message}`);
+        console.error(`⚠️ Bulk scraper error: ${error.message}`);
         
+        // Fallback to one-by-one method
         for (const symbol of activeSymbols) {
           try {
             const stockData = await psxScraper.getStockPrice(symbol);
-            
             if (stockData && stockData.price) {
-              priceResults[symbol] = stockData; // ✅ Store full data, not just price
+              priceResults[symbol] = stockData;
               successCount++;
-              
-              if (activeSymbols.length <= 10 || successCount <= 5) {
-                console.log(`  ✓ ${symbol}: Rs. ${stockData.price}`);
-              }
             }
           } catch (err) {
-            console.error(`  ✗ ${symbol}: Failed - ${err.message}`);
             errors.push({ symbol, error: err.message });
             failedCount++;
           }
@@ -225,12 +200,7 @@ class CentralizedPriceService {
       }
 
       const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-      console.log(`\n✅ Centralized price update complete in ${duration}s`);
-      console.log(`   📊 Active Symbols Checked: ${activeSymbols.length}`);
-      console.log(`   🔄 Database Records Updated: ${stocksUpdated}`);
-      console.log(`   ✅ Successfully Fetched: ${successCount}`);
-      if (failedCount > 0) console.log(`   ❌ Failed: ${failedCount}`);
-      console.log(`   ⚡ Method: Bulk market-watch scraper (1 HTTP call)`);
+      console.log(`✅ Price update complete: ${successCount}/${activeSymbols.length} symbols updated in ${duration}s${failedCount > 0 ? ` (${failedCount} failed)` : ''}`);
 
       this.lastCheckTime = Date.now();
 

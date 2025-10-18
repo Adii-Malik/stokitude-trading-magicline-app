@@ -36,9 +36,6 @@ export async function processImage(imagePath) {
     // Extract text using OCR
     const extractedText = await extractTextFromImage(imagePath);
     
-    console.log('📄 Extracted text (first 500 chars):');
-    console.log(extractedText.substring(0, 500));
-
     // Parse the extracted text as a table
     const { symbols, errors } = parseTextTable(extractedText);
 

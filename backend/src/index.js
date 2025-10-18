@@ -118,7 +118,7 @@ app.get('*', (req, res) => {
 
 // Socket.IO connection handling
 io.on('connection', async (socket) => {
-  console.log(`👤 Client connected: ${socket.id}`);
+  // Client connected
 
   // Send initial data
   try {
@@ -155,7 +155,7 @@ io.on('connection', async (socket) => {
   }
 
   socket.on('disconnect', () => {
-    console.log(`👤 Client disconnected: ${socket.id}`);
+    // Client disconnected
   });
 });
 
@@ -224,60 +224,54 @@ async function startServer() {
     const Settings = (await import('./models/Settings.js')).default;
     const settings = await Settings.getSettings();
     const pollingInterval = settings.pricePolling.intervalMinutes;
+    const pollingEnabled = settings.pricePolling.enabled;
     
     console.log('\n⚙️  System Settings Loaded:');
     console.log(`   Polling Interval: ${pollingInterval} minutes`);
-    console.log(`   Polling Enabled: ${settings.pricePolling.enabled}`);
+    console.log(`   Polling Enabled: ${pollingEnabled}`);
     
-    // Start Centralized Price Service (ONLY ONE SERVICE!)
-    console.log('\n📊 Starting Centralized Price Service...');
-    console.log('⏰ PSX Market Hours:');
-    console.log('   • Monday-Thursday: 9:15 AM - 3:30 PM PKT');
-    console.log('   • Friday: 9:15 AM - 12:00 PM & 2:30 PM - 4:30 PM PKT');
-    console.log('   • Weekends: Closed\n');
+    // Load market hours from settings into marketHoursService
+    console.log('🕒 Loading market hours from settings...');
+    marketHoursService.updateConfig(settings.marketHours);
+    console.log('   ✅ Market hours configured from database');
     
-    // Start ONLY the centralized price service
-    centralizedPriceService.start(pollingInterval);
-    console.log(`✅ Centralized Price Service started (${pollingInterval} min interval)`);
-    console.log('   → Fetches prices from PSX');
-    console.log('   → Updates Stock model (single source of truth)');
-    console.log('   → Notifies all feature handlers');
-    console.log('\n🎯 Feature Handlers (listen to price updates):');
-    console.log('   • Magic Line Handler - checks magic line hits');
-    console.log('   • Trade Plan Handler - checks buy levels, targets, stop loss');
+    // Start Centralized Price Service (ONLY ONE SERVICE!) - only if enabled
+    console.log('\n📊 Centralized Price Service:');
+    console.log('⏰ PSX Market Hours (from settings):');
+    const { marketHours } = settings;
+    console.log(`   • Monday-Thursday: ${marketHours.regularMarketOpen.hour}:${String(marketHours.regularMarketOpen.minute).padStart(2, '0')} - ${marketHours.regularMarketClose.hour}:${String(marketHours.regularMarketClose.minute).padStart(2, '0')} PKT`);
+    console.log(`   • Friday Morning: ${marketHours.fridayMorningOpen.hour}:${String(marketHours.fridayMorningOpen.minute).padStart(2, '0')} - ${marketHours.fridayMorningClose.hour}:${String(marketHours.fridayMorningClose.minute).padStart(2, '0')} PKT`);
+    console.log(`   • Friday Afternoon: ${marketHours.fridayAfternoonOpen.hour}:${String(marketHours.fridayAfternoonOpen.minute).padStart(2, '0')} - ${marketHours.fridayAfternoonClose.hour}:${String(marketHours.fridayAfternoonClose.minute).padStart(2, '0')} PKT`);
+    console.log(`   • Weekends: Closed${marketHours.publicHolidays?.length > 0 ? ` | Public Holidays: ${marketHours.publicHolidays.length}` : ''}\n`);
     
-    // Trigger initial price check if market is open
-    setTimeout(async () => {
-      try {
-        const status = marketHoursService.isMarketOpen();
-        if (status.isOpen) {
-          console.log('\n🔄 Triggering initial price fetch (market is open)...');
-          await centralizedPriceService.checkPrices();
-          // Handlers will be triggered automatically by the price update event
-        } else {
-          console.log('\n⏸️ Market is closed - service will activate during next market hours');
+    if (pollingEnabled) {
+      centralizedPriceService.start(pollingInterval);
+      console.log(`✅ Price polling started (${pollingInterval} min interval)`);
+      
+      // Trigger initial price check if market is open
+      setTimeout(async () => {
+        try {
+          const status = marketHoursService.isMarketOpen();
+          if (status.isOpen) {
+            await centralizedPriceService.checkPrices();
+          } else {
+            console.log('⏸️ Market is closed - waiting for trading hours');
+          }
+        } catch (error) {
+          console.error('Initial fetch error:', error.message);
         }
-      } catch (error) {
-        console.log('ℹ️ Skipping initial fetch:', error.message);
-      }
-    }, 3000); // Wait 3 seconds after startup
+      }, 3000);
+    } else {
+      console.log('⏸️ Price polling is disabled (enable in Settings)');
+    }
 
     // Start HTTP server - ALWAYS listen on 0.0.0.0 for external access
     // Use 0.0.0.0 to accept connections from any IP (required for Fly.io and mobile)
     const host = '0.0.0.0';
     httpServer.listen(config.port, host, () => {
-      console.log(`✅ Server running on http://${host}:${config.port}`);
+      console.log(`\n✅ Server running on http://${host}:${config.port}`);
       console.log(`🌍 Environment: ${config.nodeEnv}`);
-      console.log(`📡 Socket.IO available for real-time updates`);
-      console.log(`🍃 MongoDB connected and ready`);
-      console.log(`📌 Data Source: PSX Official (dps.psx.com.pk) - Closing Prices`);
-      console.log(`\n📚 API Documentation:`);
-      console.log(`   Health Check:  GET http://localhost:${config.port}/health`);
-      console.log(`   Upload File:   POST http://localhost:${config.port}/api/upload`);
-      console.log(`   Magic Line:    GET http://localhost:${config.port}/api/magic-line`);
-      console.log(`   Trade Plans:   GET http://localhost:${config.port}/api/trade-plans`);
-      console.log(`   Fetch Prices:  POST http://localhost:${config.port}/api/magic-line/fetch-prices`);
-      console.log(`\n🎯 Ready to monitor PSX stocks!`);
+      console.log(`🎯 PSX SmartDesk is ready!\n`);
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);

@@ -202,7 +202,6 @@ class PSXScraper {
         source: 'psx-html'
       };
 
-      console.log(`✅ Parsed ${symbol} from PSX HTML: ${price}`);
       return data;
 
     } catch (error) {

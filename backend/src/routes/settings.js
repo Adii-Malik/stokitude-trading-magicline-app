@@ -60,16 +60,25 @@ router.put('/', adminOnly, async (req, res) => {
     
     const settings = await Settings.updateSettings(updates);
     
-    // If interval changed, restart the centralized price service
-    if (updates.pricePolling?.intervalMinutes) {
+    // Handle polling enabled/disabled toggle
+    if (typeof updates.pricePolling?.enabled !== 'undefined') {
+      if (updates.pricePolling.enabled) {
+        const interval = settings.pricePolling.intervalMinutes;
+        console.log(`✅ Enabling centralized price service with ${interval} minute interval`);
+        centralizedPriceService.stop();
+        centralizedPriceService.start(interval);
+      } else {
+        console.log('🛑 Disabling centralized price service');
+        centralizedPriceService.stop();
+      }
+    }
+    // If interval changed and service is enabled, restart with new interval
+    else if (updates.pricePolling?.intervalMinutes && settings.pricePolling.enabled) {
       const newInterval = updates.pricePolling.intervalMinutes;
-      console.log(`🔄 Restarting centralized price service with new interval: ${newInterval} minutes`);
+      console.log(`🔄 Restarting price service: ${newInterval} min interval`);
       
-      // Stop and restart the ONE service (handlers will be notified automatically)
       centralizedPriceService.stop();
       centralizedPriceService.start(newInterval);
-      
-      console.log('   ✅ Service restarted, handlers will be notified on next price update');
     }
     
     // If market hours changed, update marketHoursService
@@ -97,12 +106,9 @@ router.put('/', adminOnly, async (req, res) => {
 // Non-blocking approach: Start refresh immediately, notify via Socket.IO when complete
 router.post('/refresh-prices', adminOnly, async (req, res) => {
   try {
-    console.log('🔄 Manual price refresh triggered by admin:', req.user?.username);
-    
     // Check if already fetching
     const status = centralizedPriceService.getStatus();
     if (status.isFetching) {
-      console.log('   ⚠️ Price fetch already in progress');
       return res.json({
         success: false,
         message: 'Price fetch already in progress',
@@ -113,9 +119,7 @@ router.post('/refresh-prices', adminOnly, async (req, res) => {
       });
     }
     
-    // Check market status (for info only)
     const marketStatus = marketHoursService.isMarketOpen();
-    console.log('   Market status:', marketStatus.isOpen ? 'OPEN' : 'CLOSED');
     
     // Respond immediately - don't wait for prices to fetch
     res.json({
@@ -124,33 +128,25 @@ router.post('/refresh-prices', adminOnly, async (req, res) => {
       data: {
         status: 'in_progress',
         marketStatus,
-        timestamp: new Date(),
-        note: 'Prices are being fetched in background. You will be notified when complete.'
+        timestamp: new Date()
       }
     });
     
-    // Trigger price fetch asynchronously (non-blocking)
-    console.log('   📊 Starting background price fetch...');
-    
-    // Run in background - don't await
+    // Trigger price fetch asynchronously
     centralizedPriceService.checkPrices(true)
-      .then(async (priceResult) => {
-        // Update last manual refresh time
+      .then(async () => {
         await Settings.updateSettings({
           pricePolling: {
             lastManualRefresh: new Date()
           }
         });
-        
-        console.log('   ✅ Manual refresh complete! Handlers notified via Socket.IO');
       })
       .catch((error) => {
-        console.error('❌ Error in background price refresh:', error);
+        console.error('❌ Manual price refresh error:', error.message);
       });
     
   } catch (error) {
-    console.error('❌ Error starting price refresh:', error);
-    console.error('   Stack:', error.stack);
+    console.error('❌ Error starting price refresh:', error.message);
     res.status(500).json({
       success: false,
       message: 'Failed to start price refresh',
