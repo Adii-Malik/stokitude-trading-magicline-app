@@ -1,6 +1,7 @@
 import Stock from '../models/Stock.js';
 import MagicLine from '../models/MagicLine.js';
 import TradePlan from '../models/TradePlan.js';
+import Settings from '../models/Settings.js';
 import psxScraper from './psxScraper.js';
 import marketHoursService from './marketHoursService.js';
 
@@ -203,6 +204,17 @@ class CentralizedPriceService {
       console.log(`✅ Price update complete: ${successCount}/${activeSymbols.length} symbols updated in ${duration}s${failedCount > 0 ? ` (${failedCount} failed)` : ''}`);
 
       this.lastCheckTime = Date.now();
+
+      // Save timestamp to database (for status bar display)
+      try {
+        await Settings.updateSettings({
+          pricePolling: {
+            lastPriceUpdate: now
+          }
+        });
+      } catch (dbError) {
+        console.error('⚠️ Failed to save update timestamp:', dbError.message);
+      }
 
       // Notify handlers (for Socket.IO broadcasting)
       this.notifyHandlers({

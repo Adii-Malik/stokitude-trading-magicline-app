@@ -1,7 +1,9 @@
 import React from 'react';
-import { TrendingUp, LineChart, Shield, Clock, Target, Users, CheckCircle, BarChart3 } from 'lucide-react';
+import { TrendingUp, LineChart, Shield, Clock, Target, Users, CheckCircle, BarChart3, Sun, Moon } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext';
 
 const Landing = ({ onSwitchToLogin, onSwitchToSignup }) => {
+  const { theme, toggleTheme } = useTheme();
   const features = [
     {
       icon: <LineChart className="w-8 h-8" />,
@@ -47,30 +49,48 @@ const Landing = ({ onSwitchToLogin, onSwitchToSignup }) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300">
       {/* Header */}
-      <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-3">
-              <TrendingUp className="w-8 h-8 text-cyan-500" />
+      <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-lg sticky top-0 z-50">
+        <div className="container mx-auto px-4 py-3">
+          <div className="flex items-center justify-between">
+            {/* Logo/Brand - Consistent with authenticated header */}
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-6 h-6 text-cyan-500" />
               <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  PSX SmartDesk
-                </h1>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
+                <h1 className="text-lg font-bold text-gray-900 dark:text-white">PSX SmartDesk</h1>
+                {/* Subtitle - Hidden on mobile, visible on larger screens */}
+                <p className="hidden sm:block text-xs text-gray-500 dark:text-gray-400">
                   Intelligent Trading Platform
                 </p>
               </div>
             </div>
-            <div className="flex space-x-3">
+
+            {/* Right Section - Theme + Auth Buttons */}
+            <div className="flex items-center gap-2">
+              {/* Theme Toggle */}
+              <button
+                onClick={toggleTheme}
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+              >
+                {theme === 'dark' ? (
+                  <Sun className="w-5 h-5 text-yellow-500" />
+                ) : (
+                  <Moon className="w-5 h-5 text-gray-700 dark:text-gray-400" />
+                )}
+              </button>
+
+              {/* Login Button - Text on desktop, compact on mobile */}
               <button
                 onClick={onSwitchToLogin}
-                className="px-5 py-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white font-medium transition-colors"
+                className="px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg transition font-medium"
               >
                 Login
               </button>
+
+              {/* Sign Up Button */}
               <button
                 onClick={onSwitchToSignup}
-                className="px-5 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg font-medium transition-all shadow-lg hover:shadow-xl"
+                className="px-3 py-1.5 text-sm bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg transition font-medium"
               >
                 Sign Up
               </button>

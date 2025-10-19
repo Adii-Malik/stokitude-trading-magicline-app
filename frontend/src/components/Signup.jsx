@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { UserPlus, AlertCircle, Info, Shield, ArrowLeft } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext';
+import { UserPlus, AlertCircle, Info, Shield, ArrowLeft, Sun, Moon } from 'lucide-react';
 
 export default function Signup({ onSwitchToLogin, onBackToDashboard }) {
   const [formData, setFormData] = useState({
@@ -13,6 +14,7 @@ export default function Signup({ onSwitchToLogin, onBackToDashboard }) {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
   const { signup } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
   const handleChange = (e) => {
     setFormData({
@@ -76,16 +78,33 @@ export default function Signup({ onSwitchToLogin, onBackToDashboard }) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300 px-4 py-8">
       <div className="max-w-md w-full">
-        {/* Back to Dashboard Button */}
-        {onBackToDashboard && (
+        {/* Top Navigation */}
+        <div className="mb-4 flex items-center justify-between">
+          {onBackToDashboard ? (
+            <button
+              onClick={onBackToDashboard}
+              className="flex items-center gap-2 text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300 font-medium transition"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Dashboard
+            </button>
+          ) : (
+            <div></div>
+          )}
+          
+          {/* Theme Toggle */}
           <button
-            onClick={onBackToDashboard}
-            className="mb-4 flex items-center gap-2 text-cyan-600 hover:text-cyan-700 font-medium transition"
+            onClick={toggleTheme}
+            className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
           >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Dashboard
+            {theme === 'dark' ? (
+              <Sun className="w-5 h-5 text-yellow-500" />
+            ) : (
+              <Moon className="w-5 h-5 text-gray-700" />
+            )}
           </button>
-        )}
+        </div>
         
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 transition-colors duration-300">
           {/* Header */}

@@ -19,7 +19,7 @@ const settingsSchema = new mongoose.Schema({
       type: Boolean,
       default: true
     },
-    lastManualRefresh: {
+    lastPriceUpdate: {
       type: Date,
       default: null
     }

@@ -58,22 +58,33 @@ function AppContent() {
       setIsConnected(socketService.isConnected());
     }, 1000);
 
-    // Listen for initial data to update stats and last update time
-    const handleInitialData = (data) => {
-      setStats(data.stats);
-      if (data.lastUpdate) {
-        setLastPriceUpdate(new Date(data.lastUpdate));
+    // Fetch last price update timestamp
+    const fetchLastPriceUpdate = async () => {
+      try {
+        const response = await fetch('/api/settings/last-update');
+        const data = await response.json();
+        if (data.success && data.data.lastUpdate) {
+          setLastPriceUpdate(new Date(data.data.lastUpdate));
+        }
+      } catch (error) {
+        console.error('Error fetching last price update:', error);
       }
     };
 
     // Listen for price updates
     const handlePriceUpdate = (data) => {
-      setLastPriceUpdate(new Date());
+      if (data.data?.timestamp) {
+        setLastPriceUpdate(new Date(data.data.timestamp));
+      } else {
+        setLastPriceUpdate(new Date());
+      }
     };
 
     // Listen for trade plan updates
     const handleTradePlanUpdate = (data) => {
-      setLastPriceUpdate(new Date());
+      // Trade plan updates don't necessarily mean prices were fetched
+      // So we just refresh the last update from server
+      fetchLastPriceUpdate();
     };
 
     // Fetch market status on mount
@@ -87,19 +98,23 @@ function AppContent() {
       }
     };
 
+    // Fetch initial data
     fetchMarketStatus();
+    fetchLastPriceUpdate();
     
     // Check market status every 5 minutes
     const marketStatusInterval = setInterval(fetchMarketStatus, 5 * 60 * 1000);
+    
+    // Refresh last update timestamp every minute
+    const lastUpdateInterval = setInterval(fetchLastPriceUpdate, 60 * 1000);
 
-    socketService.on('initialData', handleInitialData);
     socketService.on('priceUpdate', handlePriceUpdate);
     socketService.on('tradePlanUpdate', handleTradePlanUpdate);
 
     return () => {
       clearInterval(checkConnection);
       clearInterval(marketStatusInterval);
-      socketService.off('initialData', handleInitialData);
+      clearInterval(lastUpdateInterval);
       socketService.off('priceUpdate', handlePriceUpdate);
       socketService.off('tradePlanUpdate', handleTradePlanUpdate);
     };

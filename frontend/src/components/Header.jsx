@@ -280,39 +280,42 @@ export default function Header({
                   )}
                 </div>
 
-                {/* Mobile: Theme Toggle */}
-                <button
-                  onClick={toggleTheme}
-                  className="sm:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
-                  title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-                >
-                  {theme === 'dark' ? (
-                    <Sun className="w-5 h-5 text-yellow-500" />
-                  ) : (
-                    <Moon className="w-5 h-5 text-gray-700" />
-                  )}
-                </button>
-                
-                {/* Mobile: Logout Button */}
-                <button
-                  onClick={handleLogout}
-                  className="sm:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
-                  title="Logout"
-                >
-                  <LogOut className="w-5 h-5 text-gray-700 dark:text-gray-300" />
-                </button>
+                {/* Mobile: Theme Toggle + User Badge + Menu Toggle */}
+                <div className="lg:hidden flex items-center gap-2">
+                  {/* Theme Toggle */}
+                  <button
+                    onClick={toggleTheme}
+                    className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                    title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+                  >
+                    {theme === 'dark' ? (
+                      <Sun className="w-5 h-5 text-yellow-500" />
+                    ) : (
+                      <Moon className="w-5 h-5 text-gray-700 dark:text-gray-400" />
+                    )}
+                  </button>
 
-                {/* Mobile Menu Toggle */}
-                <button
-                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                  className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
-                >
-                  {mobileMenuOpen ? (
-                    <X className="w-6 h-6 text-gray-700 dark:text-gray-300" />
-                  ) : (
-                    <Menu className="w-6 h-6 text-gray-700 dark:text-gray-300" />
-                  )}
-                </button>
+                  {/* User Badge + Menu Toggle */}
+                  <button
+                    onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                  >
+                    {/* Connection Status Indicator */}
+                    <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                    
+                    {/* Username */}
+                    <span className="text-sm font-medium text-gray-900 dark:text-white max-w-[100px] truncate">
+                      {user.username}
+                    </span>
+                    
+                    {/* Menu Icon */}
+                    {mobileMenuOpen ? (
+                      <X className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+                    ) : (
+                      <ChevronDown className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+                    )}
+                  </button>
+                </div>
               </>
             ) : (
               <div className="flex items-center gap-2">
@@ -426,11 +429,61 @@ export default function Header({
                       : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
                   }`}
                 >
-                  <Settings className="w-5 h-5" />
+                  <Shield className="w-5 h-5" />
                   <span>Users</span>
                 </button>
               </>
             )}
+
+            {/* Account Section - Mobile Only */}
+            <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
+              {/* Profile */}
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  console.log('Navigate to Profile');
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
+              >
+                <UserCircle className="w-5 h-5" />
+                <span>My Profile</span>
+              </button>
+
+              {/* Settings - Admin Only */}
+              {isAdmin() && (
+                <button
+                  onClick={() => handleNavigation(onNavigateToSettings)}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
+                >
+                  <Settings className="w-5 h-5" />
+                  <span>Settings</span>
+                </button>
+              )}
+
+              {/* Change Password */}
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  console.log('Navigate to Change Password');
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
+              >
+                <Lock className="w-5 h-5" />
+                <span>Change Password</span>
+              </button>
+
+              {/* Logout */}
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  handleLogout();
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition font-medium"
+              >
+                <LogOut className="w-5 h-5" />
+                <span>Logout</span>
+              </button>
+            </div>
           </nav>
         )}
       </div>

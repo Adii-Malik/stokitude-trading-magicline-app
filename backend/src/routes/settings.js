@@ -132,15 +132,8 @@ router.post('/refresh-prices', adminOnly, async (req, res) => {
       }
     });
     
-    // Trigger price fetch asynchronously
+    // Trigger price fetch asynchronously (timestamp will be saved by checkPrices itself)
     centralizedPriceService.checkPrices(true)
-      .then(async () => {
-        await Settings.updateSettings({
-          pricePolling: {
-            lastManualRefresh: new Date()
-          }
-        });
-      })
       .catch((error) => {
         console.error('❌ Manual price refresh error:', error.message);
       });
@@ -150,6 +143,27 @@ router.post('/refresh-prices', adminOnly, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to start price refresh',
+      error: error.message
+    });
+  }
+});
+
+// GET /api/settings/last-update - Get last price update timestamp (All authenticated users)
+router.get('/last-update', async (req, res) => {
+  try {
+    const settings = await Settings.getSettings();
+    
+    res.json({
+      success: true,
+      data: {
+        lastUpdate: settings.pricePolling.lastPriceUpdate
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching last update:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch last update',
       error: error.message
     });
   }
@@ -168,7 +182,7 @@ router.get('/status', adminOnly, async (req, res) => {
       data: {
         currentInterval: settings.pricePolling.intervalMinutes,
         pollingEnabled: settings.pricePolling.enabled,
-        lastManualRefresh: settings.pricePolling.lastManualRefresh,
+        lastPriceUpdate: settings.pricePolling.lastPriceUpdate,
         marketStatus,
         services: {
           priceService: {
