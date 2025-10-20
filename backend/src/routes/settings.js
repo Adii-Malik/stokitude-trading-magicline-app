@@ -15,7 +15,7 @@ router.get('/', adminOnly, async (req, res) => {
     
     // Get current service status (only ONE service now!)
     const priceServiceStatus = centralizedPriceService.getStatus();
-    const marketStatus = marketHoursService.isMarketOpen();
+    const marketStatus = marketHoursService.getMarketStatus();
     
     res.json({
       success: true,
@@ -119,7 +119,7 @@ router.post('/refresh-prices', adminOnly, async (req, res) => {
       });
     }
     
-    const marketStatus = marketHoursService.isMarketOpen();
+    const marketStatus = marketHoursService.getMarketStatus();
     
     // Respond immediately - don't wait for prices to fetch
     res.json({

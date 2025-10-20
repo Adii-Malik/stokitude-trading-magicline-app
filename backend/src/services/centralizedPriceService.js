@@ -77,7 +77,7 @@ class CentralizedPriceService {
       }
       
       // Check if market is open (unless skipped for manual refresh)
-      const status = marketHoursService.isMarketOpen();
+      const status = marketHoursService.getMarketStatus();
       
       if (!skipMarketCheck && !status.isOpen) {
         this.skipCount++;

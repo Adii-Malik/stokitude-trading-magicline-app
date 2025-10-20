@@ -251,7 +251,7 @@ async function startServer() {
       // Trigger initial price check if market is open
       setTimeout(async () => {
         try {
-          const status = marketHoursService.isMarketOpen();
+          const status = marketHoursService.getMarketStatus();
           if (status.isOpen) {
             await centralizedPriceService.checkPrices();
           } else {
