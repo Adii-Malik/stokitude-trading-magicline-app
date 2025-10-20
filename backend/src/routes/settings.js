@@ -173,7 +173,7 @@ router.get('/last-update', async (req, res) => {
 router.get('/status', adminOnly, async (req, res) => {
   try {
     const settings = await Settings.getSettings();
-    const marketStatus = marketHoursService.isMarketOpen();
+    const marketStatus = marketHoursService.getMarketStatus();
     
     const priceServiceStatus = centralizedPriceService.getStatus();
     

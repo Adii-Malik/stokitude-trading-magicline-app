@@ -267,9 +267,9 @@ const Settings = () => {
                     <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
                     {refreshing ? 'Refreshing...' : 'Refresh Prices Now'}
                   </button>
-                  {settings?.pricePolling?.lastManualRefresh && (
+                  {settings?.pricePolling?.lastPriceUpdate && (
                     <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                      Last manual refresh: {new Date(settings.pricePolling.lastManualRefresh).toLocaleString()}
+                      Last price update: {new Date(settings.pricePolling.lastPriceUpdate).toLocaleString()}
                     </p>
                   )}
                 </div>
