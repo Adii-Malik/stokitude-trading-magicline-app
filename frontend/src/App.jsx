@@ -78,6 +78,8 @@ function AppContent() {
       } else {
         setLastPriceUpdate(new Date());
       }
+      // Also refresh market status when prices update (may have crossed market hours)
+      fetchMarketStatus();
     };
 
     // Listen for trade plan updates
@@ -104,8 +106,8 @@ function AppContent() {
     fetchMarketStatus();
     fetchLastPriceUpdate();
     
-    // Check market status every 5 minutes
-    const marketStatusInterval = setInterval(fetchMarketStatus, 5 * 60 * 1000);
+    // Check market status every 1 minute (to catch market open/close events quickly)
+    const marketStatusInterval = setInterval(fetchMarketStatus, 60 * 1000);
     
     // Refresh last update timestamp every minute
     const lastUpdateInterval = setInterval(fetchLastPriceUpdate, 60 * 1000);
