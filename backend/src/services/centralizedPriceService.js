@@ -79,11 +79,11 @@ class CentralizedPriceService {
       // Check if market is open (unless skipped for manual refresh)
       const status = marketHoursService.getMarketStatus();
       
-      if (!skipMarketCheck && !status.isOpen) {
+      if (!skipMarketCheck && status && !status.isOpen) {
         this.skipCount++;
         if (this.skipCount >= this.MAX_SKIPS) {
-          console.log(`\n⏸️ [${currentTime} PKT] Market is ${status.status.toUpperCase()}`);
-          console.log(`   ${status.message}`);
+          console.log(`\n⏸️ [${currentTime} PKT] Market is ${status.status?.toUpperCase() || 'CLOSED'}`);
+          console.log(`   ${status.message || 'Market is closed'}`);
           console.log(`   Skipping price check (checked ${this.skipCount} times while closed)`);
           this.skipCount = 0;
         }
