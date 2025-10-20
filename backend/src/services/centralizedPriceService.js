@@ -108,7 +108,9 @@ class CentralizedPriceService {
       // Get symbols from active trade plans and magic line entries
       const tradePlanSymbols = await TradePlan.find({ isActive: true }).distinct('symbol');
       const magicLineSymbols = await MagicLine.find({ isActive: true }).distinct('symbol');
-      const activeSymbols = [...new Set([...tradePlanSymbols, ...magicLineSymbols])];
+      // Filter out null/undefined/empty symbols and ensure they're strings
+      const activeSymbols = [...new Set([...tradePlanSymbols, ...magicLineSymbols])]
+        .filter(symbol => symbol && typeof symbol === 'string' && symbol.trim().length > 0);
       
       if (activeSymbols.length === 0) {
         console.log('⚠️ No active symbols to update');

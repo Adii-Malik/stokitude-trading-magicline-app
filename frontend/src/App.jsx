@@ -91,8 +91,10 @@ function AppContent() {
     const fetchMarketStatus = async () => {
       try {
         const response = await fetch('/api/trade-plans/market-status');
-        const data = await response.json();
-        setMarketStatus(data.isOpen ? 'open' : 'closed');
+        const result = await response.json();
+        if (result.success && result.data) {
+          setMarketStatus(result.data.isOpen ? 'open' : 'closed');
+        }
       } catch (error) {
         console.error('Error fetching market status:', error);
       }
