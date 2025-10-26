@@ -9,7 +9,8 @@ import {
   X,
   CheckCircle,
   AlertCircle,
-  FileText
+  FileText,
+  BarChart3
 } from 'lucide-react';
 import { 
   getStocks, 
@@ -19,6 +20,7 @@ import {
   uploadStocksCSV,
   getSectors 
 } from '../services/stocks';
+import { useNavigate } from 'react-router-dom';
 
 export default function StockManagement() {
   const [stocks, setStocks] = useState([]);
@@ -28,6 +30,7 @@ export default function StockManagement() {
   const [shariahFilter, setShariahFilter] = useState('');
   const [sectors, setSectors] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 50, total: 0, pages: 0 });
+  const navigate = useNavigate();
   
   // Modal states
   const [showAddModal, setShowAddModal] = useState(false);
@@ -361,6 +364,13 @@ export default function StockManagement() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right">
                           <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => navigate(`/historical/${stock.symbol}`)}
+                              className="p-2 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-500/20 rounded-lg transition"
+                              title="View Historical Data"
+                            >
+                              <BarChart3 className="w-4 h-4" />
+                            </button>
                             <button
                               onClick={() => handleEdit(stock)}
                               className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/20 rounded-lg transition"
