@@ -14,7 +14,7 @@ const getSocketUrl = () => {
     return window.location.origin;
   }
   // Development fallback
-  return 'http://localhost:5000';
+  return `http://localhost:${import.meta.env.VITE_API_PORT || 5000}`;
 };
 
 const SOCKET_URL = getSocketUrl();
@@ -57,9 +57,9 @@ class SocketService {
     if (!this.socket) {
       this.connect();
     }
-    
+
     this.socket.on(event, callback);
-    
+
     // Store listener for cleanup
     if (!this.listeners.has(event)) {
       this.listeners.set(event, []);
@@ -71,7 +71,7 @@ class SocketService {
     if (this.socket) {
       this.socket.off(event, callback);
     }
-    
+
     // Remove from stored listeners
     if (this.listeners.has(event)) {
       const callbacks = this.listeners.get(event);

@@ -13,7 +13,7 @@ const getApiUrl = () => {
     return '/api';
   }
   // Development fallback
-  return 'http://localhost:5000/api';
+  return `http://localhost:${import.meta.env.VITE_API_PORT || 5000}/api`;
 };
 
 const API_URL = getApiUrl();
