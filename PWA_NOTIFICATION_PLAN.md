@@ -59,18 +59,23 @@ Notifications Collection:
 {
   _id: ObjectId,
   userId: ObjectId (ref: User),
-  type: String, // 'TP_HIT', 'MAGIC_LINE', 'STOP_LOSS', 'SYSTEM'
+  type: String, // Generic type: 'TRADE_ALERT', 'SYSTEM', 'FEATURE_UPDATE', etc.
+  category: String, // Sub-category: 'TP_HIT', 'MAGIC_LINE', 'STOP_LOSS', 'NEW_SIGNAL', etc.
   title: String, // "🎯 TP1 Hit - OGDC"
   message: String, // "Target Rs 85.50 reached at Rs 85.60"
-  data: {
-    // Reference data for navigation
-    tradePlanId: ObjectId,
-    stockId: ObjectId,
-    magicLineId: ObjectId,
-    targetPrice: Number,
-    currentPrice: Number,
-    profitPercent: Number
+  
+  // Generic metadata - can store ANY data for ANY feature
+  metadata: {
+    // Flexible JSON object - different for each feature
+    // Examples:
+    // For Trade Plans: { tradePlanId, stockId, targetPrice, currentPrice, profitPercent }
+    // For Magic Line: { magicLineId, stockId, signalType, price }
+    // For New Features: { featureId, customField1, customField2, ... }
   },
+  
+  // Optional: Deep link for navigation
+  actionUrl: String, // "/trade-plans/123" or "/magic-line" or "/new-feature/456"
+  
   read: Boolean, // Has user seen it?
   createdAt: Date,
   deliveryStatus: {
@@ -81,6 +86,13 @@ Notifications Collection:
 }
 ```
 
+**Key Design Principles:**
+- ✅ **Generic `metadata` field** - Store ANY data as JSON, no schema changes needed
+- ✅ **`type` + `category`** - Two-level classification for flexibility
+- ✅ **`actionUrl`** - Dynamic deep linking to any feature
+- ✅ **Future-proof** - Add new features without changing schema
+- ✅ **Backwards compatible** - Old notifications still work
+
 ### User Notification Preferences (add to User model)
 
 ```javascript
@@ -88,9 +100,14 @@ User.notificationPreferences = {
   pushEnabled: Boolean, // Default: true
   emailEnabled: Boolean, // Default: false
   pushSubscription: Object, // Web Push subscription details
-  notifyOnTpHit: Boolean, // Default: true
-  notifyOnMagicLine: Boolean, // Default: true
-  notifyOnStopLoss: Boolean, // Default: true
+  
+  // Generic category-based preferences (dynamic)
+  categoryPreferences: {
+    // Key-value pairs for any category
+    // Examples: { 'TP_HIT': true, 'MAGIC_LINE': true, 'STOP_LOSS': true, 'NEW_FEATURE': false }
+    // New categories can be added without schema changes
+  },
+  
   quietHours: {
     enabled: Boolean,
     start: String, // "22:00"
@@ -99,17 +116,45 @@ User.notificationPreferences = {
 }
 ```
 
+**Why This is Better:**
+- ✅ **Dynamic categories** - Add new notification types without changing schema
+- ✅ **User controls per category** - Fine-grained control
+- ✅ **Scalable** - Works for any future feature
+
 ---
 
-## 🔔 Notification Types
+## 🔔 Notification Types (Examples - Extensible)
 
-| Type | Priority | Channels | Example |
-|------|----------|----------|---------|
-| **TP_HIT** | High | Push + WebSocket | "🎯 TP1 Hit - OGDC at Rs 85.60" |
-| **MAGIC_LINE** | High | Push + WebSocket | "⚡ Magic Line Signal - PSO BUY" |
-| **STOP_LOSS** | Critical | Push + WebSocket + Email | "⚠️ Stop Loss Hit - OGDC" |
-| **PRICE_ALERT** | Medium | Push + WebSocket | "📊 OGDC reached Rs 90.00" |
-| **SYSTEM** | Low | WebSocket + Email | "🔧 System maintenance scheduled" |
+**Type Hierarchy:**
+- **Type** = High-level grouping (TRADE_ALERT, SYSTEM, FEATURE_UPDATE)
+- **Category** = Specific event (TP_HIT, MAGIC_LINE, STOP_LOSS, etc.)
+
+| Type | Category | Priority | Channels | Example |
+|------|----------|----------|----------|---------|
+| **TRADE_ALERT** | TP_HIT | High | Push + WebSocket | "🎯 TP1 Hit - OGDC at Rs 85.60" |
+| **TRADE_ALERT** | MAGIC_LINE | High | Push + WebSocket | "⚡ Magic Line Signal - PSO BUY" |
+| **TRADE_ALERT** | STOP_LOSS | Critical | Push + WebSocket + Email | "⚠️ Stop Loss Hit - OGDC" |
+| **TRADE_ALERT** | PRICE_ALERT | Medium | Push + WebSocket | "📊 OGDC reached Rs 90.00" |
+| **SYSTEM** | MAINTENANCE | Low | WebSocket + Email | "🔧 System maintenance scheduled" |
+| **FEATURE_UPDATE** | NEW_FEATURE | Low | WebSocket | "🎉 New feature available!" |
+
+**Adding New Features:**
+```javascript
+// Example: Adding a new "Portfolio Alert" feature in the future
+await notificationService.createAndSend(userId, {
+  type: 'PORTFOLIO_ALERT',
+  category: 'REBALANCE_NEEDED',
+  title: '📊 Portfolio Rebalance Suggested',
+  message: 'Your portfolio is 15% off target allocation',
+  metadata: {
+    portfolioId: 'xyz',
+    deviation: 15,
+    suggestedActions: ['sell', 'buy']
+  },
+  actionUrl: '/portfolio/xyz'
+});
+// No schema changes needed!
+```
 
 ---
 
@@ -768,50 +813,68 @@ app.use('/api/notifications', notificationsRouter);
 
 **File:** `backend/src/services/centralizedPriceService.js`
 
-Update to trigger notifications when conditions met:
+Update to trigger notifications when conditions met (using generic schema):
 
 ```javascript
 const notificationService = require('./notificationService');
 
 // When TP is hit:
 await notificationService.createAndSend(tradePlan.userId, {
-  type: 'TP_HIT',
+  type: 'TRADE_ALERT',
+  category: 'TP_HIT',
   title: `🎯 ${tpLevel} Hit - ${stock.symbol}`,
   message: `Target ${targetPrice} reached at ${currentPrice}. Profit: ${profitPercent}%`,
-  data: {
+  metadata: {
     tradePlanId: tradePlan._id,
     stockId: stock._id,
+    stockSymbol: stock.symbol,
     targetPrice,
     currentPrice,
-    profitPercent
-  }
+    profitPercent,
+    tpLevel
+  },
+  actionUrl: `/trade-plans/${tradePlan._id}`
 });
 
 // When Magic Line met:
 await notificationService.createAndSend(user._id, {
-  type: 'MAGIC_LINE',
+  type: 'TRADE_ALERT',
+  category: 'MAGIC_LINE',
   title: `⚡ Magic Line Signal - ${stock.symbol}`,
   message: `${signalType} signal at ${currentPrice}`,
-  data: {
+  metadata: {
     magicLineId: magicLine._id,
     stockId: stock._id,
+    stockSymbol: stock.symbol,
+    signalType,
     currentPrice
-  }
+  },
+  actionUrl: `/magic-line`
 });
 
 // When Stop Loss hit:
 await notificationService.createAndSend(tradePlan.userId, {
-  type: 'STOP_LOSS',
+  type: 'TRADE_ALERT',
+  category: 'STOP_LOSS',
   title: `⚠️ Stop Loss Hit - ${stock.symbol}`,
   message: `Stop loss ${stopLoss} triggered at ${currentPrice}. Loss: ${lossPercent}%`,
-  data: {
+  metadata: {
     tradePlanId: tradePlan._id,
     stockId: stock._id,
+    stockSymbol: stock.symbol,
+    stopLoss,
     currentPrice,
     lossPercent
-  }
+  },
+  actionUrl: `/trade-plans/${tradePlan._id}`
 });
 ```
+
+**Key Changes:**
+- ✅ Using `type` + `category` for classification
+- ✅ All feature-specific data in `metadata` (flexible JSON)
+- ✅ `actionUrl` for dynamic navigation
+- ✅ Future features just add new categories - no schema changes!
 
 ---
 
