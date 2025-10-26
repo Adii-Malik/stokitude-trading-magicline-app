@@ -1,24 +1,25 @@
 import { useState, useEffect } from 'react';
-import { 
-  Database, 
-  Plus, 
-  Edit2, 
-  Trash2, 
-  Upload, 
-  Search, 
+import {
+  Database,
+  Plus,
+  Edit2,
+  Trash2,
+  Upload,
+  Search,
   X,
   CheckCircle,
   AlertCircle,
   FileText,
-  BarChart3
+  BarChart3,
+  Download
 } from 'lucide-react';
-import { 
-  getStocks, 
-  createStock, 
-  updateStock, 
-  deleteStock, 
+import {
+  getStocks,
+  createStock,
+  updateStock,
+  deleteStock,
   uploadStocksCSV,
-  getSectors 
+  getSectors
 } from '../services/stocks';
 import { useNavigate } from 'react-router-dom';
 
@@ -31,13 +32,19 @@ export default function StockManagement() {
   const [sectors, setSectors] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 50, total: 0, pages: 0 });
   const navigate = useNavigate();
-  
+
   // Modal states
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [editingStock, setEditingStock] = useState(null);
   
+  // Scrape modal state
+  const [showScrapeModal, setShowScrapeModal] = useState(false);
+  const [scrapeStartDate, setScrapeStartDate] = useState('2023-01-01');
+  const [scrapeEndDate, setScrapeEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [isScraping, setIsScraping] = useState(false);
+
   // Form state
   const [formData, setFormData] = useState({
     symbol: '',
@@ -45,11 +52,11 @@ export default function StockManagement() {
     sector: '',
     shariahCompliant: ''
   });
-  
+
   // Upload state
   const [uploadFile, setUploadFile] = useState(null);
   const [uploadResult, setUploadResult] = useState(null);
-  
+
   // Message state
   const [message, setMessage] = useState(null);
 
@@ -73,7 +80,7 @@ export default function StockManagement() {
         sector: sectorFilter,
         shariahCompliant: shariahFilter
       };
-      
+
       const response = await getStocks(params);
       setStocks(response.data.stocks);
       setPagination(response.data.pagination);
@@ -117,7 +124,7 @@ export default function StockManagement() {
 
   const handleDelete = async (stock) => {
     if (!confirm(`Are you sure you want to delete ${stock.symbol}?`)) return;
-    
+
     try {
       await deleteStock(stock._id);
       showMessage(`${stock.symbol} deleted successfully`);
@@ -130,12 +137,12 @@ export default function StockManagement() {
 
   const handleSubmitAdd = async (e) => {
     e.preventDefault();
-    
+
     if (!formData.symbol || !formData.companyName) {
       showMessage('Symbol and Company Name are required', 'error');
       return;
     }
-    
+
     try {
       await createStock(formData);
       showMessage(`${formData.symbol} added successfully`);
@@ -149,12 +156,12 @@ export default function StockManagement() {
 
   const handleSubmitEdit = async (e) => {
     e.preventDefault();
-    
+
     if (!formData.symbol || !formData.companyName) {
       showMessage('Symbol and Company Name are required', 'error');
       return;
     }
-    
+
     try {
       await updateStock(editingStock._id, formData);
       showMessage(`${formData.symbol} updated successfully`);
@@ -168,12 +175,12 @@ export default function StockManagement() {
 
   const handleFileUpload = async (e) => {
     e.preventDefault();
-    
+
     if (!uploadFile) {
       showMessage('Please select a CSV file', 'error');
       return;
     }
-    
+
     try {
       const response = await uploadStocksCSV(uploadFile);
       setUploadResult(response.data);
@@ -200,7 +207,7 @@ export default function StockManagement() {
                 <p className="text-gray-600 dark:text-gray-400">Manage PSX stock symbols and company data</p>
               </div>
             </div>
-            
+
             <div className="flex gap-2">
               <button
                 onClick={handleAdd}
@@ -216,16 +223,22 @@ export default function StockManagement() {
                 <Upload className="w-4 h-4" />
                 <span className="hidden sm:inline">Upload CSV</span>
               </button>
+              <button
+                onClick={() => setShowScrapeModal(true)}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors duration-200 flex items-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                <span className="hidden sm:inline">Scrape Data</span>
+              </button>
             </div>
           </div>
 
           {/* Message Banner */}
           {message && (
-            <div className={`p-4 rounded-lg mb-4 flex items-start gap-3 ${
-              message.type === 'success'
+            <div className={`p-4 rounded-lg mb-4 flex items-start gap-3 ${message.type === 'success'
                 ? 'bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/50 text-green-700 dark:text-green-400'
                 : 'bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/50 text-red-700 dark:text-red-400'
-            }`}>
+              }`}>
               {message.type === 'success' ? (
                 <CheckCircle className="w-5 h-5 flex-shrink-0" />
               ) : (
@@ -253,7 +266,7 @@ export default function StockManagement() {
                   />
                 </div>
               </div>
-              
+
               <select
                 value={sectorFilter}
                 onChange={(e) => setSectorFilter(e.target.value)}
@@ -264,7 +277,7 @@ export default function StockManagement() {
                   <option key={sector} value={sector}>{sector}</option>
                 ))}
               </select>
-              
+
               <select
                 value={shariahFilter}
                 onChange={(e) => setShariahFilter(e.target.value)}
@@ -442,7 +455,7 @@ export default function StockManagement() {
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              
+
               <form onSubmit={showAddModal ? handleSubmitAdd : handleSubmitEdit} className="p-6 space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -456,7 +469,7 @@ export default function StockManagement() {
                     required
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Company Name <span className="text-red-500">*</span>
@@ -469,7 +482,7 @@ export default function StockManagement() {
                     required
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Sector
@@ -481,7 +494,7 @@ export default function StockManagement() {
                     className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Shariah Compliant
@@ -496,7 +509,7 @@ export default function StockManagement() {
                     <option value="No">No</option>
                   </select>
                 </div>
-                
+
                 <div className="flex gap-2 pt-4">
                   <button
                     type="submit"
@@ -537,7 +550,7 @@ export default function StockManagement() {
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              
+
               <form onSubmit={handleFileUpload} className="p-6 space-y-4">
                 <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center">
                   <FileText className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-3" />
@@ -555,7 +568,7 @@ export default function StockManagement() {
                     {uploadFile ? uploadFile.name : 'Choose CSV File'}
                   </label>
                 </div>
-                
+
                 <div className="bg-cyan-50 dark:bg-cyan-500/10 border border-cyan-200 dark:border-cyan-500/30 rounded-lg p-4">
                   <h4 className="font-semibold text-cyan-900 dark:text-cyan-400 mb-2">Expected Format:</h4>
                   <code className="text-sm text-cyan-800 dark:text-cyan-300">
@@ -566,7 +579,7 @@ export default function StockManagement() {
                     • Sector and ShariahCompliant are optional
                   </p>
                 </div>
-                
+
                 {uploadResult && (
                   <div className="bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/50 rounded-lg p-4">
                     <h4 className="font-semibold text-green-900 dark:text-green-400 mb-2">Upload Result:</h4>
@@ -577,7 +590,7 @@ export default function StockManagement() {
                     </div>
                   </div>
                 )}
-                
+
                 <div className="flex gap-2 pt-4">
                   <button
                     type="submit"
@@ -596,6 +609,94 @@ export default function StockManagement() {
                     className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg transition-colors"
                   >
                     Close
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Scrape Historical Data Modal */}
+        {showScrapeModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full border border-gray-200 dark:border-gray-700">
+              <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                  Scrape Historical Data
+                </h2>
+                <button
+                  onClick={() => setShowScrapeModal(false)}
+                  className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <form className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Start Date <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={scrapeStartDate}
+                    onChange={(e) => setScrapeStartDate(e.target.value)}
+                    disabled={isScraping}
+                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition disabled:opacity-50"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    End Date <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={scrapeEndDate}
+                    onChange={(e) => setScrapeEndDate(e.target.value)}
+                    disabled={isScraping}
+                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition disabled:opacity-50"
+                    required
+                  />
+                </div>
+
+                <div className="bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/30 rounded-lg p-3">
+                  <p className="text-sm text-purple-800 dark:text-purple-300">
+                    <span className="font-semibold">Note:</span> This will scrape historical OHLCV data for all selected symbols from the date range above.
+                  </p>
+                </div>
+
+                <div className="flex gap-2 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Will be wired to backend when ready
+                      showMessage('Scraping will start for selected symbols', 'success');
+                      setShowScrapeModal(false);
+                    }}
+                    disabled={isScraping}
+                    className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {isScraping ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Scraping...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-4 h-4" />
+                        Start Scraping
+                      </>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowScrapeModal(false)}
+                    disabled={isScraping}
+                    className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    Cancel
                   </button>
                 </div>
               </form>
