@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url';
 import config from './config/config.js';
 import { connectDB } from './config/mongodb.js';
 import centralizedPriceService from './services/centralizedPriceService.js';
+import historicalDataScheduler from './services/historicalDataScheduler.js';
 import magicLineHandler from './handlers/magicLineHandler.js';
 import tradePlanHandler from './handlers/tradePlanHandler.js';
 import marketHoursService from './services/marketHoursService.js';
@@ -20,6 +21,7 @@ import adminRoutes from './routes/admin.js';
 import stocksRoutes from './routes/stocks.js';
 import tradePlansRoutes from './routes/tradePlans.js';
 import settingsRoutes from './routes/settings.js';
+import historicalRoutes from './routes/historical.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -70,6 +72,7 @@ app.get('/health', async (req, res) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/historical', historicalRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/magic-line', magicLineRoutes);
 app.use('/api/stocks', stocksRoutes);
@@ -124,27 +127,27 @@ io.on('connection', async (socket) => {
   try {
     const initialData = await db.getFullData();
     const stats = await db.getStats();
-    
+
     // Get last price update time from Stock model (centralized)
     let lastUpdate = null;
-    
+
     // Check Stock model for most recent price update
     const Stock = (await import('./models/Stock.js')).default;
     const mostRecentStock = await Stock.findOne({ currentPrice: { $ne: null } })
       .sort({ lastUpdated: -1 })
       .select('lastUpdated')
       .lean();
-    
+
     if (mostRecentStock && mostRecentStock.lastUpdated) {
       lastUpdate = new Date(mostRecentStock.lastUpdated).toISOString();
     }
-    
-    socket.emit('initialData', { 
-      symbols: initialData, 
+
+    socket.emit('initialData', {
+      symbols: initialData,
       stats,
-      lastUpdate 
+      lastUpdate
     });
-    
+
     if (lastUpdate) {
       console.log(`   📊 Last price update: ${new Date(lastUpdate).toLocaleString('en-US', { timeZone: 'Asia/Karachi' })} PKT`);
     } else {
@@ -168,7 +171,7 @@ io.on('connection', async (socket) => {
 centralizedPriceService.onUpdate(async (data) => {
   if (data.type === 'priceUpdate') {
     console.log('📢 Price update received - notifying all feature handlers');
-    
+
     // Broadcast to frontend
     io.emit('priceUpdate', {
       checked: data.data.checked,
@@ -176,7 +179,7 @@ centralizedPriceService.onUpdate(async (data) => {
       timestamp: data.data.timestamp,
       errors: data.data.errors
     });
-    
+
     // Trigger feature handlers to check their logic
     await magicLineHandler.checkMagicLines();
     await tradePlanHandler.checkTradePlans();
@@ -219,22 +222,22 @@ async function startServer() {
     // Connect to MongoDB
     console.log('🚀 Starting PSX Monitor Backend...');
     await connectDB(config.mongoUri);
-    
+
     // Initialize System Settings
     const Settings = (await import('./models/Settings.js')).default;
     const settings = await Settings.getSettings();
     const pollingInterval = settings.pricePolling.intervalMinutes;
     const pollingEnabled = settings.pricePolling.enabled;
-    
+
     console.log('\n⚙️  System Settings Loaded:');
     console.log(`   Polling Interval: ${pollingInterval} minutes`);
     console.log(`   Polling Enabled: ${pollingEnabled}`);
-    
+
     // Load market hours from settings into marketHoursService
     console.log('🕒 Loading market hours from settings...');
     marketHoursService.updateConfig(settings.marketHours);
     console.log('   ✅ Market hours configured from database');
-    
+
     // Start Centralized Price Service (ONLY ONE SERVICE!) - only if enabled
     console.log('\n📊 Centralized Price Service:');
     console.log('⏰ PSX Market Hours (from settings):');
@@ -242,12 +245,12 @@ async function startServer() {
     console.log(`   • Monday-Thursday: ${marketHours.regularMarketOpen.hour}:${String(marketHours.regularMarketOpen.minute).padStart(2, '0')} - ${marketHours.regularMarketClose.hour}:${String(marketHours.regularMarketClose.minute).padStart(2, '0')} PKT`);
     console.log(`   • Friday Morning: ${marketHours.fridayMorningOpen.hour}:${String(marketHours.fridayMorningOpen.minute).padStart(2, '0')} - ${marketHours.fridayMorningClose.hour}:${String(marketHours.fridayMorningClose.minute).padStart(2, '0')} PKT`);
     console.log(`   • Friday Afternoon: ${marketHours.fridayAfternoonOpen.hour}:${String(marketHours.fridayAfternoonOpen.minute).padStart(2, '0')} - ${marketHours.fridayAfternoonClose.hour}:${String(marketHours.fridayAfternoonClose.minute).padStart(2, '0')} PKT`);
-    console.log(`   • Weekends: Closed${marketHours.publicHolidays?.length > 0 ? ` | Public Holidays: ${marketHours.publicHolidays.length}` : ''}\n`);
-    
+    console.log(`   • Weekends: Closed${marketHours.publicHolidays && marketHours.publicHolidays.length > 0 ? ` | Public Holidays: ${marketHours.publicHolidays.length}` : ''}\n`);
+
     if (pollingEnabled) {
       centralizedPriceService.start(pollingInterval);
       console.log(`✅ Price polling started (${pollingInterval} min interval)`);
-      
+
       // Trigger initial price check if market is open
       setTimeout(async () => {
         try {
@@ -264,6 +267,10 @@ async function startServer() {
     } else {
       console.log('⏸️ Price polling is disabled (enable in Settings)');
     }
+
+    // Start Historical Data Scheduler (runs daily after market close)
+    console.log('\n📅 Historical Data Scheduler:');
+    historicalDataScheduler.start();
 
     // Start HTTP server - ALWAYS listen on 0.0.0.0 for external access
     // Use 0.0.0.0 to accept connections from any IP (required for Fly.io and mobile)

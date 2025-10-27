@@ -1,64 +1,96 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Download, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Download, BarChart3, Calendar } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { getHistoricalData } from '../services/historical';
 
 export default function HistoricalDataViewer() {
   const { symbol } = useParams();
   const navigate = useNavigate();
-  
+
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [timeframe, setTimeframe] = useState('daily');
   const [pagination, setPagination] = useState({ page: 1, limit: 50, total: 0, pages: 0 });
   const [message, setMessage] = useState(null);
   const [downloading, setDownloading] = useState(false);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   useEffect(() => {
     fetchHistoricalData();
-  }, [symbol, timeframe, pagination.page]);
+  }, [symbol, timeframe, pagination.page, startDate, endDate]);
 
   const fetchHistoricalData = async () => {
     try {
       setLoading(true);
-      const response = await fetch(
-        `/api/historical/${symbol}?timeframe=${timeframe}&page=${pagination.page}&limit=${pagination.limit}`
-      );
-      const result = await response.json();
-      
+      const skip = (pagination.page - 1) * pagination.limit;
+      const params = {
+        timeframe,
+        limit: pagination.limit,
+        skip
+      };
+
+      if (startDate) params.startDate = startDate;
+      if (endDate) params.endDate = endDate;
+
+      const result = await getHistoricalData(symbol, params);
+
       if (!result.success) {
-        setMessage({ text: result.message, type: 'error' });
+        setMessage({ text: result.message || 'Failed to load data', type: 'error' });
         setData([]);
         return;
       }
-      
-      setData(result.data.records);
-      setPagination(prev => ({ 
-        ...prev, 
-        total: result.data.total,
-        pages: Math.ceil(result.data.total / result.data.limit)
+
+      // Filter data client-side if dates are set (backend might not support date filtering yet)
+      let filteredData = result.data.data || [];
+      if (startDate || endDate) {
+        filteredData = filteredData.filter(row => {
+          const rowDate = new Date(row.date || row.weekStart || row.monthStart);
+          const start = startDate ? new Date(startDate) : null;
+          const end = endDate ? new Date(endDate) : null;
+
+          if (start && rowDate < start) return false;
+          if (end && rowDate > end) return false;
+          return true;
+        });
+      }
+
+      setData(filteredData);
+      setPagination(prev => ({
+        ...prev,
+        total: result.data.pagination?.total || 0,
+        pages: Math.ceil((result.data.pagination?.total || 0) / pagination.limit)
       }));
     } catch (error) {
       console.error('Error fetching data:', error);
-      setMessage({ text: 'Failed to load historical data', type: 'error' });
+      setMessage({ text: error.response?.data?.message || 'Failed to load historical data', type: 'error' });
       setData([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDownloadCSV = async () => {
+  const handleDownloadCSV = () => {
     try {
       setDownloading(true);
-      const response = await fetch(
-        `/api/historical/${symbol}/download?timeframe=${timeframe}`
-      );
-      
-      if (!response.ok) {
-        setMessage({ text: 'Failed to download CSV', type: 'error' });
-        return;
-      }
-      
-      const blob = await response.blob();
+
+      // Generate CSV content
+      const headers = ['Date', 'Open', 'High', 'Low', 'Close', 'Volume'];
+      const rows = data.map(row => [
+        new Date(row.date || row.weekStart || row.monthStart).toISOString().split('T')[0],
+        row.open || '',
+        row.high || '',
+        row.low || '',
+        row.close || '',
+        row.volume || ''
+      ]);
+
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.join(','))
+      ].join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -67,6 +99,7 @@ export default function HistoricalDataViewer() {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+
       setMessage({ text: 'CSV downloaded successfully', type: 'success' });
     } catch (error) {
       console.error('Error downloading:', error);
@@ -81,10 +114,16 @@ export default function HistoricalDataViewer() {
     setPagination(prev => ({ ...prev, page: 1 }));
   };
 
+  const handleClearFilters = () => {
+    setStartDate('');
+    setEndDate('');
+    setPagination(prev => ({ ...prev, page: 1 }));
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300">
       <div className="container mx-auto px-4 py-8">
-        
+
         {/* Header */}
         <div className="mb-8">
           <button
@@ -94,7 +133,7 @@ export default function HistoricalDataViewer() {
             <ArrowLeft className="w-4 h-4" />
             <span className="font-medium">Back to Stock Management</span>
           </button>
-          
+
           <div className="flex items-center gap-3 mb-2">
             <BarChart3 className="w-8 h-8 text-cyan-500 dark:text-cyan-400" />
             <div>
@@ -110,13 +149,12 @@ export default function HistoricalDataViewer() {
 
         {/* Message Banner */}
         {message && (
-          <div className={`mb-6 p-4 rounded-lg border flex items-start gap-3 transition-all ${
-            message.type === 'success'
-              ? 'bg-green-50 dark:bg-green-500/10 border-green-200 dark:border-green-500/50 text-green-700 dark:text-green-400'
-              : 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/50 text-red-700 dark:text-red-400'
-          }`}>
+          <div className={`mb-6 p-4 rounded-lg border flex items-start gap-3 transition-all ${message.type === 'success'
+            ? 'bg-green-50 dark:bg-green-500/10 border-green-200 dark:border-green-500/50 text-green-700 dark:text-green-400'
+            : 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/50 text-red-700 dark:text-red-400'
+            }`}>
             <span className="flex-1">{message.text}</span>
-            <button 
+            <button
               onClick={() => setMessage(null)}
               className="text-current hover:opacity-70"
             >
@@ -127,39 +165,87 @@ export default function HistoricalDataViewer() {
 
         {/* Controls */}
         <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-lg p-6 mb-6 shadow-md">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            
-            {/* Timeframe Selector */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Timeframe
-              </label>
-              <div className="flex gap-2">
-                {['daily', 'weekly', 'monthly'].map(tf => (
-                  <button
-                    key={tf}
-                    onClick={() => handleTimeframeChange(tf)}
-                    className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                      timeframe === tf
+          <div className="flex flex-col gap-6">
+
+            {/* Top Row: Timeframe & Download */}
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              {/* Timeframe Selector */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Timeframe
+                </label>
+                <div className="flex gap-2">
+                  {['daily', 'weekly', 'monthly'].map(tf => (
+                    <button
+                      key={tf}
+                      onClick={() => handleTimeframeChange(tf)}
+                      className={`px-4 py-2 rounded-lg font-medium transition-all ${timeframe === tf
                         ? 'bg-cyan-500 text-white shadow-lg'
                         : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                    }`}
-                  >
-                    {tf.charAt(0).toUpperCase() + tf.slice(1)}
-                  </button>
-                ))}
+                        }`}
+                    >
+                      {tf.charAt(0).toUpperCase() + tf.slice(1)}
+                    </button>
+                  ))}
+                </div>
               </div>
+
+              {/* Download Button */}
+              <button
+                onClick={handleDownloadCSV}
+                disabled={downloading || data.length === 0}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white font-medium rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+              >
+                <Download className="w-4 h-4" />
+                {downloading ? 'Downloading...' : 'Download CSV'}
+              </button>
             </div>
 
-            {/* Download Button */}
-            <button
-              onClick={handleDownloadCSV}
-              disabled={downloading || data.length === 0}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white font-medium rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
-            >
-              <Download className="w-4 h-4" />
-              {downloading ? 'Downloading...' : 'Download CSV'}
-            </button>
+            {/* Bottom Row: Date Range Filters */}
+            <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+              <div className="flex flex-col md:flex-row md:items-end gap-4">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                    <Calendar className="w-4 h-4" />
+                    Start Date
+                  </label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => {
+                      setStartDate(e.target.value);
+                      setPagination(prev => ({ ...prev, page: 1 }));
+                    }}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  />
+                </div>
+
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                    <Calendar className="w-4 h-4" />
+                    End Date
+                  </label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => {
+                      setEndDate(e.target.value);
+                      setPagination(prev => ({ ...prev, page: 1 }));
+                    }}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  />
+                </div>
+
+                {(startDate || endDate) && (
+                  <button
+                    onClick={handleClearFilters}
+                    className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg transition-colors whitespace-nowrap"
+                  >
+                    Clear Filters
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -211,7 +297,7 @@ export default function HistoricalDataViewer() {
                       <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className="font-medium text-gray-900 dark:text-gray-300">
-                            {new Date(row.date || row.weekStartDate || row.monthStartDate).toLocaleDateString()}
+                            {new Date(row.date || row.weekStart || row.monthStart).toLocaleDateString()}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-gray-900 dark:text-gray-300">

@@ -13,7 +13,7 @@ router.get('/users', async (req, res) => {
     const users = await User.find()
       .select('-password')
       .sort({ createdAt: -1 });
-    
+
     res.json({
       success: true,
       data: {
@@ -37,7 +37,7 @@ router.get('/users/pending', async (req, res) => {
     const users = await User.find({ isActive: false })
       .select('-password')
       .sort({ createdAt: -1 });
-    
+
     res.json({
       success: true,
       data: {
@@ -59,22 +59,22 @@ router.get('/users/pending', async (req, res) => {
 router.put('/users/:userId/activate', async (req, res) => {
   try {
     const { userId } = req.params;
-    
+
     const user = await User.findByIdAndUpdate(
       userId,
       { isActive: true },
       { new: true }
     ).select('-password');
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,
         message: 'User not found'
       });
     }
-    
+
     console.log(`✅ User activated: ${user.username} by admin ${req.user.username}`);
-    
+
     res.json({
       success: true,
       message: 'User activated successfully',
@@ -94,7 +94,7 @@ router.put('/users/:userId/activate', async (req, res) => {
 router.put('/users/:userId/deactivate', async (req, res) => {
   try {
     const { userId } = req.params;
-    
+
     // Prevent admin from deactivating themselves
     if (userId === req.user._id.toString()) {
       return res.status(400).json({
@@ -102,10 +102,10 @@ router.put('/users/:userId/deactivate', async (req, res) => {
         message: 'You cannot deactivate your own account'
       });
     }
-    
+
     // Get user first to check their role
     const user = await User.findById(userId).select('-password');
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -131,9 +131,9 @@ router.put('/users/:userId/deactivate', async (req, res) => {
 
     user.isActive = false;
     await user.save();
-    
+
     console.log(`❌ User deactivated: ${user.username} by ${req.user.role} ${req.user.username}`);
-    
+
     res.json({
       success: true,
       message: 'User deactivated successfully',
@@ -153,7 +153,7 @@ router.put('/users/:userId/deactivate', async (req, res) => {
 router.put('/users/:userId/toggle-role', async (req, res) => {
   try {
     const { userId } = req.params;
-    
+
     // Prevent admin from changing their own role
     if (userId === req.user._id.toString()) {
       return res.status(400).json({
@@ -161,16 +161,16 @@ router.put('/users/:userId/toggle-role', async (req, res) => {
         message: 'You cannot change your own role'
       });
     }
-    
+
     const user = await User.findById(userId).select('-password');
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,
         message: 'User not found'
       });
     }
-    
+
     // Only super_admin can promote users to admin
     if (user.role === 'user' && req.user.role !== 'super_admin') {
       return res.status(403).json({
@@ -194,19 +194,19 @@ router.put('/users/:userId/toggle-role', async (req, res) => {
         message: 'Super Admin role cannot be changed'
       });
     }
-    
+
     // Toggle role between user and admin
     user.role = user.role === 'admin' ? 'user' : 'admin';
-    
+
     // If promoting to admin, automatically activate
     if (user.role === 'admin') {
       user.isActive = true;
     }
-    
+
     await user.save();
-    
+
     console.log(`🔄 User role changed: ${user.username} is now ${user.role} by ${req.user.role} ${req.user.username}`);
-    
+
     res.json({
       success: true,
       message: `User role updated to ${user.role}`,
@@ -226,7 +226,7 @@ router.put('/users/:userId/toggle-role', async (req, res) => {
 router.delete('/users/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
-    
+
     // Prevent admin from deleting themselves
     if (userId === req.user._id.toString()) {
       return res.status(400).json({
@@ -234,10 +234,10 @@ router.delete('/users/:userId', async (req, res) => {
         message: 'You cannot delete your own account'
       });
     }
-    
+
     // Get user first to check their role
     const user = await User.findById(userId);
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -260,11 +260,11 @@ router.delete('/users/:userId', async (req, res) => {
         message: 'Super Admin cannot be deleted'
       });
     }
-    
+
     await User.findByIdAndDelete(userId);
-    
+
     console.log(`🗑️ User deleted: ${user.username} by ${req.user.role} ${req.user.username}`);
-    
+
     res.json({
       success: true,
       message: 'User deleted successfully'
@@ -286,7 +286,7 @@ router.get('/stats', async (req, res) => {
     const activeUsers = await User.countDocuments({ isActive: true });
     const pendingUsers = await User.countDocuments({ isActive: false });
     const adminUsers = await User.countDocuments({ role: 'admin' });
-    
+
     res.json({
       success: true,
       data: {

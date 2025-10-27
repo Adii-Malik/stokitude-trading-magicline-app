@@ -5,6 +5,8 @@ import axios from 'axios';
 // 2. Use relative path if on same domain (production build served by backend)
 // 3. Fall back to localhost for development
 const getApiUrl = () => {
+  console.log(import.meta.env.VITE_API_URL);
+
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }

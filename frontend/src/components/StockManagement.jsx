@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { startScraping } from '../services/historical';
+import { getStockById } from '../services/stocks';
 import {
   Database,
   Plus,
@@ -38,12 +40,28 @@ export default function StockManagement() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [editingStock, setEditingStock] = useState(null);
-  
+
   // Scrape modal state
   const [showScrapeModal, setShowScrapeModal] = useState(false);
-  const [scrapeStartDate, setScrapeStartDate] = useState('2023-01-01');
-  const [scrapeEndDate, setScrapeEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [scrapeStartDate, setScrapeStartDate] = useState('2023-01-02'); // Monday
+  const [scrapeEndDate, setScrapeEndDate] = useState(() => {
+    const today = new Date();
+    const day = today.getDay();
+    // If today is Sunday (0), go back 2 days; if Saturday (6), go back 1 day
+    if (day === 0) {
+      today.setDate(today.getDate() - 2);
+    } else if (day === 6) {
+      today.setDate(today.getDate() - 1);
+    }
+    return today.toISOString().split('T')[0];
+  });
   const [isScraping, setIsScraping] = useState(false);
+  const [selectedSymbols, setSelectedSymbols] = useState([]);
+  const [selectedSymbolsData, setSelectedSymbolsData] = useState([]);
+  const [scrapeSymbolSearch, setScrapeSymbolSearch] = useState('');
+  const [scrapeSearchResults, setScrapeSearchResults] = useState([]);
+  const [scrapeSearchLoading, setScrapeSearchLoading] = useState(false);
+  const [scrapeDropdownOpen, setScrapeDropdownOpen] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -69,6 +87,30 @@ export default function StockManagement() {
   useEffect(() => {
     loadSectors();
   }, []);
+
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      const dropdown = document.getElementById('scrape-dropdown');
+      if (dropdown && !dropdown.contains(event.target)) {
+        setScrapeDropdownOpen(false);
+      }
+    };
+
+    const handleEscapeKey = (event) => {
+      if (event.key === 'Escape' && scrapeDropdownOpen) {
+        setScrapeDropdownOpen(false);
+      }
+    };
+
+    if (scrapeDropdownOpen) {
+      document.addEventListener('mousedown', handleOutsideClick);
+      document.addEventListener('keydown', handleEscapeKey);
+      return () => {
+        document.removeEventListener('mousedown', handleOutsideClick);
+        document.removeEventListener('keydown', handleEscapeKey);
+      };
+    }
+  }, [scrapeDropdownOpen]);
 
   const loadStocks = async () => {
     try {
@@ -194,6 +236,98 @@ export default function StockManagement() {
     }
   };
 
+  const handleScrapeSymbolSearch = async (searchQuery) => {
+    setScrapeSymbolSearch(searchQuery);
+
+    try {
+      setScrapeSearchLoading(true);
+      const response = await getStocks({ search: searchQuery, limit: 100 });
+      setScrapeSearchResults(response.data.stocks);
+    } catch (error) {
+      console.error('Error searching stocks:', error);
+      setScrapeSearchResults([]);
+    } finally {
+      setScrapeSearchLoading(false);
+    }
+  };
+
+  const handleStartScraping = async () => {
+    if (selectedSymbols.length === 0) {
+      showMessage('Please select at least one symbol', 'error');
+      return;
+    }
+
+    if (!scrapeStartDate || !scrapeEndDate) {
+      showMessage('Please select start and end dates', 'error');
+      return;
+    }
+
+    try {
+      setIsScraping(true);
+
+      // Get symbol strings from selectedSymbolsData
+      const symbolStrings = selectedSymbolsData.map(stock => stock.symbol);
+
+      console.log('Starting scrape with:', { symbolStrings, selectedSymbolsData, selectedSymbols });
+
+      if (symbolStrings.length === 0) {
+        showMessage('No symbols selected. Please try again.', 'error');
+        setIsScraping(false);
+        return;
+      }
+
+      const data = await startScraping(
+        symbolStrings,
+        scrapeStartDate,
+        scrapeEndDate
+      );
+
+      showMessage(`Scraping started for ${selectedSymbols.length} symbol(s)`, 'success');
+      setShowScrapeModal(false);
+      setScrapeDropdownOpen(false);
+      setSelectedSymbols([]);
+      setScrapeStartDate('2023-01-01');
+      setScrapeEndDate(new Date().toISOString().split('T')[0]);
+    } catch (error) {
+      console.error('Error starting scrape:', error);
+      showMessage(error.message || 'Failed to start scraping', 'error');
+    } finally {
+      setIsScraping(false);
+    }
+  };
+
+  const fetchSelectedSymbolsData = async (symbolIds) => {
+    if (symbolIds.length === 0) {
+      setSelectedSymbolsData([]);
+      return;
+    }
+
+    try {
+      const promises = symbolIds.map(id => getStockById(id));
+      const results = await Promise.all(promises);
+      setSelectedSymbolsData(results.map(r => r.data).filter(Boolean));
+    } catch (error) {
+      console.error('Error fetching selected symbols:', error);
+    }
+  };
+
+  const fetchScrapeStatus = async () => {
+    try {
+      const response = await getScrapeStatus();
+      setScrapeStatuses(response.data || []);
+    } catch (error) {
+      console.error('Error fetching scrape status:', error);
+    }
+  };
+
+  // Fetch selected symbols data when selection changes
+  useEffect(() => {
+    if (showScrapeModal) {
+      fetchSelectedSymbolsData(selectedSymbols);
+    }
+  }, [selectedSymbols, showScrapeModal]);
+
+
   return (
     <div>
       <div className="container mx-auto px-4 py-8">
@@ -225,7 +359,7 @@ export default function StockManagement() {
               </button>
               <button
                 onClick={() => setShowScrapeModal(true)}
-                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors duration-200 flex items-center gap-2"
+                className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white font-medium rounded-lg transition-colors duration-200 flex items-center gap-2"
               >
                 <Download className="w-4 h-4" />
                 <span className="hidden sm:inline">Scrape Data</span>
@@ -236,8 +370,8 @@ export default function StockManagement() {
           {/* Message Banner */}
           {message && (
             <div className={`p-4 rounded-lg mb-4 flex items-start gap-3 ${message.type === 'success'
-                ? 'bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/50 text-green-700 dark:text-green-400'
-                : 'bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/50 text-red-700 dark:text-red-400'
+              ? 'bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/50 text-green-700 dark:text-green-400'
+              : 'bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/50 text-red-700 dark:text-red-400'
               }`}>
               {message.type === 'success' ? (
                 <CheckCircle className="w-5 h-5 flex-shrink-0" />
@@ -339,6 +473,9 @@ export default function StockManagement() {
                       <th className="px-6 py-4 text-center text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
                         Shariah
                       </th>
+                      <th className="px-6 py-4 text-center text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                        Historical Data
+                      </th>
                       <th className="px-6 py-4 text-right text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
                         Actions
                       </th>
@@ -373,6 +510,19 @@ export default function StockManagement() {
                             </span>
                           ) : (
                             <span className="text-gray-400 dark:text-gray-500 text-sm">-</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-center whitespace-nowrap">
+                          {stock.historicalDataStatus === 'available' ? (
+                            <span className="px-2 py-1 text-xs bg-cyan-100 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-400 rounded border border-cyan-300 dark:border-cyan-500/30 flex items-center justify-center gap-1 w-fit mx-auto">
+                              <CheckCircle className="w-3 h-3" />
+                              Available
+                            </span>
+                          ) : (
+                            <span className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded border border-gray-300 dark:border-gray-600 flex items-center justify-center gap-1 w-fit mx-auto">
+                              <AlertCircle className="w-3 h-3" />
+                              No Data
+                            </span>
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right">
@@ -631,8 +781,132 @@ export default function StockManagement() {
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              
+
               <form className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Select Symbols <span className="text-red-500">*</span>
+                  </label>
+
+                  {/* Selected symbols display */}
+                  {selectedSymbols.length > 0 && (
+                    <div className="mb-3 flex flex-wrap gap-2">
+                      {selectedSymbols.map(symbolId => {
+                        const stock = selectedSymbolsData.find(s => s._id === symbolId) ||
+                          scrapeSearchResults.find(s => s._id === symbolId) ||
+                          stocks.find(s => s._id === symbolId);
+                        return stock ? (
+                          <span key={symbolId} className="inline-flex items-center gap-1 px-2 py-1 bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 rounded-full text-sm font-medium">
+                            {stock.symbol}
+                            <button
+                              type="button"
+                              onClick={() => setSelectedSymbols(selectedSymbols.filter(id => id !== symbolId))}
+                              className="text-cyan-600 dark:text-cyan-400 hover:text-cyan-800 dark:hover:text-cyan-200"
+                            >
+                              ✕
+                            </button>
+                          </span>
+                        ) : null;
+                      })}
+                    </div>
+                  )}
+
+                  {/* Dropdown trigger */}
+                  <div className="relative" id="scrape-dropdown">
+                    <button
+                      type="button"
+                      onClick={() => setScrapeDropdownOpen(!scrapeDropdownOpen)}
+                      disabled={isScraping}
+                      className="w-full px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition disabled:opacity-50 text-left flex items-center justify-between"
+                    >
+                      <span>{selectedSymbols.length > 0 ? `${selectedSymbols.length} selected` : 'Search and select symbols...'}</span>
+                      <svg className={`w-5 h-5 transition-transform ${scrapeDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                      </svg>
+                    </button>
+
+                    {/* Dropdown menu */}
+                    {scrapeDropdownOpen && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg z-10">
+                        {/* Search input */}
+                        <div className="p-2 border-b border-gray-200 dark:border-gray-700">
+                          <input
+                            type="text"
+                            placeholder="Search symbols..."
+                            value={scrapeSymbolSearch}
+                            onChange={(e) => handleScrapeSymbolSearch(e.target.value)}
+                            className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition"
+                            autoFocus
+                          />
+                        </div>
+
+                        {/* Options list */}
+                        <div className="max-h-64 overflow-y-auto">
+                          {scrapeSearchLoading ? (
+                            <div className="text-center py-4">
+                              <div className="w-4 h-4 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">Searching...</p>
+                            </div>
+                          ) : (scrapeSearchResults.length === 0 && scrapeSymbolSearch.trim() !== '') ? (
+                            <p className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">No symbols found</p>
+                          ) : (
+                            <>
+                              {/* Show selected symbols first */}
+                              {selectedSymbols.length > 0 && (
+                                <>
+                                  <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700 sticky top-0">
+                                    SELECTED
+                                  </div>
+                                  {selectedSymbolsData.map(stock => (
+                                    <label key={stock._id} className="flex items-center gap-3 px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition bg-cyan-50 dark:bg-cyan-900/20">
+                                      <input
+                                        type="checkbox"
+                                        checked={true}
+                                        onChange={(e) => {
+                                          setSelectedSymbols(selectedSymbols.filter(id => id !== stock._id));
+                                        }}
+                                        className="w-4 h-4 cursor-pointer accent-cyan-500"
+                                      />
+                                      <div className="flex-1">
+                                        <div className="font-medium text-gray-900 dark:text-white">{stock.symbol}</div>
+                                        <div className="text-xs text-gray-500 dark:text-gray-400">{stock.companyName}</div>
+                                      </div>
+                                    </label>
+                                  ))}
+                                  <div className="border-t border-gray-200 dark:border-gray-700"></div>
+                                </>
+                              )}
+
+                              {/* Show search results or all stocks */}
+                              <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700 sticky top-0">
+                                {scrapeSymbolSearch.trim() ? 'SEARCH RESULTS' : 'ALL SYMBOLS'}
+                              </div>
+                              {(scrapeSearchResults.length > 0 ? scrapeSearchResults : stocks)
+                                .filter(stock => !selectedSymbols.includes(stock._id))
+                                .map(stock => (
+                                  <label key={stock._id} className="flex items-center gap-3 px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition">
+                                    <input
+                                      type="checkbox"
+                                      checked={false}
+                                      onChange={(e) => {
+                                        setSelectedSymbols([...selectedSymbols, stock._id]);
+                                      }}
+                                      className="w-4 h-4 cursor-pointer accent-cyan-500"
+                                    />
+                                    <div className="flex-1">
+                                      <div className="font-medium text-gray-900 dark:text-white">{stock.symbol}</div>
+                                      <div className="text-xs text-gray-500 dark:text-gray-400">{stock.companyName}</div>
+                                    </div>
+                                  </label>
+                                ))}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Start Date <span className="text-red-500">*</span>
@@ -642,7 +916,7 @@ export default function StockManagement() {
                     value={scrapeStartDate}
                     onChange={(e) => setScrapeStartDate(e.target.value)}
                     disabled={isScraping}
-                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition disabled:opacity-50"
+                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition disabled:opacity-50"
                     required
                   />
                 </div>
@@ -656,27 +930,23 @@ export default function StockManagement() {
                     value={scrapeEndDate}
                     onChange={(e) => setScrapeEndDate(e.target.value)}
                     disabled={isScraping}
-                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition disabled:opacity-50"
+                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition disabled:opacity-50"
                     required
                   />
                 </div>
 
-                <div className="bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/30 rounded-lg p-3">
-                  <p className="text-sm text-purple-800 dark:text-purple-300">
-                    <span className="font-semibold">Note:</span> This will scrape historical OHLCV data for all selected symbols from the date range above.
+                <div className="bg-cyan-50 dark:bg-cyan-500/10 border border-cyan-200 dark:border-cyan-500/30 rounded-lg p-3">
+                  <p className="text-sm text-cyan-900 dark:text-cyan-300">
+                    <span className="font-semibold">Note:</span> This will scrape historical OHLCV data for selected symbols from the date range above.
                   </p>
                 </div>
 
                 <div className="flex gap-2 pt-4">
                   <button
                     type="button"
-                    onClick={() => {
-                      // Will be wired to backend when ready
-                      showMessage('Scraping will start for selected symbols', 'success');
-                      setShowScrapeModal(false);
-                    }}
-                    disabled={isScraping}
-                    className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    onClick={handleStartScraping}
+                    disabled={isScraping || selectedSymbols.length === 0}
+                    className="flex-1 px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {isScraping ? (
                       <>
@@ -692,7 +962,10 @@ export default function StockManagement() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setShowScrapeModal(false)}
+                    onClick={() => {
+                      setShowScrapeModal(false);
+                      setScrapeDropdownOpen(false);
+                    }}
                     disabled={isScraping}
                     className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg transition-colors disabled:opacity-50"
                   >

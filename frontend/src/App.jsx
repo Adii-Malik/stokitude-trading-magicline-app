@@ -106,10 +106,10 @@ function AppContent() {
     // Fetch initial data
     fetchMarketStatus();
     fetchLastPriceUpdate();
-    
+
     // Check market status every 1 minute (to catch market open/close events quickly)
     const marketStatusInterval = setInterval(fetchMarketStatus, 60 * 1000);
-    
+
     // Refresh last update timestamp every minute
     const lastUpdateInterval = setInterval(fetchLastPriceUpdate, 60 * 1000);
 
@@ -146,21 +146,21 @@ function AppContent() {
     <Routes>
       {/* Public Routes */}
       <Route path="/" element={
-        user ? <Navigate to="/dashboard" replace /> : <Landing 
+        user ? <Navigate to="/dashboard" replace /> : <Landing
           onSwitchToLogin={() => navigate('/login')}
           onSwitchToSignup={() => navigate('/signup')}
         />
       } />
-      
+
       <Route path="/login" element={
-        user ? <Navigate to="/dashboard" replace /> : <Login 
+        user ? <Navigate to="/dashboard" replace /> : <Login
           onSwitchToSignup={() => navigate('/signup')}
           onBackToDashboard={() => navigate('/')}
         />
       } />
-      
+
       <Route path="/signup" element={
-        user ? <Navigate to="/dashboard" replace /> : <Signup 
+        user ? <Navigate to="/dashboard" replace /> : <Signup
           onSwitchToLogin={() => navigate('/login')}
           onBackToDashboard={() => navigate('/')}
         />
@@ -170,7 +170,7 @@ function AppContent() {
       <Route path="/dashboard" element={
         <ProtectedRoute>
           <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300">
-            <Header 
+            <Header
               isConnected={isConnected}
               currentPage="dashboard"
               lastPriceUpdate={lastPriceUpdate}
@@ -184,7 +184,7 @@ function AppContent() {
               onNavigateToLogin={() => navigate('/login')}
               onNavigateToSignup={() => navigate('/signup')}
             />
-            
+
             <Dashboard />
 
             <footer className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 mt-12 transition-colors duration-300">
@@ -199,7 +199,7 @@ function AppContent() {
       <Route path="/magic-line" element={
         <ProtectedRoute>
           <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300">
-            <Header 
+            <Header
               isConnected={isConnected}
               currentPage="magic-line"
               lastPriceUpdate={lastPriceUpdate}
@@ -213,7 +213,7 @@ function AppContent() {
               onNavigateToLogin={() => navigate('/login')}
               onNavigateToSignup={() => navigate('/signup')}
             />
-            
+
             <main className="container mx-auto px-4 py-8">
               <div className="max-w-7xl mx-auto space-y-8">
                 {isAdmin() && (
@@ -235,7 +235,7 @@ function AppContent() {
       <Route path="/trade-signals" element={
         <ProtectedRoute>
           <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300">
-            <Header 
+            <Header
               isConnected={isConnected}
               currentPage="trade-signals"
               lastPriceUpdate={lastPriceUpdate}
@@ -265,7 +265,7 @@ function AppContent() {
       <Route path="/stocks" element={
         <ProtectedRoute adminOnly>
           <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300">
-            <Header 
+            <Header
               isConnected={isConnected}
               currentPage="stocks"
               lastPriceUpdate={lastPriceUpdate}
@@ -294,7 +294,7 @@ function AppContent() {
       <Route path="/historical/:symbol" element={
         <ProtectedRoute adminOnly>
           <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300">
-            <Header 
+            <Header
               isConnected={isConnected}
               currentPage="historical"
               lastPriceUpdate={lastPriceUpdate}
@@ -323,7 +323,7 @@ function AppContent() {
       <Route path="/admin" element={
         <ProtectedRoute adminOnly>
           <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300">
-            <Header 
+            <Header
               isConnected={isConnected}
               currentPage="admin"
               lastPriceUpdate={lastPriceUpdate}
@@ -352,7 +352,7 @@ function AppContent() {
       <Route path="/settings" element={
         <ProtectedRoute adminOnly>
           <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300">
-            <Header 
+            <Header
               isConnected={isConnected}
               currentPage="settings"
               lastPriceUpdate={lastPriceUpdate}
@@ -388,7 +388,7 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <Toaster 
+        <Toaster
           position="top-right"
           toastOptions={{
             duration: 3000,

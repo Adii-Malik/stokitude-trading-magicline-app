@@ -61,6 +61,29 @@ const stockSchema = new mongoose.Schema({
   lastUpdated: {
     type: Date,
     default: null
+  },
+  // Historical data status
+  historicalDataStatus: {
+    type: String,
+    enum: ['available', 'not_available'],
+    default: 'not_available'
+  },
+  scrapeStatus: {
+    type: String,
+    enum: ['pending', 'in_progress', 'completed', 'failed'],
+    default: 'pending'
+  },
+  lastScrapedDate: {
+    type: Date,
+    default: null
+  },
+  scrapeProgress: {
+    type: {
+      total: { type: Number, default: 0 },
+      completed: { type: Number, default: 0 },
+      failed: { type: Number, default: 0 }
+    },
+    default: () => ({ total: 0, completed: 0, failed: 0 })
   }
 }, {
   timestamps: true
