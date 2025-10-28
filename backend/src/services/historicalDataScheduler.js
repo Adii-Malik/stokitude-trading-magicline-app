@@ -1,7 +1,8 @@
 import Stock from '../models/Stock.js';
-import historicalDataScraper from './historicalDataScraper.js';
-import dataAggregationService from '../services/dataAggregationService.js';
+import stockAnalysisScraper from './stockAnalysisScraper.js';
 import PsxDaily from '../models/PsxDaily.js';
+import PsxWeekly from '../models/PsxWeekly.js';
+import PsxMonthly from '../models/PsxMonthly.js';
 import dayjs from 'dayjs';
 
 class HistoricalDataScheduler {
@@ -98,32 +99,89 @@ class HistoricalDataScheduler {
             let successCount = 0;
             let failCount = 0;
 
-            // Update each symbol
+            // Update each symbol (fetch last 3 months, save only today's data)
             for (const stock of stocks) {
                 try {
-                    console.log(`  📥 Fetching ${stock.symbol} for ${todayStr}...`);
+                    console.log(`  📥 Updating ${stock.symbol} for ${todayStr}...`);
 
-                    const data = await historicalDataScraper.scrapeDate(stock.symbol, todayStr);
+                    // Fetch last 3 months' data to ensure we capture today's data
+                    const results = await stockAnalysisScraper.fetchAllTimeframes(stock.symbol, '3M');
 
-                    if (data) {
-                        // Save to database
-                        await PsxDaily.findOneAndUpdate(
-                            { symbol: data.symbol, date: data.date },
-                            {
-                                stockId: stock._id,
-                                ...data
-                            },
-                            { upsert: true, new: true }
-                        );
+                    let savedCount = 0;
 
-                        // Update aggregations
-                        await dataAggregationService.aggregateAll(stock.symbol);
+                    // Save daily data - ONLY today's data
+                    if (results.daily.success.length > 0) {
+                        const todayData = results.daily.success.filter(data => {
+                            const dataDate = dayjs(data.date).format('YYYY-MM-DD');
+                            return dataDate === todayStr;
+                        });
 
+                        if (todayData.length > 0) {
+                            const dailyOps = todayData.map(data => ({
+                                updateOne: {
+                                    filter: { symbol: data.symbol, date: data.date },
+                                    update: { $set: { stockId: stock._id, ...data } },
+                                    upsert: true
+                                }
+                            }));
+                            await PsxDaily.bulkWrite(dailyOps);
+                            savedCount += todayData.length;
+                            console.log(`     ✓ Daily: ${todayData.length} record(s) for ${todayStr}`);
+                        } else {
+                            console.log(`     ⚠️ No daily data found for ${todayStr}`);
+                        }
+                    }
+
+                    // Save/update weekly data for current week (if available)
+                    if (results.weekly.success.length > 0) {
+                        const thisWeekStart = today.startOf('week').toDate();
+                        const thisWeekData = results.weekly.success.filter(data => {
+                            const weekStart = new Date(data.weekStart);
+                            return weekStart.getTime() === thisWeekStart.getTime();
+                        });
+
+                        if (thisWeekData.length > 0) {
+                            const weeklyOps = thisWeekData.map(data => ({
+                                updateOne: {
+                                    filter: { symbol: data.symbol, weekStart: data.weekStart },
+                                    update: { $set: { stockId: stock._id, ...data } },
+                                    upsert: true
+                                }
+                            }));
+                            await PsxWeekly.bulkWrite(weeklyOps);
+                            savedCount += thisWeekData.length;
+                            console.log(`     ✓ Weekly: ${thisWeekData.length} record(s) updated`);
+                        }
+                    }
+
+                    // Save/update monthly data for current month (if available)
+                    if (results.monthly.success.length > 0) {
+                        const thisMonthStart = today.startOf('month').toDate();
+                        const thisMonthData = results.monthly.success.filter(data => {
+                            const monthStart = new Date(data.monthStart);
+                            return monthStart.getTime() === thisMonthStart.getTime();
+                        });
+
+                        if (thisMonthData.length > 0) {
+                            const monthlyOps = thisMonthData.map(data => ({
+                                updateOne: {
+                                    filter: { symbol: data.symbol, monthStart: data.monthStart },
+                                    update: { $set: { stockId: stock._id, ...data } },
+                                    upsert: true
+                                }
+                            }));
+                            await PsxMonthly.bulkWrite(monthlyOps);
+                            savedCount += thisMonthData.length;
+                            console.log(`     ✓ Monthly: ${thisMonthData.length} record(s) updated`);
+                        }
+                    }
+
+                    if (savedCount > 0) {
                         successCount++;
-                        console.log(`  ✅ Updated ${stock.symbol}`);
+                        console.log(`  ✅ Updated ${stock.symbol} (${savedCount} records)`);
                     } else {
                         failCount++;
-                        console.log(`  ⚠️  No data for ${stock.symbol}`);
+                        console.log(`  ⚠️  No new data for ${stock.symbol}`);
                     }
                 } catch (error) {
                     failCount++;

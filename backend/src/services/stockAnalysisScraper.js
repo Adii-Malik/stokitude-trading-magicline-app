@@ -13,14 +13,15 @@ const RANGE = '10Y'; // 10 years of data
  * Fetch historical data for a symbol
  * @param {string} symbol - Stock symbol (e.g., 'MARI')
  * @param {string} period - 'Daily', 'Weekly', or 'Monthly'
+ * @param {string} range - Time range (e.g., '10Y', '1M', '1Y')
  * @returns {Promise<Object>} - { success: array, failed: array, total: number }
  */
-async function fetchHistoricalData(symbol, period = 'Daily') {
-    const url = `${BASE_URL}/PSX-${symbol}/history?range=${RANGE}&period=${period}`;
-    
+async function fetchHistoricalData(symbol, period = 'Daily', range = RANGE) {
+    const url = `${BASE_URL}/PSX-${symbol}/history?range=${range}&period=${period}`;
+
     try {
         console.log(`📥 Fetching ${period} data for ${symbol} from StockAnalysis.com...`);
-        
+
         const response = await axios.get(url, {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -31,12 +32,12 @@ async function fetchHistoricalData(symbol, period = 'Daily') {
 
         if (response.data && response.data.status === 200 && Array.isArray(response.data.data)) {
             const data = response.data.data;
-            
+
             // Transform to our schema
             const transformed = data.map(row => {
-                const dateField = period === 'Daily' ? 'date' : 
-                                period === 'Weekly' ? 'weekStart' : 'monthStart';
-                
+                const dateField = period === 'Daily' ? 'date' :
+                    period === 'Weekly' ? 'weekStart' : 'monthStart';
+
                 return {
                     symbol: symbol.toUpperCase(),
                     [dateField]: new Date(row.t),
@@ -50,7 +51,7 @@ async function fetchHistoricalData(symbol, period = 'Daily') {
             });
 
             console.log(`✅ Fetched ${transformed.length} ${period.toLowerCase()} records for ${symbol}`);
-            
+
             return {
                 success: transformed,
                 failed: [],
@@ -61,7 +62,7 @@ async function fetchHistoricalData(symbol, period = 'Daily') {
         }
     } catch (error) {
         console.error(`❌ Error fetching ${period} data for ${symbol}:`, error.message);
-        
+
         return {
             success: [],
             failed: [{ symbol, period, error: error.message }],
@@ -73,15 +74,16 @@ async function fetchHistoricalData(symbol, period = 'Daily') {
 /**
  * Fetch all timeframes for a symbol
  * @param {string} symbol - Stock symbol
+ * @param {string} range - Time range (default: '10Y')
  * @returns {Promise<Object>} - { daily, weekly, monthly }
  */
-async function fetchAllTimeframes(symbol) {
-    console.log(`\n📊 Fetching all timeframes for ${symbol}...`);
-    
+async function fetchAllTimeframes(symbol, range = '10Y') {
+    console.log(`\n📊 Fetching all timeframes for ${symbol} (${range})...`);
+
     const [daily, weekly, monthly] = await Promise.all([
-        fetchHistoricalData(symbol, 'Daily'),
-        fetchHistoricalData(symbol, 'Weekly'),
-        fetchHistoricalData(symbol, 'Monthly')
+        fetchHistoricalData(symbol, 'Daily', range),
+        fetchHistoricalData(symbol, 'Weekly', range),
+        fetchHistoricalData(symbol, 'Monthly', range)
     ]);
 
     const totalRecords = daily.success.length + weekly.success.length + monthly.success.length;
@@ -104,7 +106,7 @@ async function symbolExists(symbol) {
             },
             timeout: 10000
         });
-        
+
         return response.data && response.data.status === 200;
     } catch (error) {
         return false;
