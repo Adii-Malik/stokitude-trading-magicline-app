@@ -50,23 +50,64 @@ app.use(cookieParser());
 const frontendDistPath = path.join(__dirname, '../../frontend/dist');
 app.use(express.static(frontendDistPath));
 
-// Health check endpoint
+// Health check endpoint - monitor automated services
 app.get('/health', async (req, res) => {
+  const fs = await import('fs');
+  const frontendBuilt = fs.existsSync(path.join(frontendDistPath, 'index.html'));
+
+  const isDev = config.nodeEnv === 'development';
+  const backendUrl = isDev
+    ? `http://localhost:${config.port}`
+    : `${req.protocol}://${req.get('host')}`;
+  const frontendUrl = isDev
+    ? `http://localhost:${process.env.VITE_PORT || 3000}`
+    : backendUrl;
+
+  const health = {
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    backend: {
+      environment: config.nodeEnv,
+      url: backendUrl,
+      port: config.port,
+      uptime: `${Math.floor(process.uptime() / 60)}m ${Math.floor(process.uptime() % 60)}s`
+    },
+    frontend: {
+      status: isDev
+        ? 'dev mode (separate server)'
+        : (frontendBuilt ? 'available' : 'missing'),
+      url: frontendUrl,
+      port: isDev ? (parseInt(process.env.VITE_PORT) || 3000) : config.port,
+      servedBy: isDev ? 'vite dev server' : 'backend'
+    },
+    database: {
+      status: 'disconnected'
+    },
+    services: {
+      pricePolling: centralizedPriceService.isRunning ? 'running' : 'stopped',
+      historicalDataScheduler: historicalDataScheduler.isRunning ? 'running' : 'stopped',
+      socketIO: io.engine.clientsCount > 0 ? `active (${io.engine.clientsCount} clients)` : 'idle',
+      marketStatus: marketHoursService.getMarketStatus().isOpen ? 'open' : 'closed'
+    }
+  };
+
   try {
-    const symbols = await db.getAllSymbols();
-    res.json({
-      status: 'ok',
-      timestamp: new Date().toISOString(),
-      mode: 'on-demand',
-      symbolsCount: symbols.length,
-      dataSource: 'PSX Official (dps.psx.com.pk) - Closing Prices'
-    });
+    // Check DB connection
+    const mongoose = (await import('mongoose')).default;
+    if (mongoose.connection.readyState === 1) {
+      health.database.status = 'connected';
+    } else {
+      health.status = 'degraded';
+      health.database.status = 'disconnected';
+    }
   } catch (error) {
-    res.status(500).json({
-      status: 'error',
-      message: error.message
-    });
+    health.status = 'degraded';
+    health.database.status = 'error';
+    health.database.error = error.message;
   }
+
+  const statusCode = health.status === 'ok' ? 200 : 503;
+  res.status(statusCode).json(health);
 });
 
 // API Routes
