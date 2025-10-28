@@ -118,7 +118,7 @@ router.post('/scrape', async (req, res) => {
 router.get('/:symbol', async (req, res) => {
     try {
         const { symbol } = req.params;
-        const { timeframe = 'daily', limit = 100, skip = 0 } = req.query;
+        const { timeframe = 'daily', limit = 100, skip = 0, startDate, endDate } = req.query;
 
         let Model;
         let dateField;
@@ -134,13 +134,25 @@ router.get('/:symbol', async (req, res) => {
             dateField = 'date';
         }
 
-        const data = await Model.find({ symbol })
+        // Build query with date filters
+        const query = { symbol };
+        if (startDate || endDate) {
+            query[dateField] = {};
+            if (startDate) {
+                query[dateField].$gte = new Date(startDate);
+            }
+            if (endDate) {
+                query[dateField].$lte = new Date(endDate);
+            }
+        }
+
+        const data = await Model.find(query)
             .sort({ [dateField]: -1 })
             .limit(parseInt(limit))
             .skip(parseInt(skip))
             .lean();
 
-        const total = await Model.countDocuments({ symbol });
+        const total = await Model.countDocuments(query);
 
         res.json({
             success: true,
@@ -151,7 +163,8 @@ router.get('/:symbol', async (req, res) => {
                 pagination: {
                     total,
                     limit: parseInt(limit),
-                    skip: parseInt(skip)
+                    skip: parseInt(skip),
+                    pages: Math.ceil(total / parseInt(limit))
                 }
             }
         });

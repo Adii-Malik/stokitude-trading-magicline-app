@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Download, BarChart3, Calendar } from 'lucide-react';
+import { ArrowLeft, Download, BarChart3, Calendar, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getHistoricalData } from '../services/historical';
 
@@ -15,10 +15,11 @@ export default function HistoricalDataViewer() {
   const [downloading, setDownloading] = useState(false);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [jumpToPage, setJumpToPage] = useState('');
 
   useEffect(() => {
     fetchHistoricalData();
-  }, [symbol, timeframe, pagination.page, startDate, endDate]);
+  }, [symbol, timeframe, pagination.page, pagination.limit, startDate, endDate]);
 
   const fetchHistoricalData = async () => {
     try {
@@ -41,25 +42,11 @@ export default function HistoricalDataViewer() {
         return;
       }
 
-      // Filter data client-side if dates are set (backend might not support date filtering yet)
-      let filteredData = result.data.data || [];
-      if (startDate || endDate) {
-        filteredData = filteredData.filter(row => {
-          const rowDate = new Date(row.date || row.weekStart || row.monthStart);
-          const start = startDate ? new Date(startDate) : null;
-          const end = endDate ? new Date(endDate) : null;
-
-          if (start && rowDate < start) return false;
-          if (end && rowDate > end) return false;
-          return true;
-        });
-      }
-
-      setData(filteredData);
+      setData(result.data.data || []);
       setPagination(prev => ({
         ...prev,
         total: result.data.pagination?.total || 0,
-        pages: Math.ceil((result.data.pagination?.total || 0) / pagination.limit)
+        pages: result.data.pagination?.pages || 0
       }));
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -118,6 +105,23 @@ export default function HistoricalDataViewer() {
     setStartDate('');
     setEndDate('');
     setPagination(prev => ({ ...prev, page: 1 }));
+  };
+
+  const handlePageSizeChange = (newLimit) => {
+    setPagination(prev => ({
+      ...prev,
+      limit: parseInt(newLimit),
+      page: 1
+    }));
+  };
+
+  const handleJumpToPage = (e) => {
+    e.preventDefault();
+    const pageNum = parseInt(jumpToPage);
+    if (pageNum >= 1 && pageNum <= pagination.pages) {
+      setPagination(prev => ({ ...prev, page: pageNum }));
+      setJumpToPage('');
+    }
   };
 
   return (
@@ -194,7 +198,7 @@ export default function HistoricalDataViewer() {
               <button
                 onClick={handleDownloadCSV}
                 disabled={downloading || data.length === 0}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white font-medium rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
               >
                 <Download className="w-4 h-4" />
                 {downloading ? 'Downloading...' : 'Download CSV'}
@@ -216,6 +220,7 @@ export default function HistoricalDataViewer() {
                       setStartDate(e.target.value);
                       setPagination(prev => ({ ...prev, page: 1 }));
                     }}
+                    max={endDate || undefined}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500"
                   />
                 </div>
@@ -232,6 +237,7 @@ export default function HistoricalDataViewer() {
                       setEndDate(e.target.value);
                       setPagination(prev => ({ ...prev, page: 1 }));
                     }}
+                    min={startDate || undefined}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500"
                   />
                 </div>
@@ -245,6 +251,15 @@ export default function HistoricalDataViewer() {
                   </button>
                 )}
               </div>
+              {(startDate || endDate) && (
+                <div className="mt-3 text-sm text-gray-600 dark:text-gray-400">
+                  {startDate && endDate
+                    ? `Showing data from ${new Date(startDate).toLocaleDateString()} to ${new Date(endDate).toLocaleDateString()}`
+                    : startDate
+                      ? `Showing data from ${new Date(startDate).toLocaleDateString()} onwards`
+                      : `Showing data up to ${new Date(endDate).toLocaleDateString()}`}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -324,32 +339,99 @@ export default function HistoricalDataViewer() {
               </div>
 
               {/* Pagination */}
-              {pagination.pages > 1 && (
-                <div className="px-6 py-4 bg-gray-50 dark:bg-gray-900/30 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    Showing page {pagination.page} of {pagination.pages} ({pagination.total} total records)
+              <div className="px-6 py-4 bg-gray-50 dark:bg-gray-900/30 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+                  {/* Left: Info & Rows per page */}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                      Showing {data.length > 0 ? ((pagination.page - 1) * pagination.limit) + 1 : 0} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} records
+                    </div>
+
+                    {/* Rows per page */}
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                        Rows per page:
+                      </label>
+                      <select
+                        value={pagination.limit}
+                        onChange={(e) => handlePageSizeChange(e.target.value)}
+                        className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 font-medium"
+                      >
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                        <option value="250">250</option>
+                        <option value="500">500</option>
+                      </select>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
-                      disabled={pagination.page === 1}
-                      className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                    >
-                      Previous
-                    </button>
-                    <span className="px-4 py-2 text-gray-700 dark:text-gray-300 font-medium">
-                      Page {pagination.page}
-                    </span>
-                    <button
-                      onClick={() => setPagination(prev => ({ ...prev, page: Math.min(pagination.pages, prev.page + 1) }))}
-                      disabled={pagination.page >= pagination.pages}
-                      className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                    >
-                      Next
-                    </button>
-                  </div>
+
+                  {/* Right: Controls */}
+                  {pagination.pages > 1 && (
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
+                      {/* Jump to page */}
+                      <form onSubmit={handleJumpToPage} className="flex items-center gap-2">
+                        <span className="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">Go to:</span>
+                        <input
+                          type="number"
+                          min="1"
+                          max={pagination.pages}
+                          value={jumpToPage}
+                          onChange={(e) => setJumpToPage(e.target.value)}
+                          placeholder={`${pagination.page}`}
+                          className="w-20 px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                        />
+                        <button
+                          type="submit"
+                          disabled={!jumpToPage || parseInt(jumpToPage) < 1 || parseInt(jumpToPage) > pagination.pages}
+                          className="px-3 py-1.5 bg-cyan-500 hover:bg-cyan-600 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Go
+                        </button>
+                      </form>
+
+                      {/* Navigation buttons */}
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => setPagination(prev => ({ ...prev, page: 1 }))}
+                          disabled={pagination.page === 1}
+                          className="p-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="First page"
+                        >
+                          <ChevronsLeft className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
+                          disabled={pagination.page === 1}
+                          className="p-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Previous page"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                        </button>
+                        <span className="px-4 py-2 text-gray-700 dark:text-gray-300 font-medium text-sm flex items-center">
+                          {pagination.page} / {pagination.pages}
+                        </span>
+                        <button
+                          onClick={() => setPagination(prev => ({ ...prev, page: Math.min(pagination.pages, prev.page + 1) }))}
+                          disabled={pagination.page >= pagination.pages}
+                          className="p-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Next page"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => setPagination(prev => ({ ...prev, page: pagination.pages }))}
+                          disabled={pagination.page >= pagination.pages}
+                          className="p-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Last page"
+                        >
+                          <ChevronsRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </>
           )}
         </div>
