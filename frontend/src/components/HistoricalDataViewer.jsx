@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Download, BarChart3, Calendar, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Download, BarChart3, Calendar, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getHistoricalData } from '../services/historical';
 
@@ -16,6 +16,7 @@ export default function HistoricalDataViewer() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [jumpToPage, setJumpToPage] = useState('');
+  const [useAdjusted, setUseAdjusted] = useState(false);
 
   useEffect(() => {
     fetchHistoricalData();
@@ -171,26 +172,55 @@ export default function HistoricalDataViewer() {
         <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-lg p-6 mb-6 shadow-md">
           <div className="flex flex-col gap-6">
 
-            {/* Top Row: Timeframe & Download */}
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              {/* Timeframe Selector */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Timeframe
-                </label>
-                <div className="flex gap-2">
-                  {['daily', 'weekly', 'monthly'].map(tf => (
+            {/* Top Row: Timeframe, Price Type & Download */}
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+              <div className="flex flex-col sm:flex-row gap-4">
+                {/* Timeframe Selector */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Timeframe
+                  </label>
+                  <div className="flex gap-2">
+                    {['daily', 'weekly', 'monthly'].map(tf => (
+                      <button
+                        key={tf}
+                        onClick={() => handleTimeframeChange(tf)}
+                        className={`px-4 py-2 rounded-lg font-medium transition-all ${timeframe === tf
+                          ? 'bg-cyan-500 text-white shadow-lg'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                          }`}
+                      >
+                        {tf.charAt(0).toUpperCase() + tf.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Price Type Toggle */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Price Type
+                  </label>
+                  <div className="flex gap-2">
                     <button
-                      key={tf}
-                      onClick={() => handleTimeframeChange(tf)}
-                      className={`px-4 py-2 rounded-lg font-medium transition-all ${timeframe === tf
-                        ? 'bg-cyan-500 text-white shadow-lg'
+                      onClick={() => setUseAdjusted(false)}
+                      className={`px-4 py-2 rounded-lg font-medium transition-all ${!useAdjusted
+                        ? 'bg-blue-500 text-white shadow-lg'
                         : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                         }`}
                     >
-                      {tf.charAt(0).toUpperCase() + tf.slice(1)}
+                      Unadjusted
                     </button>
-                  ))}
+                    <button
+                      onClick={() => setUseAdjusted(true)}
+                      className={`px-4 py-2 rounded-lg font-medium transition-all ${useAdjusted
+                        ? 'bg-blue-500 text-white shadow-lg'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                        }`}
+                    >
+                      Adjusted
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -207,11 +237,19 @@ export default function HistoricalDataViewer() {
 
             {/* Bottom Row: Date Range Filters */}
             <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+              {/* Info Banner */}
+              <div className="mb-4 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-lg p-3 flex items-start gap-2">
+                <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                <div className="text-sm text-blue-800 dark:text-blue-300">
+                  <span className="font-semibold">Available Data:</span> Up to 10 years of historical data. Use date filters below to narrow your view.
+                </div>
+              </div>
+
               <div className="flex flex-col md:flex-row md:items-end gap-4">
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
                     <Calendar className="w-4 h-4" />
-                    Start Date
+                    From Date
                   </label>
                   <input
                     type="date"
@@ -220,15 +258,17 @@ export default function HistoricalDataViewer() {
                       setStartDate(e.target.value);
                       setPagination(prev => ({ ...prev, page: 1 }));
                     }}
-                    max={endDate || undefined}
+                    max={endDate || new Date().toISOString().split('T')[0]}
+                    min={new Date(new Date().setFullYear(new Date().getFullYear() - 10)).toISOString().split('T')[0]}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    placeholder="Optional"
                   />
                 </div>
 
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
                     <Calendar className="w-4 h-4" />
-                    End Date
+                    To Date
                   </label>
                   <input
                     type="date"
@@ -237,27 +277,73 @@ export default function HistoricalDataViewer() {
                       setEndDate(e.target.value);
                       setPagination(prev => ({ ...prev, page: 1 }));
                     }}
-                    min={startDate || undefined}
+                    min={startDate || new Date(new Date().setFullYear(new Date().getFullYear() - 10)).toISOString().split('T')[0]}
+                    max={new Date().toISOString().split('T')[0]}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    placeholder="Optional"
                   />
                 </div>
 
-                {(startDate || endDate) && (
-                  <button
-                    onClick={handleClearFilters}
-                    className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg transition-colors whitespace-nowrap"
-                  >
-                    Clear Filters
-                  </button>
-                )}
+                <div className="flex gap-2">
+                  {/* Quick filters */}
+                  <div className="flex flex-col gap-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Quick Filter
+                    </label>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          const today = new Date();
+                          const oneYearAgo = new Date(today.setFullYear(today.getFullYear() - 1));
+                          setStartDate(oneYearAgo.toISOString().split('T')[0]);
+                          setEndDate(new Date().toISOString().split('T')[0]);
+                          setPagination(prev => ({ ...prev, page: 1 }));
+                        }}
+                        className="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
+                      >
+                        1 Year
+                      </button>
+                      <button
+                        onClick={() => {
+                          const today = new Date();
+                          const fiveYearsAgo = new Date(today.setFullYear(today.getFullYear() - 5));
+                          setStartDate(fiveYearsAgo.toISOString().split('T')[0]);
+                          setEndDate(new Date().toISOString().split('T')[0]);
+                          setPagination(prev => ({ ...prev, page: 1 }));
+                        }}
+                        className="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
+                      >
+                        5 Years
+                      </button>
+                    </div>
+                  </div>
+
+                  {(startDate || endDate) && (
+                    <div className="flex flex-col gap-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 opacity-0">
+                        Clear
+                      </label>
+                      <button
+                        onClick={handleClearFilters}
+                        className="px-4 py-2 bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/50 text-red-700 dark:text-red-300 font-medium rounded-lg transition-colors whitespace-nowrap"
+                      >
+                        Clear All
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
+
               {(startDate || endDate) && (
-                <div className="mt-3 text-sm text-gray-600 dark:text-gray-400">
-                  {startDate && endDate
-                    ? `Showing data from ${new Date(startDate).toLocaleDateString()} to ${new Date(endDate).toLocaleDateString()}`
-                    : startDate
-                      ? `Showing data from ${new Date(startDate).toLocaleDateString()} onwards`
-                      : `Showing data up to ${new Date(endDate).toLocaleDateString()}`}
+                <div className="mt-3 flex items-center gap-2 text-sm text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/30 rounded-lg p-2">
+                  <CheckCircle className="w-4 h-4" />
+                  <span>
+                    {startDate && endDate
+                      ? `Filtering data from ${new Date(startDate).toLocaleDateString()} to ${new Date(endDate).toLocaleDateString()}`
+                      : startDate
+                        ? `Showing data from ${new Date(startDate).toLocaleDateString()} onwards`
+                        : `Showing data up to ${new Date(endDate).toLocaleDateString()}`}
+                  </span>
                 </div>
               )}
             </div>
@@ -300,7 +386,7 @@ export default function HistoricalDataViewer() {
                         Low
                       </th>
                       <th className="px-6 py-4 text-right text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
-                        Close
+                        Close {useAdjusted && <span className="text-blue-500">(Adj)</span>}
                       </th>
                       <th className="px-6 py-4 text-right text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
                         Volume
@@ -326,7 +412,9 @@ export default function HistoricalDataViewer() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right">
                           <span className="font-semibold text-cyan-600 dark:text-cyan-400">
-                            {row.close ? parseFloat(row.close).toFixed(2) : '-'}
+                            {useAdjusted
+                              ? (row.adjClose ? parseFloat(row.adjClose).toFixed(2) : (row.close ? parseFloat(row.close).toFixed(2) : '-'))
+                              : (row.close ? parseFloat(row.close).toFixed(2) : '-')}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-gray-600 dark:text-gray-400 text-sm">

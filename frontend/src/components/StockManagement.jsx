@@ -257,11 +257,6 @@ export default function StockManagement() {
       return;
     }
 
-    if (!scrapeStartDate || !scrapeEndDate) {
-      showMessage('Please select start and end dates', 'error');
-      return;
-    }
-
     try {
       setIsScraping(true);
 
@@ -276,18 +271,12 @@ export default function StockManagement() {
         return;
       }
 
-      const data = await startScraping(
-        symbolStrings,
-        scrapeStartDate,
-        scrapeEndDate
-      );
+      const data = await startScraping(symbolStrings);
 
-      showMessage(`Scraping started for ${selectedSymbols.length} symbol(s)`, 'success');
+      showMessage(`Scraping started for ${selectedSymbols.length} symbol(s) - fetching 10 years of data`, 'success');
       setShowScrapeModal(false);
       setScrapeDropdownOpen(false);
       setSelectedSymbols([]);
-      setScrapeStartDate('2023-01-01');
-      setScrapeEndDate(new Date().toISOString().split('T')[0]);
     } catch (error) {
       console.error('Error starting scrape:', error);
       showMessage(error.message || 'Failed to start scraping', 'error');
@@ -907,38 +896,23 @@ export default function StockManagement() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Start Date <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={scrapeStartDate}
-                    onChange={(e) => setScrapeStartDate(e.target.value)}
-                    disabled={isScraping}
-                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition disabled:opacity-50"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    End Date <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={scrapeEndDate}
-                    onChange={(e) => setScrapeEndDate(e.target.value)}
-                    disabled={isScraping}
-                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition disabled:opacity-50"
-                    required
-                  />
-                </div>
-
-                <div className="bg-cyan-50 dark:bg-cyan-500/10 border border-cyan-200 dark:border-cyan-500/30 rounded-lg p-3">
-                  <p className="text-sm text-cyan-900 dark:text-cyan-300">
-                    <span className="font-semibold">Note:</span> This will scrape historical OHLCV data for selected symbols from the date range above.
-                  </p>
+                <div className="bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-500/10 dark:to-blue-500/10 border border-cyan-200 dark:border-cyan-500/30 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <BarChart3 className="w-5 h-5 text-cyan-600 dark:text-cyan-400 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-semibold text-cyan-900 dark:text-cyan-300 mb-1">
+                        10 Years of Historical Data
+                      </p>
+                      <p className="text-xs text-cyan-800 dark:text-cyan-400">
+                        This will automatically fetch <span className="font-semibold">10 years</span> of OHLCV data with adjusted close prices for all selected symbols.
+                      </p>
+                      <p className="text-xs text-cyan-700 dark:text-cyan-500 mt-2">
+                        • Daily, Weekly & Monthly data included<br />
+                        • Adjusted for dividends & splits<br />
+                        • Ready for backtesting & analysis
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex gap-2 pt-4">

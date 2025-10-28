@@ -30,14 +30,18 @@ const psxMonthlySchema = new mongoose.Schema({
         type: Number,
         required: true
     },
-    close: {
-        type: Number,
-        required: true
-    },
-    volume: {
-        type: Number,
-        required: true
-    }
+  close: {
+    type: Number,
+    required: true
+  },
+  adjClose: {
+    type: Number,
+    default: null
+  },
+  volume: {
+    type: Number,
+    required: true
+  }
 }, {
     timestamps: true
 });

@@ -4,8 +4,7 @@ import PsxDaily from '../models/PsxDaily.js';
 import PsxWeekly from '../models/PsxWeekly.js';
 import PsxMonthly from '../models/PsxMonthly.js';
 import { authenticate, requireAdmin } from '../middleware/auth.js';
-import historicalDataScraper from '../services/historicalDataScraper.js';
-import dataAggregationService from '../services/dataAggregationService.js';
+import stockAnalysisScraper from '../services/stockAnalysisScraper.js';
 
 const router = express.Router();
 
@@ -15,7 +14,7 @@ router.use(authenticate, requireAdmin);
 // POST /api/historical/scrape - Scrape historical data for symbols
 router.post('/scrape', async (req, res) => {
     try {
-        const { symbols, startDate, endDate } = req.body;
+        const { symbols } = req.body;
 
         if (!symbols || !Array.isArray(symbols) || symbols.length === 0) {
             return res.status(400).json({
@@ -24,21 +23,13 @@ router.post('/scrape', async (req, res) => {
             });
         }
 
-        if (!startDate || !endDate) {
-            return res.status(400).json({
-                success: false,
-                message: 'Start date and end date are required'
-            });
-        }
-
         // Start scraping in background
         res.json({
             success: true,
-            message: 'Scraping started',
+            message: 'Scraping started (10 years of data)',
             data: {
                 symbolsCount: symbols.length,
-                startDate,
-                endDate
+                range: '10 years'
             }
         });
 
@@ -46,7 +37,7 @@ router.post('/scrape', async (req, res) => {
         (async () => {
             for (const symbol of symbols) {
                 try {
-                    console.log(`📥 Starting scrape for ${symbol}...`);
+                    console.log(`\n📥 Starting scrape for ${symbol}...`);
 
                     // Get or create stock record
                     let stock = await Stock.findOne({ symbol });
@@ -59,40 +50,65 @@ router.post('/scrape', async (req, res) => {
                     stock.scrapeProgress = { total: 0, completed: 0, failed: 0 };
                     await stock.save();
 
-                    // Scrape date range
-                    const results = await historicalDataScraper.scrapeDateRange(
-                        symbol,
-                        startDate,
-                        endDate
-                    );
+                    // Fetch all timeframes from StockAnalysis.com
+                    const results = await stockAnalysisScraper.fetchAllTimeframes(symbol);
 
-                    // Save to database
-                    for (const data of results.success) {
-                        await PsxDaily.findOneAndUpdate(
-                            { symbol: data.symbol, date: data.date },
-                            {
-                                stockId: stock._id,
-                                ...data
-                            },
-                            { upsert: true, new: true }
-                        );
+                    let totalSaved = 0;
+
+                    // Save daily data (bulk)
+                    if (results.daily.success.length > 0) {
+                        const dailyOps = results.daily.success.map(data => ({
+                            updateOne: {
+                                filter: { symbol: data.symbol, date: data.date },
+                                update: { $set: { stockId: stock._id, ...data } },
+                                upsert: true
+                            }
+                        }));
+                        await PsxDaily.bulkWrite(dailyOps);
+                        totalSaved += results.daily.success.length;
+                        console.log(`   ✓ Saved ${results.daily.success.length} daily records`);
                     }
 
-                    // Aggregate to weekly/monthly
-                    await dataAggregationService.aggregateAll(symbol);
+                    // Save weekly data (bulk)
+                    if (results.weekly.success.length > 0) {
+                        const weeklyOps = results.weekly.success.map(data => ({
+                            updateOne: {
+                                filter: { symbol: data.symbol, weekStart: data.weekStart },
+                                update: { $set: { stockId: stock._id, ...data } },
+                                upsert: true
+                            }
+                        }));
+                        await PsxWeekly.bulkWrite(weeklyOps);
+                        totalSaved += results.weekly.success.length;
+                        console.log(`   ✓ Saved ${results.weekly.success.length} weekly records`);
+                    }
+
+                    // Save monthly data (bulk)
+                    if (results.monthly.success.length > 0) {
+                        const monthlyOps = results.monthly.success.map(data => ({
+                            updateOne: {
+                                filter: { symbol: data.symbol, monthStart: data.monthStart },
+                                update: { $set: { stockId: stock._id, ...data } },
+                                upsert: true
+                            }
+                        }));
+                        await PsxMonthly.bulkWrite(monthlyOps);
+                        totalSaved += results.monthly.success.length;
+                        console.log(`   ✓ Saved ${results.monthly.success.length} monthly records`);
+                    }
 
                     // Update status
                     stock.scrapeStatus = 'completed';
                     stock.historicalDataStatus = 'available';
                     stock.lastScrapedDate = new Date();
                     stock.scrapeProgress = {
-                        total: results.total,
-                        completed: results.success.length,
-                        failed: results.failed.length
+                        total: totalSaved,
+                        completed: totalSaved,
+                        failed: 0
                     };
                     await stock.save();
 
-                    console.log(`✅ Scrape completed for ${symbol}: ${results.success.length}/${results.total} records`);
+                    console.log(`✅ Scrape completed for ${symbol}: ${totalSaved} total records saved`);
                 } catch (error) {
                     console.error(`❌ Error scraping ${symbol}:`, error.message);
 

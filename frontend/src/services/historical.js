@@ -1,11 +1,10 @@
 import api from './api';
 
 // Start scraping historical data for symbols (Admin only)
-export const startScraping = async (symbols, startDate, endDate) => {
+// Fetches 10 years of data by default
+export const startScraping = async (symbols) => {
     const response = await api.post('/historical/scrape', {
-        symbols,
-        startDate,
-        endDate
+        symbols
     });
     return response.data;
 };

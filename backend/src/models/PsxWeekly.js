@@ -34,6 +34,10 @@ const psxWeeklySchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  adjClose: {
+    type: Number,
+    default: null
+  },
   volume: {
     type: Number,
     required: true
