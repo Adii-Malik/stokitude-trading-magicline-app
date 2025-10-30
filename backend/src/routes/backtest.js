@@ -2,7 +2,7 @@ import express from 'express';
 import BacktestResult from '../models/BacktestResult.js';
 import TradingStrategy from '../models/TradingStrategy.js';
 import pythonService from '../services/pythonStrategyService.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -10,7 +10,7 @@ const router = express.Router();
  * POST /api/backtest/run
  * Trigger a new backtest
  */
-router.post('/run', authenticateToken, async (req, res) => {
+router.post('/run', authenticate, async (req, res) => {
   try {
     const {
       strategyId,
@@ -85,7 +85,7 @@ router.post('/run', authenticateToken, async (req, res) => {
       .then(async (result) => {
         if (result.success) {
           await backtestResult.markCompleted(result.performance, result.trades);
-          
+
           // Update strategy performance
           await strategy.updatePerformance(result.performance);
         } else {
@@ -119,7 +119,7 @@ router.post('/run', authenticateToken, async (req, res) => {
  * GET /api/backtest/:id
  * Get backtest result by ID
  */
-router.get('/:id', authenticateToken, async (req, res) => {
+router.get('/:id', authenticate, async (req, res) => {
   try {
     const backtest = await BacktestResult.getByIdForUser(req.params.id, req.user.userId);
 
@@ -148,7 +148,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
  * GET /api/backtest/:id/status
  * Get backtest status
  */
-router.get('/:id/status', authenticateToken, async (req, res) => {
+router.get('/:id/status', authenticate, async (req, res) => {
   try {
     const backtest = await BacktestResult.findOne({
       _id: req.params.id,
@@ -182,7 +182,7 @@ router.get('/:id/status', authenticateToken, async (req, res) => {
  * GET /api/backtest/history
  * Get user's backtest history
  */
-router.get('/history', authenticateToken, async (req, res) => {
+router.get('/history', authenticate, async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 20;
     const backtests = await BacktestResult.getUserHistory(req.user.userId, limit);
@@ -205,7 +205,7 @@ router.get('/history', authenticateToken, async (req, res) => {
  * DELETE /api/backtest/:id
  * Delete a backtest result
  */
-router.delete('/:id', authenticateToken, async (req, res) => {
+router.delete('/:id', authenticate, async (req, res) => {
   try {
     const backtest = await BacktestResult.findOneAndDelete({
       _id: req.params.id,

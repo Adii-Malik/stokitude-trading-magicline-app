@@ -1,7 +1,7 @@
 import express from 'express';
 import TradingStrategy from '../models/TradingStrategy.js';
 import pythonService from '../services/pythonStrategyService.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -9,7 +9,7 @@ const router = express.Router();
  * GET /api/strategies
  * Get all strategies for the authenticated user
  */
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', authenticate, async (req, res) => {
   try {
     const strategies = await TradingStrategy.getUserStrategies(req.user.userId);
     res.json({
@@ -30,7 +30,7 @@ router.get('/', authenticateToken, async (req, res) => {
  * GET /api/strategies/available
  * Get available strategies from Python service
  */
-router.get('/available', authenticateToken, async (req, res) => {
+router.get('/available', authenticate, async (req, res) => {
   try {
     const result = await pythonService.listStrategies();
     res.json(result);
@@ -48,7 +48,7 @@ router.get('/available', authenticateToken, async (req, res) => {
  * GET /api/strategies/:id
  * Get a specific strategy by ID
  */
-router.get('/:id', authenticateToken, async (req, res) => {
+router.get('/:id', authenticate, async (req, res) => {
   try {
     const strategy = await TradingStrategy.findOne({
       _id: req.params.id,
@@ -80,7 +80,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
  * POST /api/strategies
  * Create a new strategy
  */
-router.post('/', authenticateToken, async (req, res) => {
+router.post('/', authenticate, async (req, res) => {
   try {
     const { name, description, pythonStrategy, pythonConfig, isActive } = req.body;
 
@@ -134,7 +134,7 @@ router.post('/', authenticateToken, async (req, res) => {
  * PUT /api/strategies/:id
  * Update a strategy
  */
-router.put('/:id', authenticateToken, async (req, res) => {
+router.put('/:id', authenticate, async (req, res) => {
   try {
     const { name, description, pythonConfig, isActive } = req.body;
 
@@ -177,7 +177,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
  * DELETE /api/strategies/:id
  * Delete a strategy
  */
-router.delete('/:id', authenticateToken, async (req, res) => {
+router.delete('/:id', authenticate, async (req, res) => {
   try {
     const strategy = await TradingStrategy.findOneAndDelete({
       _id: req.params.id,
@@ -209,7 +209,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
  * POST /api/strategies/:id/activate
  * Activate a strategy for live trading
  */
-router.post('/:id/activate', authenticateToken, async (req, res) => {
+router.post('/:id/activate', authenticate, async (req, res) => {
   try {
     const strategy = await TradingStrategy.findOne({
       _id: req.params.id,
@@ -245,7 +245,7 @@ router.post('/:id/activate', authenticateToken, async (req, res) => {
  * POST /api/strategies/:id/deactivate
  * Deactivate a strategy
  */
-router.post('/:id/deactivate', authenticateToken, async (req, res) => {
+router.post('/:id/deactivate', authenticate, async (req, res) => {
   try {
     const strategy = await TradingStrategy.findOne({
       _id: req.params.id,

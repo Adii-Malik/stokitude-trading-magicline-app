@@ -10,6 +10,9 @@ import BacktestChart from './BacktestChart';
 import EquityCurveChart from './EquityCurveChart';
 import PerformanceMetricsCard from './PerformanceMetricsCard';
 import TradeListTable from './TradeListTable';
+import * as strategyService from '../../services/strategies';
+import * as backtestService from '../../services/backtest';
+import * as stockService from '../../services/stocks';
 
 export default function BacktestRunner() {
   const [strategies, setStrategies] = useState([]);
@@ -39,12 +42,7 @@ export default function BacktestRunner() {
 
   const fetchStrategies = async () => {
     try {
-      const response = await fetch('/api/strategies', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      const data = await response.json();
+      const data = await strategyService.getStrategies();
       if (data.success) {
         setStrategies(data.strategies || []);
       }
@@ -55,12 +53,7 @@ export default function BacktestRunner() {
 
   const fetchStocks = async () => {
     try {
-      const response = await fetch('/api/stocks', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      const data = await response.json();
+      const data = await stockService.getStocks();
       if (data.success) {
         setStocks(data.stocks || []);
       }
@@ -71,12 +64,7 @@ export default function BacktestRunner() {
 
   const fetchBacktestHistory = async () => {
     try {
-      const response = await fetch('/api/backtest/history', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      const data = await response.json();
+      const data = await backtestService.getBacktestHistory();
       if (data.success) {
         setBacktestResults(data.backtests || []);
       }
@@ -90,16 +78,7 @@ export default function BacktestRunner() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/backtest/run', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(formData)
-      });
-
-      const data = await response.json();
+      const data = await backtestService.runBacktest(formData);
       
       if (data.success) {
         toast.success('Backtest started successfully');
@@ -113,7 +92,7 @@ export default function BacktestRunner() {
       }
     } catch (error) {
       console.error('Error running backtest:', error);
-      toast.error('Failed to run backtest');
+      toast.error(error.response?.data?.message || 'Failed to run backtest');
       setLoading(false);
     }
   };
@@ -124,12 +103,7 @@ export default function BacktestRunner() {
 
     const poll = async () => {
       try {
-        const response = await fetch(`/api/backtest/${backtestId}`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-        const data = await response.json();
+        const data = await backtestService.getBacktestById(backtestId);
 
         if (data.success && data.backtest) {
           if (data.backtest.status === 'completed') {

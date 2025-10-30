@@ -2,7 +2,7 @@ import axios from 'axios';
 
 class PythonStrategyService {
   constructor() {
-    this.baseUrl = process.env.PYTHON_SERVICE_URL || 'http://localhost:5000';
+    this.baseUrl = process.env.PYTHON_SERVICE_URL || 'http://localhost:5002';
     this.timeout = parseInt(process.env.PYTHON_SERVICE_TIMEOUT) || 30000;
     this.retryAttempts = parseInt(process.env.PYTHON_SERVICE_RETRY_ATTEMPTS) || 3;
     this.retryDelay = parseInt(process.env.PYTHON_SERVICE_RETRY_DELAY) || 1000;
@@ -58,7 +58,7 @@ class PythonStrategyService {
    */
   async listStrategies() {
     try {
-      const response = await this.retryRequest(() => 
+      const response = await this.retryRequest(() =>
         this.client.get('/api/strategies')
       );
       return response.data;
@@ -166,8 +166,8 @@ class PythonStrategyService {
       }
 
       // Only retry on network errors or 5xx errors
-      const shouldRetry = 
-        !error.response || 
+      const shouldRetry =
+        !error.response ||
         (error.response.status >= 500 && error.response.status < 600);
 
       if (!shouldRetry) {
@@ -177,7 +177,7 @@ class PythonStrategyService {
       // Exponential backoff
       const delay = this.retryDelay * Math.pow(2, attempt - 1);
       console.log(`[Python Service] Retrying request (attempt ${attempt + 1}/${this.retryAttempts}) after ${delay}ms`);
-      
+
       await new Promise(resolve => setTimeout(resolve, delay));
       return this.retryRequest(requestFn, attempt + 1);
     }
@@ -218,7 +218,7 @@ class PythonStrategyService {
     const customError = new Error(errorDetails.message);
     customError.details = errorDetails;
     customError.statusCode = errorDetails.statusCode;
-    
+
     return customError;
   }
 

@@ -10,6 +10,7 @@ import {
   SparklesIcon
 } from '@heroicons/react/24/outline';
 import SignalChart from './SignalChart';
+import * as signalService from '../../services/signals';
 
 export default function SignalDashboard() {
   const [signals, setSignals] = useState([]);
@@ -44,12 +45,7 @@ export default function SignalDashboard() {
 
   const fetchSignals = async () => {
     try {
-      const response = await fetch('/api/signals', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      const data = await response.json();
+      const data = await signalService.getSignals();
       if (data.success) {
         setSignals(data.signals || []);
       }
@@ -108,16 +104,7 @@ export default function SignalDashboard() {
 
   const handleMarkExecuted = async (signalId, executedPrice) => {
     try {
-      const response = await fetch(`/api/signals/${signalId}/execute`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ executedPrice })
-      });
-
-      const data = await response.json();
+      const data = await signalService.markSignalExecuted(signalId, executedPrice);
       if (data.success) {
         toast.success('Signal marked as executed');
         fetchSignals();
@@ -126,7 +113,7 @@ export default function SignalDashboard() {
       }
     } catch (error) {
       console.error('Error marking signal as executed:', error);
-      toast.error('Failed to update signal');
+      toast.error(error.response?.data?.message || 'Failed to update signal');
     }
   };
 

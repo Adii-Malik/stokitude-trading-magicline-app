@@ -9,6 +9,7 @@ import {
   ChartBarIcon,
   CogIcon
 } from '@heroicons/react/24/outline';
+import * as strategyService from '../../services/strategies';
 
 export default function StrategyManager() {
   const [strategies, setStrategies] = useState([]);
@@ -32,12 +33,7 @@ export default function StrategyManager() {
 
   const fetchStrategies = async () => {
     try {
-      const response = await fetch('/api/strategies', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      const data = await response.json();
+      const data = await strategyService.getStrategies();
       if (data.success) {
         setStrategies(data.strategies || []);
       }
@@ -51,12 +47,7 @@ export default function StrategyManager() {
 
   const fetchAvailableStrategies = async () => {
     try {
-      const response = await fetch('/api/strategies/available', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      const data = await response.json();
+      const data = await strategyService.getAvailableStrategies();
       if (data.success) {
         setAvailableStrategies(data.strategies || []);
       }
@@ -68,15 +59,7 @@ export default function StrategyManager() {
   const handleCreate = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch('/api/strategies', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(formData)
-      });
-      const data = await response.json();
+      const data = await strategyService.createStrategy(formData);
       if (data.success) {
         toast.success('Strategy created successfully');
         setShowCreateModal(false);
@@ -87,22 +70,14 @@ export default function StrategyManager() {
       }
     } catch (error) {
       console.error('Error creating strategy:', error);
-      toast.error('Failed to create strategy');
+      toast.error(error.response?.data?.message || 'Failed to create strategy');
     }
   };
 
   const handleUpdate = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch(`/api/strategies/${selectedStrategy._id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(formData)
-      });
-      const data = await response.json();
+      const data = await strategyService.updateStrategy(selectedStrategy._id, formData);
       if (data.success) {
         toast.success('Strategy updated successfully');
         setShowEditModal(false);
@@ -113,7 +88,7 @@ export default function StrategyManager() {
       }
     } catch (error) {
       console.error('Error updating strategy:', error);
-      toast.error('Failed to update strategy');
+      toast.error(error.response?.data?.message || 'Failed to update strategy');
     }
   };
 
@@ -121,13 +96,7 @@ export default function StrategyManager() {
     if (!confirm('Are you sure you want to delete this strategy?')) return;
     
     try {
-      const response = await fetch(`/api/strategies/${strategyId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      const data = await response.json();
+      const data = await strategyService.deleteStrategy(strategyId);
       if (data.success) {
         toast.success('Strategy deleted successfully');
         fetchStrategies();
@@ -136,20 +105,16 @@ export default function StrategyManager() {
       }
     } catch (error) {
       console.error('Error deleting strategy:', error);
-      toast.error('Failed to delete strategy');
+      toast.error(error.response?.data?.message || 'Failed to delete strategy');
     }
   };
 
   const handleToggleActive = async (strategyId, isActive) => {
     try {
-      const endpoint = isActive ? 'deactivate' : 'activate';
-      const response = await fetch(`/api/strategies/${strategyId}/${endpoint}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      const data = await response.json();
+      const data = isActive 
+        ? await strategyService.deactivateStrategy(strategyId)
+        : await strategyService.activateStrategy(strategyId);
+      
       if (data.success) {
         toast.success(`Strategy ${isActive ? 'deactivated' : 'activated'} successfully`);
         fetchStrategies();
@@ -158,7 +123,7 @@ export default function StrategyManager() {
       }
     } catch (error) {
       console.error('Error toggling strategy:', error);
-      toast.error('Failed to update strategy');
+      toast.error(error.response?.data?.message || 'Failed to update strategy');
     }
   };
 

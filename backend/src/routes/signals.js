@@ -2,7 +2,7 @@ import express from 'express';
 import TradingSignal from '../models/TradingSignal.js';
 import TradingStrategy from '../models/TradingStrategy.js';
 import pythonService from '../services/pythonStrategyService.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -10,7 +10,7 @@ const router = express.Router();
  * GET /api/signals
  * Get all signals for the authenticated user
  */
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', authenticate, async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 50;
     const signals = await TradingSignal.getRecentSignals(req.user.userId, limit);
@@ -33,7 +33,7 @@ router.get('/', authenticateToken, async (req, res) => {
  * GET /api/signals/:id
  * Get a specific signal by ID
  */
-router.get('/:id', authenticateToken, async (req, res) => {
+router.get('/:id', authenticate, async (req, res) => {
   try {
     const signal = await TradingSignal.findOne({
       _id: req.params.id,
@@ -65,7 +65,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
  * POST /api/signals/generate
  * Generate a signal for a specific symbol and strategy
  */
-router.post('/generate', authenticateToken, async (req, res) => {
+router.post('/generate', authenticate, async (req, res) => {
   try {
     const { strategyId, symbol, startDate, endDate } = req.body;
 
@@ -168,7 +168,7 @@ router.post('/generate', authenticateToken, async (req, res) => {
  * POST /api/signals/batch
  * Generate signals for multiple symbols
  */
-router.post('/batch', authenticateToken, async (req, res) => {
+router.post('/batch', authenticate, async (req, res) => {
   try {
     const { strategyId, symbols } = req.body;
 
@@ -260,7 +260,7 @@ router.post('/batch', authenticateToken, async (req, res) => {
  * PUT /api/signals/:id/execute
  * Mark a signal as executed
  */
-router.put('/:id/execute', authenticateToken, async (req, res) => {
+router.put('/:id/execute', authenticate, async (req, res) => {
   try {
     const { executedPrice } = req.body;
 
@@ -304,7 +304,7 @@ router.put('/:id/execute', authenticateToken, async (req, res) => {
  * GET /api/signals/pending
  * Get pending (unexecuted) signals
  */
-router.get('/pending', authenticateToken, async (req, res) => {
+router.get('/pending', authenticate, async (req, res) => {
   try {
     const signals = await TradingSignal.getPendingSignals(req.user.userId);
 
