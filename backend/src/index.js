@@ -22,6 +22,9 @@ import stocksRoutes from './routes/stocks.js';
 import tradePlansRoutes from './routes/tradePlans.js';
 import settingsRoutes from './routes/settings.js';
 import historicalRoutes from './routes/historical.js';
+import strategiesRoutes from './routes/strategies.js';
+import backtestRoutes from './routes/backtest.js';
+import signalsRoutes from './routes/signals.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -119,6 +122,9 @@ app.use('/api/magic-line', magicLineRoutes);
 app.use('/api/stocks', stocksRoutes);
 app.use('/api/trade-plans', tradePlansRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/strategies', strategiesRoutes);
+app.use('/api/backtest', backtestRoutes);
+app.use('/api/signals', signalsRoutes);
 
 // Root API endpoint
 app.get('/api', (req, res) => {
