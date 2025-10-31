@@ -18,29 +18,30 @@ const psxMonthlySchema = new mongoose.Schema({
         required: true,
         index: true
     },
-    open: {
-        type: Number,
-        required: true
-    },
-    high: {
-        type: Number,
-        required: true
-    },
-    low: {
-        type: Number,
-        required: true
-    },
+  open: {
+    type: Number,
+    required: true,
+    comment: 'Adjusted open price'
+  },
+  high: {
+    type: Number,
+    required: true,
+    comment: 'Adjusted high price'
+  },
+  low: {
+    type: Number,
+    required: true,
+    comment: 'Adjusted low price'
+  },
   close: {
     type: Number,
-    required: true
-  },
-  adjClose: {
-    type: Number,
-    default: null
+    required: true,
+    comment: 'Adjusted close price (all OHLC are adjusted for dividends/splits)'
   },
   volume: {
     type: Number,
-    required: true
+    required: true,
+    comment: 'Trading volume (never adjusted)'
   }
 }, {
     timestamps: true

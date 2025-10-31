@@ -16,7 +16,6 @@ export default function HistoricalDataViewer() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [jumpToPage, setJumpToPage] = useState('');
-  const [useAdjusted, setUseAdjusted] = useState(false);
 
   useEffect(() => {
     fetchHistoricalData();
@@ -172,7 +171,7 @@ export default function HistoricalDataViewer() {
         <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-lg p-6 mb-6 shadow-md">
           <div className="flex flex-col gap-6">
 
-            {/* Top Row: Timeframe, Price Type & Download */}
+            {/* Top Row: Timeframe & Download */}
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
               <div className="flex flex-col sm:flex-row gap-4">
                 {/* Timeframe Selector */}
@@ -195,33 +194,6 @@ export default function HistoricalDataViewer() {
                     ))}
                   </div>
                 </div>
-
-                {/* Price Type Toggle */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Price Type
-                  </label>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setUseAdjusted(false)}
-                      className={`px-4 py-2 rounded-lg font-medium transition-all ${!useAdjusted
-                        ? 'bg-blue-500 text-white shadow-lg'
-                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                        }`}
-                    >
-                      Unadjusted
-                    </button>
-                    <button
-                      onClick={() => setUseAdjusted(true)}
-                      className={`px-4 py-2 rounded-lg font-medium transition-all ${useAdjusted
-                        ? 'bg-blue-500 text-white shadow-lg'
-                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                        }`}
-                    >
-                      Adjusted
-                    </button>
-                  </div>
-                </div>
               </div>
 
               {/* Download Button */}
@@ -241,7 +213,8 @@ export default function HistoricalDataViewer() {
               <div className="mb-4 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-lg p-3 flex items-start gap-2">
                 <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
                 <div className="text-sm text-blue-800 dark:text-blue-300">
-                  <span className="font-semibold">Available Data:</span> Up to 10 years of historical data. Use date filters below to narrow your view.
+                  <span className="font-semibold">Available Data:</span> Up to 10 years of historical data. 
+                  <span className="ml-1 text-blue-600 dark:text-blue-400 font-semibold">All OHLC prices are adjusted</span> for dividends and stock splits (matches TradingView).
                 </div>
               </div>
 
@@ -386,7 +359,7 @@ export default function HistoricalDataViewer() {
                         Low
                       </th>
                       <th className="px-6 py-4 text-right text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
-                        Close {useAdjusted && <span className="text-blue-500">(Adj)</span>}
+                        Close
                       </th>
                       <th className="px-6 py-4 text-right text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
                         Volume
@@ -412,9 +385,7 @@ export default function HistoricalDataViewer() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right">
                           <span className="font-semibold text-cyan-600 dark:text-cyan-400">
-                            {useAdjusted
-                              ? (row.adjClose ? parseFloat(row.adjClose).toFixed(2) : (row.close ? parseFloat(row.close).toFixed(2) : '-'))
-                              : (row.close ? parseFloat(row.close).toFixed(2) : '-')}
+                            {row.close ? parseFloat(row.close).toFixed(2) : '-'}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-gray-600 dark:text-gray-400 text-sm">

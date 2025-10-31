@@ -2,7 +2,8 @@ import axios from 'axios';
 
 /**
  * StockAnalysis.com API Scraper
- * Fetches historical OHLCV data with adjusted close prices
+ * Fetches historical OHLCV data and applies adjustment factor to ALL OHLC values
+ * This ensures consistent indicator calculations (RSI, MACD, etc.)
  * Source: https://stockanalysis.com
  */
 
@@ -33,24 +34,30 @@ async function fetchHistoricalData(symbol, period = 'Daily', range = RANGE) {
         if (response.data && response.data.status === 200 && Array.isArray(response.data.data)) {
             const data = response.data.data;
 
-            // Transform to our schema
+            // Transform to our schema with FULL adjustment applied to ALL OHLC
             const transformed = data.map(row => {
                 const dateField = period === 'Daily' ? 'date' :
                     period === 'Weekly' ? 'weekStart' : 'monthStart';
 
+                const rawClose = parseFloat(row.c);
+                const adjClose = row.a ? parseFloat(row.a) : rawClose;
+                
+                // Calculate adjustment factor
+                const adjustmentFactor = adjClose / rawClose;
+
+                // Apply adjustment factor to ALL OHLC values
                 return {
                     symbol: symbol.toUpperCase(),
                     [dateField]: new Date(row.t),
-                    open: parseFloat(row.o),
-                    high: parseFloat(row.h),
-                    low: parseFloat(row.l),
-                    close: parseFloat(row.c),
-                    adjClose: row.a ? parseFloat(row.a) : parseFloat(row.c),
-                    volume: parseInt(row.v)
+                    open: parseFloat(row.o) * adjustmentFactor,
+                    high: parseFloat(row.h) * adjustmentFactor,
+                    low: parseFloat(row.l) * adjustmentFactor,
+                    close: adjClose, // Use adjusted close as close
+                    volume: parseInt(row.v) // Volume is never adjusted
                 };
             });
 
-            console.log(`✅ Fetched ${transformed.length} ${period.toLowerCase()} records for ${symbol}`);
+            console.log(`✅ Fetched ${transformed.length} ${period.toLowerCase()} records for ${symbol} (fully adjusted)`);
 
             return {
                 success: transformed,
