@@ -273,7 +273,7 @@ export default function StockManagement() {
 
       const data = await startScraping(symbolStrings);
 
-      showMessage(`Scraping started for ${selectedSymbols.length} symbol(s) - fetching 10 years of data`, 'success');
+      showMessage(`Historical data scraping started for ${selectedSymbols.length} symbol(s)`, 'success');
       setShowScrapeModal(false);
       setScrapeDropdownOpen(false);
       setSelectedSymbols([]);
@@ -901,10 +901,10 @@ export default function StockManagement() {
                     <BarChart3 className="w-5 h-5 text-cyan-600 dark:text-cyan-400 mt-0.5 flex-shrink-0" />
                     <div>
                       <p className="text-sm font-semibold text-cyan-900 dark:text-cyan-300 mb-1">
-                        10 Years of Historical Data
+                        Historical Data Scraping
                       </p>
                       <p className="text-xs text-cyan-800 dark:text-cyan-400">
-                        This will automatically fetch <span className="font-semibold">10 years</span> of OHLCV data with adjusted close prices for all selected symbols.
+                        Fetches OHLCV data with adjusted prices for all selected symbols from configured data source.
                       </p>
                       <p className="text-xs text-cyan-700 dark:text-cyan-500 mt-2">
                         • Daily, Weekly & Monthly data included<br />

@@ -13,10 +13,11 @@ const psxWeeklySchema = new mongoose.Schema({
     uppercase: true,
     index: true
   },
-  weekStart: {
+  date: {
     type: Date,
     required: true,
-    index: true
+    index: true,
+    comment: 'Week start date'
   },
   open: {
     type: Number,
@@ -47,12 +48,12 @@ const psxWeeklySchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Compound index for efficient queries by symbol and week
-psxWeeklySchema.index({ symbol: 1, weekStart: -1 });
-psxWeeklySchema.index({ stockId: 1, weekStart: -1 });
+// Compound index for efficient queries by symbol and date
+psxWeeklySchema.index({ symbol: 1, date: -1 });
+psxWeeklySchema.index({ stockId: 1, date: -1 });
 
-// Ensure unique week per symbol
-psxWeeklySchema.index({ symbol: 1, weekStart: 1 }, { unique: true });
+// Ensure unique date per symbol
+psxWeeklySchema.index({ symbol: 1, date: 1 }, { unique: true });
 
 const PsxWeekly = mongoose.model('PsxWeekly', psxWeeklySchema);
 

@@ -36,19 +36,16 @@ async function fetchHistoricalData(symbol, period = 'Daily', range = RANGE) {
 
             // Transform to our schema with FULL adjustment applied to ALL OHLC
             const transformed = data.map(row => {
-                const dateField = period === 'Daily' ? 'date' :
-                    period === 'Weekly' ? 'weekStart' : 'monthStart';
-
                 const rawClose = parseFloat(row.c);
                 const adjClose = row.a ? parseFloat(row.a) : rawClose;
-                
+
                 // Calculate adjustment factor
                 const adjustmentFactor = adjClose / rawClose;
 
                 // Apply adjustment factor to ALL OHLC values
                 return {
                     symbol: symbol.toUpperCase(),
-                    [dateField]: new Date(row.t),
+                    date: new Date(row.t),
                     open: parseFloat(row.o) * adjustmentFactor,
                     high: parseFloat(row.h) * adjustmentFactor,
                     low: parseFloat(row.l) * adjustmentFactor,

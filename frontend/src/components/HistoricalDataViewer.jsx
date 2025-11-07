@@ -64,7 +64,7 @@ export default function HistoricalDataViewer() {
       // Generate CSV content
       const headers = ['Date', 'Open', 'High', 'Low', 'Close', 'Volume'];
       const rows = data.map(row => [
-        new Date(row.date || row.weekStart || row.monthStart).toISOString().split('T')[0],
+        new Date(row.date).toISOString().split('T')[0],
         row.open || '',
         row.high || '',
         row.low || '',
@@ -209,15 +209,6 @@ export default function HistoricalDataViewer() {
 
             {/* Bottom Row: Date Range Filters */}
             <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-              {/* Info Banner */}
-              <div className="mb-4 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-lg p-3 flex items-start gap-2">
-                <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
-                <div className="text-sm text-blue-800 dark:text-blue-300">
-                  <span className="font-semibold">Available Data:</span> Up to 10 years of historical data. 
-                  <span className="ml-1 text-blue-600 dark:text-blue-400 font-semibold">All OHLC prices are adjusted</span> for dividends and stock splits (matches TradingView).
-                </div>
-              </div>
-
               <div className="flex flex-col md:flex-row md:items-end gap-4">
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
@@ -232,7 +223,6 @@ export default function HistoricalDataViewer() {
                       setPagination(prev => ({ ...prev, page: 1 }));
                     }}
                     max={endDate || new Date().toISOString().split('T')[0]}
-                    min={new Date(new Date().setFullYear(new Date().getFullYear() - 10)).toISOString().split('T')[0]}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500"
                     placeholder="Optional"
                   />
@@ -250,7 +240,7 @@ export default function HistoricalDataViewer() {
                       setEndDate(e.target.value);
                       setPagination(prev => ({ ...prev, page: 1 }));
                     }}
-                    min={startDate || new Date(new Date().setFullYear(new Date().getFullYear() - 10)).toISOString().split('T')[0]}
+                    min={startDate}
                     max={new Date().toISOString().split('T')[0]}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500"
                     placeholder="Optional"
@@ -371,7 +361,7 @@ export default function HistoricalDataViewer() {
                       <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className="font-medium text-gray-900 dark:text-gray-300">
-                            {new Date(row.date || row.weekStart || row.monthStart).toLocaleDateString()}
+                            {new Date(row.date).toLocaleDateString()}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-gray-900 dark:text-gray-300">

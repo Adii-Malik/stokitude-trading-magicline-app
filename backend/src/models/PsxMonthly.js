@@ -1,23 +1,24 @@
 import mongoose from 'mongoose';
 
 const psxMonthlySchema = new mongoose.Schema({
-    stockId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Stock',
-        required: true,
-        index: true
-    },
-    symbol: {
-        type: String,
-        required: true,
-        uppercase: true,
-        index: true
-    },
-    monthStart: {
-        type: Date,
-        required: true,
-        index: true
-    },
+  stockId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Stock',
+    required: true,
+    index: true
+  },
+  symbol: {
+    type: String,
+    required: true,
+    uppercase: true,
+    index: true
+  },
+  date: {
+    type: Date,
+    required: true,
+    index: true,
+    comment: 'Month start date'
+  },
   open: {
     type: Number,
     required: true,
@@ -44,15 +45,15 @@ const psxMonthlySchema = new mongoose.Schema({
     comment: 'Trading volume (never adjusted)'
   }
 }, {
-    timestamps: true
+  timestamps: true
 });
 
-// Compound index for efficient queries by symbol and month
-psxMonthlySchema.index({ symbol: 1, monthStart: -1 });
-psxMonthlySchema.index({ stockId: 1, monthStart: -1 });
+// Compound index for efficient queries by symbol and date
+psxMonthlySchema.index({ symbol: 1, date: -1 });
+psxMonthlySchema.index({ stockId: 1, date: -1 });
 
-// Ensure unique month per symbol
-psxMonthlySchema.index({ symbol: 1, monthStart: 1 }, { unique: true });
+// Ensure unique date per symbol
+psxMonthlySchema.index({ symbol: 1, date: 1 }, { unique: true });
 
 const PsxMonthly = mongoose.model('PsxMonthly', psxMonthlySchema);
 

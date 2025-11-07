@@ -4,7 +4,7 @@ import PsxDaily from '../models/PsxDaily.js';
 import PsxWeekly from '../models/PsxWeekly.js';
 import PsxMonthly from '../models/PsxMonthly.js';
 import { authenticate, requireAdmin } from '../middleware/auth.js';
-import stockAnalysisScraper from '../services/stockAnalysisScraper.js';
+import dataSourceService from '../services/dataSourceService.js';
 
 const router = express.Router();
 
@@ -26,10 +26,9 @@ router.post('/scrape', async (req, res) => {
         // Start scraping in background
         res.json({
             success: true,
-            message: 'Scraping started (10 years of data)',
+            message: 'Historical data scraping started',
             data: {
-                symbolsCount: symbols.length,
-                range: '10 years'
+                symbolsCount: symbols.length
             }
         });
 
@@ -50,51 +49,62 @@ router.post('/scrape', async (req, res) => {
                     stock.scrapeProgress = { total: 0, completed: 0, failed: 0 };
                     await stock.save();
 
-                    // Fetch all timeframes from StockAnalysis.com
-                    const results = await stockAnalysisScraper.fetchAllTimeframes(symbol);
+                    // Fetch all timeframes using configured data source
+                    const results = await dataSourceService.fetchAllTimeframes(symbol);
 
                     let totalSaved = 0;
 
-                    // Save daily data (bulk)
-                    if (results.daily.success.length > 0) {
-                        const dailyOps = results.daily.success.map(data => ({
-                            updateOne: {
-                                filter: { symbol: data.symbol, date: data.date },
-                                update: { $set: { stockId: stock._id, ...data } },
-                                upsert: true
-                            }
-                        }));
-                        await PsxDaily.bulkWrite(dailyOps);
-                        totalSaved += results.daily.success.length;
-                        console.log(`   ✓ Saved ${results.daily.success.length} daily records`);
-                    }
+                    // Store the data source used
+                    stock.dataSource = results.source;
 
-                    // Save weekly data (bulk)
-                    if (results.weekly.success.length > 0) {
-                        const weeklyOps = results.weekly.success.map(data => ({
-                            updateOne: {
-                                filter: { symbol: data.symbol, weekStart: data.weekStart },
-                                update: { $set: { stockId: stock._id, ...data } },
-                                upsert: true
-                            }
-                        }));
-                        await PsxWeekly.bulkWrite(weeklyOps);
-                        totalSaved += results.weekly.success.length;
-                        console.log(`   ✓ Saved ${results.weekly.success.length} weekly records`);
-                    }
+                    // If using TradingView, data is already populated by core engine
+                    // For StockAnalysis, we need to save the data ourselves
+                    if (results.source === 'stockanalysis') {
+                        // Save daily data (bulk)
+                        if (results.daily.success.length > 0) {
+                            const dailyOps = results.daily.success.map(data => ({
+                                updateOne: {
+                                    filter: { symbol: data.symbol, date: data.date },
+                                    update: { $set: { stockId: stock._id, ...data } },
+                                    upsert: true
+                                }
+                            }));
+                            await PsxDaily.bulkWrite(dailyOps);
+                            totalSaved += results.daily.success.length;
+                            console.log(`   ✓ Saved ${results.daily.success.length} daily records`);
+                        }
 
-                    // Save monthly data (bulk)
-                    if (results.monthly.success.length > 0) {
-                        const monthlyOps = results.monthly.success.map(data => ({
-                            updateOne: {
-                                filter: { symbol: data.symbol, monthStart: data.monthStart },
-                                update: { $set: { stockId: stock._id, ...data } },
-                                upsert: true
-                            }
-                        }));
-                        await PsxMonthly.bulkWrite(monthlyOps);
-                        totalSaved += results.monthly.success.length;
-                        console.log(`   ✓ Saved ${results.monthly.success.length} monthly records`);
+                        // Save weekly data (bulk)
+                        if (results.weekly.success.length > 0) {
+                            const weeklyOps = results.weekly.success.map(data => ({
+                                updateOne: {
+                                    filter: { symbol: data.symbol, date: data.date },
+                                    update: { $set: { stockId: stock._id, ...data } },
+                                    upsert: true
+                                }
+                            }));
+                            await PsxWeekly.bulkWrite(weeklyOps);
+                            totalSaved += results.weekly.success.length;
+                            console.log(`   ✓ Saved ${results.weekly.success.length} weekly records`);
+                        }
+
+                        // Save monthly data (bulk)
+                        if (results.monthly.success.length > 0) {
+                            const monthlyOps = results.monthly.success.map(data => ({
+                                updateOne: {
+                                    filter: { symbol: data.symbol, date: data.date },
+                                    update: { $set: { stockId: stock._id, ...data } },
+                                    upsert: true
+                                }
+                            }));
+                            await PsxMonthly.bulkWrite(monthlyOps);
+                            totalSaved += results.monthly.success.length;
+                            console.log(`   ✓ Saved ${results.monthly.success.length} monthly records`);
+                        }
+                    } else {
+                        // TradingView: data already populated by core engine
+                        totalSaved = results.daily.total + results.weekly.total + results.monthly.total;
+                        console.log(`   ✓ TradingView populated ${totalSaved} records directly`);
                     }
 
                     // Update status
@@ -137,33 +147,29 @@ router.get('/:symbol', async (req, res) => {
         const { timeframe = 'daily', limit = 100, skip = 0, startDate, endDate } = req.query;
 
         let Model;
-        let dateField;
 
         if (timeframe === 'weekly') {
             Model = PsxWeekly;
-            dateField = 'weekStart';
         } else if (timeframe === 'monthly') {
             Model = PsxMonthly;
-            dateField = 'monthStart';
         } else {
             Model = PsxDaily;
-            dateField = 'date';
         }
 
         // Build query with date filters
         const query = { symbol };
         if (startDate || endDate) {
-            query[dateField] = {};
+            query.date = {};
             if (startDate) {
-                query[dateField].$gte = new Date(startDate);
+                query.date.$gte = new Date(startDate);
             }
             if (endDate) {
-                query[dateField].$lte = new Date(endDate);
+                query.date.$lte = new Date(endDate);
             }
         }
 
         const data = await Model.find(query)
-            .sort({ [dateField]: -1 })
+            .sort({ date: -1 })
             .limit(parseInt(limit))
             .skip(parseInt(skip))
             .lean();

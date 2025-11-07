@@ -48,9 +48,15 @@ backend/
 │   ├── services/
 │   │   ├── centralizedPriceService.js  # Price fetching (SINGLE SERVICE)
 │   │   ├── csvParser.js        # CSV file parsing
+│   │   ├── dataAggregationService.js   # Weekly/monthly aggregation
+│   │   ├── dataSourceService.js        # Unified data source router
+│   │   ├── historicalDataScheduler.js  # Scheduled data fetching
+│   │   ├── historicalDataScraper.js    # KSE stocks scraper
 │   │   ├── marketHoursService.js       # Market hours logic
 │   │   ├── ocrService.js       # Image OCR processing
-│   │   └── psxScraper.js       # PSX website scraper
+│   │   ├── psxScraper.js       # PSX website scraper
+│   │   ├── stockAnalysisScraper.js     # StockAnalysis.com scraper
+│   │   └── tradingViewScraper.js       # TradingView API client
 │   └── index.js                # Main entry point
 ├── uploads/                    # File uploads directory
 ├── package.json
@@ -177,6 +183,12 @@ GET    /                - Get all stocks (admin)
 GET    /:symbol         - Get specific stock (admin)
 POST   /fetch-all       - Fetch all prices (admin)
 DELETE /                - Clear all stocks (admin)
+```
+
+#### Historical Data Routes (`/api/historical`)
+```
+POST   /scrape          - Start scraping historical data (admin)
+GET    /:symbol         - Get historical data for symbol (admin)
 ```
 
 ---
@@ -340,7 +352,79 @@ getStats()                    // Calculate statistics
 
 ---
 
-### 10. Environment Variables
+### 10. Historical Data Sources
+
+**Architecture:** Unified data source system with primary/fallback strategy
+
+**Available Sources:**
+
+1. **TradingView API (Primary - Default)**
+   - **Type:** REST API to core engine
+   - **Endpoint:** `http://localhost:5002/api/tradingview/populate`
+   - **Features:**
+     - Adjusted OHLCV data (splits & dividends)
+     - All timeframes in single request
+     - Fast bulk population
+   - **Usage:**
+     ```javascript
+     POST /api/tradingview/populate
+     {
+       "symbols": ["OGDC", "PPL"],
+       "timeframes": ["daily", "weekly", "monthly"]
+     }
+     ```
+
+2. **StockAnalysis.com (Fallback)**
+   - **Type:** Web scraper
+   - **URL:** `https://stockanalysis.com`
+   - **Features:**
+     - Historical data (configurable range)
+     - Adjusted prices
+     - Individual timeframe requests
+   - **Limitations:**
+     - Rate limiting required
+     - Slower than TradingView
+
+**Data Source Service (`dataSourceService.js`):**
+```javascript
+// Routes requests to appropriate source
+// Automatic fallback on failure
+// Configurable via environment or API
+```
+
+**Configuration:**
+```env
+# Primary data source (tradingview or stockanalysis)
+PRIMARY_DATA_SOURCE=tradingview
+
+# TradingView API (5 minutes timeout for large datasets)
+TRADINGVIEW_ENABLED=true
+TRADINGVIEW_API_URL=http://localhost:5002/api/tradingview/populate
+TRADINGVIEW_TIMEOUT=300000
+
+# StockAnalysis scraper
+STOCKANALYSIS_ENABLED=true
+STOCKANALYSIS_RANGE=10Y
+```
+
+**Flow:**
+```
+1. Admin triggers scrape for symbols
+2. dataSourceService checks primary source (TradingView)
+3. If primary fails → fallback to secondary (StockAnalysis)
+4. Transform data to unified schema
+5. Bulk insert into PsxDaily/PsxWeekly/PsxMonthly
+6. Update Stock model with source used
+```
+
+**Configuration Control:**
+- Primary source set via environment variable (PRIMARY_DATA_SOURCE)
+- Automatic fallback to secondary source on failure
+- Each stock tracks which source was used (dataSource field)
+
+---
+
+### 11. Environment Variables
 
 **Required:**
 ```env
@@ -357,11 +441,19 @@ JWT_EXPIRES_IN=7d
 
 # CORS (optional)
 FRONTEND_URL=http://localhost:3000
+
+# Historical Data Sources
+PRIMARY_DATA_SOURCE=tradingview
+TRADINGVIEW_ENABLED=true
+TRADINGVIEW_API_URL=http://localhost:5002/api/tradingview/populate
+TRADINGVIEW_TIMEOUT=300000
+STOCKANALYSIS_ENABLED=true
+STOCKANALYSIS_RANGE=10Y
 ```
 
 ---
 
-### 11. Middleware
+### 12. Middleware
 
 **Authentication Middleware (`auth.js`):**
 ```javascript
@@ -378,7 +470,7 @@ router.post('/admin-only', adminOnly, handler);
 
 ---
 
-### 12. Error Handling
+### 13. Error Handling
 
 **Strategy:**
 - Try-catch blocks in all async functions
@@ -397,7 +489,7 @@ router.post('/admin-only', adminOnly, handler);
 
 ---
 
-### 13. Logging
+### 14. Logging
 
 **Console Logging with Emojis:**
 ```
@@ -413,7 +505,7 @@ router.post('/admin-only', adminOnly, handler);
 
 ---
 
-### 14. Deployment (Fly.io)
+### 15. Deployment (Fly.io)
 
 **Configuration:** `fly.toml`
 
@@ -431,7 +523,7 @@ fly secrets set KEY=value  # Set environment variables
 
 ---
 
-### 15. Security Best Practices
+### 16. Security Best Practices
 
 1. **Password Hashing:** bcrypt with salt rounds
 2. **JWT Expiration:** 7 days default
@@ -444,7 +536,7 @@ fly secrets set KEY=value  # Set environment variables
 
 ---
 
-### 16. Performance Optimizations
+### 17. Performance Optimizations
 
 1. **Bulk Operations:** Use bulkWrite() for multiple updates
 2. **Indexing:** Compound indexes on frequently queried fields
@@ -454,7 +546,7 @@ fly secrets set KEY=value  # Set environment variables
 
 ---
 
-### 17. Testing & Development
+### 18. Testing & Development
 
 **Development Server:**
 ```bash
@@ -471,7 +563,7 @@ Upload CSV file via `/api/upload` endpoint
 
 ---
 
-### 18. Common Issues & Solutions
+### 19. Common Issues & Solutions
 
 **Issue:** Port already in use
 ```bash
@@ -493,7 +585,7 @@ taskkill /PID <PID> /F
 
 ---
 
-### 19. API Response Standards
+### 20. API Response Standards
 
 **Success Response:**
 ```json
@@ -514,7 +606,7 @@ taskkill /PID <PID> /F
 
 ---
 
-### 20. Future Enhancements (TODO)
+### 21. Future Enhancements (TODO)
 
 - [ ] Rate limiting for API endpoints
 - [ ] Redis caching for stock prices

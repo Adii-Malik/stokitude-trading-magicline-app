@@ -84,6 +84,12 @@ const stockSchema = new mongoose.Schema({
       failed: { type: Number, default: 0 }
     },
     default: () => ({ total: 0, completed: 0, failed: 0 })
+  },
+  // Data source used for historical data
+  dataSource: {
+    type: String,
+    enum: ['tradingview', 'stockanalysis'],
+    default: null
   }
 }, {
   timestamps: true
