@@ -15,6 +15,7 @@ import Signup from './components/Signup';
 import Landing from './components/Landing';
 import socketService from './services/socket';
 import HistoricalDataViewer from './components/HistoricalDataViewer';
+import TradingBot from './components/TradingBot/TradingBot';
 
 // Protected Route Component
 function ProtectedRoute({ children, adminOnly = false }) {
@@ -179,6 +180,7 @@ function AppContent() {
               onNavigateToMagicLine={() => navigate('/magic-line')}
               onNavigateToStocks={() => navigate('/stocks')}
               onNavigateToTradeSignals={() => navigate('/trade-signals')}
+              onNavigateToTradingBot={() => navigate('/trading-bot')}
               onNavigateToAdmin={() => navigate('/admin')}
               onNavigateToSettings={() => navigate('/settings')}
               onNavigateToLogin={() => navigate('/login')}
@@ -208,6 +210,7 @@ function AppContent() {
               onNavigateToMagicLine={() => navigate('/magic-line')}
               onNavigateToStocks={() => navigate('/stocks')}
               onNavigateToTradeSignals={() => navigate('/trade-signals')}
+              onNavigateToTradingBot={() => navigate('/trading-bot')}
               onNavigateToAdmin={() => navigate('/admin')}
               onNavigateToSettings={() => navigate('/settings')}
               onNavigateToLogin={() => navigate('/login')}
@@ -244,6 +247,7 @@ function AppContent() {
               onNavigateToMagicLine={() => navigate('/magic-line')}
               onNavigateToStocks={() => navigate('/stocks')}
               onNavigateToTradeSignals={() => navigate('/trade-signals')}
+              onNavigateToTradingBot={() => navigate('/trading-bot')}
               onNavigateToAdmin={() => navigate('/admin')}
               onNavigateToSettings={() => navigate('/settings')}
               onNavigateToLogin={() => navigate('/login')}
@@ -251,6 +255,36 @@ function AppContent() {
             />
             <div className="flex-1">
               <TradePlans />
+            </div>
+            <footer className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 mt-12 transition-colors duration-300">
+              <div className="container mx-auto px-4 py-6 text-center text-gray-600 dark:text-gray-400 text-sm">
+                <p>PSX SmartDesk - Real-time Stock Price Monitoring & Trade Management</p>
+              </div>
+            </footer>
+          </div>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/trading-bot" element={
+        <ProtectedRoute>
+          <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300">
+            <Header
+              isConnected={isConnected}
+              currentPage="trading-bot"
+              lastPriceUpdate={lastPriceUpdate}
+              marketStatus={marketStatus}
+              onNavigateToDashboard={() => navigate('/dashboard')}
+              onNavigateToMagicLine={() => navigate('/magic-line')}
+              onNavigateToStocks={() => navigate('/stocks')}
+              onNavigateToTradeSignals={() => navigate('/trade-signals')}
+              onNavigateToTradingBot={() => navigate('/trading-bot')}
+              onNavigateToAdmin={() => navigate('/admin')}
+              onNavigateToSettings={() => navigate('/settings')}
+              onNavigateToLogin={() => navigate('/login')}
+              onNavigateToSignup={() => navigate('/signup')}
+            />
+            <div className="flex-1">
+              <TradingBot />
             </div>
             <footer className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 mt-12 transition-colors duration-300">
               <div className="container mx-auto px-4 py-6 text-center text-gray-600 dark:text-gray-400 text-sm">
@@ -274,6 +308,7 @@ function AppContent() {
               onNavigateToMagicLine={() => navigate('/magic-line')}
               onNavigateToStocks={() => navigate('/stocks')}
               onNavigateToTradeSignals={() => navigate('/trade-signals')}
+              onNavigateToTradingBot={() => navigate('/trading-bot')}
               onNavigateToAdmin={() => navigate('/admin')}
               onNavigateToSettings={() => navigate('/settings')}
               onNavigateToLogin={() => navigate('/login')}
@@ -303,6 +338,7 @@ function AppContent() {
               onNavigateToMagicLine={() => navigate('/magic-line')}
               onNavigateToStocks={() => navigate('/stocks')}
               onNavigateToTradeSignals={() => navigate('/trade-signals')}
+              onNavigateToTradingBot={() => navigate('/trading-bot')}
               onNavigateToAdmin={() => navigate('/admin')}
               onNavigateToSettings={() => navigate('/settings')}
               onNavigateToLogin={() => navigate('/login')}
@@ -332,6 +368,7 @@ function AppContent() {
               onNavigateToMagicLine={() => navigate('/magic-line')}
               onNavigateToStocks={() => navigate('/stocks')}
               onNavigateToTradeSignals={() => navigate('/trade-signals')}
+              onNavigateToTradingBot={() => navigate('/trading-bot')}
               onNavigateToAdmin={() => navigate('/admin')}
               onNavigateToSettings={() => navigate('/settings')}
               onNavigateToLogin={() => navigate('/login')}
@@ -361,6 +398,7 @@ function AppContent() {
               onNavigateToMagicLine={() => navigate('/magic-line')}
               onNavigateToStocks={() => navigate('/stocks')}
               onNavigateToTradeSignals={() => navigate('/trade-signals')}
+              onNavigateToTradingBot={() => navigate('/trading-bot')}
               onNavigateToAdmin={() => navigate('/admin')}
               onNavigateToSettings={() => navigate('/settings')}
               onNavigateToLogin={() => navigate('/login')}
