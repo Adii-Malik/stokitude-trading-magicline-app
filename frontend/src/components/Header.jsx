@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { TrendingUp, LogOut, User, Shield, Settings, BarChart3, Target, Sun, Moon, Database, Menu, X, ChevronDown, UserCircle, Lock, Home } from 'lucide-react';
+import { TrendingUp, LogOut, User, Shield, Settings, BarChart3, Target, Sun, Moon, Database, Menu, X, ChevronDown, UserCircle, Lock, Home, Bot } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 
-export default function Header({ 
-  isConnected, 
+export default function Header({
+  isConnected,
   currentPage,
   lastPriceUpdate,
   marketStatus,
@@ -12,10 +12,11 @@ export default function Header({
   onNavigateToMagicLine,
   onNavigateToStocks,
   onNavigateToTradeSignals,
+  onNavigateToTradingBot,
   onNavigateToAdmin,
-  onNavigateToSettings, 
-  onNavigateToLogin, 
-  onNavigateToSignup 
+  onNavigateToSettings,
+  onNavigateToLogin,
+  onNavigateToSignup
 }) {
   const { user, logout, isAdmin } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -60,7 +61,7 @@ export default function Header({
       await logout();
     }
   };
-  
+
   const handleNavigation = (navFunction) => {
     navFunction();
     setMobileMenuOpen(false); // Close mobile menu after navigation
@@ -72,7 +73,7 @@ export default function Header({
       <div className="container mx-auto px-4 py-3">
         <div className="flex items-center justify-between">
           {/* Logo/Brand */}
-          <button 
+          <button
             onClick={() => handleNavigation(onNavigateToDashboard)}
             className="flex items-center gap-2 hover:opacity-90 transition-opacity"
           >
@@ -85,11 +86,10 @@ export default function Header({
             <nav className="hidden lg:flex items-center gap-2">
               <button
                 onClick={() => handleNavigation(onNavigateToDashboard)}
-                className={`px-3 py-2 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${
-                  currentPage === 'dashboard'
+                className={`px-3 py-2 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${currentPage === 'dashboard'
                     ? 'bg-cyan-500 text-white'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-                }`}
+                  }`}
               >
                 <Home className="w-4 h-4" />
                 <span>Home</span>
@@ -97,11 +97,10 @@ export default function Header({
 
               <button
                 onClick={() => handleNavigation(onNavigateToMagicLine)}
-                className={`px-3 py-2 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${
-                  currentPage === 'magic-line'
+                className={`px-3 py-2 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${currentPage === 'magic-line'
                     ? 'bg-cyan-500 text-white'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-                }`}
+                  }`}
               >
                 <BarChart3 className="w-4 h-4" />
                 <span>Magic Line</span>
@@ -109,37 +108,45 @@ export default function Header({
 
               <button
                 onClick={() => handleNavigation(onNavigateToTradeSignals)}
-                className={`px-3 py-2 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${
-                  currentPage === 'trade-signals'
+                className={`px-3 py-2 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${currentPage === 'trade-signals'
                     ? 'bg-cyan-500 text-white'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-                }`}
+                  }`}
               >
                 <Target className="w-4 h-4" />
                 <span>Trade Calls</span>
               </button>
 
+              <button
+                onClick={() => handleNavigation(onNavigateToTradingBot)}
+                className={`px-3 py-2 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${currentPage === 'trading-bot'
+                    ? 'bg-cyan-500 text-white'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                  }`}
+              >
+                <Bot className="w-4 h-4" />
+                <span>Trading Bot</span>
+              </button>
+
               {isAdmin() && (
                 <>
-          <button 
+                  <button
                     onClick={() => handleNavigation(onNavigateToStocks)}
-                    className={`px-3 py-2 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${
-                      currentPage === 'stocks'
+                    className={`px-3 py-2 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${currentPage === 'stocks'
                         ? 'bg-cyan-500 text-white'
                         : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-                    }`}
+                      }`}
                   >
                     <Database className="w-4 h-4" />
                     <span>Stocks</span>
-          </button>
+                  </button>
 
                   <button
                     onClick={() => handleNavigation(onNavigateToAdmin)}
-                    className={`px-3 py-2 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${
-                      currentPage === 'admin'
+                    className={`px-3 py-2 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${currentPage === 'admin'
                         ? 'bg-cyan-500 text-white'
                         : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-                    }`}
+                      }`}
                   >
                     <Settings className="w-4 h-4" />
                     <span>Users</span>
@@ -157,8 +164,8 @@ export default function Header({
                 <div className={`w-2 h-2 rounded-full ${isMarketOpen ? 'bg-green-500 animate-pulse' : 'bg-orange-500'}`}></div>
                 <span className={`text-sm font-medium ${isMarketOpen ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'}`}>
                   {isMarketOpen ? 'OPEN' : 'CLOSED'}
-              </span>
-            </div>
+                </span>
+              </div>
             )}
 
             {/* Price Update Status - Same style as user badge */}
@@ -302,12 +309,12 @@ export default function Header({
                   >
                     {/* Connection Status Indicator */}
                     <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                    
+
                     {/* Username */}
                     <span className="text-sm font-medium text-gray-900 dark:text-white max-w-[100px] truncate">
                       {user.username}
                     </span>
-                    
+
                     {/* Menu Icon */}
                     {mobileMenuOpen ? (
                       <X className="w-5 h-5 text-gray-700 dark:text-gray-300" />
@@ -331,7 +338,7 @@ export default function Header({
                     <Moon className="w-5 h-5 text-gray-700" />
                   )}
                 </button>
-                
+
                 <button
                   onClick={onNavigateToLogin}
                   className="px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg transition font-medium"
@@ -373,11 +380,10 @@ export default function Header({
 
             <button
               onClick={() => handleNavigation(onNavigateToDashboard)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${
-                currentPage === 'dashboard'
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${currentPage === 'dashboard'
                   ? 'bg-cyan-500 text-white'
                   : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-              }`}
+                }`}
             >
               <Home className="w-5 h-5" />
               <span>Home</span>
@@ -385,11 +391,10 @@ export default function Header({
 
             <button
               onClick={() => handleNavigation(onNavigateToMagicLine)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${
-                currentPage === 'magic-line'
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${currentPage === 'magic-line'
                   ? 'bg-cyan-500 text-white'
                   : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-              }`}
+                }`}
             >
               <BarChart3 className="w-5 h-5" />
               <span>Magic Line</span>
@@ -397,25 +402,34 @@ export default function Header({
 
             <button
               onClick={() => handleNavigation(onNavigateToTradeSignals)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${
-                currentPage === 'trade-signals'
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${currentPage === 'trade-signals'
                   ? 'bg-cyan-500 text-white'
                   : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-              }`}
+                }`}
             >
               <Target className="w-5 h-5" />
               <span>Trade Calls</span>
+            </button>
+
+            <button
+              onClick={() => handleNavigation(onNavigateToTradingBot)}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${currentPage === 'trading-bot'
+                  ? 'bg-cyan-500 text-white'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                }`}
+            >
+              <Bot className="w-5 h-5" />
+              <span>Trading Bot</span>
             </button>
 
             {isAdmin() && (
               <>
                 <button
                   onClick={() => handleNavigation(onNavigateToStocks)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${
-                    currentPage === 'stocks'
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${currentPage === 'stocks'
                       ? 'bg-cyan-500 text-white'
                       : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-                  }`}
+                    }`}
                 >
                   <Database className="w-5 h-5" />
                   <span>Stocks</span>
@@ -423,11 +437,10 @@ export default function Header({
 
                 <button
                   onClick={() => handleNavigation(onNavigateToAdmin)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${
-                    currentPage === 'admin'
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${currentPage === 'admin'
                       ? 'bg-cyan-500 text-white'
                       : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-                  }`}
+                    }`}
                 >
                   <Shield className="w-5 h-5" />
                   <span>Users</span>

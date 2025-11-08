@@ -180,6 +180,7 @@ function AppContent() {
               onNavigateToMagicLine={() => navigate('/magic-line')}
               onNavigateToStocks={() => navigate('/stocks')}
               onNavigateToTradeSignals={() => navigate('/trade-signals')}
+              onNavigateToTradingBot={() => navigate('/trading-bot')}
               onNavigateToAdmin={() => navigate('/admin')}
               onNavigateToSettings={() => navigate('/settings')}
               onNavigateToLogin={() => navigate('/login')}
@@ -209,6 +210,7 @@ function AppContent() {
               onNavigateToMagicLine={() => navigate('/magic-line')}
               onNavigateToStocks={() => navigate('/stocks')}
               onNavigateToTradeSignals={() => navigate('/trade-signals')}
+              onNavigateToTradingBot={() => navigate('/trading-bot')}
               onNavigateToAdmin={() => navigate('/admin')}
               onNavigateToSettings={() => navigate('/settings')}
               onNavigateToLogin={() => navigate('/login')}
@@ -245,6 +247,7 @@ function AppContent() {
               onNavigateToMagicLine={() => navigate('/magic-line')}
               onNavigateToStocks={() => navigate('/stocks')}
               onNavigateToTradeSignals={() => navigate('/trade-signals')}
+              onNavigateToTradingBot={() => navigate('/trading-bot')}
               onNavigateToAdmin={() => navigate('/admin')}
               onNavigateToSettings={() => navigate('/settings')}
               onNavigateToLogin={() => navigate('/login')}
@@ -274,6 +277,7 @@ function AppContent() {
               onNavigateToMagicLine={() => navigate('/magic-line')}
               onNavigateToStocks={() => navigate('/stocks')}
               onNavigateToTradeSignals={() => navigate('/trade-signals')}
+              onNavigateToTradingBot={() => navigate('/trading-bot')}
               onNavigateToAdmin={() => navigate('/admin')}
               onNavigateToSettings={() => navigate('/settings')}
               onNavigateToLogin={() => navigate('/login')}
@@ -304,6 +308,7 @@ function AppContent() {
               onNavigateToMagicLine={() => navigate('/magic-line')}
               onNavigateToStocks={() => navigate('/stocks')}
               onNavigateToTradeSignals={() => navigate('/trade-signals')}
+              onNavigateToTradingBot={() => navigate('/trading-bot')}
               onNavigateToAdmin={() => navigate('/admin')}
               onNavigateToSettings={() => navigate('/settings')}
               onNavigateToLogin={() => navigate('/login')}
@@ -333,6 +338,7 @@ function AppContent() {
               onNavigateToMagicLine={() => navigate('/magic-line')}
               onNavigateToStocks={() => navigate('/stocks')}
               onNavigateToTradeSignals={() => navigate('/trade-signals')}
+              onNavigateToTradingBot={() => navigate('/trading-bot')}
               onNavigateToAdmin={() => navigate('/admin')}
               onNavigateToSettings={() => navigate('/settings')}
               onNavigateToLogin={() => navigate('/login')}
@@ -362,6 +368,7 @@ function AppContent() {
               onNavigateToMagicLine={() => navigate('/magic-line')}
               onNavigateToStocks={() => navigate('/stocks')}
               onNavigateToTradeSignals={() => navigate('/trade-signals')}
+              onNavigateToTradingBot={() => navigate('/trading-bot')}
               onNavigateToAdmin={() => navigate('/admin')}
               onNavigateToSettings={() => navigate('/settings')}
               onNavigateToLogin={() => navigate('/login')}
@@ -391,6 +398,7 @@ function AppContent() {
               onNavigateToMagicLine={() => navigate('/magic-line')}
               onNavigateToStocks={() => navigate('/stocks')}
               onNavigateToTradeSignals={() => navigate('/trade-signals')}
+              onNavigateToTradingBot={() => navigate('/trading-bot')}
               onNavigateToAdmin={() => navigate('/admin')}
               onNavigateToSettings={() => navigate('/settings')}
               onNavigateToLogin={() => navigate('/login')}
