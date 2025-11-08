@@ -3,6 +3,7 @@ import Stock from '../models/Stock.js';
 import PsxDaily from '../models/PsxDaily.js';
 import PsxWeekly from '../models/PsxWeekly.js';
 import PsxMonthly from '../models/PsxMonthly.js';
+import tradingViewScheduler from '../services/tradingViewScheduler.js';
 import { authenticate, requireAdmin } from '../middleware/auth.js';
 import dataSourceService from '../services/dataSourceService.js';
 
@@ -195,6 +196,78 @@ router.get('/:symbol', async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to fetch historical data',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * POST /api/historical/trigger-update
+ * Manually trigger TradingView update (for testing)
+ */
+router.post('/trigger-update', authenticate, requireAdmin, async (req, res) => {
+    try {
+        const { timeframes } = req.body;
+
+        if (!timeframes || !Array.isArray(timeframes)) {
+            return res.status(400).json({
+                success: false,
+                message: 'timeframes array is required (e.g., ["daily"] or ["weekly", "monthly"])'
+            });
+        }
+
+        const validTimeframes = ['daily', 'weekly', 'monthly'];
+        const invalidTimeframes = timeframes.filter(tf => !validTimeframes.includes(tf));
+
+        if (invalidTimeframes.length > 0) {
+            return res.status(400).json({
+                success: false,
+                message: `Invalid timeframes: ${invalidTimeframes.join(', ')}. Valid: ${validTimeframes.join(', ')}`
+            });
+        }
+
+        console.log(`\n🔧 Manual TradingView update triggered by admin: ${timeframes.join(', ')}`);
+
+        const success = await tradingViewScheduler.manualTrigger(timeframes);
+
+        if (success) {
+            res.json({
+                success: true,
+                message: `TradingView update triggered for: ${timeframes.join(', ')}`,
+                timeframes
+            });
+        } else {
+            res.status(503).json({
+                success: false,
+                message: 'TradingView update failed. Check server logs for details.'
+            });
+        }
+    } catch (error) {
+        console.error('Error triggering TradingView update:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to trigger TradingView update',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * GET /api/historical/scheduler-status
+ * Get TradingView scheduler status
+ */
+router.get('/scheduler-status', authenticate, requireAdmin, async (req, res) => {
+    try {
+        const status = tradingViewScheduler.getStatus();
+        res.json({
+            success: true,
+            data: status
+        });
+    } catch (error) {
+        console.error('Error getting scheduler status:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to get scheduler status',
             error: error.message
         });
     }

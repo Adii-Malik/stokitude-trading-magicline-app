@@ -125,7 +125,7 @@ export default function Header({
                   }`}
               >
                 <Bot className="w-4 h-4" />
-                <span>Trading Bot</span>
+                <span>Bot</span>
               </button>
 
               {isAdmin() && (

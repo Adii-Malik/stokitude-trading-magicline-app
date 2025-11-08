@@ -10,6 +10,7 @@ import config from './config/config.js';
 import { connectDB } from './config/mongodb.js';
 import centralizedPriceService from './services/centralizedPriceService.js';
 import historicalDataScheduler from './services/historicalDataScheduler.js';
+import tradingViewScheduler from './services/tradingViewScheduler.js';
 import magicLineHandler from './handlers/magicLineHandler.js';
 import tradePlanHandler from './handlers/tradePlanHandler.js';
 import marketHoursService from './services/marketHoursService.js';
@@ -315,9 +316,12 @@ async function startServer() {
       console.log('⏸️ Price polling is disabled (enable in Settings)');
     }
 
-    // Start Historical Data Scheduler (runs daily after market close)
-    console.log('\n📅 Historical Data Scheduler:');
-    historicalDataScheduler.start();
+    // Start TradingView Scheduler (cron-based, triggers TradingView Core Engine)
+    console.log('\n📅 TradingView Update Scheduler:');
+    tradingViewScheduler.start();
+
+    // Note: historicalDataScheduler is deprecated in favor of tradingViewScheduler
+    // Keeping it available for manual triggers if needed
 
     // Start HTTP server - ALWAYS listen on 0.0.0.0 for external access
     // Use 0.0.0.0 to accept connections from any IP (required for Fly.io and mobile)
