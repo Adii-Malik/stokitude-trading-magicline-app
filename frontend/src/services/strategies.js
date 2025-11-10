@@ -47,3 +47,17 @@ export const deactivateStrategy = async (id) => {
   const response = await api.post(`/strategies/${id}/deactivate`);
   return response.data;
 };
+
+// Get stop loss presets from Python core
+export const getSlPresets = async () => {
+  const response = await api.get('/strategies/sl-presets');
+  return response.data;
+};
+
+// Get full SL config for a specific preset and timeframe
+export const getSlConfig = async (preset, timeframe) => {
+  const response = await api.get(`/strategies/sl-config/${preset}`, {
+    params: { timeframe }
+  });
+  return response.data;
+};

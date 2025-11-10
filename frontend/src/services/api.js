@@ -1,24 +1,14 @@
 import axios from 'axios';
 
-// Smart API URL detection:
-// 1. Use VITE_API_URL env var if set (production)
-// 2. Use relative path if on same domain (production build served by backend)
-// 3. Fall back to localhost for development
-const getApiUrl = () => {
-  console.log(import.meta.env.VITE_API_URL);
+// API URL detection:
+// - Production (when served by backend): Use relative path '/api'
+// - Development (localhost): Use absolute URL with port
+const API_URL = import.meta.env.VITE_API_URL ||
+  (import.meta.env.DEV ? `http://localhost:${import.meta.env.VITE_API_PORT || 5000}/api` : '/api');
 
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
-  }
-  // If running in production (same domain as backend), use relative path
-  if (import.meta.env.PROD) {
-    return '/api';
-  }
-  // Development fallback
-  return `http://localhost:${import.meta.env.VITE_API_PORT || 5000}/api`;
-};
-
-const API_URL = getApiUrl();
+console.log('🔗 API URL:', API_URL);
+console.log('🏗️ Build Mode:', import.meta.env.MODE);
+console.log('📍 Dev Mode:', import.meta.env.DEV);
 
 const api = axios.create({
   baseURL: API_URL,

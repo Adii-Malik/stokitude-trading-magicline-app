@@ -1,0 +1,30 @@
+# Ignore local development files
+node_modules
+npm-debug.log
+.git
+.gitignore
+.env
+.env.local
+.env.development
+.env.test
+.DS_Store
+
+# Frontend
+frontend/dist
+frontend/node_modules
+frontend/.env.local
+frontend/.env.development
+
+# Backend
+backend/node_modules
+backend/.env.local
+backend/.env.development
+
+# Documentation
+*.md
+!README.md
+
+# IDE
+.vscode
+.idea
+

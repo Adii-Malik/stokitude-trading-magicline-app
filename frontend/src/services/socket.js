@@ -1,23 +1,12 @@
 import { io } from 'socket.io-client';
 
-// Smart Socket URL detection:
-// 1. Use VITE_SOCKET_URL env var if set (production)
-// 2. Use current host if on same domain (production build served by backend)
-// 3. Fall back to localhost for development
-const getSocketUrl = () => {
-  if (import.meta.env.VITE_SOCKET_URL) {
-    return import.meta.env.VITE_SOCKET_URL;
-  }
-  // If running in production (same domain as backend), use current host
-  if (import.meta.env.PROD && typeof window !== 'undefined') {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    return window.location.origin;
-  }
-  // Development fallback
-  return `http://localhost:${import.meta.env.VITE_API_PORT || 5000}`;
-};
+// Socket URL detection:
+// - Production: Use window.location.origin (same domain as frontend)
+// - Development: Use absolute URL with port
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL ||
+  (import.meta.env.DEV ? `http://localhost:${import.meta.env.VITE_API_PORT || 5000}` : window.location.origin);
 
-const SOCKET_URL = getSocketUrl();
+console.log('🔌 Socket URL:', SOCKET_URL);
 
 class SocketService {
   constructor() {

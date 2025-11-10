@@ -1,11 +1,13 @@
 import axios from 'axios';
+import config from '../config/config.js';
 
 class PythonStrategyService {
   constructor() {
-    this.baseUrl = process.env.PYTHON_SERVICE_URL || 'http://localhost:5002';
-    this.timeout = parseInt(process.env.PYTHON_SERVICE_TIMEOUT) || 30000;
-    this.retryAttempts = parseInt(process.env.PYTHON_SERVICE_RETRY_ATTEMPTS) || 3;
-    this.retryDelay = parseInt(process.env.PYTHON_SERVICE_RETRY_DELAY) || 1000;
+    this.baseUrl = config.pythonCore.baseUrl;
+    this.timeout = config.pythonCore.timeout;
+    this.retryAttempts = config.pythonCore.retryAttempts;
+    this.retryDelay = config.pythonCore.retryDelay;
+    this.endpoints = config.pythonCore.endpoints;
     this.isHealthy = true;
     this.lastHealthCheck = null;
 
@@ -26,7 +28,7 @@ class PythonStrategyService {
    */
   async healthCheck() {
     try {
-      const response = await this.client.get('/health');
+      const response = await this.client.get(this.endpoints.health);
       this.isHealthy = response.data.status === 'healthy';
       this.lastHealthCheck = new Date();
       return response.data;
@@ -59,7 +61,7 @@ class PythonStrategyService {
   async listStrategies() {
     try {
       const response = await this.retryRequest(() =>
-        this.client.get('/api/strategies')
+        this.client.get(this.endpoints.strategies)
       );
       return response.data;
     } catch (error) {
@@ -73,7 +75,7 @@ class PythonStrategyService {
   async getStrategy(strategyName) {
     try {
       const response = await this.retryRequest(() =>
-        this.client.get(`/api/strategies/${strategyName}`)
+        this.client.get(this.endpoints.strategyDetail(strategyName))
       );
       return response.data;
     } catch (error) {
@@ -87,7 +89,7 @@ class PythonStrategyService {
   async generateSignals(params) {
     try {
       const response = await this.retryRequest(() =>
-        this.client.post('/api/signals/generate', params)
+        this.client.post(this.endpoints.signals, params)
       );
       return response.data;
     } catch (error) {
@@ -101,7 +103,7 @@ class PythonStrategyService {
   async batchGenerateSignals(params) {
     try {
       const response = await this.retryRequest(() =>
-        this.client.post('/api/signals/batch', params)
+        this.client.post(this.endpoints.signalsBatch, params)
       );
       return response.data;
     } catch (error) {
@@ -116,7 +118,7 @@ class PythonStrategyService {
     try {
       // Increase timeout for backtests
       const response = await this.retryRequest(() =>
-        this.client.post('/api/backtest/run', params, {
+        this.client.post(this.endpoints.backtest, params, {
           timeout: 60000 // 60 seconds for backtests
         })
       );
@@ -132,7 +134,7 @@ class PythonStrategyService {
   async getAvailableSymbols() {
     try {
       const response = await this.retryRequest(() =>
-        this.client.get('/api/symbols')
+        this.client.get(this.endpoints.symbols)
       );
       return response.data;
     } catch (error) {
@@ -146,11 +148,41 @@ class PythonStrategyService {
   async getSymbolInfo(symbol) {
     try {
       const response = await this.retryRequest(() =>
-        this.client.get(`/api/symbols/${symbol}`)
+        this.client.get(this.endpoints.symbolInfo(symbol))
       );
       return response.data;
     } catch (error) {
       throw this.handleError(error, `Failed to get symbol info: ${symbol}`);
+    }
+  }
+
+  /**
+   * Get Stop Loss Presets from Core
+   */
+  async getSlPresets() {
+    try {
+      const response = await this.retryRequest(() =>
+        this.client.get(this.endpoints.slPresets)
+      );
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error, 'Failed to get SL presets');
+    }
+  }
+
+  /**
+   * Get Full SL Config for a specific preset and timeframe
+   */
+  async getSlConfig(preset, timeframe) {
+    try {
+      const response = await this.retryRequest(() =>
+        this.client.get(this.endpoints.slConfig(preset), {
+          params: { timeframe }
+        })
+      );
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error, `Failed to get SL config for ${preset}`);
     }
   }
 

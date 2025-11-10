@@ -11,7 +11,7 @@ const router = express.Router();
  */
 router.get('/', authenticate, async (req, res) => {
   try {
-    const strategies = await TradingStrategy.getUserStrategies(req.user.userId);
+    const strategies = await TradingStrategy.getUserStrategies(req.user._id);
     res.json({
       success: true,
       strategies
@@ -45,6 +45,52 @@ router.get('/available', authenticate, async (req, res) => {
 });
 
 /**
+ * GET /api/strategies/sl-presets
+ * Get available stop loss presets from Python core
+ */
+router.get('/sl-presets', authenticate, async (req, res) => {
+  try {
+    const result = await pythonService.getSlPresets();
+    res.json(result);
+  } catch (error) {
+    console.error('Error fetching SL presets:', error);
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || 'Failed to fetch SL presets',
+      error: error.details
+    });
+  }
+});
+
+/**
+ * GET /api/strategies/sl-config/:preset
+ * Get full SL config for a specific preset and timeframe
+ */
+router.get('/sl-config/:preset', authenticate, async (req, res) => {
+  try {
+    const { preset } = req.params;
+    const { timeframe } = req.query;
+
+    if (!timeframe) {
+      return res.status(400).json({
+        success: false,
+        message: 'Timeframe is required'
+      });
+    }
+
+    const result = await pythonService.getSlConfig(preset, timeframe);
+    res.json(result);
+  } catch (error) {
+    console.error('Error fetching SL config:', error);
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || 'Failed to fetch SL config',
+      error: error.details
+    });
+  }
+});
+
+/**
  * GET /api/strategies/:id
  * Get a specific strategy by ID
  */
@@ -52,7 +98,7 @@ router.get('/:id', authenticate, async (req, res) => {
   try {
     const strategy = await TradingStrategy.findOne({
       _id: req.params.id,
-      userId: req.user.userId
+      userId: req.user._id
     });
 
     if (!strategy) {
@@ -82,7 +128,7 @@ router.get('/:id', authenticate, async (req, res) => {
  */
 router.post('/', authenticate, async (req, res) => {
   try {
-    const { name, description, pythonStrategy, pythonConfig, isActive } = req.body;
+    const { name, description, pythonStrategy, pythonConfig, isActive, slPreset } = req.body;
 
     // Validate required fields
     if (!name || !pythonStrategy || !pythonConfig) {
@@ -103,13 +149,34 @@ router.post('/', authenticate, async (req, res) => {
       });
     }
 
-    // Create strategy
+    // Fetch full SL config from core if preset provided
+    let finalConfig = { ...pythonConfig };
+    if (slPreset) {
+      try {
+        const timeframe = pythonConfig.timeframe || 'daily';
+        const slConfigResult = await pythonService.getSlConfig(slPreset, timeframe);
+
+        if (slConfigResult.success && slConfigResult.config) {
+          // Merge SL config into pythonConfig
+          finalConfig = {
+            ...pythonConfig,
+            ...slConfigResult.config,
+            _sl_preset_used: slPreset,  // Track which preset was used
+            _created_at: new Date()
+          };
+        }
+      } catch (error) {
+        console.warn('Failed to fetch SL config, continuing without it:', error.message);
+      }
+    }
+
+    // Create strategy with full config
     const strategy = new TradingStrategy({
-      userId: req.user.userId,
+      userId: req.user._id,
       name,
       description,
       pythonStrategy,
-      pythonConfig,
+      pythonConfig: finalConfig,
       isActive: isActive || false
     });
 
@@ -140,7 +207,7 @@ router.put('/:id', authenticate, async (req, res) => {
 
     const strategy = await TradingStrategy.findOne({
       _id: req.params.id,
-      userId: req.user.userId
+      userId: req.user._id
     });
 
     if (!strategy) {
@@ -181,7 +248,7 @@ router.delete('/:id', authenticate, async (req, res) => {
   try {
     const strategy = await TradingStrategy.findOneAndDelete({
       _id: req.params.id,
-      userId: req.user.userId
+      userId: req.user._id
     });
 
     if (!strategy) {
@@ -213,7 +280,7 @@ router.post('/:id/activate', authenticate, async (req, res) => {
   try {
     const strategy = await TradingStrategy.findOne({
       _id: req.params.id,
-      userId: req.user.userId
+      userId: req.user._id
     });
 
     if (!strategy) {
@@ -249,7 +316,7 @@ router.post('/:id/deactivate', authenticate, async (req, res) => {
   try {
     const strategy = await TradingStrategy.findOne({
       _id: req.params.id,
-      userId: req.user.userId
+      userId: req.user._id
     });
 
     if (!strategy) {

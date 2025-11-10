@@ -15,7 +15,10 @@ import config from '../config/config.js';
 
 class TradingViewScheduler {
     constructor() {
-        this.coreEngineUrl = config.dataSources.tradingview.apiUrl.replace('/populate', '/update');
+        // Use centralized endpoint configuration
+        this.baseUrl = config.pythonCore.baseUrl;
+        this.updateEndpoint = config.pythonCore.endpoints.tradingviewUpdate;
+        this.coreEngineUrl = `${this.baseUrl}${this.updateEndpoint}`;
         this.timeout = config.dataSources.tradingview.timeout;
         this.dailyJob = null;
         this.weeklyJob = null;
