@@ -45,7 +45,6 @@ export default {
     // TradingView - Uses Python Core endpoints
     tradingview: {
       enabled: process.env.TRADINGVIEW_ENABLED !== 'false',
-      // Uses pythonCore.baseUrl + pythonCore.endpoints.tradingviewPopulate
       timeout: parseInt(process.env.TRADINGVIEW_TIMEOUT) || 300000 // 5 minutes
     },
 

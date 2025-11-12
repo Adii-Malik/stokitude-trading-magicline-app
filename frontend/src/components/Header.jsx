@@ -148,7 +148,7 @@ export default function Header({
                       : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
                       }`}
                   >
-                    <Settings className="w-4 h-4" />
+                    <Shield className="w-4 h-4" />
                     <span>Users</span>
                   </button>
                 </>

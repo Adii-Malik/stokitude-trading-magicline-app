@@ -26,6 +26,7 @@ import historicalRoutes from './routes/historical.js';
 import strategiesRoutes from './routes/strategies.js';
 import backtestRoutes from './routes/backtest.js';
 import signalsRoutes from './routes/signals.js';
+import serviceMonitorRoutes from './routes/serviceMonitor.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -126,6 +127,7 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/strategies', strategiesRoutes);
 app.use('/api/backtest', backtestRoutes);
 app.use('/api/signals', signalsRoutes);
+app.use('/api/service-monitor', serviceMonitorRoutes);
 
 // Root API endpoint
 app.get('/api', (req, res) => {

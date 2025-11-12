@@ -9,7 +9,7 @@ import config from '../config/config.js';
 
 class TradingViewScraper {
     constructor() {
-        this.apiUrl = config.dataSources.tradingview.apiUrl;
+        this.apiUrl = `${config.pythonCore.baseUrl}${config.pythonCore.endpoints.tradingviewPopulate}`;
         this.timeout = config.dataSources.tradingview.timeout;
         this.enabled = config.dataSources.tradingview.enabled;
     }
@@ -49,14 +49,14 @@ class TradingViewScraper {
 
             // TradingView API populates MongoDB directly
             // Return counts from API response
-            const symbolData = response.data.data?.[symbol];
+            const symbolData = response.data.symbols?.[symbol];
             if (!symbolData) {
                 throw new Error(`No data returned for symbol ${symbol}`);
             }
 
-            const dailyCount = symbolData.daily?.length || 0;
-            const weeklyCount = symbolData.weekly?.length || 0;
-            const monthlyCount = symbolData.monthly?.length || 0;
+            const dailyCount = symbolData.daily?.inserted || 0;
+            const weeklyCount = symbolData.weekly?.inserted || 0;
+            const monthlyCount = symbolData.monthly?.inserted || 0;
 
             console.log(`✅ TradingView populated ${dailyCount + weeklyCount + monthlyCount} records for ${symbol}`);
 
@@ -84,7 +84,8 @@ class TradingViewScraper {
      */
     async checkHealth() {
         try {
-            const response = await axios.get(this.apiUrl.replace('/populate', '/health'), {
+            const healthUrl = `${config.pythonCore.baseUrl}${config.pythonCore.endpoints.health}`;
+            const response = await axios.get(healthUrl, {
                 timeout: 5000
             });
             return response.status === 200;

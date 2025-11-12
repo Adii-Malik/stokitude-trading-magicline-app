@@ -183,6 +183,8 @@ function AppContent() {
               onNavigateToTradingBot={() => navigate('/trading-bot')}
               onNavigateToAdmin={() => navigate('/admin')}
               onNavigateToSettings={() => navigate('/settings')}
+
+
               onNavigateToLogin={() => navigate('/login')}
               onNavigateToSignup={() => navigate('/signup')}
             />
@@ -213,6 +215,7 @@ function AppContent() {
               onNavigateToTradingBot={() => navigate('/trading-bot')}
               onNavigateToAdmin={() => navigate('/admin')}
               onNavigateToSettings={() => navigate('/settings')}
+
               onNavigateToLogin={() => navigate('/login')}
               onNavigateToSignup={() => navigate('/signup')}
             />
@@ -250,6 +253,7 @@ function AppContent() {
               onNavigateToTradingBot={() => navigate('/trading-bot')}
               onNavigateToAdmin={() => navigate('/admin')}
               onNavigateToSettings={() => navigate('/settings')}
+
               onNavigateToLogin={() => navigate('/login')}
               onNavigateToSignup={() => navigate('/signup')}
             />
@@ -280,6 +284,7 @@ function AppContent() {
               onNavigateToTradingBot={() => navigate('/trading-bot')}
               onNavigateToAdmin={() => navigate('/admin')}
               onNavigateToSettings={() => navigate('/settings')}
+
               onNavigateToLogin={() => navigate('/login')}
               onNavigateToSignup={() => navigate('/signup')}
             />
@@ -311,6 +316,7 @@ function AppContent() {
               onNavigateToTradingBot={() => navigate('/trading-bot')}
               onNavigateToAdmin={() => navigate('/admin')}
               onNavigateToSettings={() => navigate('/settings')}
+
               onNavigateToLogin={() => navigate('/login')}
               onNavigateToSignup={() => navigate('/signup')}
             />
@@ -341,6 +347,7 @@ function AppContent() {
               onNavigateToTradingBot={() => navigate('/trading-bot')}
               onNavigateToAdmin={() => navigate('/admin')}
               onNavigateToSettings={() => navigate('/settings')}
+
               onNavigateToLogin={() => navigate('/login')}
               onNavigateToSignup={() => navigate('/signup')}
             />
@@ -371,6 +378,7 @@ function AppContent() {
               onNavigateToTradingBot={() => navigate('/trading-bot')}
               onNavigateToAdmin={() => navigate('/admin')}
               onNavigateToSettings={() => navigate('/settings')}
+
               onNavigateToLogin={() => navigate('/login')}
               onNavigateToSignup={() => navigate('/signup')}
             />
@@ -401,6 +409,7 @@ function AppContent() {
               onNavigateToTradingBot={() => navigate('/trading-bot')}
               onNavigateToAdmin={() => navigate('/admin')}
               onNavigateToSettings={() => navigate('/settings')}
+
               onNavigateToLogin={() => navigate('/login')}
               onNavigateToSignup={() => navigate('/signup')}
             />

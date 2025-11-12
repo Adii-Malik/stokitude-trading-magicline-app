@@ -2,6 +2,14 @@ import cron from 'node-cron';
 import axios from 'axios';
 import config from '../config/config.js';
 
+let serviceMonitor = null;
+const getServiceMonitor = async () => {
+  if (!serviceMonitor) {
+    serviceMonitor = (await import('./serviceMonitor.js')).default;
+  }
+  return serviceMonitor;
+};
+
 /**
  * TradingView Update Scheduler
  * 
@@ -28,7 +36,7 @@ class TradingViewScheduler {
     /**
      * Start all scheduled jobs
      */
-    start() {
+    async start() {
         if (this.isRunning) {
             console.log('⚠️  TradingView scheduler already running');
             return;
@@ -36,6 +44,10 @@ class TradingViewScheduler {
 
         this.isRunning = true;
         console.log('📅 TradingView scheduler started');
+
+        // Log service start
+        const monitor = await getServiceMonitor();
+        await monitor.log('tradingViewScheduler', 'started', 'TradingView scheduler started with daily and weekly jobs');
 
         // Daily update: Mon-Fri at 5:30 PM PKT (17:30)
         this.dailyJob = cron.schedule('30 17 * * 1-5', async () => {
@@ -80,8 +92,12 @@ class TradingViewScheduler {
      * @param {Array<string>} timeframes - ['daily'] or ['weekly', 'monthly']
      */
     async updateTimeframes(timeframes) {
+        const startTimeMs = Date.now();
         const startTime = new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' });
         console.log(`\n📊 [${startTime} PKT] Triggering TradingView update for: ${timeframes.join(', ')}`);
+
+        const monitor = await getServiceMonitor();
+        const serviceType = timeframes.includes('daily') ? 'tradingViewDaily' : 'tradingViewWeekly';
 
         try {
             const response = await axios.post(
@@ -98,22 +114,57 @@ class TradingViewScheduler {
 
             if (response.data && response.data.success) {
                 const data = response.data.data || {};
+                const duration = Date.now() - startTimeMs;
+                
                 console.log(`✅ TradingView update completed successfully`);
                 console.log(`   • Symbols processed: ${data.symbolsProcessed || 'N/A'}`);
                 console.log(`   • Records updated: ${data.recordsUpdated || 'N/A'}`);
                 console.log(`   • Duration: ${data.duration || 'N/A'}`);
+                
+                // Log success
+                await monitor.log(
+                    serviceType,
+                    'success',
+                    `Updated ${timeframes.join(', ')} timeframes`,
+                    {
+                        timeframes,
+                        symbolsProcessed: data.symbolsProcessed,
+                        recordsUpdated: data.recordsUpdated
+                    },
+                    duration
+                );
+                
                 return true;
             } else {
                 throw new Error(response.data?.message || 'Invalid response from TradingView Core Engine');
             }
         } catch (error) {
+            const duration = Date.now() - startTimeMs;
+            let errorMessage = error.message;
+            
             if (error.code === 'ECONNREFUSED') {
-                console.error('❌ TradingView Core Engine is not running (port 5002)');
+                errorMessage = 'TradingView Core Engine is not running (port 5002)';
+                console.error(`❌ ${errorMessage}`);
             } else if (error.code === 'ETIMEDOUT') {
-                console.error('❌ TradingView update timed out (may still be processing)');
+                errorMessage = 'TradingView update timed out (may still be processing)';
+                console.error(`❌ ${errorMessage}`);
             } else {
                 console.error(`❌ TradingView update failed: ${error.message}`);
             }
+            
+            // Log error
+            await monitor.log(
+                serviceType,
+                'error',
+                errorMessage,
+                { 
+                    timeframes, 
+                    errorCode: error.code,
+                    stack: error.stack 
+                },
+                duration
+            );
+            
             return false;
         }
     }

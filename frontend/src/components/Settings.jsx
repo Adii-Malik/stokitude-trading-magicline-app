@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, RefreshCw, Clock, Calendar, TrendingUp, Activity, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { Settings as SettingsIcon, RefreshCw, Clock, Calendar, TrendingUp, Activity, CheckCircle, XCircle, AlertCircle, AlertTriangle, Database, ChevronDown, ChevronUp } from 'lucide-react';
 import * as settingsService from '../services/settings';
 import socket from '../services/socket';
 import { toast } from 'react-hot-toast';
+import api from '../services/api';
 
 const Settings = () => {
   const [activeMenu, setActiveMenu] = useState('general');
@@ -11,6 +12,13 @@ const Settings = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Service Monitor state
+  const [systemStatus, setSystemStatus] = useState(null);
+  const [diagnosis, setDiagnosis] = useState(null);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [expandedService, setExpandedService] = useState(null);
+  const [serviceStats, setServiceStats] = useState({});
 
   // Form state for General settings
   const [intervalMinutes, setIntervalMinutes] = useState(15);
@@ -26,7 +34,7 @@ const Settings = () => {
 
   useEffect(() => {
     loadSettings();
-    
+
     // Listen for price updates from Socket.IO
     const handlePriceUpdate = (data) => {
       console.log('Price update received:', data);
@@ -34,13 +42,25 @@ const Settings = () => {
       setRefreshing(false);
       loadSettings(); // Refresh the status
     };
-    
+
     socket.on('priceUpdate', handlePriceUpdate);
-    
+
     return () => {
       socket.off('priceUpdate', handlePriceUpdate);
     };
   }, []);
+
+  // Auto-refresh service monitor
+  useEffect(() => {
+    if (activeMenu === 'service-monitor') {
+      fetchServiceStatus();
+
+      if (autoRefresh) {
+        const interval = setInterval(fetchServiceStatus, 30000); // 30s
+        return () => clearInterval(interval);
+      }
+    }
+  }, [activeMenu, autoRefresh]);
 
   const loadSettings = async () => {
     try {
@@ -54,7 +74,7 @@ const Settings = () => {
         const sett = settingsRes.data.settings;
         setSettings(sett);
         setStatus(settingsRes.data.serviceStatus);
-        
+
         // Populate form
         setIntervalMinutes(sett.pricePolling.intervalMinutes);
         setPollingEnabled(sett.pricePolling.enabled);
@@ -166,6 +186,95 @@ const Settings = () => {
     return 'Just now';
   };
 
+  const fetchServiceStatus = async () => {
+    try {
+      const [statusRes, diagnosisRes] = await Promise.all([
+        api.get('/service-monitor/status'),
+        api.get('/service-monitor/diagnose')
+      ]);
+
+      setSystemStatus(statusRes.data.data);
+      setDiagnosis(diagnosisRes.data.data);
+
+      // Fetch statistics for each service
+      const services = ['pricePolling', 'tradingViewDaily', 'tradingViewWeekly'];
+      const statsPromises = services.map(service =>
+        api.get(`/service-monitor/statistics/${service}?hours=24`)
+          .then(res => ({ service, data: res.data.data }))
+          .catch(() => ({ service, data: null }))
+      );
+
+      const statsResults = await Promise.all(statsPromises);
+      const stats = {};
+      statsResults.forEach(({ service, data }) => {
+        stats[service] = data;
+      });
+      setServiceStats(stats);
+    } catch (error) {
+      console.error('Failed to fetch service status:', error);
+    }
+  };
+
+  const toggleServiceExpand = (serviceName) => {
+    setExpandedService(expandedService === serviceName ? null : serviceName);
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'running':
+      case 'open':
+      case 'success':
+      case 'healthy':
+        return <CheckCircle className="w-5 h-5 text-green-500" />;
+      case 'stopped':
+      case 'closed':
+      case 'warning':
+      case 'degraded':
+        return <AlertTriangle className="w-5 h-5 text-yellow-500" />;
+      case 'error':
+      case 'unhealthy':
+        return <XCircle className="w-5 h-5 text-red-500" />;
+      default:
+        return <Clock className="w-5 h-5 text-gray-500" />;
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'running':
+      case 'open':
+      case 'success':
+      case 'healthy':
+        return 'bg-green-100 text-green-800 border-green-300';
+      case 'stopped':
+      case 'closed':
+      case 'warning':
+      case 'degraded':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+      case 'error':
+      case 'unhealthy':
+        return 'bg-red-100 text-red-800 border-red-300';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-300';
+    }
+  };
+
+  const getSeverityColor = (severity) => {
+    switch (severity) {
+      case 'critical':
+        return 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800';
+      case 'warning':
+        return 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800';
+      default:
+        return 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800';
+    }
+  };
+
+  const formatTimestamp = (timestamp) => {
+    if (!timestamp) return 'N/A';
+    return new Date(timestamp).toLocaleString();
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
@@ -199,25 +308,33 @@ const Settings = () => {
               <nav className="space-y-2">
                 <button
                   onClick={() => setActiveMenu('general')}
-                  className={`w-full text-left px-4 py-3 rounded-lg transition-colors flex items-center gap-3 ${
-                    activeMenu === 'general'
-                      ? 'bg-cyan-500 text-white'
-                      : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
-                  }`}
+                  className={`w-full text-left px-4 py-3 rounded-lg transition-colors flex items-center gap-3 ${activeMenu === 'general'
+                    ? 'bg-cyan-500 text-white'
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+                    }`}
                 >
                   <TrendingUp className="w-5 h-5" />
                   <span className="font-medium">General</span>
                 </button>
                 <button
                   onClick={() => setActiveMenu('market-hours')}
-                  className={`w-full text-left px-4 py-3 rounded-lg transition-colors flex items-center gap-3 ${
-                    activeMenu === 'market-hours'
-                      ? 'bg-cyan-500 text-white'
-                      : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
-                  }`}
+                  className={`w-full text-left px-4 py-3 rounded-lg transition-colors flex items-center gap-3 ${activeMenu === 'market-hours'
+                    ? 'bg-cyan-500 text-white'
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+                    }`}
                 >
                   <Clock className="w-5 h-5" />
                   <span className="font-medium">Market Hours</span>
+                </button>
+                <button
+                  onClick={() => setActiveMenu('service-monitor')}
+                  className={`w-full text-left px-4 py-3 rounded-lg transition-colors flex items-center gap-3 ${activeMenu === 'service-monitor'
+                    ? 'bg-cyan-500 text-white'
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+                    }`}
+                >
+                  <Activity className="w-5 h-5" />
+                  <span className="font-medium">Service Monitor</span>
                 </button>
               </nav>
             </div>
@@ -410,7 +527,7 @@ const Settings = () => {
                       <Calendar className="w-5 h-5 text-amber-500" />
                       Friday Trading Hours (Split Session)
                     </h3>
-                    
+
                     {/* Morning Session */}
                     <div className="mb-4">
                       <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Morning Session</h4>
@@ -532,6 +649,362 @@ const Settings = () => {
                     </button>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Service Monitor */}
+            {activeMenu === 'service-monitor' && (
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Service Monitor</h2>
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                      <input
+                        type="checkbox"
+                        checked={autoRefresh}
+                        onChange={(e) => setAutoRefresh(e.target.checked)}
+                        className="rounded"
+                      />
+                      Auto-refresh (30s)
+                    </label>
+                    <button
+                      onClick={fetchServiceStatus}
+                      className="flex items-center gap-2 px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition-colors"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                      Refresh
+                    </button>
+                  </div>
+                </div>
+
+                {/* Health Summary */}
+                {diagnosis && (
+                  <div className={`mb-6 p-4 rounded-lg border-2 ${getStatusColor(diagnosis.issuesFound === 0 ? 'healthy' : 'warning')}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        {getStatusIcon(diagnosis.issuesFound === 0 ? 'healthy' : 'warning')}
+                        <div>
+                          <h3 className="text-lg font-semibold">
+                            {diagnosis.issuesFound === 0 ? 'All Systems Operational' : `${diagnosis.issuesFound} Issue${diagnosis.issuesFound > 1 ? 's' : ''} Detected`}
+                          </h3>
+                          <p className="text-sm opacity-75">{diagnosis.recommendation}</p>
+                        </div>
+                      </div>
+                      <div className="text-right text-sm opacity-75">
+                        {formatTimestamp(diagnosis.timestamp)}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Issues */}
+                {diagnosis?.issues?.length > 0 && (
+                  <div className="mb-6 space-y-3">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Active Issues</h3>
+                    {diagnosis.issues.map((issue, idx) => (
+                      <div key={idx} className={`p-4 rounded-lg border ${getSeverityColor(issue.severity)}`}>
+                        <div className="flex items-start gap-3">
+                          {issue.severity === 'critical' ? (
+                            <XCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                          ) : (
+                            <AlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                          )}
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-semibold text-sm uppercase">{issue.service}</span>
+                              <span className={`px-2 py-0.5 rounded text-xs font-medium ${issue.severity === 'critical' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'}`}>
+                                {issue.severity}
+                              </span>
+                            </div>
+                            <p className="text-sm font-medium mb-1">{issue.issue}</p>
+                            <p className="text-sm opacity-75">💡 {issue.solution}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Services Detailed Cards */}
+                {systemStatus && (
+                  <div className="space-y-4 mb-6">
+                    {/* Price Polling Service */}
+                    <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                      <div
+                        className="p-4 bg-gray-50 dark:bg-gray-700/50 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        onClick={() => toggleServiceExpand('pricePolling')}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3 flex-1">
+                            <TrendingUp className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-semibold text-gray-900 dark:text-white">Price Polling Service</h3>
+                                {getStatusIcon(systemStatus.services.pricePolling?.status)}
+                              </div>
+                              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                Fetches real-time stock prices from PSX during market hours
+                              </p>
+                            </div>
+                          </div>
+                          {expandedService === 'pricePolling' ? (
+                            <ChevronUp className="w-5 h-5 text-gray-500" />
+                          ) : (
+                            <ChevronDown className="w-5 h-5 text-gray-500" />
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+                          <div className="text-sm">
+                            <span className="text-gray-600 dark:text-gray-400 block text-xs">Status</span>
+                            <span className={`px-2 py-0.5 rounded font-medium text-xs inline-block mt-1 ${getStatusColor(systemStatus.services.pricePolling?.status)}`}>
+                              {systemStatus.services.pricePolling?.status}
+                            </span>
+                          </div>
+                          {systemStatus.services.pricePolling?.lastCheckAgo && (
+                            <div className="text-sm">
+                              <span className="text-gray-600 dark:text-gray-400 block text-xs">Last Check</span>
+                              <span className="font-medium text-gray-900 dark:text-white block mt-1">{systemStatus.services.pricePolling.lastCheckAgo}</span>
+                            </div>
+                          )}
+                          {serviceStats.pricePolling && (
+                            <>
+                              <div className="text-sm">
+                                <span className="text-gray-600 dark:text-gray-400 block text-xs">Success Rate (24h)</span>
+                                <span className="font-medium text-gray-900 dark:text-white block mt-1">
+                                  {serviceStats.pricePolling.total > 0
+                                    ? `${Math.round((serviceStats.pricePolling.success / serviceStats.pricePolling.total) * 100)}%`
+                                    : 'N/A'}
+                                </span>
+                              </div>
+                              <div className="text-sm">
+                                <span className="text-gray-600 dark:text-gray-400 block text-xs">Executions (24h)</span>
+                                <span className="font-medium text-gray-900 dark:text-white block mt-1">{serviceStats.pricePolling.total}</span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {expandedService === 'pricePolling' && (
+                        <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                          <h4 className="font-semibold text-sm text-gray-900 dark:text-white mb-3">Recent Activity</h4>
+                          {systemStatus.lastActivities?.pricePolling ? (
+                            <div className="space-y-2">
+                              {systemStatus.lastActivities.pricePolling.map((activity, idx) => (
+                                <div key={idx} className="flex items-start gap-3 text-sm p-3 bg-gray-50 dark:bg-gray-700/50 rounded border border-gray-200 dark:border-gray-600">
+                                  <div className="mt-0.5">{getStatusIcon(activity.status)}</div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between gap-2 mb-1">
+                                      <span className="font-medium text-gray-900 dark:text-white">{activity.message}</span>
+                                      <span className={`px-2 py-0.5 rounded text-xs font-medium flex-shrink-0 ${getStatusColor(activity.status)}`}>
+                                        {activity.status}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+                                      <span>{formatTimestamp(activity.timestamp)}</span>
+                                      {activity.duration && (
+                                        <span>Duration: {(activity.duration / 1000).toFixed(2)}s</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-gray-500 dark:text-gray-400 italic">No recent activity</p>
+                          )}
+
+                          {serviceStats.pricePolling?.lastExecution && (
+                            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800">
+                              <h5 className="font-semibold text-sm text-gray-900 dark:text-white mb-2">Last Execution Details</h5>
+                              <div className="grid grid-cols-2 gap-3 text-xs">
+                                <div>
+                                  <span className="text-gray-600 dark:text-gray-400 block">Time</span>
+                                  <span className="font-medium text-gray-900 dark:text-white">{formatTimestamp(serviceStats.pricePolling.lastExecution.timestamp)}</span>
+                                </div>
+                                <div>
+                                  <span className="text-gray-600 dark:text-gray-400 block">Status</span>
+                                  <span className={`px-2 py-0.5 rounded font-medium inline-block ${getStatusColor(serviceStats.pricePolling.lastExecution.status)}`}>
+                                    {serviceStats.pricePolling.lastExecution.status}
+                                  </span>
+                                </div>
+                                {serviceStats.pricePolling.lastExecution.duration && (
+                                  <div>
+                                    <span className="text-gray-600 dark:text-gray-400 block">Duration</span>
+                                    <span className="font-medium text-gray-900 dark:text-white">
+                                      {(serviceStats.pricePolling.lastExecution.duration / 1000).toFixed(2)}s
+                                    </span>
+                                  </div>
+                                )}
+                                {serviceStats.pricePolling.averageDuration && (
+                                  <div>
+                                    <span className="text-gray-600 dark:text-gray-400 block">Avg Duration (24h)</span>
+                                    <span className="font-medium text-gray-900 dark:text-white">{serviceStats.pricePolling.averageDuration}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* TradingView Scheduler Service */}
+                    <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                      <div
+                        className="p-4 bg-gray-50 dark:bg-gray-700/50 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        onClick={() => toggleServiceExpand('tradingView')}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3 flex-1">
+                            <Clock className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-semibold text-gray-900 dark:text-white">TradingView Scheduler</h3>
+                                {getStatusIcon(systemStatus.services.tradingViewScheduler?.status)}
+                              </div>
+                              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                Updates OHLCV data daily (Mon-Fri 5:30 PM) and weekly/monthly (Sat 6:00 PM)
+                              </p>
+                            </div>
+                          </div>
+                          {expandedService === 'tradingView' ? (
+                            <ChevronUp className="w-5 h-5 text-gray-500" />
+                          ) : (
+                            <ChevronDown className="w-5 h-5 text-gray-500" />
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+                          <div className="text-sm">
+                            <span className="text-gray-600 dark:text-gray-400 block text-xs">Status</span>
+                            <span className={`px-2 py-0.5 rounded font-medium text-xs inline-block mt-1 ${getStatusColor(systemStatus.services.tradingViewScheduler?.status)}`}>
+                              {systemStatus.services.tradingViewScheduler?.status}
+                            </span>
+                          </div>
+                          <div className="text-sm">
+                            <span className="text-gray-600 dark:text-gray-400 block text-xs">Daily Job</span>
+                            <span className={`font-medium block mt-1 ${systemStatus.services.tradingViewScheduler?.dailyJob === 'active' ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`}>
+                              {systemStatus.services.tradingViewScheduler?.dailyJob || 'N/A'}
+                            </span>
+                          </div>
+                          <div className="text-sm">
+                            <span className="text-gray-600 dark:text-gray-400 block text-xs">Weekly Job</span>
+                            <span className={`font-medium block mt-1 ${systemStatus.services.tradingViewScheduler?.weeklyJob === 'active' ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`}>
+                              {systemStatus.services.tradingViewScheduler?.weeklyJob || 'N/A'}
+                            </span>
+                          </div>
+                          {(serviceStats.tradingViewDaily || serviceStats.tradingViewWeekly) && (
+                            <div className="text-sm">
+                              <span className="text-gray-600 dark:text-gray-400 block text-xs">Executions (24h)</span>
+                              <span className="font-medium text-gray-900 dark:text-white block mt-1">
+                                {(serviceStats.tradingViewDaily?.total || 0) + (serviceStats.tradingViewWeekly?.total || 0)}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {expandedService === 'tradingView' && (
+                        <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                          <h4 className="font-semibold text-sm text-gray-900 dark:text-white mb-3">Recent Activity</h4>
+                          {(systemStatus.lastActivities?.tradingViewDaily || systemStatus.lastActivities?.tradingViewWeekly) ? (
+                            <div className="space-y-2">
+                              {[...(systemStatus.lastActivities.tradingViewDaily || []), ...(systemStatus.lastActivities.tradingViewWeekly || [])]
+                                .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+                                .slice(0, 5)
+                                .map((activity, idx) => (
+                                  <div key={idx} className="flex items-start gap-3 text-sm p-3 bg-gray-50 dark:bg-gray-700/50 rounded border border-gray-200 dark:border-gray-600">
+                                    <div className="mt-0.5">{getStatusIcon(activity.status)}</div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center justify-between gap-2 mb-1">
+                                        <span className="font-medium text-gray-900 dark:text-white">{activity.message}</span>
+                                        <span className={`px-2 py-0.5 rounded text-xs font-medium flex-shrink-0 ${getStatusColor(activity.status)}`}>
+                                          {activity.status}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+                                        <span>{formatTimestamp(activity.timestamp)}</span>
+                                        {activity.duration && (
+                                          <span>Duration: {(activity.duration / 1000).toFixed(2)}s</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-gray-500 dark:text-gray-400 italic">No recent activity</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Market Hours Service - Compact (no expansion needed) */}
+                    <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-700/50">
+                      <div className="flex items-center gap-3 mb-3">
+                        <Clock className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-gray-900 dark:text-white">Market Hours Service</h3>
+                            {getStatusIcon(systemStatus.services.marketHours?.status)}
+                          </div>
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                            Tracks PSX trading hours and manages market open/close detection
+                          </p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        <div className="text-sm">
+                          <span className="text-gray-600 dark:text-gray-400 block text-xs">Market Status</span>
+                          <span className={`px-2 py-0.5 rounded font-medium text-xs inline-block mt-1 ${getStatusColor(systemStatus.services.marketHours?.marketStatus)}`}>
+                            {systemStatus.services.marketHours?.marketStatus}
+                          </span>
+                        </div>
+                        <div className="text-sm">
+                          <span className="text-gray-600 dark:text-gray-400 block text-xs">Current Time (PKT)</span>
+                          <span className="font-medium text-gray-900 dark:text-white block mt-1">{systemStatus.services.marketHours?.currentTime}</span>
+                        </div>
+                        {systemStatus.services.marketHours?.nextOpen && (
+                          <div className="text-sm">
+                            <span className="text-gray-600 dark:text-gray-400 block text-xs">Next Open</span>
+                            <span className="font-medium text-gray-900 dark:text-white block mt-1 text-xs">{formatTimestamp(systemStatus.services.marketHours.nextOpen)}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Database Service - Compact */}
+                    <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-700/50">
+                      <div className="flex items-center gap-3">
+                        <Database className="w-6 h-6 text-green-600 dark:text-green-400" />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-gray-900 dark:text-white">Database Connection</h3>
+                            {getStatusIcon(systemStatus.database?.connected ? 'running' : 'error')}
+                          </div>
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                            MongoDB connection status
+                          </p>
+                        </div>
+                        <div>
+                          <span className={`px-3 py-1 rounded font-medium text-sm ${systemStatus.database?.connected ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'}`}>
+                            {systemStatus.database?.connected ? 'Connected' : 'Disconnected'}
+                          </span>
+                        </div>
+                      </div>
+                      {!systemStatus.database?.connected && (
+                        <div className="mt-3 p-2 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-800">
+                          <p className="text-xs text-red-600 dark:text-red-400">
+                            ⚠️ Database disconnected - check MongoDB connection string and network
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
               </div>
             )}
 

@@ -5,6 +5,15 @@ import Settings from '../models/Settings.js';
 import psxScraper from './psxScraper.js';
 import marketHoursService from './marketHoursService.js';
 
+let serviceMonitor = null;
+// Lazy load to avoid circular dependency
+const getServiceMonitor = async () => {
+  if (!serviceMonitor) {
+    serviceMonitor = (await import('./serviceMonitor.js')).default;
+  }
+  return serviceMonitor;
+};
+
 class CentralizedPriceService {
   constructor() {
     this.isRunning = false;
@@ -27,7 +36,7 @@ class CentralizedPriceService {
   }
 
   // Start polling at specified interval
-  start(intervalMinutes = 15) {
+  async start(intervalMinutes = 15) {
     if (this.isRunning) {
       console.log('⚠️ Centralized price service is already running');
       return;
@@ -40,6 +49,10 @@ class CentralizedPriceService {
     console.log(`\n🚀 Starting Centralized Price Polling Service`);
     console.log(`   Interval: Every ${intervalMinutes} minutes (from settings)`);
 
+    // Log service start
+    const monitor = await getServiceMonitor();
+    await monitor.log('pricePolling', 'started', `Price polling started with ${intervalMinutes} min interval`);
+
     // Run immediately on start
     this.checkPrices();
 
@@ -50,13 +63,17 @@ class CentralizedPriceService {
   }
 
   // Stop polling
-  stop() {
+  async stop() {
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
     }
     this.isRunning = false;
     console.log('🛑 Centralized price service stopped');
+
+    // Log service stop
+    const monitor = await getServiceMonitor();
+    await monitor.log('pricePolling', 'stopped', 'Price polling stopped');
   }
 
   // Main price checking logic
@@ -75,10 +92,10 @@ class CentralizedPriceService {
           message: 'Price fetch already in progress'
         };
       }
-      
+
       // Check if market is open (unless skipped for manual refresh)
       const status = marketHoursService.getMarketStatus();
-      
+
       if (!skipMarketCheck && status && !status.isOpen) {
         this.skipCount++;
         if (this.skipCount >= this.MAX_SKIPS) {
@@ -86,8 +103,22 @@ class CentralizedPriceService {
           console.log(`   ${status.message || 'Market is closed'}`);
           console.log(`   Skipping price check (checked ${this.skipCount} times while closed)`);
           this.skipCount = 0;
+
+          // Log market closed skips periodically
+          const monitor = await getServiceMonitor();
+          await monitor.log(
+            'pricePolling',
+            'info',
+            `Price check skipped - Market ${status.status || 'closed'}`,
+            {
+              reason: 'market_closed',
+              marketStatus: status.status,
+              message: status.message,
+              nextOpen: status.nextOpen
+            }
+          );
         }
-        
+
         return {
           skipped: true,
           reason: 'market_closed',
@@ -95,13 +126,13 @@ class CentralizedPriceService {
           message: status.message
         };
       }
-      
+
       // Set lock - prevent concurrent fetches
       this.isFetching = true;
-      
+
       // Reset skip counter when market is open
       this.skipCount = 0;
-      
+
       const isManual = skipMarketCheck;
       console.log(`\n💰 [${currentTime} PKT] ${isManual ? 'Manual' : 'Automatic'} price fetch initiated`);
 
@@ -111,7 +142,7 @@ class CentralizedPriceService {
       // Filter out null/undefined/empty symbols and ensure they're strings
       const activeSymbols = [...new Set([...tradePlanSymbols, ...magicLineSymbols])]
         .filter(symbol => symbol && typeof symbol === 'string' && symbol.trim().length > 0);
-      
+
       if (activeSymbols.length === 0) {
         console.log('⚠️ No active symbols to update');
         this.lastCheckTime = Date.now();
@@ -121,7 +152,7 @@ class CentralizedPriceService {
           message: 'No active symbols'
         };
       }
-      
+
       console.log(`📊 Fetching ${activeSymbols.length} active symbols from PSX...`);
 
       // 🚀 NEW: Use bulk scraper - fetch ALL prices in ONE call
@@ -129,26 +160,26 @@ class CentralizedPriceService {
       const errors = [];
       let successCount = 0;
       let failedCount = 0;
-      
+
       try {
         // Fetch all prices using bulk method
         const bulkResult = await psxScraper.getStockPricesForSymbols(activeSymbols);
-        
+
         // Process successful results
         for (const stockData of bulkResult.success) {
           priceResults[stockData.symbol] = stockData;
           successCount++;
         }
-        
+
         // Track symbols not found
         for (const symbol of bulkResult.notFound) {
           errors.push({ symbol, error: 'Symbol not found' });
           failedCount++;
         }
-        
+
       } catch (error) {
         console.error(`⚠️ Bulk scraper error: ${error.message}`);
-        
+
         // Fallback to one-by-one method
         for (const symbol of activeSymbols) {
           try {
@@ -174,10 +205,10 @@ class CentralizedPriceService {
 
         try {
           const stock = await Stock.findOne({ symbol });
-          
+
           if (stock) {
             const newPrice = stockData.price;
-            
+
             // ✅ Use data from PSX scraper (don't calculate, use what PSX provides)
             stock.previousPrice = stockData.previousClose || stock.previousPrice;
             stock.currentPrice = newPrice;
@@ -189,7 +220,7 @@ class CentralizedPriceService {
             stock.open = stockData.open || null;
             stock.volume = stockData.volume || null;
             stock.lastUpdated = now;
-            
+
             await stock.save();
             stocksUpdated++;
           } else {
@@ -202,10 +233,26 @@ class CentralizedPriceService {
         }
       }
 
-      const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-      console.log(`✅ Price update complete: ${successCount}/${activeSymbols.length} symbols updated in ${duration}s${failedCount > 0 ? ` (${failedCount} failed)` : ''}`);
+      const duration = Date.now() - startTime;
+      const durationSec = (duration / 1000).toFixed(2);
+      console.log(`✅ Price update complete: ${successCount}/${activeSymbols.length} symbols updated in ${durationSec}s${failedCount > 0 ? ` (${failedCount} failed)` : ''}`);
 
       this.lastCheckTime = Date.now();
+
+      // Log to service monitor
+      const monitor = await getServiceMonitor();
+      await monitor.log(
+        'pricePolling',
+        failedCount === activeSymbols.length ? 'error' : (failedCount > 0 ? 'warning' : 'success'),
+        `Updated ${successCount}/${activeSymbols.length} symbols`,
+        {
+          checked: activeSymbols.length,
+          updated: stocksUpdated,
+          failed: failedCount,
+          errors: errors.slice(0, 5) // Log first 5 errors only
+        },
+        duration
+      );
 
       // Save timestamp to database (for status bar display)
       try {
@@ -236,6 +283,11 @@ class CentralizedPriceService {
       };
     } catch (error) {
       console.error('❌ Error in centralized price service:', error);
+
+      // Log error to service monitor
+      const monitor = await getServiceMonitor();
+      await monitor.log('pricePolling', 'error', error.message, { stack: error.stack });
+
       return {
         error: error.message
       };
