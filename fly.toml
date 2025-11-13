@@ -36,4 +36,4 @@ primary_region = 'sin'
 [[vm]]
   cpu_kind = 'shared'
   cpus = 1
-  memory_mb = 512
+  memory_mb = 256  # Free tier

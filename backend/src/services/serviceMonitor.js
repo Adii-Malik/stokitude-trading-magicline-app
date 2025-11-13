@@ -164,22 +164,22 @@ class ServiceMonitor {
 
     // Get recent activity from logs (last 7 days, only success/error/warning)
     try {
-      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
       const recentLogs = await ServiceLog.find({
-        timestamp: { $gte: sevenDaysAgo },
+        timestamp: { $gte: threeDaysAgo },
         status: { $in: ['success', 'error', 'warning'] } // Skip 'info', 'started', 'stopped', 'skipped'
       })
         .sort({ timestamp: -1 })
-        .limit(100)
+        .limit(50)
         .lean();
 
-      // Group by service (max 10 per service)
+      // Group by service (max 5 per service to save RAM)
       const activityByService = {};
       for (const log of recentLogs) {
         if (!activityByService[log.serviceName]) {
           activityByService[log.serviceName] = [];
         }
-        if (activityByService[log.serviceName].length < 10) {
+        if (activityByService[log.serviceName].length < 5) {
           activityByService[log.serviceName].push({
             status: log.status,
             message: log.message,
