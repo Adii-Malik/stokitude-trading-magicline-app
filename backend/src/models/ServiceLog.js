@@ -9,6 +9,7 @@ const serviceLogSchema = new mongoose.Schema({
             'tradingViewScheduler',
             'tradingViewDaily',
             'tradingViewWeekly',
+            'signalGenerationScheduler',
             'historicalDataDaily',
             'marketHoursCheck',
             'magicLineHandler',

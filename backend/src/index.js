@@ -11,6 +11,7 @@ import { connectDB } from './config/mongodb.js';
 import centralizedPriceService from './services/centralizedPriceService.js';
 import historicalDataScheduler from './services/historicalDataScheduler.js';
 import tradingViewScheduler from './services/tradingViewScheduler.js';
+import signalGenerationScheduler from './services/signalGenerationScheduler.js';
 import magicLineHandler from './handlers/magicLineHandler.js';
 import tradePlanHandler from './handlers/tradePlanHandler.js';
 import marketHoursService from './services/marketHoursService.js';
@@ -321,6 +322,10 @@ async function startServer() {
     // Start TradingView Scheduler (cron-based, triggers TradingView Core Engine)
     console.log('\n📅 TradingView Update Scheduler:');
     tradingViewScheduler.start();
+
+    // Start Signal Generation Scheduler (cron-based, automated signal generation)
+    console.log('\n🤖 Signal Generation Scheduler:');
+    signalGenerationScheduler.start();
 
     // Note: historicalDataScheduler is deprecated in favor of tradingViewScheduler
     // Keeping it available for manual triggers if needed

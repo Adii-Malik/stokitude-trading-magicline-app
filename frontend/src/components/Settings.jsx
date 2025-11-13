@@ -197,7 +197,7 @@ const Settings = () => {
       setDiagnosis(diagnosisRes.data.data);
 
       // Fetch statistics for each service
-      const services = ['pricePolling', 'tradingViewDaily', 'tradingViewWeekly'];
+      const services = ['pricePolling', 'tradingViewDaily', 'tradingViewWeekly', 'signalGenerationScheduler'];
       const statsPromises = services.map(service =>
         api.get(`/service-monitor/statistics/${service}?hours=24`)
           .then(res => ({ service, data: res.data.data }))
@@ -865,7 +865,7 @@ const Settings = () => {
                                 {getStatusIcon(systemStatus.services.tradingViewScheduler?.status)}
                               </div>
                               <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                                Updates OHLCV data daily (Mon-Fri 5:30 PM) and weekly/monthly (Sat 6:00 PM)
+                                Updates OHLCV data daily (Mon-Fri 5:00 PM) and weekly/monthly (Sat 5:00 PM)
                               </p>
                             </div>
                           </div>
@@ -933,6 +933,96 @@ const Settings = () => {
                                     </div>
                                   </div>
                                 ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-gray-500 dark:text-gray-400 italic">No recent activity</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Signal Generation Scheduler - Expandable */}
+                    <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                      <div
+                        className="p-4 bg-gray-50 dark:bg-gray-700/50 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        onClick={() => toggleServiceExpand('signalGeneration')}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3 flex-1">
+                            <Activity className="w-6 h-6 text-green-600 dark:text-green-400" />
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-semibold text-gray-900 dark:text-white">Signal Generation Scheduler</h3>
+                                {getStatusIcon(systemStatus.services.signalGenerationScheduler?.status)}
+                              </div>
+                              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                Automated signal generation Mon-Sat at 5:30 PM PKT (daily/weekly/monthly signals)
+                              </p>
+                            </div>
+                          </div>
+                          {expandedService === 'signalGeneration' ? (
+                            <ChevronUp className="w-5 h-5 text-gray-500" />
+                          ) : (
+                            <ChevronDown className="w-5 h-5 text-gray-500" />
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+                          <div className="text-sm">
+                            <span className="text-gray-600 dark:text-gray-400 block text-xs">Status</span>
+                            <span className={`px-2 py-0.5 rounded font-medium text-xs inline-block mt-1 ${getStatusColor(systemStatus.services.signalGenerationScheduler?.status)}`}>
+                              {systemStatus.services.signalGenerationScheduler?.status}
+                            </span>
+                          </div>
+                          <div className="text-sm">
+                            <span className="text-gray-600 dark:text-gray-400 block text-xs">Job Status</span>
+                            <span className={`px-2 py-0.5 rounded font-medium text-xs inline-block mt-1 ${systemStatus.services.signalGenerationScheduler?.job === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>
+                              {systemStatus.services.signalGenerationScheduler?.job || 'inactive'}
+                            </span>
+                          </div>
+                          {serviceStats.signalGenerationScheduler && (
+                            <>
+                              <div className="text-sm">
+                                <span className="text-gray-600 dark:text-gray-400 block text-xs">Success Rate (24h)</span>
+                                <span className="font-medium text-gray-900 dark:text-white block mt-1">
+                                  {serviceStats.signalGenerationScheduler.total > 0
+                                    ? `${Math.round((serviceStats.signalGenerationScheduler.success / serviceStats.signalGenerationScheduler.total) * 100)}%`
+                                    : 'N/A'}
+                                </span>
+                              </div>
+                              <div className="text-sm">
+                                <span className="text-gray-600 dark:text-gray-400 block text-xs">Executions (24h)</span>
+                                <span className="font-medium text-gray-900 dark:text-white block mt-1">{serviceStats.signalGenerationScheduler.total}</span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {expandedService === 'signalGeneration' && (
+                        <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                          <h4 className="font-semibold text-sm text-gray-900 dark:text-white mb-3">Recent Activity</h4>
+                          {systemStatus.lastActivities?.signalGenerationScheduler ? (
+                            <div className="space-y-2">
+                              {systemStatus.lastActivities.signalGenerationScheduler.map((activity, idx) => (
+                                <div key={idx} className="flex items-start gap-3 text-sm p-3 bg-gray-50 dark:bg-gray-700/50 rounded border border-gray-200 dark:border-gray-600">
+                                  <div className="mt-0.5">{getStatusIcon(activity.status)}</div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between gap-2 mb-1">
+                                      <span className="font-medium text-gray-900 dark:text-white">{activity.message}</span>
+                                      <span className={`px-2 py-0.5 rounded text-xs font-medium flex-shrink-0 ${getStatusColor(activity.status)}`}>
+                                        {activity.status}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+                                      <span>{formatTimestamp(activity.timestamp)}</span>
+                                      {activity.duration && (
+                                        <span>Duration: {(activity.duration / 1000).toFixed(2)}s</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
                             </div>
                           ) : (
                             <p className="text-sm text-gray-500 dark:text-gray-400 italic">No recent activity</p>

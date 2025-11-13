@@ -4,10 +4,10 @@ import config from '../config/config.js';
 
 let serviceMonitor = null;
 const getServiceMonitor = async () => {
-  if (!serviceMonitor) {
-    serviceMonitor = (await import('./serviceMonitor.js')).default;
-  }
-  return serviceMonitor;
+    if (!serviceMonitor) {
+        serviceMonitor = (await import('./serviceMonitor.js')).default;
+    }
+    return serviceMonitor;
 };
 
 /**
@@ -17,8 +17,8 @@ const getServiceMonitor = async () => {
  * Endpoint: http://localhost:5002/api/tradingview/update
  * 
  * Schedules:
- * - Daily: Mon-Fri at 5:30 PM PKT (after market close at 3:30 PM)
- * - Weekly/Monthly: Saturday at 6:00 PM PKT (after week ends)
+ * - Daily: Mon-Fri at 5:00 PM PKT (after market close at 3:30 PM)
+ * - Weekly/Monthly: Saturday at 5:00 PM PKT (after week ends)
  */
 
 class TradingViewScheduler {
@@ -45,12 +45,10 @@ class TradingViewScheduler {
         this.isRunning = true;
         console.log('📅 TradingView scheduler started');
 
-        // Log service start
-        const monitor = await getServiceMonitor();
-        await monitor.log('tradingViewScheduler', 'started', 'TradingView scheduler started with daily and weekly jobs');
+        // No need to log "started" - only log actual job executions
 
-        // Daily update: Mon-Fri at 5:30 PM PKT (17:30)
-        this.dailyJob = cron.schedule('30 17 * * 1-5', async () => {
+        // Daily update: Mon-Fri at 5:00 PM PKT (17:00)
+        this.dailyJob = cron.schedule('0 17 * * 1-5', async () => {
             console.log('\n🔄 [CRON] Daily TradingView update triggered...');
             await this.updateTimeframes(['daily']);
         }, {
@@ -58,8 +56,8 @@ class TradingViewScheduler {
             scheduled: true
         });
 
-        // Weekly/Monthly update: Saturday at 6:00 PM PKT (18:00)
-        this.weeklyJob = cron.schedule('0 18 * * 6', async () => {
+        // Weekly/Monthly update: Saturday at 5:00 PM PKT (17:00)
+        this.weeklyJob = cron.schedule('0 17 * * 6', async () => {
             console.log('\n🔄 [CRON] Weekly/Monthly TradingView update triggered...');
             await this.updateTimeframes(['weekly', 'monthly']);
         }, {
@@ -67,8 +65,8 @@ class TradingViewScheduler {
             scheduled: true
         });
 
-        console.log('   ✅ Daily job: Mon-Fri at 5:30 PM PKT (daily timeframe)');
-        console.log('   ✅ Weekly/Monthly job: Saturday at 6:00 PM PKT');
+        console.log('   ✅ Daily job: Mon-Fri at 5:00 PM PKT (daily timeframe)');
+        console.log('   ✅ Weekly/Monthly job: Saturday at 5:00 PM PKT');
     }
 
     /**
@@ -115,12 +113,12 @@ class TradingViewScheduler {
             if (response.data && response.data.success) {
                 const data = response.data.data || {};
                 const duration = Date.now() - startTimeMs;
-                
+
                 console.log(`✅ TradingView update completed successfully`);
                 console.log(`   • Symbols processed: ${data.symbolsProcessed || 'N/A'}`);
                 console.log(`   • Records updated: ${data.recordsUpdated || 'N/A'}`);
                 console.log(`   • Duration: ${data.duration || 'N/A'}`);
-                
+
                 // Log success
                 await monitor.log(
                     serviceType,
@@ -133,7 +131,7 @@ class TradingViewScheduler {
                     },
                     duration
                 );
-                
+
                 return true;
             } else {
                 throw new Error(response.data?.message || 'Invalid response from TradingView Core Engine');
@@ -141,7 +139,7 @@ class TradingViewScheduler {
         } catch (error) {
             const duration = Date.now() - startTimeMs;
             let errorMessage = error.message;
-            
+
             if (error.code === 'ECONNREFUSED') {
                 errorMessage = 'TradingView Core Engine is not running (port 5002)';
                 console.error(`❌ ${errorMessage}`);
@@ -151,20 +149,20 @@ class TradingViewScheduler {
             } else {
                 console.error(`❌ TradingView update failed: ${error.message}`);
             }
-            
+
             // Log error
             await monitor.log(
                 serviceType,
                 'error',
                 errorMessage,
-                { 
-                    timeframes, 
+                {
+                    timeframes,
                     errorCode: error.code,
-                    stack: error.stack 
+                    stack: error.stack
                 },
                 duration
             );
-            
+
             return false;
         }
     }

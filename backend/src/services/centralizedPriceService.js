@@ -49,9 +49,7 @@ class CentralizedPriceService {
     console.log(`\n🚀 Starting Centralized Price Polling Service`);
     console.log(`   Interval: Every ${intervalMinutes} minutes (from settings)`);
 
-    // Log service start
-    const monitor = await getServiceMonitor();
-    await monitor.log('pricePolling', 'started', `Price polling started with ${intervalMinutes} min interval`);
+    // No need to log "started" - only log actual price fetches
 
     // Run immediately on start
     this.checkPrices();
@@ -104,19 +102,7 @@ class CentralizedPriceService {
           console.log(`   Skipping price check (checked ${this.skipCount} times while closed)`);
           this.skipCount = 0;
 
-          // Log market closed skips periodically
-          const monitor = await getServiceMonitor();
-          await monitor.log(
-            'pricePolling',
-            'info',
-            `Price check skipped - Market ${status.status || 'closed'}`,
-            {
-              reason: 'market_closed',
-              marketStatus: status.status,
-              message: status.message,
-              nextOpen: status.nextOpen
-            }
-          );
+          // Don't log market closed - it's expected and clutters the logs
         }
 
         return {

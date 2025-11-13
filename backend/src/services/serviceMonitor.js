@@ -2,6 +2,7 @@ import ServiceLog from '../models/ServiceLog.js';
 import centralizedPriceService from './centralizedPriceService.js';
 import tradingViewScheduler from './tradingViewScheduler.js';
 import historicalDataScheduler from './historicalDataScheduler.js';
+import signalGenerationScheduler from './signalGenerationScheduler.js';
 import marketHoursService from './marketHoursService.js';
 import Stock from '../models/Stock.js';
 import Settings from '../models/Settings.js';
@@ -23,6 +24,12 @@ class ServiceMonitor {
         name: 'TradingView Scheduler',
         description: 'Updates OHLCV data daily/weekly/monthly',
         instance: tradingViewScheduler,
+        checkMethod: 'getStatus'
+      },
+      signalGenerationScheduler: {
+        name: 'Signal Generation Scheduler',
+        description: 'Automated signal generation after market hours',
+        instance: signalGenerationScheduler,
         checkMethod: 'getStatus'
       },
       historicalDataScheduler: {
@@ -73,7 +80,7 @@ class ServiceMonitor {
     // Check each service
     for (const [key, service] of Object.entries(this.services)) {
       try {
-        let serviceStatus = { 
+        let serviceStatus = {
           name: service.name,
           description: service.description,
           status: 'unknown'
@@ -82,7 +89,7 @@ class ServiceMonitor {
         if (service.checkMethod && service.instance) {
           const result = service.instance[service.checkMethod]();
           serviceStatus = { ...serviceStatus, ...result };
-          
+
           // Add human-readable status
           if (key === 'pricePolling') {
             serviceStatus.status = result.isRunning ? 'running' : 'stopped';
@@ -95,6 +102,11 @@ class ServiceMonitor {
             serviceStatus.status = result.isRunning ? 'running' : 'stopped';
             serviceStatus.dailyJob = result.dailyJob;
             serviceStatus.weeklyJob = result.weeklyJob;
+          } else if (key === 'signalGenerationScheduler') {
+            serviceStatus.status = result.isRunning ? 'running' : 'stopped';
+            serviceStatus.job = result.job;
+            serviceStatus.isGenerating = result.isGenerating || false;
+            serviceStatus.schedule = result.schedule;
           } else if (key === 'marketHours') {
             serviceStatus.status = result.isOpen ? 'open' : 'closed';
             serviceStatus.marketStatus = result.status;
@@ -120,14 +132,14 @@ class ServiceMonitor {
     try {
       const mongoose = (await import('mongoose')).default;
       status.database.connected = mongoose.connection.readyState === 1;
-      
+
       if (status.database.connected) {
         // Get last price update
         const lastStock = await Stock.findOne({ currentPrice: { $ne: null } })
           .sort({ lastUpdated: -1 })
           .select('lastUpdated symbol currentPrice')
           .lean();
-        
+
         if (lastStock) {
           status.database.lastPriceUpdate = {
             timestamp: lastStock.lastUpdated,
@@ -150,20 +162,24 @@ class ServiceMonitor {
       status.database.connected = false;
     }
 
-    // Get recent activity from logs
+    // Get recent activity from logs (last 7 days, only success/error/warning)
     try {
-      const recentLogs = await ServiceLog.find()
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const recentLogs = await ServiceLog.find({
+        timestamp: { $gte: sevenDaysAgo },
+        status: { $in: ['success', 'error', 'warning'] } // Skip 'info', 'started', 'stopped', 'skipped'
+      })
         .sort({ timestamp: -1 })
-        .limit(50)
+        .limit(100)
         .lean();
 
-      // Group by service
+      // Group by service (max 10 per service)
       const activityByService = {};
       for (const log of recentLogs) {
         if (!activityByService[log.serviceName]) {
           activityByService[log.serviceName] = [];
         }
-        if (activityByService[log.serviceName].length < 5) {
+        if (activityByService[log.serviceName].length < 10) {
           activityByService[log.serviceName].push({
             status: log.status,
             message: log.message,
@@ -172,7 +188,7 @@ class ServiceMonitor {
           });
         }
       }
-      
+
       status.lastActivities = activityByService;
     } catch (error) {
       status.lastActivities.error = error.message;
@@ -186,7 +202,7 @@ class ServiceMonitor {
    */
   async getHealthSummary() {
     const systemStatus = await this.getSystemStatus();
-    
+
     let healthy = 0;
     let unhealthy = 0;
     let warnings = 0;
@@ -223,7 +239,7 @@ class ServiceMonitor {
     } = options;
 
     const query = {};
-    
+
     if (serviceName) query.serviceName = serviceName;
     if (status) query.status = status;
     if (startDate || endDate) {
@@ -243,7 +259,7 @@ class ServiceMonitor {
    */
   async getStatistics(serviceName, hours = 24) {
     const startTime = new Date(Date.now() - hours * 60 * 60 * 1000);
-    
+
     const logs = await ServiceLog.find({
       serviceName,
       timestamp: { $gte: startTime }
@@ -305,7 +321,7 @@ class ServiceMonitor {
         if (lastUpdate) {
           const minutesSinceUpdate = Math.floor((Date.now() - new Date(lastUpdate.timestamp).getTime()) / 60000);
           const expectedInterval = systemStatus.database.settings.pollingInterval || 15;
-          
+
           if (minutesSinceUpdate > expectedInterval * 2) {
             issues.push({
               severity: 'warning',
@@ -332,6 +348,16 @@ class ServiceMonitor {
         service: 'tradingViewScheduler',
         issue: 'TradingView scheduler is not running',
         solution: 'Daily/weekly OHLCV updates will not occur automatically'
+      });
+    }
+
+    // Check Signal Generation scheduler
+    if (systemStatus.services.signalGenerationScheduler?.status !== 'running') {
+      issues.push({
+        severity: 'warning',
+        service: 'signalGenerationScheduler',
+        issue: 'Signal Generation Scheduler is not running',
+        solution: 'Automated signals will not be generated after market hours'
       });
     }
 
@@ -369,8 +395,8 @@ class ServiceMonitor {
       timestamp: new Date().toISOString(),
       issuesFound: issues.length,
       issues,
-      recommendation: issues.length === 0 
-        ? 'All services are operating normally' 
+      recommendation: issues.length === 0
+        ? 'All services are operating normally'
         : 'Review and address the issues listed above'
     };
   }
