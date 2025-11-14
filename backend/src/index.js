@@ -54,8 +54,6 @@ app.use(cookieParser());
 
 // Serve static files from React build (production)
 const frontendDistPath = path.join(__dirname, '../../frontend/dist');
-console.log('📁 Frontend path:', frontendDistPath);
-console.log('📁 __dirname:', __dirname);
 app.use(express.static(frontendDistPath));
 
 // Health check endpoint - monitor automated services
@@ -169,9 +167,7 @@ app.get('/api', (req, res) => {
 
 // Serve React app for all other routes (SPA)
 app.get('*', (req, res) => {
-  const indexPath = path.join(frontendDistPath, 'index.html');
-  console.log('📄 Serving index.html from:', indexPath);
-  res.sendFile(indexPath);
+  res.sendFile(path.join(frontendDistPath, 'index.html'));
 });
 
 // Socket.IO connection handling
