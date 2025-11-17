@@ -14,67 +14,23 @@ const getServiceMonitor = async () => {
 };
 
 /**
- * Signal Generation Scheduler
+ * Signal Generation Service
  * 
- * Automatically generates trading signals for active strategies after market hours
- * When: Mon-Sat at 5:30 PM PKT (after daily/weekly/monthly candles and data updated)
+ * Core business logic for generating trading signals for active strategies.
  * 
  * Key Points:
- * - Daily candles form at market close (3:30 PM PKT) Mon-Fri
- * - Weekly/Monthly candles form on Saturday
- * - TradingView updates data at 5:00 PM PKT
- * - Signal generation runs at 5:30 PM PKT (after data is fresh)
  * - Only generates signals for active strategies (isActive: true)
  * - Checks if signal already exists for today before generating
  * - Broadcasts new signals via Socket.IO for real-time updates
+ * 
+ * NOTE: Scheduling is now managed by Job Management System.
+ * This service only contains the signal generation logic (generateSignals method).
  */
 
 class SignalGenerationScheduler {
     constructor() {
-        this.job = null;
-        this.isRunning = false;
         this.isGenerating = false;
         this.apiBaseUrl = `http://localhost:${config.port}/api`;
-    }
-
-    /**
-     * Start scheduled job
-     */
-    async start() {
-        if (this.isRunning) {
-            console.log('⚠️  Signal Generation Scheduler already running');
-            return;
-        }
-
-        this.isRunning = true;
-        console.log('📅 Signal Generation Scheduler started');
-
-        // No need to log "started" - only log actual job executions
-
-        // Schedule: Mon-Sat at 5:30 PM PKT (after market close and data update)
-        // Daily candles: Mon-Fri at 3:30 PM → TradingView updates at 5:00 PM → signals at 5:30 PM
-        // Weekly/Monthly candles: Sat → TradingView updates at 5:00 PM → signals at 5:30 PM
-        this.job = cron.schedule('30 17 * * 1-6', async () => {
-            console.log('\n📊 [CRON] Automated signal generation triggered...');
-            await this.generateSignals();
-        }, {
-            timezone: 'Asia/Karachi',
-            scheduled: true
-        });
-
-        console.log('   ✅ Signal generation job: Mon-Sat at 5:30 PM PKT (daily/weekly/monthly signals)');
-    }
-
-    /**
-     * Stop scheduled job
-     */
-    stop() {
-        if (this.job) {
-            this.job.stop();
-            this.job = null;
-        }
-        this.isRunning = false;
-        console.log('🛑 Signal Generation Scheduler stopped');
     }
 
     /**
@@ -174,14 +130,11 @@ class SignalGenerationScheduler {
     }
 
     /**
-     * Get scheduler status
+     * Get service status
      */
     getStatus() {
         return {
-            isRunning: this.isRunning,
-            isGenerating: this.isGenerating,
-            job: this.job ? 'active' : 'inactive',
-            schedule: 'Mon-Sat at 5:30 PM PKT (daily/weekly/monthly signals)'
+            isGenerating: this.isGenerating
         };
     }
 }

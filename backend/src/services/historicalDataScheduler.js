@@ -5,64 +5,15 @@ import PsxWeekly from '../models/PsxWeekly.js';
 import PsxMonthly from '../models/PsxMonthly.js';
 import dayjs from 'dayjs';
 
+/**
+ * Historical Data Service
+ * 
+ * Updates daily/weekly/monthly historical data for symbols
+ * Note: Scheduling is now handled by Job Management System
+ */
 class HistoricalDataScheduler {
     constructor() {
-        this.isRunning = false;
-        this.timer = null;
-    }
-
-    /**
-     * Start the scheduler - runs daily after market close
-     */
-    start() {
-        if (this.isRunning) {
-            console.log('⚠️  Historical data scheduler already running');
-            return;
-        }
-
-        this.isRunning = true;
-        console.log('📅 Historical data scheduler started');
-
-        // Schedule to run at 5:30 PM PKT (after market close at 5:00 PM)
-        this.scheduleDaily();
-    }
-
-    /**
-     * Stop the scheduler
-     */
-    stop() {
-        if (this.timer) {
-            clearTimeout(this.timer);
-            this.timer = null;
-        }
-        this.isRunning = false;
-        console.log('🛑 Historical data scheduler stopped');
-    }
-
-    /**
-     * Schedule the daily update
-     */
-    scheduleDaily() {
-        const now = new Date();
-        const scheduledTime = new Date();
-
-        // Set to 5:30 PM PKT (17:30)
-        scheduledTime.setHours(17, 30, 0, 0);
-
-        // If it's already past 5:30 PM today, schedule for tomorrow
-        if (now > scheduledTime) {
-            scheduledTime.setDate(scheduledTime.getDate() + 1);
-        }
-
-        const msUntilScheduled = scheduledTime - now;
-
-        console.log(`⏰ Next historical data update scheduled for: ${scheduledTime.toLocaleString('en-US', { timeZone: 'Asia/Karachi' })} PKT`);
-
-        this.timer = setTimeout(async () => {
-            await this.updateHistoricalData();
-            // Reschedule for next day
-            this.scheduleDaily();
-        }, msUntilScheduled);
+        // No scheduling state needed - managed by JMS
     }
 
     /**

@@ -10,13 +10,16 @@ import {
   AlertCircle, 
   X,
   Search,
-  Filter
+  Filter,
+  Settings
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import * as adminAPI from '../services/admin';
+import JobsDashboard from './Jobs/JobsDashboard';
 
 export default function AdminDashboard() {
   const { user, isAdmin, isSuperAdmin } = useAuth();
+  const [activeTab, setActiveTab] = useState('users'); // 'users' | 'jobs'
   const [users, setUsers] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -139,15 +142,46 @@ export default function AdminDashboard() {
   return (
     <div>
       <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <Shield className="w-8 h-8 text-cyan-500 dark:text-cyan-400" />
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">User Management</h1>
-              <p className="text-gray-600 dark:text-gray-400">Manage users, roles, and permissions</p>
-            </div>
+        {/* Tabs */}
+        <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
+          <div className="flex gap-4">
+            <button
+              onClick={() => setActiveTab('users')}
+              className={`px-4 py-3 font-medium transition-all flex items-center gap-2 ${
+                activeTab === 'users'
+                  ? 'border-b-2 border-cyan-600 text-cyan-600 dark:text-cyan-400'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300'
+              }`}
+            >
+              <Users className="w-5 h-5" />
+              Users
+            </button>
+            <button
+              onClick={() => setActiveTab('jobs')}
+              className={`px-4 py-3 font-medium transition-all flex items-center gap-2 ${
+                activeTab === 'jobs'
+                  ? 'border-b-2 border-cyan-600 text-cyan-600 dark:text-cyan-400'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300'
+              }`}
+            >
+              <Settings className="w-5 h-5" />
+              Jobs
+            </button>
           </div>
+        </div>
+
+        {/* Content */}
+        {activeTab === 'users' ? (
+          <div>
+            {/* Header */}
+            <div className="mb-8">
+              <div className="flex items-center gap-3 mb-4">
+                <Shield className="w-8 h-8 text-cyan-500 dark:text-cyan-400" />
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900 dark:text-white">User Management</h1>
+                  <p className="text-gray-600 dark:text-gray-400">Manage users, roles, and permissions</p>
+                </div>
+              </div>
 
           {/* Message Banner */}
           {message && (
@@ -443,6 +477,10 @@ export default function AdminDashboard() {
             </div>
           )}
         </div>
+          </div>
+        ) : (
+          <JobsDashboard />
+        )}
       </div>
     </div>
   );

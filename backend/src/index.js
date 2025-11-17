@@ -27,7 +27,7 @@ import historicalRoutes from './routes/historical.js';
 import strategiesRoutes from './routes/strategies.js';
 import backtestRoutes from './routes/backtest.js';
 import signalsRoutes from './routes/signals.js';
-import serviceMonitorRoutes from './routes/serviceMonitor.js';
+import jobsRoutes from './routes/jobs.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -90,8 +90,6 @@ app.get('/health', async (req, res) => {
       status: 'disconnected'
     },
     services: {
-      pricePolling: centralizedPriceService.isRunning ? 'running' : 'stopped',
-      historicalDataScheduler: historicalDataScheduler.isRunning ? 'running' : 'stopped',
       socketIO: io.engine.clientsCount > 0 ? `active (${io.engine.clientsCount} clients)` : 'idle',
       marketStatus: marketHoursService.getMarketStatus().isOpen ? 'open' : 'closed'
     }
@@ -128,7 +126,7 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/strategies', strategiesRoutes);
 app.use('/api/backtest', backtestRoutes);
 app.use('/api/signals', signalsRoutes);
-app.use('/api/service-monitor', serviceMonitorRoutes);
+app.use('/api/jobs', jobsRoutes);
 
 // Root API endpoint
 app.get('/api', (req, res) => {
@@ -274,61 +272,32 @@ async function startServer() {
     console.log('🚀 Starting PSX Monitor Backend...');
     await connectDB(config.mongoUri);
 
+    // Initialize Job Management System
+    const jobManager = (await import('./jobs/jobManager.js')).default;
+    const seedJobs = (await import('./jobs/seedJobs.js')).default;
+    
+    // Seed jobs first time (will skip if already exist)
+    await seedJobs();
+    
+    // Initialize job manager
+    await jobManager.initialize();
+
     // Initialize System Settings
     const Settings = (await import('./models/Settings.js')).default;
     const settings = await Settings.getSettings();
-    const pollingInterval = settings.pricePolling.intervalMinutes;
-    const pollingEnabled = settings.pricePolling.enabled;
-
-    console.log('\n⚙️  System Settings Loaded:');
-    console.log(`   Polling Interval: ${pollingInterval} minutes`);
-    console.log(`   Polling Enabled: ${pollingEnabled}`);
 
     // Load market hours from settings into marketHoursService
-    console.log('🕒 Loading market hours from settings...');
+    console.log('\n🕒 Loading market hours from settings...');
     marketHoursService.updateConfig(settings.marketHours);
-    console.log('   ✅ Market hours configured from database');
-
-    // Start Centralized Price Service (ONLY ONE SERVICE!) - only if enabled
-    console.log('\n📊 Centralized Price Service:');
-    console.log('⏰ PSX Market Hours (from settings):');
     const { marketHours } = settings;
+    console.log('⏰ PSX Market Hours (from settings):');
     console.log(`   • Monday-Thursday: ${marketHours.regularMarketOpen.hour}:${String(marketHours.regularMarketOpen.minute).padStart(2, '0')} - ${marketHours.regularMarketClose.hour}:${String(marketHours.regularMarketClose.minute).padStart(2, '0')} PKT`);
     console.log(`   • Friday Morning: ${marketHours.fridayMorningOpen.hour}:${String(marketHours.fridayMorningOpen.minute).padStart(2, '0')} - ${marketHours.fridayMorningClose.hour}:${String(marketHours.fridayMorningClose.minute).padStart(2, '0')} PKT`);
     console.log(`   • Friday Afternoon: ${marketHours.fridayAfternoonOpen.hour}:${String(marketHours.fridayAfternoonOpen.minute).padStart(2, '0')} - ${marketHours.fridayAfternoonClose.hour}:${String(marketHours.fridayAfternoonClose.minute).padStart(2, '0')} PKT`);
     console.log(`   • Weekends: Closed${marketHours.publicHolidays && marketHours.publicHolidays.length > 0 ? ` | Public Holidays: ${marketHours.publicHolidays.length}` : ''}\n`);
 
-    if (pollingEnabled) {
-      centralizedPriceService.start(pollingInterval);
-      console.log(`✅ Price polling started (${pollingInterval} min interval)`);
-
-      // Trigger initial price check if market is open
-      setTimeout(async () => {
-        try {
-          const status = marketHoursService.getMarketStatus();
-          if (status.isOpen) {
-            await centralizedPriceService.checkPrices();
-          } else {
-            console.log('⏸️ Market is closed - waiting for trading hours');
-          }
-        } catch (error) {
-          console.error('Initial fetch error:', error.message);
-        }
-      }, 3000);
-    } else {
-      console.log('⏸️ Price polling is disabled (enable in Settings)');
-    }
-
-    // Start TradingView Scheduler (cron-based, triggers TradingView Core Engine)
-    console.log('\n📅 TradingView Update Scheduler:');
-    tradingViewScheduler.start();
-
-    // Start Signal Generation Scheduler (cron-based, automated signal generation)
-    console.log('\n🤖 Signal Generation Scheduler:');
-    signalGenerationScheduler.start();
-
-    // Note: historicalDataScheduler is deprecated in favor of tradingViewScheduler
-    // Keeping it available for manual triggers if needed
+    // Note: All automated services (Price Polling, TradingView Updates, Signal Generation)
+    // are now managed by the Job Management System. Check Admin > Jobs to configure.
 
     // Start HTTP server - ALWAYS listen on 0.0.0.0 for external access
     // Use 0.0.0.0 to accept connections from any IP (required for Fly.io and mobile)
@@ -347,16 +316,26 @@ async function startServer() {
 startServer();
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   console.log('⚠️ SIGTERM received, shutting down gracefully...');
+  
+  // Shutdown job manager
+  const jobManager = (await import('./jobs/jobManager.js')).default;
+  await jobManager.shutdown();
+  
   httpServer.close(() => {
     console.log('👋 Server closed');
     process.exit(0);
   });
 });
 
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
   console.log('\n⚠️ SIGINT received, shutting down gracefully...');
+  
+  // Shutdown job manager
+  const jobManager = (await import('./jobs/jobManager.js')).default;
+  await jobManager.shutdown();
+  
   httpServer.close(() => {
     console.log('👋 Server closed');
     process.exit(0);

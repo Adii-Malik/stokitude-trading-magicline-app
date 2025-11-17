@@ -1,3 +1,11 @@
+/**
+ * Centralized Price Service
+ * 
+ * Core business logic for fetching PSX stock prices.
+ * NOTE: Scheduling (start/stop/intervals) is now managed by Job Management System.
+ * This service only contains the price-fetching logic (checkPrices method).
+ */
+
 import Stock from '../models/Stock.js';
 import MagicLine from '../models/MagicLine.js';
 import TradePlan from '../models/TradePlan.js';
@@ -16,9 +24,6 @@ const getServiceMonitor = async () => {
 
 class CentralizedPriceService {
   constructor() {
-    this.isRunning = false;
-    this.intervalId = null;
-    this.currentInterval = null; // Track current interval from settings
     this.lastCheckTime = null;
     this.handlers = [];
     this.skipCount = 0;
@@ -33,45 +38,6 @@ class CentralizedPriceService {
 
   notifyHandlers(data) {
     this.handlers.forEach(handler => handler(data));
-  }
-
-  // Start polling at specified interval
-  async start(intervalMinutes = 15) {
-    if (this.isRunning) {
-      console.log('⚠️ Centralized price service is already running');
-      return;
-    }
-
-    this.isRunning = true;
-    this.currentInterval = intervalMinutes;
-    const intervalMs = intervalMinutes * 60 * 1000;
-
-    console.log(`\n🚀 Starting Centralized Price Polling Service`);
-    console.log(`   Interval: Every ${intervalMinutes} minutes (from settings)`);
-
-    // No need to log "started" - only log actual price fetches
-
-    // Run immediately on start
-    this.checkPrices();
-
-    // Then run at intervals
-    this.intervalId = setInterval(() => {
-      this.checkPrices();
-    }, intervalMs);
-  }
-
-  // Stop polling
-  async stop() {
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
-      this.intervalId = null;
-    }
-    this.isRunning = false;
-    console.log('🛑 Centralized price service stopped');
-
-    // Log service stop
-    const monitor = await getServiceMonitor();
-    await monitor.log('pricePolling', 'stopped', 'Price polling stopped');
   }
 
   // Main price checking logic
@@ -286,7 +252,6 @@ class CentralizedPriceService {
   // Get current status
   getStatus() {
     return {
-      isRunning: this.isRunning,
       isFetching: this.isFetching,
       lastCheckTime: this.lastCheckTime,
       lastCheckAgo: this.lastCheckTime ? Date.now() - this.lastCheckTime : null

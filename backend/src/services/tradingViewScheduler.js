@@ -11,14 +11,13 @@ const getServiceMonitor = async () => {
 };
 
 /**
- * TradingView Update Scheduler
+ * TradingView Update Service
  * 
- * Triggers TradingView Core Engine to update OHLCV data
+ * Core business logic for triggering TradingView Core Engine to update OHLCV data.
  * Endpoint: http://localhost:5002/api/tradingview/update
  * 
- * Schedules:
- * - Daily: Mon-Fri at 5:00 PM PKT (after market close at 3:30 PM)
- * - Weekly/Monthly: Saturday at 5:00 PM PKT (after week ends)
+ * NOTE: Scheduling is now managed by Job Management System.
+ * This service only contains the update logic (updateTimeframes method).
  */
 
 class TradingViewScheduler {
@@ -28,61 +27,6 @@ class TradingViewScheduler {
         this.updateEndpoint = config.pythonCore.endpoints.tradingviewUpdate;
         this.coreEngineUrl = `${this.baseUrl}${this.updateEndpoint}`;
         this.timeout = config.dataSources.tradingview.timeout;
-        this.dailyJob = null;
-        this.weeklyJob = null;
-        this.isRunning = false;
-    }
-
-    /**
-     * Start all scheduled jobs
-     */
-    async start() {
-        if (this.isRunning) {
-            console.log('⚠️  TradingView scheduler already running');
-            return;
-        }
-
-        this.isRunning = true;
-        console.log('📅 TradingView scheduler started');
-
-        // No need to log "started" - only log actual job executions
-
-        // Daily update: Mon-Fri at 5:00 PM PKT (17:00)
-        this.dailyJob = cron.schedule('0 17 * * 1-5', async () => {
-            console.log('\n🔄 [CRON] Daily TradingView update triggered...');
-            await this.updateTimeframes(['daily']);
-        }, {
-            timezone: 'Asia/Karachi',
-            scheduled: true
-        });
-
-        // Weekly/Monthly update: Saturday at 5:00 PM PKT (17:00)
-        this.weeklyJob = cron.schedule('0 17 * * 6', async () => {
-            console.log('\n🔄 [CRON] Weekly/Monthly TradingView update triggered...');
-            await this.updateTimeframes(['weekly', 'monthly']);
-        }, {
-            timezone: 'Asia/Karachi',
-            scheduled: true
-        });
-
-        console.log('   ✅ Daily job: Mon-Fri at 5:00 PM PKT (daily timeframe)');
-        console.log('   ✅ Weekly/Monthly job: Saturday at 5:00 PM PKT');
-    }
-
-    /**
-     * Stop all scheduled jobs
-     */
-    stop() {
-        if (this.dailyJob) {
-            this.dailyJob.stop();
-            this.dailyJob = null;
-        }
-        if (this.weeklyJob) {
-            this.weeklyJob.stop();
-            this.weeklyJob = null;
-        }
-        this.isRunning = false;
-        console.log('🛑 TradingView scheduler stopped');
     }
 
     /**
@@ -168,22 +112,10 @@ class TradingViewScheduler {
     }
 
     /**
-     * Manual trigger for testing
-     * @param {Array<string>} timeframes - ['daily'] or ['weekly', 'monthly']
-     */
-    async manualTrigger(timeframes = ['daily']) {
-        console.log('🔧 Manual TradingView update triggered');
-        return await this.updateTimeframes(timeframes);
-    }
-
-    /**
-     * Get scheduler status
+     * Get service status
      */
     getStatus() {
         return {
-            isRunning: this.isRunning,
-            dailyJob: this.dailyJob ? 'active' : 'inactive',
-            weeklyJob: this.weeklyJob ? 'active' : 'inactive',
             coreEngineUrl: this.coreEngineUrl
         };
     }
