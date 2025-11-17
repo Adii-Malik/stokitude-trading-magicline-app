@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { startScraping } from '../services/historical';
-import { getStockById } from '../services/stocks';
+import { startScraping } from '../../services/historical';
+import { getStockById } from '../../services/stocks';
 import {
   Database,
   Plus,
@@ -22,7 +22,7 @@ import {
   deleteStock,
   uploadStocksCSV,
   getSectors
-} from '../services/stocks';
+} from '../../services/stocks';
 import { useNavigate } from 'react-router-dom';
 
 export default function StockManagement() {
@@ -517,7 +517,7 @@ export default function StockManagement() {
                         <td className="px-6 py-4 whitespace-nowrap text-right">
                           <div className="flex items-center justify-end gap-2">
                             <button
-                              onClick={() => navigate(`/historical/${stock.symbol}`)}
+                              onClick={() => navigate(`/admin/historical/${stock.symbol}`)}
                               className="p-2 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-500/20 rounded-lg transition"
                               title="View Historical Data"
                             >

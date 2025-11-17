@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Download, BarChart3, Calendar, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getHistoricalData } from '../services/historical';
+import { getHistoricalData } from '../../services/historical';
 
 export default function HistoricalDataViewer() {
   const { symbol } = useParams();
@@ -131,7 +131,7 @@ export default function HistoricalDataViewer() {
         {/* Header */}
         <div className="mb-8">
           <button
-            onClick={() => navigate('/stocks')}
+            onClick={() => navigate('/admin/stocks')}
             className="flex items-center gap-2 text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300 mb-4 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />

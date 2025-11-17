@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import jobsApi from '../../services/jobs';
+import jobsApi from '../../../services/jobs';
 
 export default function CreateJobModal({ onClose, onCreated }) {
   const [step, setStep] = useState(1);

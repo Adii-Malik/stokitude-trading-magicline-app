@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
-import socketService from '../../services/socket';
+import socketService from '../../../services/socket';
 import { 
   BellIcon, 
   FunnelIcon,
@@ -10,7 +10,7 @@ import {
   SparklesIcon
 } from '@heroicons/react/24/outline';
 import SignalChart from './SignalChart';
-import * as signalService from '../../services/signals';
+import * as signalService from '../../../services/signals';
 
 export default function SignalDashboard() {
   const [signals, setSignals] = useState([]);

@@ -25,7 +25,6 @@ import tradePlansRoutes from './routes/tradePlans.js';
 import settingsRoutes from './routes/settings.js';
 import historicalRoutes from './routes/historical.js';
 import strategiesRoutes from './routes/strategies.js';
-import backtestRoutes from './routes/backtest.js';
 import signalsRoutes from './routes/signals.js';
 import jobsRoutes from './routes/jobs.js';
 
@@ -124,7 +123,6 @@ app.use('/api/stocks', stocksRoutes);
 app.use('/api/trade-plans', tradePlansRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/strategies', strategiesRoutes);
-app.use('/api/backtest', backtestRoutes);
 app.use('/api/signals', signalsRoutes);
 app.use('/api/jobs', jobsRoutes);
 

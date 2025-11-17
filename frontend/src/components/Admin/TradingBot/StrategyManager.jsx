@@ -9,7 +9,7 @@ import {
   ChartBarIcon,
   CogIcon
 } from '@heroicons/react/24/outline';
-import * as strategyService from '../../services/strategies';
+import * as strategyService from '../../../services/strategies';
 
 export default function StrategyManager() {
   const [strategies, setStrategies] = useState([]);

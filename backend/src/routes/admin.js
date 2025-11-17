@@ -149,8 +149,8 @@ router.put('/users/:userId/deactivate', async (req, res) => {
   }
 });
 
-// PUT /api/admin/users/:userId/toggle-role - Toggle user role (only super_admin can create admins)
-router.put('/users/:userId/toggle-role', async (req, res) => {
+// PUT /api/admin/users/:userId/promote - Promote user to admin
+router.put('/users/:userId/promote', async (req, res) => {
   try {
     const { userId } = req.params;
 
@@ -187,6 +187,67 @@ router.put('/users/:userId/toggle-role', async (req, res) => {
       });
     }
 
+    // Can only promote users (not admins or super_admins)
+    if (user.role !== 'user') {
+      return res.status(400).json({
+        success: false,
+        message: 'User is already an admin'
+      });
+    }
+
+    // Promote to admin
+    user.role = 'admin';
+    user.isActive = true; // Auto-activate when promoting
+
+    await user.save();
+
+    console.log(`⬆️ User promoted: ${user.username} is now admin by ${req.user.role} ${req.user.username}`);
+
+    res.json({
+      success: true,
+      message: 'User promoted to admin successfully',
+      data: { user: user.toSafeObject() }
+    });
+  } catch (error) {
+    console.error('Error promoting user:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to promote user',
+      error: error.message
+    });
+  }
+});
+
+// PUT /api/admin/users/:userId/demote - Demote admin to user
+router.put('/users/:userId/demote', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Prevent admin from changing their own role
+    if (userId === req.user._id.toString()) {
+      return res.status(400).json({
+        success: false,
+        message: 'You cannot change your own role'
+      });
+    }
+
+    const user = await User.findById(userId).select('-password');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Only super_admin can demote admins
+    if (req.user.role !== 'super_admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only Super Admin can demote admins'
+      });
+    }
+
     // Super admins cannot be demoted
     if (user.role === 'super_admin') {
       return res.status(400).json({
@@ -195,28 +256,31 @@ router.put('/users/:userId/toggle-role', async (req, res) => {
       });
     }
 
-    // Toggle role between user and admin
-    user.role = user.role === 'admin' ? 'user' : 'admin';
-
-    // If promoting to admin, automatically activate
-    if (user.role === 'admin') {
-      user.isActive = true;
+    // Can only demote admins
+    if (user.role !== 'admin') {
+      return res.status(400).json({
+        success: false,
+        message: 'User is not an admin'
+      });
     }
+
+    // Demote to user
+    user.role = 'user';
 
     await user.save();
 
-    console.log(`🔄 User role changed: ${user.username} is now ${user.role} by ${req.user.role} ${req.user.username}`);
+    console.log(`⬇️ User demoted: ${user.username} is now user by ${req.user.role} ${req.user.username}`);
 
     res.json({
       success: true,
-      message: `User role updated to ${user.role}`,
+      message: 'User demoted to regular user successfully',
       data: { user: user.toSafeObject() }
     });
   } catch (error) {
-    console.error('Error updating user role:', error);
+    console.error('Error demoting user:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to update user role',
+      message: 'Failed to demote user',
       error: error.message
     });
   }

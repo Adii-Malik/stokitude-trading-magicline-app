@@ -111,22 +111,6 @@ class PythonStrategyService {
     }
   }
 
-  /**
-   * Run Backtest
-   */
-  async runBacktest(params) {
-    try {
-      // Increase timeout for backtests
-      const response = await this.retryRequest(() =>
-        this.client.post(this.endpoints.backtest, params, {
-          timeout: 60000 // 60 seconds for backtests
-        })
-      );
-      return response.data;
-    } catch (error) {
-      throw this.handleError(error, 'Failed to run backtest');
-    }
-  }
 
   /**
    * Get Available Symbols

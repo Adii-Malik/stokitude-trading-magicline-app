@@ -24,9 +24,15 @@ export const deactivateUser = async (userId) => {
   return response.data;
 };
 
-// Toggle user role
-export const toggleUserRole = async (userId) => {
-  const response = await api.put(`/admin/users/${userId}/toggle-role`);
+// Promote user to admin
+export const promoteToAdmin = async (userId) => {
+  const response = await api.put(`/admin/users/${userId}/promote`);
+  return response.data;
+};
+
+// Demote user from admin
+export const demoteFromAdmin = async (userId) => {
+  const response = await api.put(`/admin/users/${userId}/demote`);
   return response.data;
 };
 

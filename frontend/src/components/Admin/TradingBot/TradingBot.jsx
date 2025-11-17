@@ -1,12 +1,10 @@
 import { useState } from 'react';
 import { 
-  ChartBarIcon, 
   CogIcon, 
   BellIcon,
   SparklesIcon 
 } from '@heroicons/react/24/outline';
 import StrategyManager from './StrategyManager';
-import BacktestRunner from './BacktestRunner';
 import SignalDashboard from './SignalDashboard';
 
 export default function TradingBot() {
@@ -14,7 +12,6 @@ export default function TradingBot() {
 
   const tabs = [
     { id: 'strategies', name: 'Strategies', icon: CogIcon },
-    { id: 'backtest', name: 'Backtest', icon: ChartBarIcon },
     { id: 'signals', name: 'Signals', icon: BellIcon },
   ];
 
@@ -29,7 +26,7 @@ export default function TradingBot() {
           </h1>
         </div>
         <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-          Automate your trading with powerful strategies, backtesting, and real-time signals
+          Configure trading strategies and monitor real-time signals
         </p>
       </div>
 
@@ -63,7 +60,6 @@ export default function TradingBot() {
       {/* Tab Content */}
       <div className="mt-8">
         {activeTab === 'strategies' && <StrategyManager />}
-        {activeTab === 'backtest' && <BacktestRunner />}
         {activeTab === 'signals' && <SignalDashboard />}
       </div>
     </div>

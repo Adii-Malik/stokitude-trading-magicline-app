@@ -117,41 +117,17 @@ export default function Header({
                 <span>Trade Calls</span>
               </button>
 
-              <button
-                onClick={() => handleNavigation(onNavigateToTradingBot)}
-                className={`px-3 py-2 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${currentPage === 'trading-bot'
-                  ? 'bg-cyan-500 text-white'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-                  }`}
-              >
-                <Bot className="w-4 h-4" />
-                <span>Bot</span>
-              </button>
-
               {isAdmin() && (
-                <>
-                  <button
-                    onClick={() => handleNavigation(onNavigateToStocks)}
-                    className={`px-3 py-2 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${currentPage === 'stocks'
-                      ? 'bg-cyan-500 text-white'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-                      }`}
-                  >
-                    <Database className="w-4 h-4" />
-                    <span>Stocks</span>
-                  </button>
-
-                  <button
-                    onClick={() => handleNavigation(onNavigateToAdmin)}
-                    className={`px-3 py-2 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${currentPage === 'admin'
-                      ? 'bg-cyan-500 text-white'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-                      }`}
-                  >
-                    <Shield className="w-4 h-4" />
-                    <span>Users</span>
-                  </button>
-                </>
+                <button
+                  onClick={() => handleNavigation(onNavigateToAdmin)}
+                  className={`px-3 py-2 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${currentPage === 'admin'
+                    ? 'bg-cyan-500 text-white'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                    }`}
+                >
+                  <Shield className="w-4 h-4" />
+                  <span>Admin</span>
+                </button>
               )}
             </nav>
           )}
@@ -241,21 +217,6 @@ export default function Header({
                         <UserCircle className="w-4 h-4" />
                         <span>My Profile</span>
                       </button>
-
-                      {/* Settings - Admin Only */}
-                      {isAdmin() && (
-                        <button
-                          onClick={() => {
-                            setUserDropdownOpen(false);
-                            setMobileMenuOpen(false);
-                            onNavigateToSettings?.();
-                          }}
-                          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-                        >
-                          <Settings className="w-4 h-4" />
-                          <span>Settings</span>
-                        </button>
-                      )}
 
                       <button
                         onClick={() => {
@@ -411,41 +372,17 @@ export default function Header({
               <span>Trade Calls</span>
             </button>
 
-            <button
-              onClick={() => handleNavigation(onNavigateToTradingBot)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${currentPage === 'trading-bot'
-                ? 'bg-cyan-500 text-white'
-                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-                }`}
-            >
-              <Bot className="w-5 h-5" />
-              <span>Trading Bot</span>
-            </button>
-
             {isAdmin() && (
-              <>
-                <button
-                  onClick={() => handleNavigation(onNavigateToStocks)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${currentPage === 'stocks'
-                    ? 'bg-cyan-500 text-white'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-                    }`}
-                >
-                  <Database className="w-5 h-5" />
-                  <span>Stocks</span>
-                </button>
-
-                <button
-                  onClick={() => handleNavigation(onNavigateToAdmin)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${currentPage === 'admin'
-                    ? 'bg-cyan-500 text-white'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-                    }`}
-                >
-                  <Shield className="w-5 h-5" />
-                  <span>Users</span>
-                </button>
-              </>
+              <button
+                onClick={() => handleNavigation(onNavigateToAdmin)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${currentPage === 'admin'
+                  ? 'bg-cyan-500 text-white'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                  }`}
+              >
+                <Shield className="w-5 h-5" />
+                <span>Admin</span>
+              </button>
             )}
 
             {/* Account Section - Mobile Only */}
@@ -461,17 +398,6 @@ export default function Header({
                 <UserCircle className="w-5 h-5" />
                 <span>My Profile</span>
               </button>
-
-              {/* Settings - Admin Only */}
-              {isAdmin() && (
-                <button
-                  onClick={() => handleNavigation(onNavigateToSettings)}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
-                >
-                  <Settings className="w-5 h-5" />
-                  <span>Settings</span>
-                </button>
-              )}
 
               {/* Change Password */}
               <button

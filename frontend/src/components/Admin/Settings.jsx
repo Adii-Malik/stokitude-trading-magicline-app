@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Settings as SettingsIcon, Clock, Calendar } from 'lucide-react';
-import * as settingsService from '../services/settings';
+import * as settingsService from '../../services/settings';
 import { toast } from 'react-hot-toast';
 
 const Settings = () => {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import jobsApi from '../../services/jobs';
+import jobsApi from '../../../services/jobs';
 
 export default function JobHistory({ job, onClose }) {
   const [executions, setExecutions] = useState([]);
