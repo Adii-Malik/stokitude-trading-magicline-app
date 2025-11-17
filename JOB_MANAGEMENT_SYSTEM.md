@@ -106,24 +106,20 @@ Every job uses the same flexible scheduling:
 - **Schedule Example:** Every 15 minutes, Mon-Fri
 - **Respects:** Market hours
 
-### 2. TradingView Daily Updates
+### 2. TradingView Data Update
 - **Category:** Data
-- **Purpose:** Updates daily OHLCV data
-- **Schedule Example:** Every 1 day at 17:00, Mon-Fri
-- **Respects:** After market close
+- **Purpose:** Updates OHLCV data for any timeframe(s) - daily, weekly, monthly
+- **Configuration:** Select timeframes (multiselect), set lookback period
+- **Schedule Example:** Every 1 day at 17:00, Mon-Fri (for daily), or Every 1 week on Saturday (for weekly/monthly)
+- **Flexibility:** Users can create multiple job instances with different timeframe combinations
 
-### 3. TradingView Weekly/Monthly Updates
-- **Category:** Data
-- **Purpose:** Updates weekly/monthly OHLCV data
-- **Schedule Example:** Every 1 week on Saturday at 17:00
-
-### 4. Signal Generation
+### 3. Signal Generation
 - **Category:** Trading
 - **Purpose:** Generates trading signals for active strategies
 - **Schedule Example:** Every 1 day at 17:30, Mon-Sat
 - **Respects:** After data updates
 
-### 5. Historical Data Update (Deprecated)
+### 4. Historical Data Update (Deprecated)
 - **Category:** Data
 - **Purpose:** Legacy historical data updates
 - **Recommendation:** Use TradingView jobs instead

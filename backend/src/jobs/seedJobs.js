@@ -43,52 +43,28 @@ export async function seedExistingServices() {
         tags: ['legacy', 'prices', 'psx']
       },
 
-      // TradingView Daily Updates
+      // TradingView Data Update (All Timeframes)
       {
-        jobType: 'tradingview_daily',
-        name: 'TradingView Daily Updates',
-        description: 'Updates daily OHLCV data from TradingView after market close',
+        jobType: 'tradingview_update',
+        name: 'TradingView Data Update',
+        description: 'Updates OHLCV data for all timeframes (daily, weekly, monthly)',
         enabled: true,
         config: {
-          timeframes: ['daily'],
-          lookbackDays: 7
+          timeframes: ['daily', 'weekly', 'monthly'],
+          lookbackPeriod: 90
         },
         schedule: {
           recurring: {
             enabled: true,
             amount: 1,
             interval: 'days',
-            daysOfWeek: [1,2,3,4,5], // Mon-Fri
+            daysOfWeek: [1,2,3,4,5,6], // Mon-Sat
             time: '17:00'  // 5:00 PM
           },
           timezone: 'Asia/Karachi',
           respectMarketHours: false
         },
-        tags: ['legacy', 'ohlcv', 'daily']
-      },
-
-      // TradingView Weekly/Monthly Updates
-      {
-        jobType: 'tradingview_weekly',
-        name: 'TradingView Weekly/Monthly Updates',
-        description: 'Updates weekly and monthly OHLCV data from TradingView',
-        enabled: true,
-        config: {
-          timeframes: ['weekly', 'monthly'],
-          lookbackWeeks: 12
-        },
-        schedule: {
-          recurring: {
-            enabled: true,
-            amount: 1,
-            interval: 'weeks',
-            daysOfWeek: [6], // Saturday
-            time: '17:00'  // 5:00 PM
-          },
-          timezone: 'Asia/Karachi',
-          respectMarketHours: false
-        },
-        tags: ['legacy', 'ohlcv', 'weekly', 'monthly']
+        tags: ['legacy', 'ohlcv', 'tradingview']
       },
 
       // Signal Generation

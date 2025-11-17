@@ -6,8 +6,7 @@
  */
 
 import pricePollingJobType from './types/pricePollingJobType.js';
-import tradingViewDailyJobType from './types/tradingViewDailyJobType.js';
-import tradingViewWeeklyJobType from './types/tradingViewWeeklyJobType.js';
+import tradingViewJobType from './types/tradingViewJobType.js';
 import signalGenerationJobType from './types/signalGenerationJobType.js';
 import historicalDataJobType from './types/historicalDataJobType.js';
 
@@ -31,8 +30,7 @@ class JobTypeRegistry {
 
     // Register built-in job types
     this.register(pricePollingJobType);
-    this.register(tradingViewDailyJobType);
-    this.register(tradingViewWeeklyJobType);
+    this.register(tradingViewJobType);
     this.register(signalGenerationJobType);
     this.register(historicalDataJobType);
 

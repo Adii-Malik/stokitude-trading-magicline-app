@@ -270,6 +270,23 @@ export default function JobsDashboard() {
                 </div>
               </div>
 
+              {/* Configuration */}
+              {job.config && Object.keys(job.config).length > 0 && (
+                <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-200">
+                  <div className="text-xs font-semibold text-gray-600 mb-2">Configuration:</div>
+                  <div className="space-y-1">
+                    {Object.entries(job.config).map(([key, value]) => (
+                      <div key={key} className="flex justify-between text-xs">
+                        <span className="text-gray-600 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                        <span className="text-gray-800 font-medium">
+                          {Array.isArray(value) ? value.join(', ') : String(value)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Statistics */}
               <div className="flex gap-4 mb-4 text-sm">
                 <div className="flex-1 bg-gray-50 p-2 rounded text-center">

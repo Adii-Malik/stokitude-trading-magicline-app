@@ -373,6 +373,7 @@ class JobManager {
         icon: jobTypeDef.icon,
         status: job.status,
         enabled: job.enabled,
+        config: job.config,
         schedule: job.schedule,
         nextRun: job.nextScheduledRun,
         lastRun: job.lastExecutionTime,

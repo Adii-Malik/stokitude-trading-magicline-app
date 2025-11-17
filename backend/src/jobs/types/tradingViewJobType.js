@@ -1,14 +1,15 @@
 /**
- * TradingView Daily Update Job Type Definition
+ * TradingView Data Update Job Type Definition
  * 
- * Updates daily OHLCV data from TradingView
+ * Universal job type for updating OHLCV data from TradingView
+ * Users can configure any combination of timeframes
  */
 
 export default {
-  type: 'tradingview_daily',
+  type: 'tradingview_update',
   
-  name: 'TradingView Daily Updates',
-  description: 'Updates daily OHLCV data for all symbols from TradingView',
+  name: 'TradingView Data Update',
+  description: 'Updates OHLCV data for any timeframe(s) from TradingView',
   category: 'data',
   icon: '📊',
   
@@ -21,26 +22,28 @@ export default {
       type: 'multiselect',
       default: ['daily'],
       options: [
-        { value: 'daily', label: 'Daily' }
+        { value: 'daily', label: 'Daily' },
+        { value: 'weekly', label: 'Weekly' },
+        { value: 'monthly', label: 'Monthly' }
       ],
       required: true,
-      description: 'Which timeframes to update',
-      helpText: 'Daily timeframe only for this job type'
+      description: 'Select one or more timeframes to update',
+      helpText: 'You can update multiple timeframes in one job'
     },
     {
-      name: 'lookbackDays',
-      label: 'Lookback Days',
+      name: 'lookbackPeriod',
+      label: 'Lookback Period',
       type: 'number',
       default: 7,
       min: 1,
       max: 365,
       description: 'How many days of history to fetch',
-      helpText: 'Recommended: 7 days for daily updates'
+      helpText: 'Recommended: 7 days for daily, 90 for weekly/monthly'
     }
   ],
   
   scheduleOptions: {
-    supportedTypes: ['recurring', 'once', 'manual'],
+    supportedTypes: ['recurring', 'manual'],
     defaultType: 'recurring',
     defaultRecurring: {
       amount: 1,
@@ -54,7 +57,7 @@ export default {
   },
   
   execution: {
-    timeout: 600000,  // 10 minutes
+    timeout: 900000,  // 15 minutes
     retryEnabled: true,
     maxRetries: 2,
     retryDelayMinutes: 30,
@@ -63,12 +66,12 @@ export default {
   },
   
   constraints: {
-    maxInstances: 1,
+    maxInstances: 10,  // Allow multiple instances with different configs
     requiresPythonCore: true
   },
   
   version: '1.0.0',
   author: 'system',
-  tags: ['ohlcv', 'daily', 'tradingview']
+  tags: ['ohlcv', 'tradingview', 'data']
 };
 
