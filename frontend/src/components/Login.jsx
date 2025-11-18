@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { LogIn, AlertCircle, ArrowLeft, Sun, Moon } from 'lucide-react';
 
-export default function Login({ onSwitchToSignup, onBackToDashboard }) {
+export default function Login({ onSwitchToSignup, onSwitchToForgotPassword, onBackToDashboard }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -103,9 +103,20 @@ export default function Login({ onSwitchToSignup, onBackToDashboard }) {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Password
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Password
+                </label>
+                {onSwitchToForgotPassword && (
+                  <button
+                    type="button"
+                    onClick={onSwitchToForgotPassword}
+                    className="text-xs text-cyan-600 hover:text-cyan-700 dark:text-cyan-400 dark:hover:text-cyan-300 font-medium transition"
+                  >
+                    Forgot password?
+                  </button>
+                )}
+              </div>
               <input
                 id="password"
                 type="password"

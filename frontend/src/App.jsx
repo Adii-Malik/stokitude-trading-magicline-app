@@ -12,6 +12,9 @@ import TradePlans from './components/TradePlans';
 import Login from './components/Login';
 import Signup from './components/Signup';
 import Landing from './components/Landing';
+import Profile from './components/Profile';
+import ForgotPassword from './components/ForgotPassword';
+import ResetPassword from './components/ResetPassword';
 import socketService from './services/socket';
 
 // Protected Route Component
@@ -153,6 +156,7 @@ function AppContent() {
       <Route path="/login" element={
         user ? <Navigate to="/dashboard" replace /> : <Login
           onSwitchToSignup={() => navigate('/signup')}
+          onSwitchToForgotPassword={() => navigate('/forgot-password')}
           onBackToDashboard={() => navigate('/')}
         />
       } />
@@ -161,6 +165,18 @@ function AppContent() {
         user ? <Navigate to="/dashboard" replace /> : <Signup
           onSwitchToLogin={() => navigate('/login')}
           onBackToDashboard={() => navigate('/')}
+        />
+      } />
+
+      <Route path="/forgot-password" element={
+        user ? <Navigate to="/dashboard" replace /> : <ForgotPassword
+          onBackToLogin={() => navigate('/login')}
+        />
+      } />
+
+      <Route path="/reset-password" element={
+        user ? <Navigate to="/dashboard" replace /> : <ResetPassword
+          onBackToLogin={() => navigate('/login')}
         />
       } />
 
@@ -180,8 +196,7 @@ function AppContent() {
               onNavigateToTradingBot={() => navigate('/trading-bot')}
               onNavigateToAdmin={() => navigate('/admin')}
               onNavigateToSettings={() => navigate('/settings')}
-
-
+              onNavigateToProfile={() => navigate('/profile')}
               onNavigateToLogin={() => navigate('/login')}
               onNavigateToSignup={() => navigate('/signup')}
             />
@@ -212,7 +227,7 @@ function AppContent() {
               onNavigateToTradingBot={() => navigate('/trading-bot')}
               onNavigateToAdmin={() => navigate('/admin')}
               onNavigateToSettings={() => navigate('/settings')}
-
+              onNavigateToProfile={() => navigate('/profile')}
               onNavigateToLogin={() => navigate('/login')}
               onNavigateToSignup={() => navigate('/signup')}
             />
@@ -250,7 +265,7 @@ function AppContent() {
               onNavigateToTradingBot={() => navigate('/trading-bot')}
               onNavigateToAdmin={() => navigate('/admin')}
               onNavigateToSettings={() => navigate('/settings')}
-
+              onNavigateToProfile={() => navigate('/profile')}
               onNavigateToLogin={() => navigate('/login')}
               onNavigateToSignup={() => navigate('/signup')}
             />
@@ -263,6 +278,13 @@ function AppContent() {
               </div>
             </footer>
           </div>
+        </ProtectedRoute>
+      } />
+
+      {/* Profile */}
+      <Route path="/profile" element={
+        <ProtectedRoute>
+          <Profile onBack={() => navigate('/dashboard')} />
         </ProtectedRoute>
       } />
 

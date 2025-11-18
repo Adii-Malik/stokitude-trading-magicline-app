@@ -40,3 +40,26 @@ export const changePassword = async (currentPassword, newPassword) => {
   return response.data;
 };
 
+export const updateProfile = async (username, email) => {
+  const response = await api.put('/auth/update-profile', {
+    username,
+    email
+  });
+  return response.data;
+};
+
+export const forgotPassword = async (email) => {
+  const response = await api.post('/auth/forgot-password', {
+    email
+  });
+  return response.data;
+};
+
+export const resetPassword = async (token, newPassword) => {
+  const response = await api.post('/auth/reset-password', {
+    token,
+    newPassword
+  });
+  return response.data;
+};
+

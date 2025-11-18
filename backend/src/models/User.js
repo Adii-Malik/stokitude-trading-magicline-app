@@ -31,6 +31,14 @@ const userSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: false // New users need admin approval
+  },
+  resetPasswordToken: {
+    type: String,
+    select: false
+  },
+  resetPasswordExpires: {
+    type: Date,
+    select: false
   }
 }, {
   timestamps: true // Auto-manage createdAt and updatedAt

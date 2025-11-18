@@ -14,6 +14,18 @@ export default {
   // Admin signup code (required to create admin accounts)
   adminSignupCode: process.env.ADMIN_SIGNUP_CODE || 'admin123',
 
+  // Email Configuration
+  email: {
+    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.EMAIL_PORT) || 587,
+    secure: process.env.EMAIL_SECURE === 'true',
+    user: process.env.EMAIL_USER || '',
+    password: process.env.EMAIL_PASSWORD || '',
+    fromName: process.env.EMAIL_FROM_NAME || 'PSX SmartDesk',
+    fromEmail: process.env.EMAIL_FROM_EMAIL || 'noreply@psxsmartdesk.com',
+    frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173'
+  },
+
   // Python Core System (Trading Strategy Engine)
   pythonCore: {
     baseUrl: process.env.PYTHON_SERVICE_URL || 'http://localhost:5002',

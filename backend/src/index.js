@@ -270,9 +270,13 @@ async function startServer() {
     console.log('🚀 Starting PSX Monitor Backend...');
     await connectDB(config.mongoUri);
 
+    // Initialize Email Service
+    const emailService = (await import('./services/emailService.js')).default;
+    await emailService.initialize();
+
     // Initialize Job Management System
     const jobManager = (await import('./jobs/jobManager.js')).default;
-
+    
     // Initialize job manager
     await jobManager.initialize();
 

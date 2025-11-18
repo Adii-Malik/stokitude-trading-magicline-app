@@ -15,6 +15,7 @@ export default function Header({
   onNavigateToTradingBot,
   onNavigateToAdmin,
   onNavigateToSettings,
+  onNavigateToProfile,
   onNavigateToLogin,
   onNavigateToSignup
 }) {
@@ -207,27 +208,11 @@ export default function Header({
 
                       {/* Menu Items */}
                       <button
-                        onClick={() => {
-                          setUserDropdownOpen(false);
-                          // TODO: Navigate to profile page
-                          console.log('Navigate to Profile');
-                        }}
+                        onClick={() => handleNavigation(onNavigateToProfile)}
                         className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
                       >
                         <UserCircle className="w-4 h-4" />
                         <span>My Profile</span>
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          setUserDropdownOpen(false);
-                          // TODO: Navigate to change password page
-                          console.log('Navigate to Change Password');
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-                      >
-                        <Lock className="w-4 h-4" />
-                        <span>Change Password</span>
                       </button>
 
                       {/* Divider */}
