@@ -96,12 +96,12 @@ export default function JobsDashboard() {
     alert(message);
   };
 
-  const categories = ['all', 'data', 'trading'];
+  const categories = ['all', 'data', 'trading', 'maintenance'];
 
   const filteredJobs = jobs.filter(job => {
     const matchesCategory = selectedCategory === 'all' || job.category === selectedCategory;
     const matchesSearch = job.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         job.typeName.toLowerCase().includes(searchQuery.toLowerCase());
+      job.typeName.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 
@@ -121,8 +121,18 @@ export default function JobsDashboard() {
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      hour12: true
     });
+  };
+
+  const formatTime12Hour = (time24) => {
+    if (!time24) return '';
+    const [hours, minutes] = time24.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 || 12;
+    return `${hour12}:${minutes} ${ampm}`;
   };
 
   const getTimeAgo = (date) => {
@@ -192,13 +202,12 @@ export default function JobsDashboard() {
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
-                  selectedCategory === cat
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${selectedCategory === cat
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
               >
-                {cat === 'all' ? 'All' : cat === 'data' ? '📊 Data' : '🎯 Trading'}
+                {cat === 'all' ? 'All' : cat === 'data' ? '📊 Data' : cat === 'trading' ? '🎯 Trading' : '🧹 Maintenance'}
               </button>
             ))}
           </div>
@@ -256,7 +265,7 @@ export default function JobsDashboard() {
                   <span className="text-gray-600">Schedule:</span>
                   <span className="text-gray-800 font-medium">
                     {job.schedule.recurring?.enabled
-                      ? `Every ${job.schedule.recurring.amount} ${job.schedule.recurring.interval}${job.schedule.recurring.time ? ` at ${job.schedule.recurring.time}` : ''}`
+                      ? `Every ${job.schedule.recurring.amount === 1 ? '' : job.schedule.recurring.amount + ' '}${job.schedule.recurring.amount === 1 ? job.schedule.recurring.interval.replace(/s$/, '') : job.schedule.recurring.interval}${job.schedule.recurring.time ? ` at ${formatTime12Hour(job.schedule.recurring.time)}` : ''}`
                       : 'Manual Only'}
                   </span>
                 </div>

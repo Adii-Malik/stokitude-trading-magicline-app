@@ -272,11 +272,7 @@ async function startServer() {
 
     // Initialize Job Management System
     const jobManager = (await import('./jobs/jobManager.js')).default;
-    const seedJobs = (await import('./jobs/seedJobs.js')).default;
-    
-    // Seed jobs first time (will skip if already exist)
-    await seedJobs();
-    
+
     // Initialize job manager
     await jobManager.initialize();
 
@@ -316,11 +312,11 @@ startServer();
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('⚠️ SIGTERM received, shutting down gracefully...');
-  
+
   // Shutdown job manager
   const jobManager = (await import('./jobs/jobManager.js')).default;
   await jobManager.shutdown();
-  
+
   httpServer.close(() => {
     console.log('👋 Server closed');
     process.exit(0);
@@ -329,11 +325,11 @@ process.on('SIGTERM', async () => {
 
 process.on('SIGINT', async () => {
   console.log('\n⚠️ SIGINT received, shutting down gracefully...');
-  
+
   // Shutdown job manager
   const jobManager = (await import('./jobs/jobManager.js')).default;
   await jobManager.shutdown();
-  
+
   httpServer.close(() => {
     console.log('👋 Server closed');
     process.exit(0);

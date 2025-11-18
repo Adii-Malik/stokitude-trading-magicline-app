@@ -7,14 +7,14 @@
 
 export default {
   type: 'tradingview_update',
-  
+
   name: 'TradingView Data Update',
   description: 'Updates OHLCV data for any timeframe(s) from TradingView',
   category: 'data',
   icon: '📊',
-  
+
   handler: 'tradingViewJob',
-  
+
   parameters: [
     {
       name: 'timeframes',
@@ -29,33 +29,23 @@ export default {
       required: true,
       description: 'Select one or more timeframes to update',
       helpText: 'You can update multiple timeframes in one job'
-    },
-    {
-      name: 'lookbackPeriod',
-      label: 'Lookback Period',
-      type: 'number',
-      default: 7,
-      min: 1,
-      max: 365,
-      description: 'How many days of history to fetch',
-      helpText: 'Recommended: 7 days for daily, 90 for weekly/monthly'
     }
   ],
-  
+
   scheduleOptions: {
     supportedTypes: ['recurring', 'manual'],
     defaultType: 'recurring',
     defaultRecurring: {
       amount: 1,
       interval: 'days',
-      daysOfWeek: [1,2,3,4,5], // Mon-Fri
+      daysOfWeek: [1, 2, 3, 4, 5], // Mon-Fri
       time: '17:00'  // 5:00 PM PKT
     },
     respectMarketHours: false,  // Runs after market close
     skipWeekends: false,
     skipHolidays: true
   },
-  
+
   execution: {
     timeout: 900000,  // 15 minutes
     retryEnabled: true,
@@ -64,12 +54,12 @@ export default {
     retryStrategy: 'fixed',
     concurrentExecutions: false
   },
-  
+
   constraints: {
     maxInstances: 10,  // Allow multiple instances with different configs
     requiresPythonCore: true
   },
-  
+
   version: '1.0.0',
   author: 'system',
   tags: ['ohlcv', 'tradingview', 'data']

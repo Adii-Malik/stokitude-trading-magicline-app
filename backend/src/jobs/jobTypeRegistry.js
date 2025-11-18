@@ -9,6 +9,7 @@ import pricePollingJobType from './types/pricePollingJobType.js';
 import tradingViewJobType from './types/tradingViewJobType.js';
 import signalGenerationJobType from './types/signalGenerationJobType.js';
 import historicalDataJobType from './types/historicalDataJobType.js';
+import logCleanupJobType from './types/logCleanupJobType.js';
 
 class JobTypeRegistry {
   constructor() {
@@ -33,6 +34,7 @@ class JobTypeRegistry {
     this.register(tradingViewJobType);
     this.register(signalGenerationJobType);
     this.register(historicalDataJobType);
+    this.register(logCleanupJobType);
 
     // Auto-discover custom job types (if directory exists)
     await this.discoverCustomJobTypes();

@@ -223,8 +223,6 @@ class JobScheduler {
 
     const { amount, interval, time } = job.schedule.recurring;
     const now = new Date();
-
-    // Simple calculation (more accurate calculation would need cron parser)
     let nextRun = new Date(now);
 
     switch (interval) {
@@ -235,24 +233,35 @@ class JobScheduler {
         nextRun.setHours(nextRun.getHours() + amount);
         break;
       case 'days':
-        nextRun.setDate(nextRun.getDate() + amount);
-        if (time) {
-          const [h, m] = time.split(':');
-          nextRun.setHours(parseInt(h), parseInt(m), 0, 0);
-        }
-        break;
       case 'weeks':
-        nextRun.setDate(nextRun.getDate() + (amount * 7));
-        if (time) {
-          const [h, m] = time.split(':');
-          nextRun.setHours(parseInt(h), parseInt(m), 0, 0);
-        }
-        break;
       case 'months':
-        nextRun.setMonth(nextRun.getMonth() + amount);
+        // For daily/weekly/monthly with specific time, calculate properly
         if (time) {
           const [h, m] = time.split(':');
           nextRun.setHours(parseInt(h), parseInt(m), 0, 0);
+          
+          // If the scheduled time hasn't passed today, next run is today
+          if (nextRun > now) {
+            // Time hasn't passed yet, use today
+          } else {
+            // Time has passed, calculate next occurrence
+            if (interval === 'days') {
+              nextRun.setDate(nextRun.getDate() + amount);
+            } else if (interval === 'weeks') {
+              nextRun.setDate(nextRun.getDate() + (amount * 7));
+            } else if (interval === 'months') {
+              nextRun.setMonth(nextRun.getMonth() + amount);
+            }
+          }
+        } else {
+          // No specific time, just add the interval
+          if (interval === 'days') {
+            nextRun.setDate(nextRun.getDate() + amount);
+          } else if (interval === 'weeks') {
+            nextRun.setDate(nextRun.getDate() + (amount * 7));
+          } else if (interval === 'months') {
+            nextRun.setMonth(nextRun.getMonth() + amount);
+          }
         }
         break;
     }

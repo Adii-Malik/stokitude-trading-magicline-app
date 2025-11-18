@@ -9,14 +9,14 @@ import config from '../../config/config.js';
 
 export default async function tradingViewJob(context) {
   const { logger, config: jobConfig } = context;
-  
+
   const timeframes = jobConfig.timeframes || ['daily'];
   const coreEngineUrl = `${config.pythonCore.baseUrl}${config.pythonCore.endpoints.tradingviewUpdate}`;
   const timeout = config.dataSources.tradingview.timeout;
 
-  logger.info('Triggering TradingView Core Engine update...', { 
+  logger.info('Triggering TradingView Core Engine update...', {
     timeframes,
-    url: coreEngineUrl 
+    url: coreEngineUrl
   });
 
   try {
@@ -33,23 +33,14 @@ export default async function tradingViewJob(context) {
     );
 
     if (response.data && response.data.success) {
-      const data = response.data.data || {};
+      const summary = response.data.summary || {};
 
-      logger.info('TradingView update completed', {
-        symbolsProcessed: data.symbolsProcessed,
-        recordsUpdated: data.recordsUpdated,
-        duration: data.duration
-      });
+      logger.info('TradingView update completed', summary);
 
       return {
         success: true,
         message: `Updated ${timeframes.join(', ')} timeframes successfully`,
-        metadata: {
-          timeframes,
-          symbolsProcessed: data.symbolsProcessed || 0,
-          recordsUpdated: data.recordsUpdated || 0,
-          coreDuration: data.duration
-        }
+        metadata: summary
       };
     } else {
       throw new Error(response.data?.message || 'Invalid response from TradingView Core Engine');
@@ -67,10 +58,10 @@ export default async function tradingViewJob(context) {
       errorCode = 'TIMEOUT';
     }
 
-    logger.error('TradingView update failed', { 
+    logger.error('TradingView update failed', {
       error: errorMessage,
       code: errorCode,
-      timeframes 
+      timeframes
     });
 
     return {
