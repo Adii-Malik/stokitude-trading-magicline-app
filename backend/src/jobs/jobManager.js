@@ -206,6 +206,9 @@ class JobManager {
     jobScheduler.scheduleJob(job, (j) => this.executeJob(j._id.toString(), { trigger: 'scheduled' }));
 
     console.log(`✅ Started job: ${job.name}`);
+    if (job.nextScheduledRun) {
+      console.log(`   Next run: ${job.nextScheduledRun.toLocaleString('en-US', { timeZone: job.schedule.timezone || 'Asia/Karachi' })}`);
+    }
 
     return job;
   }

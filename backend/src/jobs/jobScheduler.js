@@ -5,6 +5,7 @@
  */
 
 import cron from 'node-cron';
+import moment from 'moment-timezone';
 
 class JobScheduler {
   constructor() {
@@ -51,7 +52,8 @@ class JobScheduler {
       return null;
     }
 
-    console.log(`   ℹ️  Cron expression: ${cronExpression}`);
+    console.log(`   ℹ️  Cron expression: ${cronExpression} (${timezone})`);
+    console.log(`   ℹ️  Current time in ${timezone}: ${moment().tz(timezone).format('YYYY-MM-DD HH:mm:ss')}`);
 
     const cronTask = cron.schedule(
       cronExpression,
@@ -160,7 +162,7 @@ class JobScheduler {
    */
   unscheduleJob(jobId) {
     const scheduled = this.scheduledJobs.get(jobId);
-    
+
     if (scheduled) {
       scheduled.task.stop();
       this.scheduledJobs.delete(jobId);
@@ -213,7 +215,7 @@ class JobScheduler {
   }
 
   /**
-   * Calculate next scheduled run time
+   * Calculate next scheduled run time (timezone-aware)
    */
   calculateNextRun(job) {
     // If recurring is disabled, no next run (manual only)
@@ -222,15 +224,18 @@ class JobScheduler {
     }
 
     const { amount, interval, time } = job.schedule.recurring;
-    const now = new Date();
-    let nextRun = new Date(now);
+    const timezone = job.schedule.timezone || 'Asia/Karachi';
+
+    // Get current time in job's timezone
+    const now = moment().tz(timezone);
+    let nextRun = moment(now);
 
     switch (interval) {
       case 'minutes':
-        nextRun.setMinutes(nextRun.getMinutes() + amount);
+        nextRun.add(amount, 'minutes');
         break;
       case 'hours':
-        nextRun.setHours(nextRun.getHours() + amount);
+        nextRun.add(amount, 'hours');
         break;
       case 'days':
       case 'weeks':
@@ -238,35 +243,36 @@ class JobScheduler {
         // For daily/weekly/monthly with specific time, calculate properly
         if (time) {
           const [h, m] = time.split(':');
-          nextRun.setHours(parseInt(h), parseInt(m), 0, 0);
-          
+          nextRun.set({ hour: parseInt(h), minute: parseInt(m), second: 0, millisecond: 0 });
+
           // If the scheduled time hasn't passed today, next run is today
-          if (nextRun > now) {
+          if (nextRun.isAfter(now)) {
             // Time hasn't passed yet, use today
           } else {
             // Time has passed, calculate next occurrence
             if (interval === 'days') {
-              nextRun.setDate(nextRun.getDate() + amount);
+              nextRun.add(amount, 'days');
             } else if (interval === 'weeks') {
-              nextRun.setDate(nextRun.getDate() + (amount * 7));
+              nextRun.add(amount, 'weeks');
             } else if (interval === 'months') {
-              nextRun.setMonth(nextRun.getMonth() + amount);
+              nextRun.add(amount, 'months');
             }
           }
         } else {
           // No specific time, just add the interval
           if (interval === 'days') {
-            nextRun.setDate(nextRun.getDate() + amount);
+            nextRun.add(amount, 'days');
           } else if (interval === 'weeks') {
-            nextRun.setDate(nextRun.getDate() + (amount * 7));
+            nextRun.add(amount, 'weeks');
           } else if (interval === 'months') {
-            nextRun.setMonth(nextRun.getMonth() + amount);
+            nextRun.add(amount, 'months');
           }
         }
         break;
     }
 
-    return nextRun;
+    // Return as JavaScript Date object
+    return nextRun.toDate();
   }
 
   /**
