@@ -33,6 +33,7 @@
     "node-cron": "^4.2.1",
     "nodemailer": "^7.0.10",
     "papaparse": "^5.4.1",
+    "resend": "^6.5.2",
     "socket.io": "^4.6.2",
     "tesseract.js": "^5.0.4",
     "uuid": "^13.0.0",

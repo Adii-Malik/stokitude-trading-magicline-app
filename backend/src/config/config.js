@@ -14,13 +14,25 @@ export default {
   // Admin signup code (required to create admin accounts)
   adminSignupCode: process.env.ADMIN_SIGNUP_CODE || 'admin123',
 
-  // Email Configuration
+  // Email Configuration - Multi-Provider Support
   email: {
+    // Resend (Recommended - 3000/month free)
+    resendApiKey: process.env.RESEND_API_KEY || '',
+
+    // SendGrid (100/day free - requires: npm install @sendgrid/mail)
+    sendgridApiKey: process.env.SENDGRID_API_KEY || '',
+
+    // Brevo/SendInBlue (300/day free - requires: npm install @sendinblue/client)
+    brevoApiKey: process.env.BREVO_API_KEY || '',
+
+    // SMTP/Gmail (500/day free - may be blocked on Railway Free/Hobby)
     host: process.env.EMAIL_HOST || 'smtp.gmail.com',
     port: parseInt(process.env.EMAIL_PORT) || 587,
     secure: process.env.EMAIL_SECURE === 'true',
     user: process.env.EMAIL_USER || '',
     password: process.env.EMAIL_PASSWORD || '',
+
+    // Common settings
     fromName: process.env.EMAIL_FROM_NAME || 'PSX SmartDesk',
     fromEmail: process.env.EMAIL_FROM_EMAIL || 'noreply@psxsmartdesk.com',
     frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173'

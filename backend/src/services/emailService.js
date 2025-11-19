@@ -1,54 +1,49 @@
-import nodemailer from 'nodemailer';
 import config from '../config/config.js';
+import availableProviders from './email/providers/index.js';
 
 /**
  * Email Service
- * Handles sending emails for password reset, notifications, etc.
+ * Dynamic multi-provider email service
+ * Automatically selects first available configured provider
  */
 
 class EmailService {
   constructor() {
-    this.transporter = null;
+    this.provider = null;
     this.initialized = false;
   }
 
   /**
-   * Initialize email transporter
+   * Initialize email service
+   * Tries all configured providers in order until one succeeds
    */
   async initialize() {
     if (this.initialized) return;
 
-    try {
-      // Check if email credentials are configured
-      const hasEmailConfig = config.email.user && config.email.password;
+    console.log('📧 Initializing email service...');
 
-      if (!hasEmailConfig) {
-        console.log('📧 Email service: No credentials configured');
-        console.log('   Emails will be logged to console only');
-        console.log('   Configure EMAIL_USER and EMAIL_PASSWORD in .env to send real emails');
-        return;
+    // Try each provider in order
+    for (const ProviderClass of availableProviders) {
+      const provider = new ProviderClass(config.email);
+
+      if (!provider.isConfigured()) {
+        continue; // Skip unconfigured providers
       }
 
-      // Use configured SMTP
-      this.transporter = nodemailer.createTransport({
-        host: config.email.host,
-        port: config.email.port,
-        secure: config.email.secure,
-        auth: {
-          user: config.email.user,
-          pass: config.email.password
-        }
-      });
+      console.log(`   Trying ${provider.getName()}...`);
 
-      // Verify connection
-      await this.transporter.verify();
-      this.initialized = true;
-      console.log('✅ Email service initialized successfully');
-      console.log(`   SMTP: ${config.email.host}:${config.email.port}`);
-    } catch (error) {
-      console.error('❌ Email service initialization failed:', error.message);
-      console.log('   Emails will be logged to console only');
+      const success = await provider.initialize();
+
+      if (success) {
+        this.provider = provider;
+        this.initialized = true;
+        console.log(`✅ Email service initialized: ${provider.getName()}`);
+        return;
+      }
     }
+
+    // No provider configured
+    console.log('📧 Email service: No provider configured');
   }
 
   /**
@@ -56,7 +51,7 @@ class EmailService {
    */
   async sendPasswordResetEmail(email, username, resetToken) {
     const resetUrl = `${config.email.frontendUrl}/reset-password?token=${resetToken}`;
-    
+
     const mailOptions = {
       from: `"${config.email.fromName}" <${config.email.fromEmail}>`,
       to: email,
@@ -141,7 +136,7 @@ PSX SmartDesk Team
    */
   async sendWelcomeEmail(email, username) {
     const loginUrl = `${config.email.frontendUrl}/login`;
-    
+
     const mailOptions = {
       from: `"${config.email.fromName}" <${config.email.fromEmail}>`,
       to: email,
@@ -191,10 +186,11 @@ PSX SmartDesk Team
 
   /**
    * Generic send email method
+   * Works with any configured provider
    */
   async sendEmail(mailOptions) {
-    // If not initialized or no transporter, just log
-    if (!this.initialized || !this.transporter) {
+    // If not initialized, just log
+    if (!this.initialized || !this.provider) {
       console.log('\n📧 Email would be sent (service not configured):');
       console.log(`   To: ${mailOptions.to}`);
       console.log(`   Subject: ${mailOptions.subject}`);
@@ -203,28 +199,23 @@ PSX SmartDesk Team
     }
 
     try {
-      const info = await this.transporter.sendMail(mailOptions);
-      
-      console.log(`✅ Email sent: ${info.messageId}`);
-      
-      // If using Ethereal (development), show preview URL
-      if (nodemailer.getTestMessageUrl(info)) {
-        console.log(`   Preview: ${nodemailer.getTestMessageUrl(info)}`);
+      const result = await this.provider.send(mailOptions);
+      console.log(`✅ Email sent via ${this.provider.getName()}: ${result.messageId}`);
+
+      if (result.previewUrl) {
+        console.log(`   Preview: ${result.previewUrl}`);
       }
-      
-      return { 
-        success: true, 
-        messageId: info.messageId,
-        previewUrl: nodemailer.getTestMessageUrl(info)
-      };
+
+      return result;
+
     } catch (error) {
       console.error('❌ Email send failed:', error.message);
-      
+
       // Fallback: log to console
       console.log('\n📧 Email failed to send, logging to console:');
       console.log(`   To: ${mailOptions.to}`);
       console.log(`   Subject: ${mailOptions.subject}`);
-      
+
       return { success: false, error: error.message };
     }
   }
