@@ -76,13 +76,13 @@ const jobSchema = new mongoose.Schema({
       startDate: Date,   // Optional: start from specific date
       endDate: Date      // Optional: end at specific date
     },
-    
+
     // Common settings
     timezone: {
       type: String,
       default: 'Asia/Karachi'
     },
-    
+
     respectMarketHours: {
       type: Boolean,
       default: false
@@ -108,6 +108,12 @@ const jobSchema = new mongoose.Schema({
   nextScheduledRun: {
     type: Date,
     index: true
+  },
+
+  // Execution lock (prevents dual execution from multiple servers)
+  executionLock: {
+    lockedBy: String,      // Server instance ID
+    lockedAt: Date         // When lock was acquired
   },
 
   // Statistics
@@ -161,9 +167,9 @@ jobSchema.virtual('executions', {
 });
 
 // Methods
-jobSchema.methods.updateStats = async function(execution) {
+jobSchema.methods.updateStats = async function (execution) {
   this.totalExecutions += 1;
-  
+
   if (execution.status === 'success') {
     this.successCount += 1;
   } else if (execution.status === 'failed' || execution.status === 'timeout') {
@@ -190,15 +196,15 @@ jobSchema.methods.updateStats = async function(execution) {
 };
 
 // Static methods
-jobSchema.statics.getActiveJobs = function() {
+jobSchema.statics.getActiveJobs = function () {
   return this.find({ enabled: true, status: 'running' });
 };
 
-jobSchema.statics.getJobsByType = function(jobType) {
+jobSchema.statics.getJobsByType = function (jobType) {
   return this.find({ jobType }).sort({ createdAt: -1 });
 };
 
-jobSchema.statics.getJobsDueForExecution = function() {
+jobSchema.statics.getJobsDueForExecution = function () {
   const now = new Date();
   return this.find({
     enabled: true,

@@ -52,9 +52,6 @@ class JobScheduler {
       return null;
     }
 
-    console.log(`   ℹ️  Cron expression: ${cronExpression} (${timezone})`);
-    console.log(`   ℹ️  Current time in ${timezone}: ${moment().tz(timezone).format('YYYY-MM-DD HH:mm:ss')}`);
-
     const cronTask = cron.schedule(
       cronExpression,
       () => {

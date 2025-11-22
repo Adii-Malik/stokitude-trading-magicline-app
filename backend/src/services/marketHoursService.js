@@ -310,7 +310,7 @@ class MarketHoursService {
       this.publicHolidays = newConfig.publicHolidays;
     }
     
-    console.log('✅ Market hours configuration updated');
+    console.log('✓ Market hours loaded');
   }
 
   /**

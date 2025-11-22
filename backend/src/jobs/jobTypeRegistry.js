@@ -23,11 +23,8 @@ class JobTypeRegistry {
    */
   async initialize() {
     if (this.initialized) {
-      console.log('⚠️  Job Type Registry already initialized');
       return;
     }
-
-    console.log('📋 Initializing Job Type Registry...');
 
     // Register built-in job types
     this.register(pricePollingJobType);
@@ -40,13 +37,6 @@ class JobTypeRegistry {
     await this.discoverCustomJobTypes();
 
     this.initialized = true;
-    console.log(`   ✅ Registered ${this.jobTypes.size} job types`);
-
-    // Log registered job types
-    this.jobTypes.forEach((jobType) => {
-      const deprecated = jobType.constraints?.deprecated ? ' [DEPRECATED]' : '';
-      console.log(`      • ${jobType.name} (${jobType.type})${deprecated}`);
-    });
   }
 
   /**
@@ -78,7 +68,6 @@ class JobTypeRegistry {
     try {
       const handlerModule = await import(`./handlers/${jobType.handler}.js`);
       this.handlers.set(jobType.type, handlerModule.default);
-      console.log(`      ✓ Loaded handler: ${jobType.handler}`);
     } catch (error) {
       console.error(`      ✗ Failed to load handler for ${jobType.type}:`, error.message);
       // Handler will be loaded later when needed

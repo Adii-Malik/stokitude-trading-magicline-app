@@ -101,7 +101,7 @@ const jobExecutionSchema = new mongoose.Schema({
     success: Boolean,
     message: String,
     metadata: mongoose.Schema.Types.Mixed,
-    
+
     // Error details
     error: {
       message: String,
@@ -150,7 +150,7 @@ const jobExecutionSchema = new mongoose.Schema({
 jobExecutionSchema.index({ jobId: 1, createdAt: -1 });
 jobExecutionSchema.index({ jobType: 1, createdAt: -1 });
 jobExecutionSchema.index({ status: 1, createdAt: -1 });
-jobExecutionSchema.index({ executionId: 1 });
+// executionId index already created by "unique: true" on field definition
 jobExecutionSchema.index({ queuedAt: -1 });
 jobExecutionSchema.index({ startedAt: -1 });
 jobExecutionSchema.index({ completedAt: -1 });
@@ -159,7 +159,7 @@ jobExecutionSchema.index({ completedAt: -1 });
 jobExecutionSchema.index({ createdAt: 1 }, { expireAfterSeconds: 7776000 }); // 90 days
 
 // Methods
-jobExecutionSchema.methods.addLog = function(level, message, metadata = {}) {
+jobExecutionSchema.methods.addLog = function (level, message, metadata = {}) {
   this.logs.push({
     timestamp: new Date(),
     level,
@@ -168,16 +168,16 @@ jobExecutionSchema.methods.addLog = function(level, message, metadata = {}) {
   });
 };
 
-jobExecutionSchema.methods.start = function() {
+jobExecutionSchema.methods.start = function () {
   this.status = 'running';
   this.startedAt = new Date();
 };
 
-jobExecutionSchema.methods.complete = function(success, message, metadata = {}) {
+jobExecutionSchema.methods.complete = function (success, message, metadata = {}) {
   this.status = success ? 'success' : 'failed';
   this.completedAt = new Date();
   this.duration = this.completedAt - this.startedAt;
-  
+
   this.result = {
     success,
     message,
@@ -185,11 +185,11 @@ jobExecutionSchema.methods.complete = function(success, message, metadata = {}) 
   };
 };
 
-jobExecutionSchema.methods.fail = function(error) {
+jobExecutionSchema.methods.fail = function (error) {
   this.status = 'failed';
   this.completedAt = new Date();
   this.duration = this.completedAt - this.startedAt;
-  
+
   this.result = {
     success: false,
     message: error.message,
@@ -201,11 +201,11 @@ jobExecutionSchema.methods.fail = function(error) {
   };
 };
 
-jobExecutionSchema.methods.timeout = function() {
+jobExecutionSchema.methods.timeout = function () {
   this.status = 'timeout';
   this.completedAt = new Date();
   this.duration = this.completedAt - this.startedAt;
-  
+
   this.result = {
     success: false,
     message: 'Job execution timed out',
@@ -216,11 +216,11 @@ jobExecutionSchema.methods.timeout = function() {
   };
 };
 
-jobExecutionSchema.methods.cancel = function(reason) {
+jobExecutionSchema.methods.cancel = function (reason) {
   this.status = 'cancelled';
   this.completedAt = new Date();
   this.duration = this.completedAt - this.startedAt;
-  
+
   this.result = {
     success: false,
     message: reason || 'Job execution cancelled',
@@ -231,7 +231,7 @@ jobExecutionSchema.methods.cancel = function(reason) {
   };
 };
 
-jobExecutionSchema.methods.updateProgress = function(current, total, message) {
+jobExecutionSchema.methods.updateProgress = function (current, total, message) {
   this.progress = {
     current,
     total,
@@ -241,35 +241,35 @@ jobExecutionSchema.methods.updateProgress = function(current, total, message) {
 };
 
 // Static methods
-jobExecutionSchema.statics.getRecentExecutions = function(jobId, limit = 10) {
+jobExecutionSchema.statics.getRecentExecutions = function (jobId, limit = 10) {
   return this.find({ jobId })
     .sort({ createdAt: -1 })
     .limit(limit)
     .lean();
 };
 
-jobExecutionSchema.statics.getExecutionsByStatus = function(status, limit = 50) {
+jobExecutionSchema.statics.getExecutionsByStatus = function (status, limit = 50) {
   return this.find({ status })
     .sort({ createdAt: -1 })
     .limit(limit)
     .lean();
 };
 
-jobExecutionSchema.statics.getFailedExecutions = function(jobId, limit = 10) {
-  return this.find({ 
-    jobId, 
-    status: { $in: ['failed', 'timeout'] } 
+jobExecutionSchema.statics.getFailedExecutions = function (jobId, limit = 10) {
+  return this.find({
+    jobId,
+    status: { $in: ['failed', 'timeout'] }
   })
     .sort({ createdAt: -1 })
     .limit(limit)
     .lean();
 };
 
-jobExecutionSchema.statics.getRunningExecutions = function() {
+jobExecutionSchema.statics.getRunningExecutions = function () {
   return this.find({ status: 'running' });
 };
 
-jobExecutionSchema.statics.getStatistics = async function(jobId, days = 7) {
+jobExecutionSchema.statics.getStatistics = async function (jobId, days = 7) {
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
 
@@ -293,7 +293,7 @@ jobExecutionSchema.statics.getStatistics = async function(jobId, days = 7) {
 
   executions.forEach(exec => {
     stats[exec.status] = (stats[exec.status] || 0) + 1;
-    
+
     if (exec.duration) {
       totalDuration += exec.duration;
       durationCount++;

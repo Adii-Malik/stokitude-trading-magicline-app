@@ -20,8 +20,6 @@ class EmailService {
   async initialize() {
     if (this.initialized) return;
 
-    console.log('📧 Initializing email service...');
-
     // Try each provider in order
     for (const ProviderClass of availableProviders) {
       const provider = new ProviderClass(config.email);
@@ -30,20 +28,18 @@ class EmailService {
         continue; // Skip unconfigured providers
       }
 
-      console.log(`   Trying ${provider.getName()}...`);
-
       const success = await provider.initialize();
 
       if (success) {
         this.provider = provider;
         this.initialized = true;
-        console.log(`✅ Email service initialized: ${provider.getName()}`);
+        console.log(`✓ Email service: ${provider.getName()}`);
         return;
       }
     }
 
     // No provider configured
-    console.log('📧 Email service: No provider configured');
+    console.log('✓ Email service: Console only (no provider configured)');
   }
 
   /**

@@ -266,8 +266,11 @@ tradePlanHandler.onUpdate(async (data) => {
 // Start application
 async function startServer() {
   try {
+    console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('🚀 PSX SmartDesk Backend');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+
     // Connect to MongoDB
-    console.log('🚀 Starting PSX Monitor Backend...');
     await connectDB(config.mongoUri);
 
     // Initialize Email Service
@@ -276,8 +279,6 @@ async function startServer() {
 
     // Initialize Job Management System
     const jobManager = (await import('./jobs/jobManager.js')).default;
-    
-    // Initialize job manager
     await jobManager.initialize();
 
     // Initialize System Settings
@@ -285,14 +286,7 @@ async function startServer() {
     const settings = await Settings.getSettings();
 
     // Load market hours from settings into marketHoursService
-    console.log('\n🕒 Loading market hours from settings...');
     marketHoursService.updateConfig(settings.marketHours);
-    const { marketHours } = settings;
-    console.log('⏰ PSX Market Hours (from settings):');
-    console.log(`   • Monday-Thursday: ${marketHours.regularMarketOpen.hour}:${String(marketHours.regularMarketOpen.minute).padStart(2, '0')} - ${marketHours.regularMarketClose.hour}:${String(marketHours.regularMarketClose.minute).padStart(2, '0')} PKT`);
-    console.log(`   • Friday Morning: ${marketHours.fridayMorningOpen.hour}:${String(marketHours.fridayMorningOpen.minute).padStart(2, '0')} - ${marketHours.fridayMorningClose.hour}:${String(marketHours.fridayMorningClose.minute).padStart(2, '0')} PKT`);
-    console.log(`   • Friday Afternoon: ${marketHours.fridayAfternoonOpen.hour}:${String(marketHours.fridayAfternoonOpen.minute).padStart(2, '0')} - ${marketHours.fridayAfternoonClose.hour}:${String(marketHours.fridayAfternoonClose.minute).padStart(2, '0')} PKT`);
-    console.log(`   • Weekends: Closed${marketHours.publicHolidays && marketHours.publicHolidays.length > 0 ? ` | Public Holidays: ${marketHours.publicHolidays.length}` : ''}\n`);
 
     // Note: All automated services (Price Polling, TradingView Updates, Signal Generation)
     // are now managed by the Job Management System. Check Admin > Jobs to configure.
