@@ -1,35 +1,26 @@
-import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import Header from './components/Header';
-import AdminHeader from './components/Admin/AdminHeader';
+import { LayoutProvider } from './components/Layout';
+import { FullPageLoader } from './components/common';
 import Dashboard from './components/Dashboard';
 import MagicLine from './components/MagicLine';
 import AdminDashboard from './components/Admin/AdminDashboard';
 import TradePlans from './components/TradePlans';
+import Notifications from './components/Notifications';
 import Login from './components/Login';
 import Signup from './components/Signup';
 import Landing from './components/Landing';
 import Profile from './components/Profile';
 import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
-import socketService from './services/socket';
-import api from './services/api';
 
 // Protected Route Component
 function ProtectedRoute({ children, adminOnly = false }) {
   const { user, loading, isAdmin } = useAuth();
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-cyan-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 text-lg">Loading...</p>
-        </div>
-      </div>
-    );
+    return <FullPageLoader />;
   }
 
   if (!user) {
@@ -44,98 +35,12 @@ function ProtectedRoute({ children, adminOnly = false }) {
 }
 
 function AppContent() {
-  const [isConnected, setIsConnected] = useState(false);
-  const [refreshDashboard, setRefreshDashboard] = useState(0);
-  const [lastPriceUpdate, setLastPriceUpdate] = useState(null);
-  const [marketStatus, setMarketStatus] = useState('closed');
   const { user, loading, isAdmin } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    // Connect to socket
-    socketService.connect();
-
-    // Monitor connection status
-    const checkConnection = setInterval(() => {
-      setIsConnected(socketService.isConnected());
-    }, 1000);
-
-    // Fetch last price update timestamp
-    const fetchLastPriceUpdate = async () => {
-      try {
-        const response = await api.get('/settings/last-update');
-        if (response.data.success && response.data.data.lastUpdate) {
-          setLastPriceUpdate(new Date(response.data.data.lastUpdate));
-        }
-      } catch (error) {
-        console.error('Error fetching last price update:', error);
-      }
-    };
-
-    // Listen for price updates
-    const handlePriceUpdate = (data) => {
-      if (data.data?.timestamp) {
-        setLastPriceUpdate(new Date(data.data.timestamp));
-      } else {
-        setLastPriceUpdate(new Date());
-      }
-      // Also refresh market status when prices update (may have crossed market hours)
-      fetchMarketStatus();
-    };
-
-    // Listen for trade plan updates
-    const handleTradePlanUpdate = (data) => {
-      // Trade plan updates don't necessarily mean prices were fetched
-      // So we just refresh the last update from server
-      fetchLastPriceUpdate();
-    };
-
-    // Fetch market status on mount
-    const fetchMarketStatus = async () => {
-      try {
-        const response = await api.get('/settings/market-status');
-        if (response.data.success && response.data.data) {
-          setMarketStatus(response.data.data.isOpen ? 'open' : 'closed');
-        }
-      } catch (error) {
-        console.error('Error fetching market status:', error);
-      }
-    };
-
-    // Fetch initial data only if user is logged in
-    if (user) {
-      fetchMarketStatus();
-      fetchLastPriceUpdate();
-    }
-
-    // Check market status every 1 minute (to catch market open/close events quickly)
-    const marketStatusInterval = user ? setInterval(fetchMarketStatus, 60 * 1000) : null;
-
-    // Refresh last update timestamp every minute
-    const lastUpdateInterval = user ? setInterval(fetchLastPriceUpdate, 60 * 1000) : null;
-
-    socketService.on('priceUpdate', handlePriceUpdate);
-    socketService.on('tradePlanUpdate', handleTradePlanUpdate);
-
-    return () => {
-      clearInterval(checkConnection);
-      if (marketStatusInterval) clearInterval(marketStatusInterval);
-      if (lastUpdateInterval) clearInterval(lastUpdateInterval);
-      socketService.off('priceUpdate', handlePriceUpdate);
-      socketService.off('tradePlanUpdate', handleTradePlanUpdate);
-    };
-  }, [user]);
-
   // Loading state
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-cyan-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 text-lg">Loading...</p>
-        </div>
-      </div>
-    );
+    return <FullPageLoader />;
   }
 
   return (
@@ -178,94 +83,25 @@ function AppContent() {
       {/* Protected Routes */}
       <Route path="/dashboard" element={
         <ProtectedRoute>
-          <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300">
-            <Header
-              isConnected={isConnected}
-              currentPage="dashboard"
-              lastPriceUpdate={lastPriceUpdate}
-              marketStatus={marketStatus}
-              onNavigateToDashboard={() => navigate('/dashboard')}
-              onNavigateToMagicLine={() => navigate('/magic-line')}
-              onNavigateToStocks={() => navigate('/stocks')}
-              onNavigateToTradeSignals={() => navigate('/trade-signals')}
-              onNavigateToTradingBot={() => navigate('/trading-bot')}
-              onNavigateToAdmin={() => navigate('/admin')}
-              onNavigateToSettings={() => navigate('/settings')}
-              onNavigateToProfile={() => navigate('/profile')}
-              onNavigateToLogin={() => navigate('/login')}
-              onNavigateToSignup={() => navigate('/signup')}
-            />
-
+          <LayoutProvider currentPage="dashboard">
             <Dashboard />
-
-            <footer className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 mt-12 transition-colors duration-300">
-              <div className="container mx-auto px-4 py-6 text-center text-gray-600 dark:text-gray-400 text-sm">
-                <p>PSX SmartDesk - Real-time Stock Price Monitoring & Trade Management</p>
-              </div>
-            </footer>
-          </div>
+          </LayoutProvider>
         </ProtectedRoute>
       } />
 
       <Route path="/magic-line" element={
         <ProtectedRoute>
-          <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300">
-            <Header
-              isConnected={isConnected}
-              currentPage="magic-line"
-              lastPriceUpdate={lastPriceUpdate}
-              marketStatus={marketStatus}
-              onNavigateToDashboard={() => navigate('/dashboard')}
-              onNavigateToMagicLine={() => navigate('/magic-line')}
-              onNavigateToStocks={() => navigate('/stocks')}
-              onNavigateToTradeSignals={() => navigate('/trade-signals')}
-              onNavigateToTradingBot={() => navigate('/trading-bot')}
-              onNavigateToAdmin={() => navigate('/admin')}
-              onNavigateToSettings={() => navigate('/settings')}
-              onNavigateToProfile={() => navigate('/profile')}
-              onNavigateToLogin={() => navigate('/login')}
-              onNavigateToSignup={() => navigate('/signup')}
-            />
-
-            <MagicLine key={refreshDashboard} />
-
-            <footer className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 mt-12 transition-colors duration-300">
-              <div className="container mx-auto px-4 py-6 text-center text-gray-600 dark:text-gray-400 text-sm">
-                <p>PSX SmartDesk - Real-time Stock Price Monitoring & Trade Management</p>
-              </div>
-            </footer>
-          </div>
+          <LayoutProvider currentPage="magic-line">
+            <MagicLine />
+          </LayoutProvider>
         </ProtectedRoute>
       } />
 
       <Route path="/trade-signals" element={
         <ProtectedRoute>
-          <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300">
-            <Header
-              isConnected={isConnected}
-              currentPage="trade-signals"
-              lastPriceUpdate={lastPriceUpdate}
-              marketStatus={marketStatus}
-              onNavigateToDashboard={() => navigate('/dashboard')}
-              onNavigateToMagicLine={() => navigate('/magic-line')}
-              onNavigateToStocks={() => navigate('/stocks')}
-              onNavigateToTradeSignals={() => navigate('/trade-signals')}
-              onNavigateToTradingBot={() => navigate('/trading-bot')}
-              onNavigateToAdmin={() => navigate('/admin')}
-              onNavigateToSettings={() => navigate('/settings')}
-              onNavigateToProfile={() => navigate('/profile')}
-              onNavigateToLogin={() => navigate('/login')}
-              onNavigateToSignup={() => navigate('/signup')}
-            />
-            <div className="flex-1">
-              <TradePlans />
-            </div>
-            <footer className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 mt-12 transition-colors duration-300">
-              <div className="container mx-auto px-4 py-6 text-center text-gray-600 dark:text-gray-400 text-sm">
-                <p>PSX SmartDesk - Real-time Stock Price Monitoring & Trade Management</p>
-              </div>
-            </footer>
-          </div>
+          <LayoutProvider currentPage="trade-signals">
+            <TradePlans />
+          </LayoutProvider>
         </ProtectedRoute>
       } />
 
@@ -273,6 +109,15 @@ function AppContent() {
       <Route path="/profile" element={
         <ProtectedRoute>
           <Profile onBack={() => navigate('/dashboard')} />
+        </ProtectedRoute>
+      } />
+
+      {/* Notifications */}
+      <Route path="/notifications" element={
+        <ProtectedRoute>
+          <LayoutProvider currentPage="notifications">
+            <Notifications />
+          </LayoutProvider>
         </ProtectedRoute>
       } />
 

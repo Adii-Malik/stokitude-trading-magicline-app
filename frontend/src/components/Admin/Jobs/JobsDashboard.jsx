@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import jobsApi from '../../../services/jobs';
 import CreateJobModal from './CreateJobModal';
 import JobHistory from './JobHistory';
+import { ContentLoader } from '../../common';
 
 export default function JobsDashboard() {
   const [jobs, setJobs] = useState([]);
@@ -147,21 +148,13 @@ export default function JobsDashboard() {
     return `${days}d ago`;
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-xl">Loading jobs...</div>
-      </div>
-    );
-  }
-
   return (
     <div className="container mx-auto px-4 py-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Job Management</h1>
-          <p className="text-gray-600 mt-1">Manage and monitor all automated jobs</p>
+          <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Job Management</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">Manage and monitor all automated jobs</p>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
@@ -231,11 +224,15 @@ export default function JobsDashboard() {
       )}
 
       {/* Jobs Grid */}
-      {filteredJobs.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-lg shadow">
+      {loading ? (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+          <ContentLoader message="Loading jobs..." />
+        </div>
+      ) : filteredJobs.length === 0 ? (
+        <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg shadow">
           <div className="text-6xl mb-4">📋</div>
-          <h3 className="text-xl font-semibold text-gray-700 mb-2">No jobs found</h3>
-          <p className="text-gray-600">
+          <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">No jobs found</h3>
+          <p className="text-gray-600 dark:text-gray-400">
             {searchQuery || selectedCategory !== 'all'
               ? 'Try adjusting your filters'
               : 'Create your first job to get started'}

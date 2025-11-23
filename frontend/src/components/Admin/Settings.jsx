@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Settings as SettingsIcon, Clock, Calendar } from 'lucide-react';
 import * as settingsService from '../../services/settings';
 import { toast } from 'react-hot-toast';
+import { ContentLoader } from '../common';
 
 const Settings = () => {
   const [activeMenu, setActiveMenu] = useState('market-hours');
@@ -78,16 +79,6 @@ const Settings = () => {
     return `${h}:${m}`;
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600 dark:text-gray-400">Loading settings...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -102,7 +93,11 @@ const Settings = () => {
           </p>
         </div>
 
-        {/* Layout: Left Menu + Right Content */}
+        {loading ? (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+            <ContentLoader message="Loading settings..." />
+          </div>
+        ) : (
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Left Menu */}
           <div className="lg:col-span-1">
@@ -330,6 +325,7 @@ const Settings = () => {
 
           </div>
         </div>
+        )}
       </div>
     </div>
   );

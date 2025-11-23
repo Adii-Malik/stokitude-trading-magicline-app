@@ -3,6 +3,7 @@ import { TrendingUp, TrendingDown, Minus, Trash2, ArrowUp, Search, Filter, Loade
 import { getSymbols, clearSymbols, uploadFile } from '../services/api';
 import socketService from '../services/socket';
 import { useAuth } from '../contexts/AuthContext';
+import { ContentLoader } from './common';
 
 export default function MagicLine() {
   const [symbols, setSymbols] = useState([]);
@@ -188,17 +189,6 @@ export default function MagicLine() {
   const metCount = symbols.filter(s => s.isMet).length;
   const notMetCount = symbols.filter(s => !s.isMet).length;
 
-  if (loading) {
-    return (
-      <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-md">
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 text-cyan-500 animate-spin" />
-          <span className="ml-3 text-lg text-gray-700 dark:text-gray-300">Loading symbols...</span>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div>
       <div className="container mx-auto px-4 py-8">
@@ -372,7 +362,11 @@ export default function MagicLine() {
         )}
 
         {/* Symbols Grid or Empty State */}
-        {symbols.length === 0 ? (
+        {loading ? (
+          <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-lg">
+            <ContentLoader message="Loading strategic levels..." />
+          </div>
+        ) : symbols.length === 0 ? (
           <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-lg p-12 text-center">
             <BarChart3 className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">No Symbols Loaded</h3>

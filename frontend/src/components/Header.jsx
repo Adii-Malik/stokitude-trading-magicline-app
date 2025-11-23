@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { TrendingUp, LogOut, User, Shield, Settings, BarChart3, Target, Sun, Moon, Database, Menu, X, ChevronDown, UserCircle, Lock, Home, Bot } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import NotificationBell from './NotificationBell';
 
 export default function Header({
   isConnected,
@@ -171,6 +172,11 @@ export default function Header({
                   )}
                 </button>
 
+                {/* Notification Bell - Desktop */}
+                <div className="hidden sm:block">
+                  <NotificationBell />
+                </div>
+
                 {/* User Dropdown - Desktop */}
                 <div className="hidden sm:block relative" ref={dropdownRef}>
                   <button
@@ -233,7 +239,7 @@ export default function Header({
                   )}
                 </div>
 
-                {/* Mobile: Theme Toggle + User Badge + Menu Toggle */}
+                {/* Mobile: Theme Toggle + Notifications + User Badge + Menu Toggle */}
                 <div className="lg:hidden flex items-center gap-2">
                   {/* Theme Toggle */}
                   <button
@@ -247,6 +253,9 @@ export default function Header({
                       <Moon className="w-5 h-5 text-gray-700 dark:text-gray-400" />
                     )}
                   </button>
+
+                  {/* Notification Bell */}
+                  <NotificationBell />
 
                   {/* User Badge + Menu Toggle */}
                   <button

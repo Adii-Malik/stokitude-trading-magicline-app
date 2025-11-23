@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { ArrowLeft, Download, BarChart3, Calendar, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getHistoricalData } from '../../services/historical';
+import { ContentLoader } from '../common';
 
 export default function HistoricalDataViewer() {
   const { symbol } = useParams();
@@ -316,10 +317,7 @@ export default function HistoricalDataViewer() {
         {/* Data Table */}
         <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden shadow-md">
           {loading ? (
-            <div className="p-12 text-center">
-              <div className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-gray-600 dark:text-gray-400">Loading historical data...</p>
-            </div>
+            <ContentLoader message="Loading historical data..." />
           ) : data.length === 0 ? (
             <div className="p-12 text-center">
               <BarChart3 className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
