@@ -18,7 +18,6 @@ export default function MagicLine() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(null);
   const [uploading, setUploading] = useState(false);
-  const [uploadResult, setUploadResult] = useState(null);
   const [message, setMessage] = useState(null);
 
   // Load initial data
@@ -121,9 +120,21 @@ export default function MagicLine() {
     try {
       setUploading(true);
       const response = await uploadFile(uploadingFile);
-      setUploadResult(response);
-      showMessage(`Successfully uploaded ${response.totalCount || response.symbols?.length || 0} symbols`);
+
+      // Extract count from response - check multiple possible locations
+      const count = response.data?.symbolsCount ||
+        response.data?.symbols?.length ||
+        response.symbolsCount ||
+        response.symbols?.length ||
+        0;
+
+      showMessage(`Successfully uploaded ${count} symbols`);
+
+      // Close modal and reset state
+      setShowUploadModal(false);
       setUploadingFile(null);
+
+      // Reload symbols
       loadSymbols();
     } catch (error) {
       console.error('Error uploading file:', error);
@@ -428,7 +439,6 @@ export default function MagicLine() {
                 <button
                   onClick={() => {
                     setShowUploadModal(false);
-                    setUploadResult(null);
                     setUploadingFile(null);
                   }}
                   className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
@@ -464,15 +474,6 @@ export default function MagicLine() {
                   </div>
                 </div>
 
-                {uploadResult && (
-                  <div className="bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/50 rounded-lg p-4">
-                    <h4 className="font-semibold text-green-900 dark:text-green-400 mb-2">Upload Result:</h4>
-                    <div className="text-sm text-green-800 dark:text-green-300">
-                      <p>Successfully uploaded {uploadResult.totalCount || uploadResult.symbols?.length || 0} symbols</p>
-                    </div>
-                  </div>
-                )}
-
                 <div className="flex gap-2 pt-4">
                   <button
                     type="submit"
@@ -495,7 +496,6 @@ export default function MagicLine() {
                     type="button"
                     onClick={() => {
                       setShowUploadModal(false);
-                      setUploadResult(null);
                       setUploadingFile(null);
                     }}
                     disabled={uploading}
