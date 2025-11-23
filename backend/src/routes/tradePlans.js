@@ -5,13 +5,12 @@ import { Readable } from 'stream';
 import TradePlan from '../models/TradePlan.js';
 import Stock from '../models/Stock.js';
 import { authenticate, adminOnly } from '../middleware/auth.js';
-import marketHoursService from '../services/marketHoursService.js';
 
 const router = express.Router();
 
 // Configure multer for CSV upload
 const storage = multer.memoryStorage();
-const upload = multer({ 
+const upload = multer({
   storage,
   fileFilter: (req, file, cb) => {
     if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
@@ -25,40 +24,40 @@ const upload = multer({
 // Get all trade plans (with filters)
 router.get('/', authenticate, async (req, res) => {
   try {
-    const { 
-      page = 1, 
-      limit = 50, 
-      status = '', 
-      symbol = '', 
+    const {
+      page = 1,
+      limit = 50,
+      status = '',
+      symbol = '',
       isActive = '',
       tradeType = '',
       outcome = '',
       timeFilter = '',
       sortOrder = 'newest'
     } = req.query;
-    
+
     const query = {};
-    
+
     // Filter by status
     if (status) {
       query.status = status;
     }
-    
+
     // Filter by symbol
     if (symbol) {
       query.symbol = { $regex: symbol, $options: 'i' };
     }
-    
+
     // Filter by active/historical
     if (isActive !== '') {
       query.isActive = isActive === 'true';
     }
-    
+
     // Filter by trade type
     if (tradeType) {
       query.tradeType = tradeType;
     }
-    
+
     // Filter by outcome (success = TP hit, failed = SL hit, closed = manually closed)
     if (outcome === 'success') {
       query['targetPrices.isHit'] = true;
@@ -68,12 +67,12 @@ router.get('/', authenticate, async (req, res) => {
     } else if (outcome === 'closed') {
       query.status = 'closed';
     }
-    
+
     // Filter by time period
     if (timeFilter) {
       const now = new Date();
       let startDate;
-      
+
       switch (timeFilter) {
         case 'week':
           startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -90,23 +89,23 @@ router.get('/', authenticate, async (req, res) => {
         default:
           startDate = null;
       }
-      
+
       if (startDate) {
         query.createdAt = { $gte: startDate };
       }
     }
-    
+
     // Determine sort order
     const sortField = 'createdAt';
     const sortDirection = sortOrder === 'oldest' ? 1 : -1;
-    
+
     const total = await TradePlan.countDocuments(query);
     const plans = await TradePlan.find(query)
       .populate('createdBy', 'username')
       .sort({ [sortField]: sortDirection })
       .limit(parseInt(limit))
       .skip((parseInt(page) - 1) * parseInt(limit));
-    
+
     // 🔥 ENRICH: Add current prices from Stock model (centralized storage)
     const symbols = [...new Set(plans.map(p => p.symbol))];
     const stocks = await Stock.find({ symbol: { $in: symbols } });
@@ -114,7 +113,7 @@ router.get('/', authenticate, async (req, res) => {
     stocks.forEach(s => {
       stockMap[s.symbol] = s;
     });
-    
+
     // Add currentPrice to each plan
     const enrichedPlans = plans.map(plan => {
       const planObj = plan.toObject();
@@ -125,7 +124,7 @@ router.get('/', authenticate, async (req, res) => {
       planObj.lastUpdated = stock?.lastUpdated || null;
       return planObj;
     });
-    
+
     res.json({
       success: true,
       data: {
@@ -154,11 +153,11 @@ router.get('/stats/summary', authenticate, async (req, res) => {
     const totalPlans = await TradePlan.countDocuments();
     const activePlans = await TradePlan.countDocuments({ isActive: true });
     const closedPlans = await TradePlan.countDocuments({ isActive: false });
-    
+
     // Count target hits
     const tpHits = await TradePlan.countDocuments({ 'targetPrices.isHit': true });
     const slHit = await TradePlan.countDocuments({ 'stopLoss.isHit': true });
-    
+
     res.json({
       success: true,
       data: {
@@ -179,44 +178,19 @@ router.get('/stats/summary', authenticate, async (req, res) => {
   }
 });
 
-// Get market status (MUST be before /:id)
-router.get('/market-status', authenticate, async (req, res) => {
-  try {
-    const status = marketHoursService.getMarketStatus();
-    const minutesUntilOpen = marketHoursService.getMinutesUntilOpen();
-    const minutesUntilClose = marketHoursService.getMinutesUntilClose();
-    
-    res.json({
-      success: true,
-      data: {
-        ...status,
-        minutesUntilOpen,
-        minutesUntilClose
-      }
-    });
-  } catch (error) {
-    console.error('Error getting market status:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get market status',
-      error: error.message
-    });
-  }
-});
-
 // Get trade plan by ID (MUST be after all specific routes)
 router.get('/:id', authenticate, async (req, res) => {
   try {
     const plan = await TradePlan.findById(req.params.id)
       .populate('createdBy', 'username');
-    
+
     if (!plan) {
       return res.status(404).json({
         success: false,
         message: 'Trade plan not found'
       });
     }
-    
+
     // 🔥 ENRICH: Add current price from Stock model (centralized storage)
     const stock = await Stock.findOne({ symbol: plan.symbol });
     const enrichedPlan = plan.toObject();
@@ -224,7 +198,7 @@ router.get('/:id', authenticate, async (req, res) => {
     enrichedPlan.priceChange = stock?.priceChange || null;
     enrichedPlan.priceChangePercent = stock?.priceChangePercent || null;
     enrichedPlan.lastUpdated = stock?.lastUpdated || null;
-    
+
     res.json({
       success: true,
       data: enrichedPlan
@@ -242,7 +216,7 @@ router.get('/:id', authenticate, async (req, res) => {
 // Create a new trade plan (Admin only)
 router.post('/', adminOnly, async (req, res) => {
   try {
-    const { 
+    const {
       symbol,
       tradeType = 'buy',
       setupQuality = 'good',
@@ -251,7 +225,7 @@ router.post('/', adminOnly, async (req, res) => {
       stopLoss,
       analysis
     } = req.body;
-    
+
     // Validate required fields
     if (!symbol || !buyLevels || buyLevels.length === 0 || !targetPrices || targetPrices.length === 0 || !stopLoss) {
       return res.status(400).json({
@@ -259,17 +233,17 @@ router.post('/', adminOnly, async (req, res) => {
         message: 'Symbol, Buy Levels, Target Prices, and Stop Loss are required'
       });
     }
-    
+
     // Get company name from Stock database
     const stock = await Stock.findOne({ symbol: symbol.toUpperCase() });
-    
+
     // Calculate short-term TP range
     const tpPrices = targetPrices.map(tp => tp.price);
     const shortTermTPRange = {
       from: Math.min(...tpPrices),
       to: Math.max(...tpPrices)
     };
-    
+
     const plan = new TradePlan({
       symbol: symbol.toUpperCase(),
       companyName: stock?.companyName || null,
@@ -294,9 +268,9 @@ router.post('/', adminOnly, async (req, res) => {
       analysis: analysis?.trim() || null,
       createdBy: req.user._id
     });
-    
+
     await plan.save();
-    
+
     res.status(201).json({
       success: true,
       message: 'Trade plan created successfully',
@@ -316,14 +290,14 @@ router.post('/', adminOnly, async (req, res) => {
 router.put('/:id', adminOnly, async (req, res) => {
   try {
     const plan = await TradePlan.findById(req.params.id);
-    
+
     if (!plan) {
       return res.status(404).json({
         success: false,
         message: 'Trade plan not found'
       });
     }
-    
+
     const {
       symbol,
       tradeType,
@@ -334,7 +308,7 @@ router.put('/:id', adminOnly, async (req, res) => {
       analysis
     } = req.body;
     // Note: currentPrice is no longer stored in TradePlan (read from Stock model)
-    
+
     // Update fields if provided
     if (symbol) {
       plan.symbol = symbol.toUpperCase();
@@ -359,7 +333,7 @@ router.put('/:id', adminOnly, async (req, res) => {
         isHit: tp.isHit || false,
         hitDate: tp.hitDate || null
       }));
-      
+
       // Recalculate short-term TP range
       const tpPrices = targetPrices.map(tp => parseFloat(tp.price));
       plan.shortTermTPRange = {
@@ -375,9 +349,9 @@ router.put('/:id', adminOnly, async (req, res) => {
       };
     }
     if (analysis !== undefined) plan.analysis = analysis?.trim() || null;
-    
+
     await plan.save();
-    
+
     res.json({
       success: true,
       message: 'Trade plan updated successfully',
@@ -398,29 +372,29 @@ router.put('/:id/status', adminOnly, async (req, res) => {
   try {
     const { status } = req.body;
     // Note: currentPrice is no longer stored in TradePlan (read from Stock model)
-    
+
     const plan = await TradePlan.findById(req.params.id);
-    
+
     if (!plan) {
       return res.status(404).json({
         success: false,
         message: 'Trade plan not found'
       });
     }
-    
+
     // Update status
     if (status) {
       plan.status = status;
-      
+
       // If closed or SL hit, mark as inactive and set exitDate
       if (status === 'closed' || status === 'sl_hit' || status === 'cancelled') {
         plan.isActive = false;
         plan.exitDate = new Date();
       }
     }
-    
+
     await plan.save();
-    
+
     res.json({
       success: true,
       message: 'Trade plan status updated successfully',
@@ -440,7 +414,7 @@ router.put('/:id/status', adminOnly, async (req, res) => {
 router.delete('/clear-all', adminOnly, async (req, res) => {
   try {
     const result = await TradePlan.deleteMany({});
-    
+
     res.json({
       success: true,
       message: `Successfully cleared ${result.deletedCount} trade plans`,
@@ -462,14 +436,14 @@ router.delete('/clear-all', adminOnly, async (req, res) => {
 router.delete('/:id', adminOnly, async (req, res) => {
   try {
     const plan = await TradePlan.findByIdAndDelete(req.params.id);
-    
+
     if (!plan) {
       return res.status(404).json({
         success: false,
         message: 'Trade plan not found'
       });
     }
-    
+
     res.json({
       success: true,
       message: 'Trade plan deleted successfully'
@@ -493,25 +467,25 @@ router.post('/upload/csv', adminOnly, upload.single('file'), async (req, res) =>
         message: 'No file uploaded'
       });
     }
-    
+
     const results = [];
     const errors = [];
     let lineNumber = 1;
-    
+
     // Parse CSV
     const stream = Readable.from(req.file.buffer.toString());
-    
+
     await new Promise((resolve, reject) => {
       stream
         .pipe(csv())
         .on('data', (row) => {
           lineNumber++;
-          
+
           try {
             const symbol = row.Symbol?.trim()?.toUpperCase();
             const tradeType = row.TradeType?.trim()?.toLowerCase() || 'buy';
             const setupQuality = row.SetupQuality?.trim()?.toLowerCase() || 'good';
-            
+
             // Parse buy levels
             const buyLevels = [];
             for (let i = 1; i <= 3; i++) {
@@ -521,7 +495,7 @@ router.post('/upload/csv', adminOnly, upload.single('file'), async (req, res) =>
                 buyLevels.push({ level: i, priceFrom: from, priceTo: to, isHit: false });
               }
             }
-            
+
             // Parse target prices
             const targetPrices = [];
             for (let i = 1; i <= 3; i++) {
@@ -530,9 +504,9 @@ router.post('/upload/csv', adminOnly, upload.single('file'), async (req, res) =>
                 targetPrices.push({ level: i, price, isHit: false });
               }
             }
-            
+
             const stopLoss = parseFloat(row.StopLoss);
-            
+
             // Validate
             if (!symbol || buyLevels.length === 0 || targetPrices.length === 0 || isNaN(stopLoss)) {
               errors.push({
@@ -542,14 +516,14 @@ router.post('/upload/csv', adminOnly, upload.single('file'), async (req, res) =>
               });
               return;
             }
-            
+
             // Calculate short-term TP range
             const tpPrices = targetPrices.map(tp => tp.price);
             const shortTermTPRange = {
               from: Math.min(...tpPrices),
               to: Math.max(...tpPrices)
             };
-            
+
             results.push({
               symbol,
               companyName: row.CompanyName?.trim() || null,
@@ -575,7 +549,7 @@ router.post('/upload/csv', adminOnly, upload.single('file'), async (req, res) =>
         .on('end', resolve)
         .on('error', reject);
     });
-    
+
     if (results.length === 0) {
       return res.status(400).json({
         success: false,
@@ -583,7 +557,7 @@ router.post('/upload/csv', adminOnly, upload.single('file'), async (req, res) =>
         errors
       });
     }
-    
+
     // Auto-fill company names from Stock database
     const symbols = results.map(r => r.symbol);
     const stocks = await Stock.find({ symbol: { $in: symbols } });
@@ -591,16 +565,16 @@ router.post('/upload/csv', adminOnly, upload.single('file'), async (req, res) =>
     stocks.forEach(s => {
       stockMap[s.symbol] = s.companyName;
     });
-    
+
     // Create trade plans with creator
     const plans = results.map(r => ({
       ...r,
       companyName: r.companyName || stockMap[r.symbol] || null,
       createdBy: req.user._id
     }));
-    
+
     const insertedPlans = await TradePlan.insertMany(plans);
-    
+
     res.json({
       success: true,
       message: 'Trade plans uploaded successfully',
@@ -634,7 +608,7 @@ router.post('/upload/csv', adminOnly, upload.single('file'), async (req, res) =>
 router.post('/test/mock-hit', adminOnly, async (req, res) => {
   try {
     const { planId, action, level } = req.body;
-    
+
     if (!planId || !action) {
       return res.status(400).json({
         success: false,
@@ -643,7 +617,7 @@ router.post('/test/mock-hit', adminOnly, async (req, res) => {
     }
 
     const plan = await TradePlan.findById(planId);
-    
+
     if (!plan) {
       return res.status(404).json({
         success: false,

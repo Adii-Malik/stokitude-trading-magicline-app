@@ -12,30 +12,36 @@ const createSuperAdmin = async () => {
     // Super admin details
     const superAdminEmail = 'assassinboys22@gmail.com';
     const temporaryPassword = 'Admin@123'; // Change this after first login
-    
+
     // Check if super admin already exists
     const existingSuperAdmin = await User.findOne({ email: superAdminEmail });
-    
+
     if (existingSuperAdmin) {
-      console.log('✅ Super Admin already exists');
+      console.log('✅ Super Admin already exists - resetting password');
       console.log(`   Email: ${existingSuperAdmin.email}`);
       console.log(`   Username: ${existingSuperAdmin.username}`);
       console.log(`   Role: ${existingSuperAdmin.role}`);
-      process.exit(0);
+
+      // Reset password and ensure active
+      existingSuperAdmin.password = temporaryPassword;
+      existingSuperAdmin.isActive = true;
+      await existingSuperAdmin.save();
+
+      console.log('🎉 Super Admin password reset successfully!');
+    } else {
+      // Create super admin
+      const superAdmin = new User({
+        username: 'superadmin',
+        email: superAdminEmail,
+        password: temporaryPassword,
+        role: 'super_admin',
+        isActive: true // Super admin is always active
+      });
+
+      await superAdmin.save();
+
+      console.log('🎉 Super Admin created successfully!');
     }
-
-    // Create super admin
-    const superAdmin = new User({
-      username: 'superadmin',
-      email: superAdminEmail,
-      password: temporaryPassword,
-      role: 'super_admin',
-      isActive: true // Super admin is always active
-    });
-
-    await superAdmin.save();
-
-    console.log('🎉 Super Admin created successfully!');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log(`   Email:    ${superAdminEmail}`);
     console.log(`   Username: superadmin`);
