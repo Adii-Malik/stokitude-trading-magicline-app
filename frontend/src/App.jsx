@@ -108,7 +108,9 @@ function AppContent() {
       {/* Profile */}
       <Route path="/profile" element={
         <ProtectedRoute>
-          <Profile onBack={() => navigate('/dashboard')} />
+          <LayoutProvider currentPage="profile">
+            <Profile />
+          </LayoutProvider>
         </ProtectedRoute>
       } />
 
