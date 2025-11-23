@@ -8,8 +8,8 @@ export default function Dashboard() {
 
   const quickLinks = [
     {
-      title: 'Magic Line',
-      description: 'Monitor stocks against magic line thresholds',
+      title: 'Strategic Levels',
+      description: 'Monitor stocks against strategic price levels',
       icon: <BarChart3 className="w-12 h-12" />,
       path: '/magic-line',
       color: 'from-cyan-500 to-blue-500',

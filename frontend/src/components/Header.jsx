@@ -104,7 +104,7 @@ export default function Header({
                   }`}
               >
                 <BarChart3 className="w-4 h-4" />
-                <span>Magic Line</span>
+                <span>Strategic Levels</span>
               </button>
 
               <button
@@ -343,7 +343,7 @@ export default function Header({
                 }`}
             >
               <BarChart3 className="w-5 h-5" />
-              <span>Magic Line</span>
+              <span>Strategic Levels</span>
             </button>
 
             <button

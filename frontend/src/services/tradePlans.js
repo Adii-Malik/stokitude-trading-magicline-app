@@ -46,7 +46,7 @@ export const deleteTradePlan = async (id) => {
 export const uploadTradePlansCSV = async (file) => {
   const formData = new FormData();
   formData.append('file', file);
-  
+
   const response = await api.post('/trade-plans/upload/csv', formData, {
     headers: {
       'Content-Type': 'multipart/form-data'
@@ -55,21 +55,9 @@ export const uploadTradePlansCSV = async (file) => {
   return response.data;
 };
 
-// Bulk update prices (Admin only)
-export const updateTradePlanPrices = async (prices) => {
-  const response = await api.post('/trade-plans/update-prices', { prices });
-  return response.data;
-};
-
 // Clear all trade plans (Admin only)
 export const clearAllTradePlans = async () => {
   const response = await api.delete('/trade-plans/clear-all');
-  return response.data;
-};
-
-// Check prices against TPs and SLs
-export const checkTradePlanPrices = async () => {
-  const response = await api.post('/trade-plans/check-prices');
   return response.data;
 };
 
