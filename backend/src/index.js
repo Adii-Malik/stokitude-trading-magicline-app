@@ -27,6 +27,7 @@ import historicalRoutes from './routes/historical.js';
 import strategiesRoutes from './routes/strategies.js';
 import signalsRoutes from './routes/signals.js';
 import jobsRoutes from './routes/jobs.js';
+import notificationsRoutes from './routes/notifications.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -125,6 +126,7 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/strategies', strategiesRoutes);
 app.use('/api/signals', signalsRoutes);
 app.use('/api/jobs', jobsRoutes);
+app.use('/api/notifications', notificationsRoutes);
 
 // Root API endpoint
 app.get('/api', (req, res) => {

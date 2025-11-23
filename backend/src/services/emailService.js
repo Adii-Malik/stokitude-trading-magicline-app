@@ -181,6 +181,82 @@ PSX SmartDesk Team
   }
 
   /**
+   * Send notification email
+   */
+  async sendNotificationEmail(email, username, title, message, actionUrl = null, priority = 'medium') {
+    const priorityColors = {
+      low: '#6b7280',
+      medium: '#0891b2',
+      high: '#f59e0b',
+      urgent: '#ef4444'
+    };
+
+    const priorityLabels = {
+      low: 'Low Priority',
+      medium: 'Medium Priority',
+      high: 'High Priority',
+      urgent: 'Urgent'
+    };
+
+    const color = priorityColors[priority] || priorityColors.medium;
+    const priorityLabel = priorityLabels[priority] || priorityLabels.medium;
+
+    const mailOptions = {
+      to: email,
+      subject: `${title} - PSX SmartDesk`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <body style="font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f9fafb;">
+          <div style="max-width: 600px; margin: 40px auto; padding: 20px;">
+            <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+              <div style="border-left: 4px solid ${color}; padding-left: 15px; margin-bottom: 20px;">
+                <h2 style="color: #111827; margin: 0 0 10px 0;">${title}</h2>
+                <span style="display: inline-block; padding: 4px 12px; background-color: ${color}; color: white; border-radius: 12px; font-size: 12px; font-weight: 600;">
+                  ${priorityLabel}
+                </span>
+              </div>
+              
+              <p style="color: #374151; font-size: 16px; line-height: 1.6;">
+                Hello ${username},
+              </p>
+              
+              <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <p style="color: #111827; font-size: 15px; line-height: 1.6; margin: 0;">
+                  ${message}
+                </p>
+              </div>
+
+              ${actionUrl ? `
+              <div style="margin: 30px 0; text-align: center;">
+                <a href="${config.email.frontendUrl}${actionUrl}" 
+                   style="background-color: ${color}; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: 600;">
+                  View Details
+                </a>
+              </div>
+              ` : ''}
+              
+              <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="color: #6b7280; font-size: 13px; margin: 5px 0;">
+                  This notification was sent from PSX SmartDesk
+                </p>
+                <p style="color: #6b7280; font-size: 13px; margin: 5px 0;">
+                  <a href="${config.email.frontendUrl}/profile" style="color: #0891b2; text-decoration: none;">
+                    Manage notification preferences
+                  </a>
+                </p>
+              </div>
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+    };
+
+    return await this.sendEmail(mailOptions);
+  }
+
+  /**
    * Generic send email method
    * Works with any configured provider
    */

@@ -5,6 +5,7 @@ import { Readable } from 'stream';
 import TradePlan from '../models/TradePlan.js';
 import Stock from '../models/Stock.js';
 import { authenticate, adminOnly } from '../middleware/auth.js';
+import notificationService from '../services/notificationService.js';
 
 const router = express.Router();
 
@@ -270,6 +271,10 @@ router.post('/', adminOnly, async (req, res) => {
     });
 
     await plan.save();
+
+    // Send notification about new trade plan
+    notificationService.notifyTradePlanCreated(plan)
+      .catch(err => console.error('Failed to send notification:', err));
 
     res.status(201).json({
       success: true,

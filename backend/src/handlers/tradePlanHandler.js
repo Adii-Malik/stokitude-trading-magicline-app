@@ -1,5 +1,6 @@
 import TradePlan from '../models/TradePlan.js';
 import Stock from '../models/Stock.js';
+import notificationService from '../services/notificationService.js';
 
 /**
  * Trade Plan Handler
@@ -62,6 +63,10 @@ class TradePlanHandler {
             planUpdated = true;
             updates.push(`Buy Level ${level.level} HIT`);
             console.log(`   ✅ ${plan.symbol}: Buy Level ${level.level} HIT at ${currentPrice}`);
+            
+            // Send notification
+            notificationService.notifyTradePlanBuyLevel(plan, level)
+              .catch(err => console.error('Failed to send notification:', err));
           }
         }
 
@@ -89,6 +94,10 @@ class TradePlanHandler {
                 planUpdated = true;
                 updates.push(`Target ${target.level} HIT`);
                 console.log(`   🎯 ${plan.symbol}: Target ${target.level} HIT at ${currentPrice}`);
+                
+                // Send notification
+                notificationService.notifyTradePlanTarget(plan, target)
+                  .catch(err => console.error('Failed to send notification:', err));
               }
             }
           }
@@ -114,6 +123,10 @@ class TradePlanHandler {
               planUpdated = true;
               updates.push(`Stop Loss HIT - Call CLOSED`);
               console.log(`   ❌ ${plan.symbol}: Stop Loss HIT at ${currentPrice} - Call closed`);
+              
+              // Send notification
+              notificationService.notifyTradePlanStopLoss(plan, plan.stopLoss)
+                .catch(err => console.error('Failed to send notification:', err));
             }
           }
 

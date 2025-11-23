@@ -1,5 +1,6 @@
 import MagicLine from '../models/MagicLine.js';
 import Stock from '../models/Stock.js';
+import notificationService from '../services/notificationService.js';
 
 /**
  * Magic Line Handler
@@ -79,6 +80,15 @@ class MagicLineHandler {
               timestamp: new Date()
             }
           });
+
+          // Send notification when strategic level is met
+          if (newStatus === 'met' && previousStatus === 'pending') {
+            notificationService.notifyStrategicLevelMet(
+              symbolInfo.symbol,
+              magicLine,
+              currentPrice
+            ).catch(err => console.error('Failed to send notification:', err));
+          }
         }
       }
 
