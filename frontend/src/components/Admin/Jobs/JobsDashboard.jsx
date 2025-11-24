@@ -24,7 +24,13 @@ export default function JobsDashboard() {
     try {
       setLoading(true);
       const response = await jobsApi.getAllJobs();
-      setJobs(response.data.data || []);
+      // Map jobId to id for frontend compatibility and add icons
+      const jobsData = (response.data.data || []).map(job => ({
+        ...job,
+        id: job.jobId,
+        icon: getJobIcon(job.jobType)
+      }));
+      setJobs(jobsData);
       setError(null);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load jobs');
@@ -34,12 +40,24 @@ export default function JobsDashboard() {
     }
   };
 
+  const getJobIcon = (jobType) => {
+    const iconMap = {
+      'price_polling': '💰',
+      'tradingview_update': '📈',
+      'signal_generation': '🎯',
+      'historical_data': '📊',
+      'log_cleanup': '🧹'
+    };
+    return iconMap[jobType] || '⚙️';
+  };
+
   const loadStats = async () => {
     try {
       const response = await jobsApi.getSystemStats();
-      setStats(response.data.data);
+      setStats(response.data.data || { jobs: { total: 0, running: 0, stopped: 0 }, executions: { total: 0 } });
     } catch (err) {
       console.error('Error loading stats:', err);
+      setStats({ jobs: { total: 0, running: 0, stopped: 0 }, executions: { total: 0 } });
     }
   };
 
@@ -47,7 +65,7 @@ export default function JobsDashboard() {
     try {
       await jobsApi.startJob(jobId);
       showToast(`Job "${jobName}" started successfully`, 'success');
-      loadJobs();
+      await Promise.all([loadJobs(), loadStats()]);
     } catch (err) {
       showToast(err.response?.data?.message || 'Failed to start job', 'error');
     }
@@ -57,7 +75,7 @@ export default function JobsDashboard() {
     try {
       await jobsApi.stopJob(jobId);
       showToast(`Job "${jobName}" stopped successfully`, 'success');
-      loadJobs();
+      await Promise.all([loadJobs(), loadStats()]);
     } catch (err) {
       showToast(err.response?.data?.message || 'Failed to stop job', 'error');
     }
@@ -67,7 +85,7 @@ export default function JobsDashboard() {
     try {
       const response = await jobsApi.executeJob(jobId);
       showToast(`Job "${jobName}" execution started (ID: ${response.data.data.executionId})`, 'success');
-      loadJobs();
+      await loadJobs();
     } catch (err) {
       showToast(err.response?.data?.message || 'Failed to execute job', 'error');
     }
@@ -81,7 +99,7 @@ export default function JobsDashboard() {
     try {
       await jobsApi.deleteJob(jobId);
       showToast(`Job "${jobName}" deleted successfully`, 'success');
-      loadJobs();
+      await Promise.all([loadJobs(), loadStats()]);
     } catch (err) {
       showToast(err.response?.data?.message || 'Failed to delete job', 'error');
     }
@@ -100,9 +118,29 @@ export default function JobsDashboard() {
   const categories = ['all', 'data', 'trading', 'maintenance'];
 
   const filteredJobs = jobs.filter(job => {
-    const matchesCategory = selectedCategory === 'all' || job.category === selectedCategory;
-    const matchesSearch = job.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.typeName.toLowerCase().includes(searchQuery.toLowerCase());
+    // Get category from job config (need to fetch from job type)
+    // Since we don't have category in job response, derive from tags or jobType
+    let jobCategory = 'data'; // default
+    if (job.tags && job.tags.length > 0) {
+      // Map tags to categories
+      if (job.tags.includes('maintenance') || job.tags.includes('cleanup')) {
+        jobCategory = 'maintenance';
+      } else if (job.tags.includes('signals') || job.tags.includes('strategies')) {
+        jobCategory = 'trading';
+      } else {
+        jobCategory = 'data';
+      }
+    }
+    const matchesCategory = selectedCategory === 'all' || jobCategory === selectedCategory;
+
+    // Search match
+    const jobName = job.name || '';
+    const jobType = job.jobType || '';
+    const searchLower = searchQuery.toLowerCase();
+    const matchesSearch = !searchQuery ||
+      jobName.toLowerCase().includes(searchLower) ||
+      jobType.toLowerCase().includes(searchLower);
+
     return matchesCategory && matchesSearch;
   });
 
@@ -169,19 +207,19 @@ export default function JobsDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-white p-4 rounded-lg shadow">
             <div className="text-sm text-gray-600">Total Jobs</div>
-            <div className="text-2xl font-bold text-gray-800">{stats.jobs.total}</div>
+            <div className="text-2xl font-bold text-gray-800">{stats.jobs?.total || 0}</div>
           </div>
           <div className="bg-white p-4 rounded-lg shadow">
             <div className="text-sm text-gray-600">Running</div>
-            <div className="text-2xl font-bold text-green-600">{stats.jobs.running}</div>
+            <div className="text-2xl font-bold text-green-600">{stats.jobs?.running || 0}</div>
           </div>
           <div className="bg-white p-4 rounded-lg shadow">
             <div className="text-sm text-gray-600">Executions (24h)</div>
-            <div className="text-2xl font-bold text-blue-600">{stats.executions.last24h}</div>
+            <div className="text-2xl font-bold text-blue-600">{stats.executions?.last24h || stats.executions?.total || 0}</div>
           </div>
           <div className="bg-white p-4 rounded-lg shadow">
-            <div className="text-sm text-gray-600">Job Types Available</div>
-            <div className="text-2xl font-bold text-purple-600">{stats.registry.totalJobTypes}</div>
+            <div className="text-sm text-gray-600">Stopped</div>
+            <div className="text-2xl font-bold text-gray-600">{stats.jobs?.stopped || 0}</div>
           </div>
         </div>
       )}
@@ -248,7 +286,7 @@ export default function JobsDashboard() {
                   <div className="text-4xl">{job.icon}</div>
                   <div>
                     <h3 className="text-lg font-bold text-gray-800">{job.name}</h3>
-                    <p className="text-sm text-gray-600">{job.typeName}</p>
+                    <p className="text-sm text-gray-600">{job.description || job.jobType}</p>
                   </div>
                 </div>
                 <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(job.status)}`}>
@@ -272,7 +310,7 @@ export default function JobsDashboard() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Next Run:</span>
-                  <span className="text-gray-800">{job.nextRun ? formatDate(job.nextRun) : 'N/A'}</span>
+                  <span className="text-gray-800">{job.nextScheduledRun ? formatDate(job.nextScheduledRun) : 'N/A'}</span>
                 </div>
               </div>
 
@@ -293,38 +331,27 @@ export default function JobsDashboard() {
                 </div>
               )}
 
-              {/* Statistics */}
-              <div className="flex gap-4 mb-4 text-sm">
-                <div className="flex-1 bg-gray-50 p-2 rounded text-center">
-                  <div className="text-gray-600">Total</div>
-                  <div className="font-bold text-gray-800">{job.stats.total}</div>
-                </div>
-                <div className="flex-1 bg-green-50 p-2 rounded text-center">
-                  <div className="text-green-600">Success</div>
-                  <div className="font-bold text-green-700">{job.stats.success}</div>
-                </div>
-                <div className="flex-1 bg-red-50 p-2 rounded text-center">
-                  <div className="text-red-600">Failed</div>
-                  <div className="font-bold text-red-700">{job.stats.failed}</div>
-                </div>
-              </div>
-
               {/* Actions */}
               <div className="flex gap-2 flex-wrap">
-                {job.status === 'running' ? (
-                  <button
-                    onClick={() => handleStopJob(job.id, job.name)}
-                    className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                  >
-                    Stop
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => handleStartJob(job.id, job.name)}
-                    className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                  >
-                    Start
-                  </button>
+                {/* Only show Start/Stop for recurring jobs */}
+                {job.schedule?.recurring?.enabled && (
+                  <>
+                    {job.status === 'running' ? (
+                      <button
+                        onClick={() => handleStopJob(job.id, job.name)}
+                        className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                      >
+                        Stop
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleStartJob(job.id, job.name)}
+                        className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                      >
+                        Start
+                      </button>
+                    )}
+                  </>
                 )}
                 <button
                   onClick={() => handleExecuteJob(job.id, job.name)}

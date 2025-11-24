@@ -40,17 +40,14 @@ export default async function pricePollingJob(context) {
       }
     }
 
-    // Get active stocks
-    const stocks = await Stock.find({ 
-      active: true,
-      currentPrice: { $ne: null }  // Only fetch stocks with existing price data
-    }).select('symbol lastUpdated');
+    // Get all stocks
+    const stocks = await Stock.find({}).select('symbol lastUpdated');
 
     if (stocks.length === 0) {
-      logger.warn('No active stocks found');
+      logger.warn('No stocks found in database');
       return {
         success: true,
-        message: 'No active stocks to fetch',
+        message: 'No stocks to fetch',
         metadata: { symbolCount: 0 }
       };
     }
@@ -80,8 +77,8 @@ export default async function pricePollingJob(context) {
       });
 
       try {
-        // Fetch prices from PSX
-        const prices = await psxScraper.fetchPrices(symbols);
+        // Fetch prices from PSX using bulk method
+        const { success: prices, notFound } = await psxScraper.getStockPricesForSymbols(symbols);
 
         // Update stocks in database
         for (const priceData of prices) {
@@ -109,6 +106,12 @@ export default async function pricePollingJob(context) {
           }
         }
 
+        // Count not found as failures
+        if (notFound && notFound.length > 0) {
+          failCount += notFound.length;
+          logger.warn(`${notFound.length} symbols not found in market data`);
+        }
+
         // Small delay between batches
         if (i + batchSize < symbolsToFetch.length) {
           await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
@@ -117,7 +120,8 @@ export default async function pricePollingJob(context) {
       } catch (error) {
         logger.error(`Batch processing failed`, { 
           batch: Math.floor(i / batchSize) + 1,
-          error: error.message 
+          error: error.message,
+          stack: error.stack
         });
         failCount += batch.length;
       }

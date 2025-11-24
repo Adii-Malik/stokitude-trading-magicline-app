@@ -9,14 +9,14 @@ import config from '../../config/config.js';
 
 export default async function tradingViewJob(context) {
   const { logger, config: jobConfig } = context;
-
+  
   const timeframes = jobConfig.timeframes || ['daily'];
   const coreEngineUrl = `${config.pythonCore.baseUrl}${config.pythonCore.endpoints.tradingviewUpdate}`;
   const timeout = config.dataSources.tradingview.timeout;
 
-  logger.info('Triggering TradingView Core Engine update...', {
+  logger.info('Triggering TradingView Core Engine update...', { 
     timeframes,
-    url: coreEngineUrl
+    url: coreEngineUrl 
   });
 
   try {
@@ -58,10 +58,10 @@ export default async function tradingViewJob(context) {
       errorCode = 'TIMEOUT';
     }
 
-    logger.error('TradingView update failed', {
+    logger.error('TradingView update failed', { 
       error: errorMessage,
       code: errorCode,
-      timeframes
+      timeframes 
     });
 
     return {

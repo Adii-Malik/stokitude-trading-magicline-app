@@ -6,7 +6,6 @@
 
 import ServiceLog from '../../models/ServiceLog.js';
 import JobExecution from '../../models/JobExecution.js';
-import Job from '../../models/Job.js';
 
 export default async function logCleanupJob(context) {
   const { logger, config } = context;

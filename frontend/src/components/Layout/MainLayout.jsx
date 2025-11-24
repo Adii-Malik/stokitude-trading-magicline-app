@@ -6,7 +6,6 @@ export default function MainLayout({
     children,
     currentPage,
     isConnected,
-    lastPriceUpdate,
     marketStatus,
     showFooter = true
 }) {
@@ -17,7 +16,6 @@ export default function MainLayout({
             <Header
                 isConnected={isConnected}
                 currentPage={currentPage}
-                lastPriceUpdate={lastPriceUpdate}
                 marketStatus={marketStatus}
                 onNavigateToDashboard={() => navigate('/dashboard')}
                 onNavigateToMagicLine={() => navigate('/magic-line')}

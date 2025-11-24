@@ -27,11 +27,11 @@ class JobTypeRegistry {
     }
 
     // Register built-in job types
-    this.register(pricePollingJobType);
-    this.register(tradingViewJobType);
-    this.register(signalGenerationJobType);
-    this.register(historicalDataJobType);
-    this.register(logCleanupJobType);
+    await this.register(pricePollingJobType);
+    await this.register(tradingViewJobType);
+    await this.register(signalGenerationJobType);
+    await this.register(historicalDataJobType);
+    await this.register(logCleanupJobType);
 
     // Auto-discover custom job types (if directory exists)
     await this.discoverCustomJobTypes();
@@ -42,7 +42,7 @@ class JobTypeRegistry {
   /**
    * Register a single job type
    */
-  register(jobType) {
+  async register(jobType) {
     // Validate job type definition
     this.validateJobType(jobType);
 
@@ -50,7 +50,7 @@ class JobTypeRegistry {
     this.jobTypes.set(jobType.type, jobType);
 
     // Load handler
-    this.loadHandler(jobType);
+    await this.loadHandler(jobType);
   }
 
   /**
@@ -150,7 +150,7 @@ class JobTypeRegistry {
    */
   validateJobType(jobType) {
     const required = ['type', 'name', 'handler', 'parameters', 'scheduleOptions', 'execution'];
-    
+
     for (const field of required) {
       if (!jobType[field]) {
         throw new Error(`Job type '${jobType.type || 'unknown'}' missing required field: ${field}`);
@@ -189,7 +189,7 @@ class JobTypeRegistry {
       const fs = await import('fs/promises');
       const path = await import('path');
       const { fileURLToPath } = await import('url');
-      
+
       const __filename = fileURLToPath(import.meta.url);
       const __dirname = path.dirname(__filename);
       const customJobsDir = path.join(__dirname, 'custom');

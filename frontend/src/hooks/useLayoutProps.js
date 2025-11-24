@@ -10,63 +10,46 @@ import { useAuth } from '../contexts/AuthContext';
 export function useLayoutProps() {
     const { user } = useAuth();
     const [isConnected, setIsConnected] = useState(false);
-    const [lastPriceUpdate, setLastPriceUpdate] = useState(null);
     const [marketStatus, setMarketStatus] = useState('closed');
 
     useEffect(() => {
         if (!user) return;
 
-        // Fetch initial data
+        // Fetch market status ONCE on mount
         const fetchInitialData = async () => {
             try {
-                const [marketStatusRes, lastUpdateRes] = await Promise.all([
-                    api.get('/settings/market-status'),
-                    api.get('/settings/last-update')
-                ]);
-
+                const marketStatusRes = await api.get('/settings/market-status');
                 if (marketStatusRes.data?.success) {
                     setMarketStatus(marketStatusRes.data.data.marketStatus);
                 }
-
-                if (lastUpdateRes.data?.success && lastUpdateRes.data.data.lastUpdate) {
-                    setLastPriceUpdate(lastUpdateRes.data.data.lastUpdate);
-                }
             } catch (error) {
-                console.error('Error fetching layout data:', error);
+                console.error('Error fetching market status:', error);
             }
         };
 
         fetchInitialData();
 
-        // Setup Socket.IO
+        // Setup Socket.IO for real-time updates (push-based, not poll-based)
         socketService.connect();
         setIsConnected(socketService.socket?.connected || false);
 
         const handleConnect = () => setIsConnected(true);
         const handleDisconnect = () => setIsConnected(false);
-        const handlePriceUpdate = (data) => {
-            if (data.timestamp) {
-                setLastPriceUpdate(data.timestamp);
-            }
-        };
         const handleMarketStatus = (status) => setMarketStatus(status);
 
         socketService.on('connect', handleConnect);
         socketService.on('disconnect', handleDisconnect);
-        socketService.on('priceUpdate', handlePriceUpdate);
         socketService.on('marketStatusChange', handleMarketStatus);
 
         return () => {
             socketService.off('connect', handleConnect);
             socketService.off('disconnect', handleDisconnect);
-            socketService.off('priceUpdate', handlePriceUpdate);
             socketService.off('marketStatusChange', handleMarketStatus);
         };
     }, [user]);
 
     return {
         isConnected,
-        lastPriceUpdate,
         marketStatus
     };
 }

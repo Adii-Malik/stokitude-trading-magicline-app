@@ -16,10 +16,9 @@ const jobExecutionSchema = new mongoose.Schema({
     default: () => `exec_${uuidv4()}`
   },
 
-  // Reference to job
+  // Reference to job (stored as string in Agenda)
   jobId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Job',
+    type: String,
     required: true,
     index: true
   },
@@ -101,7 +100,7 @@ const jobExecutionSchema = new mongoose.Schema({
     success: Boolean,
     message: String,
     metadata: mongoose.Schema.Types.Mixed,
-
+    
     // Error details
     error: {
       message: String,
@@ -177,7 +176,7 @@ jobExecutionSchema.methods.complete = function (success, message, metadata = {})
   this.status = success ? 'success' : 'failed';
   this.completedAt = new Date();
   this.duration = this.completedAt - this.startedAt;
-
+  
   this.result = {
     success,
     message,
@@ -189,7 +188,7 @@ jobExecutionSchema.methods.fail = function (error) {
   this.status = 'failed';
   this.completedAt = new Date();
   this.duration = this.completedAt - this.startedAt;
-
+  
   this.result = {
     success: false,
     message: error.message,
@@ -205,7 +204,7 @@ jobExecutionSchema.methods.timeout = function () {
   this.status = 'timeout';
   this.completedAt = new Date();
   this.duration = this.completedAt - this.startedAt;
-
+  
   this.result = {
     success: false,
     message: 'Job execution timed out',
@@ -220,7 +219,7 @@ jobExecutionSchema.methods.cancel = function (reason) {
   this.status = 'cancelled';
   this.completedAt = new Date();
   this.duration = this.completedAt - this.startedAt;
-
+  
   this.result = {
     success: false,
     message: reason || 'Job execution cancelled',
@@ -256,9 +255,9 @@ jobExecutionSchema.statics.getExecutionsByStatus = function (status, limit = 50)
 };
 
 jobExecutionSchema.statics.getFailedExecutions = function (jobId, limit = 10) {
-  return this.find({
-    jobId,
-    status: { $in: ['failed', 'timeout'] }
+  return this.find({ 
+    jobId, 
+    status: { $in: ['failed', 'timeout'] } 
   })
     .sort({ createdAt: -1 })
     .limit(limit)
@@ -293,7 +292,7 @@ jobExecutionSchema.statics.getStatistics = async function (jobId, days = 7) {
 
   executions.forEach(exec => {
     stats[exec.status] = (stats[exec.status] || 0) + 1;
-
+    
     if (exec.duration) {
       totalDuration += exec.duration;
       durationCount++;

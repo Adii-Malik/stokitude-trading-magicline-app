@@ -102,12 +102,11 @@ router.put('/', adminOnly, async (req, res) => {
 // GET /api/settings/last-update - Get last price update timestamp (Authenticated users only)
 router.get('/last-update', authenticate, async (req, res) => {
   try {
-    const settings = await Settings.getSettings();
-
+    // lastPriceUpdate removed - not needed anymore
     res.json({
       success: true,
       data: {
-        lastUpdate: settings.pricePolling.lastPriceUpdate
+        lastUpdate: null
       }
     });
   } catch (error) {

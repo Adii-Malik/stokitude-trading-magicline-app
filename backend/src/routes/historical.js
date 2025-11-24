@@ -3,7 +3,6 @@ import Stock from '../models/Stock.js';
 import PsxDaily from '../models/PsxDaily.js';
 import PsxWeekly from '../models/PsxWeekly.js';
 import PsxMonthly from '../models/PsxMonthly.js';
-import tradingViewScheduler from '../services/tradingViewScheduler.js';
 import { authenticate, requireAdmin } from '../middleware/auth.js';
 import dataSourceService from '../services/dataSourceService.js';
 
@@ -228,20 +227,12 @@ router.post('/trigger-update', authenticate, requireAdmin, async (req, res) => {
 
         console.log(`\n🔧 Manual TradingView update triggered by admin: ${timeframes.join(', ')}`);
 
-        const success = await tradingViewScheduler.manualTrigger(timeframes);
-
-        if (success) {
-            res.json({
-                success: true,
-                message: `TradingView update triggered for: ${timeframes.join(', ')}`,
-                timeframes
-            });
-        } else {
-            res.status(503).json({
+        // This is now handled by the Job System
+        // Use POST /api/jobs/:jobId/execute to trigger TradingView job manually
+        res.status(410).json({
                 success: false,
-                message: 'TradingView update failed. Check server logs for details.'
+            message: 'This endpoint is deprecated. Use the Job System (POST /api/jobs/:jobId/execute) to trigger TradingView updates.'
             });
-        }
     } catch (error) {
         console.error('Error triggering TradingView update:', error);
         res.status(500).json({
@@ -258,10 +249,10 @@ router.post('/trigger-update', authenticate, requireAdmin, async (req, res) => {
  */
 router.get('/scheduler-status', authenticate, requireAdmin, async (req, res) => {
     try {
-        const status = tradingViewScheduler.getStatus();
-        res.json({
-            success: true,
-            data: status
+        // This is now handled by the Job System
+        res.status(410).json({
+            success: false,
+            message: 'This endpoint is deprecated. Use GET /api/jobs to view job status.'
         });
     } catch (error) {
         console.error('Error getting scheduler status:', error);
