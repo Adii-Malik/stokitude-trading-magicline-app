@@ -2,7 +2,6 @@ import express from 'express';
 import { authenticate, requireAdmin } from '../middleware/auth.js';
 import jobManager from '../jobs/jobManager.js';
 import jobTypeRegistry from '../jobs/jobTypeRegistry.js';
-import Job from '../models/Job.js';
 import JobExecution from '../models/JobExecution.js';
 
 const router = express.Router();
@@ -58,7 +57,7 @@ router.get('/types/:type', authenticate, requireAdmin, async (req, res) => {
  */
 router.get('/', authenticate, requireAdmin, async (req, res) => {
   try {
-    const jobs = await jobManager.getAllJobs();
+    const jobs = await jobManager.getJobs();
 
     res.json({
       success: true,
@@ -290,7 +289,7 @@ router.post('/:id/resume', authenticate, requireAdmin, async (req, res) => {
  */
 router.post('/:id/execute', authenticate, requireAdmin, async (req, res) => {
   try {
-    const execution = await jobManager.executeJobNow(req.params.id, req.user._id);
+    const execution = await jobManager.executeJob(req.params.id, { trigger: 'manual', triggeredBy: req.user._id });
 
     res.json({
       success: true,
@@ -317,7 +316,7 @@ router.post('/:id/execute', authenticate, requireAdmin, async (req, res) => {
 router.get('/:id/history', authenticate, requireAdmin, async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 50;
-    const history = await jobManager.getJobHistory(req.params.id, limit);
+    const history = await jobManager.getRecentExecutions(req.params.id, limit);
 
     res.json({
       success: true,
@@ -341,7 +340,7 @@ router.get('/:id/history', authenticate, requireAdmin, async (req, res) => {
  */
 router.get('/executions/:executionId', authenticate, requireAdmin, async (req, res) => {
   try {
-    const execution = await jobManager.getExecution(req.params.executionId);
+    const execution = await JobExecution.findOne({ executionId: req.params.executionId }).lean();
 
     res.json({
       success: true,
@@ -385,7 +384,7 @@ router.post('/executions/:executionId/cancel', authenticate, requireAdmin, async
  */
 router.get('/system/stats', authenticate, requireAdmin, async (req, res) => {
   try {
-    const stats = await jobManager.getSystemStats();
+    const stats = await jobManager.getStats();
 
     res.json({
       success: true,

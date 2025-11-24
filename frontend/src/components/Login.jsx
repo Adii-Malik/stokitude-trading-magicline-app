@@ -105,8 +105,8 @@ export default function Login({ onSwitchToSignup, onSwitchToForgotPassword, onBa
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Password
-                </label>
+                Password
+              </label>
                 {onSwitchToForgotPassword && (
                   <button
                     type="button"

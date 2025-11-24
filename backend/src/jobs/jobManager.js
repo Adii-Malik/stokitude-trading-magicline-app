@@ -3,25 +3,34 @@
  * 
  * Central orchestrator for all jobs
  * Manages lifecycle, scheduling, and execution
+ * Uses Agenda as single source of truth (no separate Job model)
  */
 
-import Job from '../models/Job.js';
 import JobExecution from '../models/JobExecution.js';
 import jobTypeRegistry from './jobTypeRegistry.js';
-import jobScheduler from './jobScheduler.js';
+import agendaScheduler from './agendaScheduler.js';
 import jobExecutor from './jobExecutor.js';
 
 class JobManager {
   constructor() {
     this.initialized = false;
     this.instanceId = `server-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    this.io = null; // Socket.IO instance for real-time updates
+  }
+
+  /**
+   * Set Socket.IO instance for real-time updates
+   */
+  setSocketIO(io) {
+    this.io = io;
+    jobExecutor.setSocketIO(io);
   }
 
   /**
    * Initialize Job Manager
    * - Load job type registry
-   * - Load jobs from database
-   * - Start enabled jobs
+   * - Define job handlers in Agenda
+   * - Agenda manages all job state
    */
   async initialize() {
     if (this.initialized) {
@@ -37,41 +46,33 @@ class JobManager {
     }
 
     try {
-      // Step 1: Initialize job type registry
+      // Step 1: Clean up stale executions from server crash/restart
+      const staleExecutions = await JobExecution.updateMany(
+        { status: { $in: ['running', 'queued'] } },
+        {
+          status: 'failed',
+          completedAt: new Date(),
+          'result.message': 'Job interrupted by server restart',
+          'result.error': 'Server stopped while job was running'
+        }
+      );
+      if (staleExecutions.modifiedCount > 0) {
+        console.log(`✓ Cleaned up ${staleExecutions.modifiedCount} stale execution(s)`);
+      }
+
+      // Step 2: Initialize Agenda
+      await agendaScheduler.initialize();
+
+      // Step 3: Initialize job type registry
       await jobTypeRegistry.initialize();
 
-      // Step 2: Load jobs from database
-      const jobs = await Job.find({ enabled: true });
+      // Step 4: Define Agenda handlers for all job types
+      // This is CRITICAL - Agenda needs handlers defined before it can execute jobs
+      await this.defineAgendaHandlers();
 
-      // Step 3: Recalculate next run times (in case another server updated them)
-      let updatedCount = 0;
-      for (const job of jobs) {
-        const oldNextRun = job.nextScheduledRun;
-        job.nextScheduledRun = jobScheduler.calculateNextRun(job);
-
-        if (oldNextRun && job.nextScheduledRun &&
-          oldNextRun.getTime() !== job.nextScheduledRun.getTime()) {
-          await job.save();
-          updatedCount++;
-        }
-      }
-
-      // Step 4: Start each enabled job
-      let startedCount = 0;
-      for (const job of jobs) {
-        try {
-          await this.startJob(job._id.toString(), false); // false = don't save (already enabled)
-          startedCount++;
-        } catch (error) {
-          console.error(`✗ Failed to start job: ${job.name} - ${error.message}`);
-        }
-      }
-
-      if (jobs.length > 0) {
-        console.log(`✓ Job scheduler: ${startedCount} job(s) active`);
-      } else {
-        console.log(`✓ Job scheduler: Ready (no jobs configured)`);
-      }
+      // Step 5: Get stats from Agenda
+      const stats = await agendaScheduler.getStats();
+      console.log(`✓ Job scheduler: ${stats.enabled} job(s) active`);
 
       this.initialized = true;
 
@@ -79,6 +80,38 @@ class JobManager {
       console.error('✗ Job scheduler initialization failed:', error.message);
       throw error;
     }
+  }
+
+  /**
+   * Define Agenda handlers for all registered job types
+   * CRITICAL: Must be called during initialization
+   */
+  async defineAgendaHandlers() {
+    const jobTypes = jobTypeRegistry.getAllJobTypes();
+
+    for (const jobType of jobTypes) {
+      // Define handler in Agenda for this job type
+      // Agenda will call this when the job is triggered
+      agendaScheduler.defineJob(jobType.type, async (jobData) => {
+        // Find the job configuration
+        const job = await agendaScheduler.getJob(jobData.jobId);
+        if (!job) {
+          console.error(`❌ Job not found: ${jobData.jobId}`);
+          return;
+        }
+
+        // Check if job is enabled - if not, skip execution
+        if (!job.enabled) {
+          console.log(`⏸️  Job '${job.name}' is disabled, skipping execution`);
+          return;
+        }
+
+        // Execute the job through jobExecutor
+        await jobExecutor.executeJob(job, { trigger: 'scheduled' });
+      });
+    }
+
+    console.log(`✓ Defined ${jobTypes.length} Agenda handler(s)`);
   }
 
   /**
@@ -103,8 +136,8 @@ class JobManager {
 
     // Check constraints (e.g., maxInstances)
     if (jobTypeDef.constraints?.maxInstances) {
-      const existingCount = await Job.countDocuments({ jobType });
-      if (existingCount >= jobTypeDef.constraints.maxInstances) {
+      const existingJobs = await agendaScheduler.getJobs({ jobType });
+      if (existingJobs.length >= jobTypeDef.constraints.maxInstances) {
         throw new Error(`Maximum ${jobTypeDef.constraints.maxInstances} instance(s) of ${jobTypeDef.name} allowed`);
       }
     }
@@ -115,29 +148,19 @@ class JobManager {
     // Validate schedule
     this.validateSchedule(schedule, jobTypeDef);
 
-    // Calculate next run
-    const job = new Job({
+    // Create job in Agenda
+    const job = await agendaScheduler.createJob({
       jobType,
       name: name || jobTypeDef.name,
       description: description || jobTypeDef.description,
       config,
       schedule,
       enabled: enabled || false,
-      status: 'stopped',
       createdBy,
       tags: tags || jobTypeDef.tags || []
     });
 
-    job.nextScheduledRun = jobScheduler.calculateNextRun(job);
-
-    await job.save();
-
     console.log(`✓ Job created: ${job.name}`);
-
-    // Start if enabled
-    if (job.enabled) {
-      await this.startJob(job._id.toString(), false);
-    }
 
     return job;
   }
@@ -146,421 +169,222 @@ class JobManager {
    * Update job configuration
    */
   async updateJob(jobId, updates) {
-    const job = await Job.findById(jobId);
+    const job = await agendaScheduler.getJob(jobId);
     if (!job) {
       throw new Error('Job not found');
     }
 
-    const { config, schedule, name, description, tags } = updates;
+    const { name, description, config, schedule, tags } = updates;
 
-    // Validate new config if provided
-    if (config) {
+    // Prepare updates
+    const updateData = {};
+    if (name !== undefined) updateData.name = name;
+    if (description !== undefined) updateData.description = description;
+    if (tags !== undefined) updateData.tags = tags;
+
+    // Update config (validate if provided)
+    if (config !== undefined) {
       jobTypeRegistry.validateJobConfig(job.jobType, config);
-      job.config = config;
+      updateData.config = config;
     }
 
-    // Validate new schedule if provided
-    if (schedule) {
+    // Update schedule
+    if (schedule !== undefined) {
       const jobTypeDef = jobTypeRegistry.getJobType(job.jobType);
       this.validateSchedule(schedule, jobTypeDef);
-      job.schedule = schedule;
-      job.nextScheduledRun = jobScheduler.calculateNextRun(job);
+      updateData.schedule = schedule;
     }
 
-    if (name) job.name = name;
-    if (description) job.description = description;
-    if (tags) job.tags = tags;
+    // Update in Agenda
+    const updatedJob = await agendaScheduler.updateJob(jobId, updateData);
 
-    await job.save();
+    console.log(`✓ Job updated: ${updatedJob.name}`);
 
-    // Reschedule if running
-    if (job.status === 'running') {
-      jobScheduler.rescheduleJob(job, (j) => this.executeJob(j._id.toString(), { trigger: 'scheduled' }));
-    }
-
-    console.log(`✅ Updated job: ${job.name}`);
-
-    return job;
+    return updatedJob;
   }
 
   /**
    * Delete job
    */
   async deleteJob(jobId) {
-    const job = await Job.findById(jobId);
+    const job = await agendaScheduler.getJob(jobId);
     if (!job) {
       throw new Error('Job not found');
     }
 
-    // Stop if running
-    if (job.status === 'running') {
-      await this.stopJob(jobId);
-    }
+    await agendaScheduler.deleteJob(jobId);
 
-    await Job.findByIdAndDelete(jobId);
-
-    console.log(`✅ Deleted job: ${job.name}`);
+    console.log(`✓ Job deleted: ${job.name}`);
   }
 
   /**
-   * Start job (begin scheduling)
+   * Start job (enable + schedule)
    */
-  async startJob(jobId, save = true) {
-    const job = await Job.findById(jobId);
-    if (!job) {
-      throw new Error('Job not found');
-    }
-
-    if (job.status === 'running') {
-      throw new Error('Job is already running');
-    }
-
-    // Update status
-    job.status = 'running';
-    job.enabled = true;
-    job.nextScheduledRun = jobScheduler.calculateNextRun(job);
-
-    if (save) {
-      await job.save();
-    }
-
-    // Schedule job
-    jobScheduler.scheduleJob(job, (j) => this.executeJob(j._id.toString(), { trigger: 'scheduled' }));
-
+  async startJob(jobId) {
+    const job = await agendaScheduler.startJob(jobId);
+    console.log(`✓ Job started: ${job.name}`);
     return job;
   }
 
   /**
-   * Stop job (stop scheduling)
+   * Stop job (disable + unschedule)
    */
   async stopJob(jobId) {
-    const job = await Job.findById(jobId);
-    if (!job) {
-      throw new Error('Job not found');
-    }
-
-    if (job.status === 'stopped') {
-      throw new Error('Job is already stopped');
-    }
-
-    // Unschedule
-    jobScheduler.unscheduleJob(jobId);
-
-    // Update status
-    job.status = 'stopped';
-    job.enabled = false;
-    job.nextScheduledRun = null;
-    await job.save();
-
+    const job = await agendaScheduler.stopJob(jobId);
     console.log(`✓ Job stopped: ${job.name}`);
-
     return job;
   }
 
   /**
-   * Pause job (keep schedule but skip execution)
-   */
-  async pauseJob(jobId) {
-    const job = await Job.findById(jobId);
-    if (!job) {
-      throw new Error('Job not found');
-    }
-
-    job.status = 'paused';
-    await job.save();
-
-    console.log(`⏸️  Paused job: ${job.name}`);
-
-    return job;
-  }
-
-  /**
-   * Resume job (from paused state)
-   */
-  async resumeJob(jobId) {
-    const job = await Job.findById(jobId);
-    if (!job) {
-      throw new Error('Job not found');
-    }
-
-    if (job.status !== 'paused') {
-      throw new Error('Job is not paused');
-    }
-
-    job.status = 'running';
-    await job.save();
-
-    console.log(`▶️  Resumed job: ${job.name}`);
-
-    return job;
-  }
-
-  /**
-   * Execute job manually (immediate execution)
+   * Execute job immediately (manual trigger)
    */
   async executeJob(jobId, options = {}) {
-    const job = await Job.findById(jobId);
+    const job = await agendaScheduler.getJob(jobId);
     if (!job) {
       throw new Error('Job not found');
     }
 
-    // Check if paused
-    if (job.status === 'paused') {
-      console.log(`⏸️  Job ${job.name} is paused, skipping execution`);
-      return null;
-    }
+    console.log(`🚀 Executing job: ${job.name}`);
 
-    // Try to acquire lock (prevents dual execution from multiple servers)
-    const lockTimeout = 5000; // 5 seconds
-    const now = new Date();
-
-    // Check if already locked by another server
-    if (job.executionLock?.lockedBy &&
-      job.executionLock.lockedBy !== this.instanceId &&
-      (now - job.executionLock.lockedAt) < lockTimeout) {
-      console.log(`⚠️  Job ${job.name} is locked by ${job.executionLock.lockedBy}, skipping`);
-      return null;
-    }
-
-    // Acquire lock
-    job.executionLock = {
-      lockedBy: this.instanceId,
-      lockedAt: now
-    };
-    await job.save();
-
-    try {
-      // Execute
-      const execution = await jobExecutor.executeJob(job, options);
-
-      // Update next run time
-      job.nextScheduledRun = jobScheduler.calculateNextRun(job);
-
-      // Release lock
-      job.executionLock = undefined;
-      await job.save();
-
-      return execution;
-    } catch (error) {
-      // Release lock on error
-      job.executionLock = undefined;
-      await job.save();
-      throw error;
-    }
+    return await jobExecutor.executeJob(job, options);
   }
 
   /**
-   * Execute job now (force manual execution)
+   * Get job by ID
    */
-  async executeJobNow(jobId, triggeredBy = null) {
-    return await this.executeJob(jobId, {
-      trigger: 'manual',
-      triggeredBy
+  async getJob(jobId) {
+    return await agendaScheduler.getJob(jobId);
+  }
+
+  /**
+   * Get job with status details
+   */
+  async getJobStatus(jobId) {
+    const job = await agendaScheduler.getJob(jobId);
+    if (!job) {
+      throw new Error('Job not found');
+    }
+
+    // Get recent executions
+    const recentExecutions = await JobExecution.find({ jobId })
+      .sort({ startedAt: -1 })
+      .limit(10)
+      .lean();
+
+    return {
+      ...job,
+      recentExecutions
+    };
+  }
+
+  /**
+   * Get all jobs (with optional filters)
+   */
+  async getJobs(filter = {}) {
+    return await agendaScheduler.getJobs(filter);
+  }
+
+  /**
+   * Get job statistics
+   */
+  async getStats() {
+    return await agendaScheduler.getStats();
+  }
+
+  /**
+   * Get recent job executions
+   */
+  async getRecentExecutions(jobId = null, limit = 10) {
+    const query = jobId ? { jobId } : {};
+
+    return await JobExecution.find(query)
+      .sort({ startedAt: -1 })
+      .limit(limit)
+      .lean();
+  }
+
+  /**
+   * Pause job (keep schedule but mark as paused)
+   */
+  async pauseJob(jobId) {
+    const job = await agendaScheduler.getJob(jobId);
+    if (!job) {
+      throw new Error('Job not found');
+    }
+
+    const updatedJob = await agendaScheduler.updateJob(jobId, {
+      enabled: false,
+      paused: true
     });
+
+    console.log(`✓ Job paused: ${updatedJob.name}`);
+    return updatedJob;
+  }
+
+  /**
+   * Resume paused job
+   */
+  async resumeJob(jobId) {
+    const job = await agendaScheduler.getJob(jobId);
+    if (!job) {
+      throw new Error('Job not found');
+    }
+
+    const updatedJob = await agendaScheduler.updateJob(jobId, {
+      enabled: true,
+      paused: false
+    });
+
+    console.log(`✓ Job resumed: ${updatedJob.name}`);
+    return updatedJob;
   }
 
   /**
    * Cancel running execution
    */
   async cancelExecution(executionId, reason) {
-    await jobExecutor.cancelExecution(executionId, reason);
+    return await jobExecutor.cancelExecution(executionId, reason);
   }
 
   /**
-   * Get job status
-   */
-  async getJobStatus(jobId) {
-    const job = await Job.findById(jobId);
-    if (!job) {
-      throw new Error('Job not found');
-    }
-
-    const jobTypeDef = jobTypeRegistry.getJobType(job.jobType);
-
-    return {
-      job: {
-        id: job._id,
-        name: job.name,
-        type: job.jobType,
-        typeName: jobTypeDef.name,
-        status: job.status,
-        enabled: job.enabled,
-        schedule: job.schedule,
-        config: job.config,
-        nextRun: job.nextScheduledRun,
-        lastRun: job.lastExecutionTime,
-        lastStatus: job.lastExecutionStatus
-      },
-      isScheduled: jobScheduler.isScheduled(job._id.toString()),
-      stats: {
-        total: job.totalExecutions,
-        success: job.successCount,
-        failed: job.failureCount,
-        successRate: job.totalExecutions > 0
-          ? Math.round((job.successCount / job.totalExecutions) * 100)
-          : 0,
-        avgDuration: job.averageDuration
-      }
-    };
-  }
-
-  /**
-   * Get all jobs
-   */
-  async getAllJobs() {
-    const jobs = await Job.find().sort({ createdAt: -1 });
-
-    return jobs.map(job => {
-      const jobTypeDef = jobTypeRegistry.getJobType(job.jobType);
-
-      return {
-        id: job._id,
-        name: job.name,
-        type: job.jobType,
-        typeName: jobTypeDef.name,
-        category: jobTypeDef.category,
-        icon: jobTypeDef.icon,
-        status: job.status,
-        enabled: job.enabled,
-        config: job.config,
-        schedule: job.schedule,
-        nextRun: job.nextScheduledRun,
-        lastRun: job.lastExecutionTime,
-        lastStatus: job.lastExecutionStatus,
-        stats: {
-          total: job.totalExecutions,
-          success: job.successCount,
-          failed: job.failureCount
-        }
-      };
-    });
-  }
-
-  /**
-   * Get job execution history
-   */
-  async getJobHistory(jobId, limit = 50) {
-    const executions = await JobExecution.find({ jobId })
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .lean();
-
-    return executions;
-  }
-
-  /**
-   * Get specific execution details
-   */
-  async getExecution(executionId) {
-    const execution = await JobExecution.findOne({ executionId }).lean();
-    if (!execution) {
-      throw new Error('Execution not found');
-    }
-    return execution;
-  }
-
-  /**
-   * Validate schedule against job type
+   * Validate job schedule
    */
   validateSchedule(schedule, jobTypeDef) {
-    // Validate universal schedule pattern
-    if (schedule.recurring) {
-      const { amount, interval } = schedule.recurring;
+    // Validate schedule pattern
+    if (schedule.recurring.enabled) {
+      const { interval, amount } = schedule.recurring;
 
-      if (schedule.recurring.enabled) {
-        if (!amount || amount < 1) {
-          throw new Error('Recurring amount must be >= 1');
-        }
+      const validIntervals = ['minutes', 'hours', 'days', 'weeks', 'months'];
+      if (!validIntervals.includes(interval)) {
+        throw new Error(`Invalid interval: ${interval}`);
+      }
 
-        const validIntervals = ['minutes', 'hours', 'days', 'weeks', 'months'];
-        if (!validIntervals.includes(interval)) {
-          throw new Error(`Invalid interval: ${interval}. Must be one of: ${validIntervals.join(', ')}`);
-        }
-
-        // Validate days of week if provided
-        if (schedule.recurring.daysOfWeek && schedule.recurring.daysOfWeek.length > 0) {
-          const invalidDays = schedule.recurring.daysOfWeek.filter(d => d < 0 || d > 6);
-          if (invalidDays.length > 0) {
-            throw new Error('Days of week must be 0-6 (0=Sunday, 6=Saturday)');
-          }
-        }
-
-        // Validate time format if provided
-        if (schedule.recurring.time && !/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(schedule.recurring.time)) {
-          throw new Error('Time must be in HH:MM format (24-hour)');
-        }
+      if (!amount || amount < 1) {
+        throw new Error('Amount must be greater than 0');
       }
     }
+
+    // Check if job type allows recurring
+    if (schedule.recurring.enabled && jobTypeDef.constraints?.recurring === false) {
+      throw new Error(`Job type ${jobTypeDef.name} does not support recurring schedules`);
+    }
+
+    // Check if one-time execution is allowed
+    if (!schedule.recurring.enabled && jobTypeDef.constraints?.recurring === 'required') {
+      throw new Error(`Job type ${jobTypeDef.name} requires a recurring schedule`);
+    }
+
+    return true;
   }
 
   /**
-   * Shutdown - stop all jobs
+   * Shutdown job manager gracefully
    */
   async shutdown() {
-    console.log('\n🛑 Shutting down Job Manager...');
-
-    jobScheduler.unscheduleAll();
-
-    // Cancel running executions
-    const runningExecutions = jobExecutor.getRunningExecutions();
-    for (const executionId of runningExecutions) {
-      try {
-        await jobExecutor.cancelExecution(executionId, 'System shutdown');
-      } catch (error) {
-        console.error(`Failed to cancel execution ${executionId}:`, error.message);
-      }
-    }
-
-    this.initialized = false;
-    console.log('✅ Job Manager shut down\n');
-  }
-
-  /**
-   * Log statistics
-   */
-  logStats() {
-    const registryStats = jobTypeRegistry.getStats();
-    const schedulerStats = jobScheduler.getStats();
-    const executorStats = jobExecutor.getStats();
-
-    console.log('📊 Job Management System Statistics:');
-    console.log(`   • Job Types: ${registryStats.totalJobTypes}`);
-    console.log(`   • Loaded Handlers: ${registryStats.loadedHandlers}`);
-    console.log(`   • Scheduled Jobs: ${schedulerStats.totalScheduled} (${schedulerStats.byType.interval} interval, ${schedulerStats.byType.cron} cron)`);
-    console.log(`   • Running Executions: ${executorStats.runningExecutions}`);
-    console.log('');
-  }
-
-  /**
-   * Get system statistics
-   */
-  async getSystemStats() {
-    const totalJobs = await Job.countDocuments();
-    const enabledJobs = await Job.countDocuments({ enabled: true });
-    const runningJobs = await Job.countDocuments({ status: 'running' });
-
-    const totalExecutions = await JobExecution.countDocuments();
-    const recentExecutions = await JobExecution.countDocuments({
-      createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
-    });
-
-    return {
-      jobs: {
-        total: totalJobs,
-        enabled: enabledJobs,
-        running: runningJobs,
-        stopped: totalJobs - runningJobs
-      },
-      executions: {
-        total: totalExecutions,
-        last24h: recentExecutions,
-        running: jobExecutor.getRunningExecutions().length
-      },
-      registry: jobTypeRegistry.getStats(),
-      scheduler: jobScheduler.getStats()
-    };
+    console.log('⚠️  Shutting down Job Manager...');
+    await agendaScheduler.shutdown();
+    console.log('✓ Job Manager shut down');
   }
 }
 
 export default new JobManager();
-

@@ -33,14 +33,14 @@ export default function CreateJobModal({ onClose, onCreated }) {
   const handleTypeSelect = (jobType) => {
     setSelectedType(jobType);
     setJobName(jobType.name);
-    
+
     // Initialize config with defaults
     const defaultConfig = {};
     jobType.parameters.forEach(param => {
       defaultConfig[param.name] = param.default;
     });
     setConfig(defaultConfig);
-    
+
     // Initialize schedule with defaults (Universal Pattern)
     const defaults = jobType.scheduleOptions.defaultRecurring || {
       amount: 1,
@@ -48,10 +48,10 @@ export default function CreateJobModal({ onClose, onCreated }) {
       daysOfWeek: [],
       time: null
     };
-    
+
     setSchedule({
       recurring: {
-        enabled: true,
+        enabled: false, // Default to manual (user must check the box to enable)
         amount: defaults.amount,
         interval: defaults.interval,
         daysOfWeek: defaults.daysOfWeek || [],
@@ -60,7 +60,7 @@ export default function CreateJobModal({ onClose, onCreated }) {
       timezone: 'Asia/Karachi',
       respectMarketHours: jobType.scheduleOptions.respectMarketHours || false
     });
-    
+
     setStep(2);
   };
 
@@ -80,24 +80,24 @@ export default function CreateJobModal({ onClose, onCreated }) {
 
   const validateConfig = () => {
     if (!selectedType) return false;
-    
+
     for (const param of selectedType.parameters) {
       if (param.required && !config[param.name]) {
         setError(`${param.label} is required`);
         return false;
       }
     }
-    
+
     return true;
   };
 
   const handleSubmit = async () => {
     if (!validateConfig()) return;
-    
+
     try {
       setSubmitting(true);
       setError(null);
-      
+
       await jobsApi.createJob({
         jobType: selectedType.type,
         name: jobName,
@@ -106,7 +106,7 @@ export default function CreateJobModal({ onClose, onCreated }) {
         schedule,
         enabled: false // Create disabled by default
       });
-      
+
       onCreated();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to create job');
@@ -248,11 +248,10 @@ export default function CreateJobModal({ onClose, onCreated }) {
                     key={type.type}
                     onClick={() => handleTypeSelect(type)}
                     disabled={type.constraints?.deprecated}
-                    className={`p-6 border-2 rounded-lg text-left transition-all hover:shadow-lg ${
-                      type.constraints?.deprecated
+                    className={`p-6 border-2 rounded-lg text-left transition-all hover:shadow-lg ${type.constraints?.deprecated
                         ? 'border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed'
                         : 'border-gray-200 hover:border-blue-500'
-                    }`}
+                      }`}
                   >
                     <div className="text-4xl mb-3">{type.icon}</div>
                     <h3 className="font-bold text-lg text-gray-800 mb-2">{type.name}</h3>
@@ -335,7 +334,7 @@ export default function CreateJobModal({ onClose, onCreated }) {
                       {/* Recurrence Settings */}
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-4">
                         <div className="font-medium text-blue-900">Run Every:</div>
-                        
+
                         {/* Amount & Interval */}
                         <div className="grid grid-cols-2 gap-4">
                           <div>
@@ -404,11 +403,10 @@ export default function CreateJobModal({ onClose, onCreated }) {
                                       recurring: { ...prev.recurring, daysOfWeek: newDays }
                                     }));
                                   }}
-                                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                                    isSelected
+                                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${isSelected
                                       ? 'bg-blue-600 text-white'
                                       : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                                  }`}
+                                    }`}
                                 >
                                   {day.label}
                                 </button>
@@ -458,7 +456,7 @@ export default function CreateJobModal({ onClose, onCreated }) {
                         <div>
                           <h4 className="font-medium text-gray-900 mb-1">Manual Trigger Only</h4>
                           <p className="text-sm text-gray-600">
-                            This job will NOT run automatically. Use the <strong>"Run Now"</strong> button 
+                            This job will NOT run automatically. Use the <strong>"Run Now"</strong> button
                             to execute it manually whenever needed.
                           </p>
                         </div>

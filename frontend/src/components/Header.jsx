@@ -9,7 +9,6 @@ import { UserProfileDropdown } from './common';
 export default function Header({
   isConnected,
   currentPage,
-  lastPriceUpdate,
   marketStatus,
   onNavigateToDashboard,
   onNavigateToMagicLine,
@@ -26,19 +25,6 @@ export default function Header({
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  // Format time for status display
-  const formatTime = (timestamp) => {
-    if (!timestamp) return 'No data yet';
-    const now = new Date();
-    const diff = Math.floor((now - new Date(timestamp)) / 60000);
-    if (diff < 1) return 'Just now';
-    if (diff < 60) return `${diff}m ago`;
-    const hours = Math.floor(diff / 60);
-    if (hours < 24) return `${hours}h ago`;
-    const days = Math.floor(hours / 24);
-    return `${days}d ago`;
-  };
 
   const isMarketOpen = marketStatus === 'open';
 
@@ -117,24 +103,14 @@ export default function Header({
             </nav>
           )}
 
-          {/* Right Section: Market Status + Price Update + Theme + User/Login */}
+          {/* Right Section: Market Status + Theme + User/Login */}
           <div className="flex items-center gap-2">
-            {/* Market Status - Same style as user badge */}
+            {/* Market Status */}
             {user && (
               <div className="hidden md:flex items-center gap-2 bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-lg">
                 <div className={`w-2 h-2 rounded-full ${isMarketOpen ? 'bg-green-500 animate-pulse' : 'bg-orange-500'}`}></div>
                 <span className={`text-sm font-medium ${isMarketOpen ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'}`}>
                   {isMarketOpen ? 'OPEN' : 'CLOSED'}
-                </span>
-              </div>
-            )}
-
-            {/* Price Update Status - Same style as user badge */}
-            {user && (
-              <div className="hidden lg:flex items-center gap-2 bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-lg" title={`Stock prices last updated: ${formatTime(lastPriceUpdate)}`}>
-                <TrendingUp className="w-4 h-4 text-cyan-500 dark:text-cyan-400" />
-                <span className="text-sm font-medium text-gray-900 dark:text-white">
-                  {formatTime(lastPriceUpdate)}
                 </span>
               </div>
             )}
@@ -250,13 +226,6 @@ export default function Header({
                 </span>
               </div>
 
-              {/* Price Update */}
-              <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-lg" title={`Stock prices last updated: ${formatTime(lastPriceUpdate)}`}>
-                <TrendingUp className="w-4 h-4 text-cyan-500 dark:text-cyan-400" />
-                <span className="text-sm font-medium text-gray-900 dark:text-white">
-                  {formatTime(lastPriceUpdate)}
-                </span>
-              </div>
             </div>
 
             <button

@@ -9,9 +9,6 @@ import { fileURLToPath } from 'url';
 import config from './config/config.js';
 import { connectDB } from './config/mongodb.js';
 import centralizedPriceService from './services/centralizedPriceService.js';
-import historicalDataScheduler from './services/historicalDataScheduler.js';
-import tradingViewScheduler from './services/tradingViewScheduler.js';
-import signalGenerationScheduler from './services/signalGenerationScheduler.js';
 import magicLineHandler from './handlers/magicLineHandler.js';
 import tradePlanHandler from './handlers/tradePlanHandler.js';
 import marketHoursService from './services/marketHoursService.js';
@@ -312,11 +309,11 @@ startServer();
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('⚠️ SIGTERM received, shutting down gracefully...');
-
+  
   // Shutdown job manager
   const jobManager = (await import('./jobs/jobManager.js')).default;
   await jobManager.shutdown();
-
+  
   httpServer.close(() => {
     console.log('👋 Server closed');
     process.exit(0);
@@ -325,11 +322,11 @@ process.on('SIGTERM', async () => {
 
 process.on('SIGINT', async () => {
   console.log('\n⚠️ SIGINT received, shutting down gracefully...');
-
+  
   // Shutdown job manager
   const jobManager = (await import('./jobs/jobManager.js')).default;
   await jobManager.shutdown();
-
+  
   httpServer.close(() => {
     console.log('👋 Server closed');
     process.exit(0);

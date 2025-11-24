@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import multer from 'multer';
 import csv from 'csv-parser';
 import { Readable } from 'stream';
@@ -182,6 +183,14 @@ router.get('/stats/summary', authenticate, async (req, res) => {
 // Get trade plan by ID (MUST be after all specific routes)
 router.get('/:id', authenticate, async (req, res) => {
   try {
+    // Validate ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid trade plan ID format'
+      });
+    }
+
     const plan = await TradePlan.findById(req.params.id)
       .populate('createdBy', 'username');
 

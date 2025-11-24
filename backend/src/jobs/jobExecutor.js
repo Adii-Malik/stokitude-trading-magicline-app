@@ -20,7 +20,7 @@ class JobExecutor {
 
     // Create execution record
     const execution = await JobExecution.create({
-      jobId: job._id,
+      jobId: job.jobId || job._id,
       jobType: job.jobType,
       jobName: job.name,
       status: 'queued',
@@ -60,7 +60,7 @@ class JobExecutor {
     try {
       // Get job type definition
       const jobTypeDef = jobTypeRegistry.getJobType(job.jobType);
-      
+
       // Get handler
       const handler = jobTypeRegistry.getHandler(job.jobType);
       if (!handler) {
@@ -106,8 +106,6 @@ class JobExecutor {
       console.log(`${result.success ? '✅' : '❌'} Job ${job.name} completed: ${result.message}`);
       console.log(`   Duration: ${(currentExecution.duration / 1000).toFixed(2)}s`);
 
-      // Update job stats
-      await job.updateStats(currentExecution);
 
       // Remove from running executions
       this.runningExecutions.delete(executionId);
@@ -122,13 +120,10 @@ class JobExecutor {
 
       // Reload execution to get latest state
       const currentExecution = await JobExecution.findOne({ executionId });
-      
+
       // Fail execution
       currentExecution.fail(error);
       await currentExecution.save();
-
-      // Update job stats
-      await job.updateStats(currentExecution);
 
       // Remove from running executions
       this.runningExecutions.delete(executionId);
@@ -189,10 +184,10 @@ class JobExecutor {
    */
   async log(execution, level, message, metadata = {}) {
     execution.addLog(level, message, metadata);
-    
+
     // Don't save immediately - will be saved at checkpoints
     // This prevents parallel save errors
-    
+
     // Also console log
     const prefix = level === 'error' ? '❌' : level === 'warn' ? '⚠️' : 'ℹ️';
     console.log(`   ${prefix} ${message}`);
@@ -213,12 +208,6 @@ class JobExecutor {
     execution.timeout();
     await execution.save();
 
-    // Update job stats
-    const Job = (await import('../models/Job.js')).default;
-    const job = await Job.findById(execution.jobId);
-    if (job) {
-      await job.updateStats(execution);
-    }
 
     this.runningExecutions.delete(executionId);
   }
@@ -247,12 +236,6 @@ class JobExecutor {
 
     console.log(`🛑 Job execution ${executionId} cancelled: ${reason}`);
 
-    // Update job stats
-    const Job = (await import('../models/Job.js')).default;
-    const job = await Job.findById(execution.jobId);
-    if (job) {
-      await job.updateStats(execution);
-    }
 
     this.runningExecutions.delete(executionId);
   }

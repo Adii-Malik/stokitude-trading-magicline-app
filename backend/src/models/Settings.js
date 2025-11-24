@@ -7,24 +7,6 @@ const settingsSchema = new mongoose.Schema({
     default: 'system_settings'
   },
   
-  // Price Polling Settings
-  pricePolling: {
-    intervalMinutes: {
-      type: Number,
-      default: 15,
-      min: 5,
-      max: 60
-    },
-    enabled: {
-      type: Boolean,
-      default: true
-    },
-    lastPriceUpdate: {
-      type: Date,
-      default: null
-    }
-  },
-  
   // Market Hours Configuration
   marketHours: {
     // Regular trading hours (Mon-Thu)
@@ -102,14 +84,6 @@ settingsSchema.statics.updateSettings = async function(updates) {
   const settings = await this.getSettings();
   
   // Merge updates deeply to preserve existing fields
-  if (updates.pricePolling) {
-    // Deep merge for pricePolling - preserve existing fields
-    const currentPolling = settings.pricePolling.toObject ? settings.pricePolling.toObject() : settings.pricePolling;
-    settings.pricePolling = {
-      ...currentPolling,
-      ...updates.pricePolling
-    };
-  }
   if (updates.marketHours) {
     // Deep merge for marketHours
     if (updates.marketHours.regularMarketOpen) {
@@ -154,7 +128,6 @@ settingsSchema.statics.updateSettings = async function(updates) {
   }
   
   // Mark the nested paths as modified for Mongoose
-  settings.markModified('pricePolling');
   settings.markModified('marketHours');
   
   await settings.save();
