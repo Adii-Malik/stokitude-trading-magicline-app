@@ -22,6 +22,10 @@ const DevToolsPanel = import.meta.env.MODE === 'development'
   ? lazy(() => import('./test/components/DevToolsPanel'))
   : null;
 
+const TestingPage = import.meta.env.MODE === 'development'
+  ? lazy(() => import('./test/pages/TestingPage'))
+  : null;
+
 // Protected Route Component
 function ProtectedRoute({ children, adminOnly = false }) {
   const { user, loading, isAdmin } = useAuth();
@@ -136,6 +140,17 @@ function AppContent() {
           <AdminDashboard onBackToMain={() => navigate('/dashboard')} />
         </ProtectedRoute>
       } />
+
+      {/* Development Testing Page - Only in dev mode */}
+      {TestingPage && (
+        <Route path="/testing" element={
+          <ProtectedRoute>
+            <Suspense fallback={<FullPageLoader />}>
+              <TestingPage />
+            </Suspense>
+          </ProtectedRoute>
+        } />
+      )}
 
       {/* Catch all - redirect to home */}
       <Route path="*" element={<Navigate to="/" replace />} />

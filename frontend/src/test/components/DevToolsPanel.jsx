@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Settings, Info, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Settings, Info, CheckCircle, XCircle, AlertTriangle, TestTube } from 'lucide-react';
 import { getFeatureFlagsSummary } from '../../config/featureFlags';
 
 export default function DevToolsPanel() {
+    const navigate = useNavigate();
     const [summary, setSummary] = useState(null);
     const [expanded, setExpanded] = useState(false);
 
@@ -65,7 +67,21 @@ export default function DevToolsPanel() {
                         <p className="text-xs text-green-800 dark:text-green-200">
                             {summary.message}
                         </p>
-                    </div>                    {/* Warning */}
+                    </div>
+
+                    {/* Testing Page Link */}
+                    <button
+                        onClick={() => {
+                            navigate('/testing');
+                            setExpanded(false);
+                        }}
+                        className="mt-3 w-full bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg py-2 px-3 text-xs font-medium flex items-center justify-center gap-2 transition"
+                    >
+                        <TestTube className="w-4 h-4" />
+                        Open Testing Page
+                    </button>
+
+                    {/* Warning */}
                     <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
                         <p className="text-xs text-orange-600 dark:text-orange-400">
                             ⚠️ Disable dev features in production!

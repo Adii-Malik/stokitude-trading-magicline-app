@@ -32,8 +32,15 @@ VITE_ENABLE_DEV_FEATURES=false
 
 ## Test Features Available in Development
 
-### 1. Notification Testing
-**Location**: Profile → Test Notifications tab
+### 1. Testing Page
+**Location**: `/testing` route (or via DevToolsPanel button)
+
+**Access**:
+- Navigate to `/testing` directly
+- Click "Open Testing Page" button in DevToolsPanel (bottom-right)
+
+### 2. Notification Testing
+**Location**: Testing Page → Notification Testing tab
 
 **Features**:
 - 🔔 Basic System Notification
@@ -52,20 +59,23 @@ VITE_ENABLE_DEV_FEATURES=false
 - `POST /api/notifications/test-email` - Direct email test
 - `GET /api/notifications/email-debug` - Email config viewer
 
-### 2. Dev Tools Panel
+### 3. Dev Tools Panel
 **Location**: Floating panel (bottom-right corner)
 
 **Shows**:
 - Current MODE (development/production)
 - Feature flag status
+- Quick link to Testing Page
 - Environment info
 
-### 3. Job Testing
+### 4. Job Testing
 **Location**: Jobs page
 
 **Features**:
 - "Run Now" buttons for manual job execution
 - Real-time job status monitoring
+
+**Note**: Future test features can be added as tabs to the Testing Page.
 
 ## Code Organization
 
