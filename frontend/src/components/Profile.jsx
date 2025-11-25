@@ -1,13 +1,22 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { User, Mail, Shield, Lock, Save, AlertCircle, CheckCircle, ArrowLeft, Bell } from 'lucide-react';
+import { User, Mail, Shield, Lock, Save, AlertCircle, CheckCircle, ArrowLeft, Bell, TestTube } from 'lucide-react';
 import * as authService from '../services/auth';
 import NotificationPreferences from './NotificationPreferences';
+import { isFeatureEnabled } from '../config/featureFlags';
+
+// Conditionally import test component only in development
+const NotificationTester = import.meta.env.MODE === 'development'
+  ? lazy(() => import('../test/components/NotificationTester'))
+  : null;
 
 export default function Profile() {
   const { user, setUser } = useAuth();
-  const [activeTab, setActiveTab] = useState('profile'); // 'profile', 'security', 'notifications'
+  const [activeTab, setActiveTab] = useState('profile'); // 'profile', 'security', 'notifications', 'test'
+
+  // Check if test features are enabled via centralized feature flags
+  const isTestTabEnabled = isFeatureEnabled('notificationTests');
 
   // Profile form
   const [profileData, setProfileData] = useState({
@@ -166,6 +175,18 @@ export default function Profile() {
                   <Bell className="w-5 h-5" />
                   <span className="font-medium">Notifications</span>
                 </button>
+                {isTestTabEnabled && (
+                  <button
+                    onClick={() => setActiveTab('test')}
+                    className={`w-full text-left px-4 py-3 rounded-lg transition-colors flex items-center gap-3 ${activeTab === 'test'
+                      ? 'bg-cyan-500 text-white'
+                      : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+                      }`}
+                  >
+                    <TestTube className="w-5 h-5" />
+                    <span className="font-medium">Test Notifications</span>
+                  </button>
+                )}
               </nav>
             </div>
           </div>
@@ -385,6 +406,13 @@ export default function Profile() {
             {/* Notifications Tab */}
             {activeTab === 'notifications' && (
               <NotificationPreferences />
+            )}
+
+            {/* Test Notifications Tab */}
+            {isTestTabEnabled && activeTab === 'test' && NotificationTester && (
+              <Suspense fallback={<div className="p-6 text-center">Loading test tools...</div>}>
+                <NotificationTester />
+              </Suspense>
             )}
           </div>
         </div>

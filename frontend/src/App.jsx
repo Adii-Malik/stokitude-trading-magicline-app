@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LayoutProvider } from './components/Layout';
@@ -14,6 +15,12 @@ import Landing from './components/Landing';
 import Profile from './components/Profile';
 import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
+import featureFlags from './config/featureFlags';
+
+// Conditionally import dev tools only in development
+const DevToolsPanel = import.meta.env.MODE === 'development'
+  ? lazy(() => import('./test/components/DevToolsPanel'))
+  : null;
 
 // Protected Route Component
 function ProtectedRoute({ children, adminOnly = false }) {
@@ -165,6 +172,11 @@ function App() {
           }}
         />
         <AppContent />
+        {featureFlags.devMode && DevToolsPanel && (
+          <Suspense fallback={null}>
+            <DevToolsPanel />
+          </Suspense>
+        )}
       </AuthProvider>
     </Router>
   );

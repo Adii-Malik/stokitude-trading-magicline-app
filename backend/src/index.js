@@ -25,6 +25,7 @@ import strategiesRoutes from './routes/strategies.js';
 import signalsRoutes from './routes/signals.js';
 import jobsRoutes from './routes/jobs.js';
 import notificationsRoutes from './routes/notifications.js';
+import systemRoutes from './routes/system.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -124,6 +125,13 @@ app.use('/api/strategies', strategiesRoutes);
 app.use('/api/signals', signalsRoutes);
 app.use('/api/jobs', jobsRoutes);
 app.use('/api/notifications', notificationsRoutes);
+app.use('/api/system', systemRoutes);
+
+// Mount test routes only in development
+if (process.env.NODE_ENV === 'development') {
+  const notificationTestRoutes = (await import('./test/routes/notificationTests.js')).default;
+  app.use('/api/notifications', notificationTestRoutes);
+}
 
 // Root API endpoint
 app.get('/api', (req, res) => {
@@ -309,11 +317,11 @@ startServer();
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('⚠️ SIGTERM received, shutting down gracefully...');
-  
+
   // Shutdown job manager
   const jobManager = (await import('./jobs/jobManager.js')).default;
   await jobManager.shutdown();
-  
+
   httpServer.close(() => {
     console.log('👋 Server closed');
     process.exit(0);
@@ -322,11 +330,11 @@ process.on('SIGTERM', async () => {
 
 process.on('SIGINT', async () => {
   console.log('\n⚠️ SIGINT received, shutting down gracefully...');
-  
+
   // Shutdown job manager
   const jobManager = (await import('./jobs/jobManager.js')).default;
   await jobManager.shutdown();
-  
+
   httpServer.close(() => {
     console.log('👋 Server closed');
     process.exit(0);

@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
-import { 
-  Bell, Check, Trash2, Filter, AlertCircle, CheckCircle, Info, 
-  ChevronLeft, ChevronRight, RefreshCw, Trash, Search, X 
+import {
+  Bell, Check, Trash2, Filter, AlertCircle, CheckCircle, Info,
+  ChevronLeft, ChevronRight, RefreshCw, Trash, Search, X
 } from 'lucide-react';
-import { 
-  getNotifications, 
-  markAsRead, 
-  markAllAsRead, 
-  deleteNotification, 
-  clearReadNotifications 
+import {
+  getNotifications,
+  markAsRead,
+  markAllAsRead,
+  deleteNotification,
+  clearReadNotifications
 } from '../services/notifications';
 import { useNavigate } from 'react-router-dom';
 import { ContentLoader } from './common';
@@ -175,20 +175,31 @@ export default function Notifications() {
     });
   };
 
-  const getTypeLabel = (type) => {
-    const labels = {
-      strategic_level_met: 'Strategic Level',
-      trade_plan_buy_level: 'Buy Level',
-      trade_plan_target: 'Target Hit',
-      trade_plan_stop_loss: 'Stop Loss',
-      trade_plan_created: 'New Trade Plan',
-      signal_generated: 'Signal',
-      strategy_opportunity: 'Strategy',
-      system_alert: 'System',
-      price_alert: 'Price Alert',
-      admin_announcement: 'Announcement'
+  const getCategoryInfo = (notification) => {
+    // Use category if available, otherwise fall back to type
+    const category = notification.category || notification.type;
+
+    const categoryMap = {
+      // New categories
+      'magic_line': { label: '🎯 Magic Line', color: 'cyan' },
+      'trade_plans': { label: '💰 Trade Plans', color: 'green' },
+      'system': { label: '🔔 System', color: 'blue' },
+      'admin': { label: '👨‍💼 Admin', color: 'purple' },
+
+      // Legacy types (backward compatibility)
+      'strategic_level_met': { label: '🎯 Magic Line', color: 'cyan' },
+      'trade_plan_buy_level': { label: '💰 Trade Plans', color: 'green' },
+      'trade_plan_target': { label: '💰 Trade Plans', color: 'green' },
+      'trade_plan_stop_loss': { label: '💰 Trade Plans', color: 'green' },
+      'trade_plan_created': { label: '💰 Trade Plans', color: 'green' },
+      'signal_generated': { label: '👨‍💼 Admin', color: 'purple' },
+      'strategy_opportunity': { label: '👨‍💼 Admin', color: 'purple' },
+      'system_alert': { label: '🔔 System', color: 'blue' },
+      'price_alert': { label: '🔔 System', color: 'blue' },
+      'admin_announcement': { label: '🔔 System', color: 'blue' }
     };
-    return labels[type] || type;
+
+    return categoryMap[category] || { label: '📋 Other', color: 'gray' };
   };
 
   return (
@@ -211,8 +222,8 @@ export default function Notifications() {
               <button
                 onClick={() => setShowFilters(!showFilters)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition ${showFilters
-                    ? 'bg-cyan-600 text-white'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  ? 'bg-cyan-600 text-white'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                   }`}
               >
                 <Filter className="w-4 h-4" />
@@ -357,8 +368,8 @@ export default function Notifications() {
                 key={notification._id}
                 onClick={() => handleNotificationClick(notification)}
                 className={`bg-white dark:bg-gray-800 rounded-lg p-4 hover:shadow-md transition cursor-pointer border ${!notification.read
-                    ? 'border-l-4 border-l-cyan-500 bg-cyan-50/50 dark:bg-cyan-500/5'
-                    : 'border-gray-200 dark:border-gray-700'
+                  ? 'border-l-4 border-l-cyan-500 bg-cyan-50/50 dark:bg-cyan-500/5'
+                  : 'border-gray-200 dark:border-gray-700'
                   }`}
               >
                 <div className="flex items-start gap-4">
@@ -373,8 +384,8 @@ export default function Notifications() {
                       <div className="flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <h3 className={`font-semibold ${!notification.read
-                              ? 'text-gray-900 dark:text-white'
-                              : 'text-gray-700 dark:text-gray-300'
+                            ? 'text-gray-900 dark:text-white'
+                            : 'text-gray-700 dark:text-gray-300'
                             }`}>
                             {notification.title}
                           </h3>
@@ -382,7 +393,7 @@ export default function Notifications() {
                             {notification.priority}
                           </span>
                           <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
-                            {getTypeLabel(notification.type)}
+                            {getCategoryInfo(notification).label}
                           </span>
                         </div>
                         <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">

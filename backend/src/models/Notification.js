@@ -10,21 +10,23 @@ const notificationSchema = new mongoose.Schema({
   },
 
   // Notification details
-  type: {
+  // Category: High-level feature grouping (magic_line, trade_plans, system, admin)
+  category: {
     type: String,
     required: true,
-    enum: [
-      'strategic_level_met',      // Strategic level (magic line) hit
-      'trade_plan_buy_level',     // Trade plan buy level hit
-      'trade_plan_target',        // Trade plan target hit
-      'trade_plan_stop_loss',     // Trade plan stop loss hit
-      'trade_plan_created',       // New trade plan created
-      'signal_generated',         // Trading signal generated
-      'strategy_opportunity',     // Strategy opportunity detected
-      'system_alert',             // System-level alert
-      'price_alert',              // Custom price alert
-      'admin_announcement'        // Admin announcement
-    ],
+    index: true
+  },
+
+  // Event: Specific event type (for internal tracking and filtering)
+  event: {
+    type: String,
+    required: true,
+    index: true
+  },
+
+  // Legacy type field for backward compatibility (deprecated)
+  type: {
+    type: String,
     index: true
   },
 
@@ -97,7 +99,8 @@ const notificationSchema = new mongoose.Schema({
 
 // Indexes for efficient queries
 notificationSchema.index({ userId: 1, read: 1, createdAt: -1 });
-notificationSchema.index({ userId: 1, type: 1, createdAt: -1 });
+notificationSchema.index({ userId: 1, category: 1, createdAt: -1 });
+notificationSchema.index({ userId: 1, event: 1, createdAt: -1 });
 notificationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 }); // TTL index
 
 // Virtual for age

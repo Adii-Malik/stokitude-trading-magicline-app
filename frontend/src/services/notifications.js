@@ -48,9 +48,45 @@ export const updatePreferences = async (preferences) => {
   return response.data;
 };
 
-// Send test notification
+// Get available notification features
+export const getNotificationFeatures = async () => {
+  const response = await api.get('/notifications/features');
+  return response.data;
+};
+
+// Send test notification (basic)
 export const sendTestNotification = async () => {
   const response = await api.post('/notifications/test');
+  return response.data;
+};
+
+// Test magic line notification
+export const testMagicLineNotification = async () => {
+  const response = await api.post('/notifications/test-magic-line');
+  return response.data;
+};
+
+// Test trade plan notification
+export const testTradePlanNotification = async (type = 'buy') => {
+  const response = await api.post('/notifications/test-trade-plan', { type });
+  return response.data;
+};
+
+// Test admin notification
+export const testAdminNotification = async () => {
+  const response = await api.post('/notifications/test-admin');
+  return response.data;
+};
+
+// Get email debug info
+export const getEmailDebugInfo = async () => {
+  const response = await api.get('/notifications/email-debug');
+  return response.data;
+};
+
+// Send direct test email
+export const sendTestEmail = async () => {
+  const response = await api.post('/notifications/test-email');
   return response.data;
 };
 
@@ -61,6 +97,7 @@ export default {
   markAllAsRead,
   deleteNotification,
   clearReadNotifications,
+  getNotificationFeatures,
   getPreferences,
   updatePreferences,
   sendTestNotification

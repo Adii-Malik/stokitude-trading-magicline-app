@@ -2,13 +2,15 @@ import Notification from '../models/Notification.js';
 import NotificationPreference from '../models/NotificationPreference.js';
 import User from '../models/User.js';
 import emailService from './emailService.js';
+import { isValidCategory, isValidEvent, isAdminOnly } from '../config/notificationConfig.js';
 
 class NotificationService {
   /**
    * Send a notification to a user or multiple users
    * @param {Object} params - Notification parameters
    * @param {String|Array} params.userId - User ID(s) to send notification to
-   * @param {String} params.type - Notification type
+   * @param {String} params.category - Notification category (magic_line, trade_plans, system, admin)
+   * @param {String} params.event - Notification event (strategic_level_met, buy_level_hit, etc.)
    * @param {String} params.title - Notification title
    * @param {String} params.message - Notification message
    * @param {Object} params.data - Additional data
@@ -19,7 +21,8 @@ class NotificationService {
   async send(params) {
     const {
       userId,
-      type,
+      category,
+      event,
       title,
       message,
       data = {},
@@ -28,19 +31,31 @@ class NotificationService {
       expiresInDays = 30
     } = params;
 
+    // Validate category and event
+    if (!isValidCategory(category)) {
+      console.error(`❌ Invalid notification category: ${category}`);
+      return { success: 0, failed: 1, total: 1 };
+    }
+
+    if (!isValidEvent(category, event)) {
+      console.error(`❌ Invalid notification event: ${event} for category: ${category}`);
+      return { success: 0, failed: 1, total: 1 };
+    }
+
     // Handle multiple users
     const userIds = Array.isArray(userId) ? userId : [userId];
-    
+
     const results = await Promise.allSettled(
-      userIds.map(uid => this.sendToUser({ 
-        userId: uid, 
-        type, 
-        title, 
-        message, 
-        data, 
-        priority, 
-        actionUrl, 
-        expiresInDays 
+      userIds.map(uid => this.sendToUser({
+        userId: uid,
+        category,
+        event,
+        title,
+        message,
+        data,
+        priority,
+        actionUrl,
+        expiresInDays
       }))
     );
 
@@ -57,7 +72,8 @@ class NotificationService {
   async sendToUser(params) {
     const {
       userId,
-      type,
+      category,
+      event,
       title,
       message,
       data = {},
@@ -74,12 +90,18 @@ class NotificationService {
         return null;
       }
 
+      // Check if admin-only notification for non-admin user
+      if (isAdminOnly(category) && !['admin', 'super_admin'].includes(user.role)) {
+        console.log(`⚠️  Admin-only notification skipped for regular user ${user.username}`);
+        return null;
+      }
+
       // Get user preferences
       const prefs = await NotificationPreference.getOrCreate(userId);
 
       // Check if notification should be sent
-      if (!prefs.shouldSendNotification(type, 'inApp')) {
-        console.log(`⚠️  User ${user.username} has disabled ${type} notifications`);
+      if (!prefs.shouldSendNotification(category, 'inApp')) {
+        console.log(`⚠️  User ${user.username} has disabled ${category} notifications`);
         return null;
       }
 
@@ -90,7 +112,9 @@ class NotificationService {
       // Create notification record
       const notification = await Notification.create({
         userId,
-        type,
+        category,
+        event,
+        type: `${category}_${event}`, // Legacy field for backward compatibility
         title,
         message,
         data,
@@ -114,14 +138,14 @@ class NotificationService {
       console.log(`✅ In-app notification created for ${user.username}: ${title}`);
 
       // Send email if enabled
-      if (prefs.shouldSendNotification(type, 'email')) {
+      if (prefs.shouldSendNotification(category, 'email')) {
         this.sendEmail(notification, user, prefs).catch(err => {
           console.error(`❌ Failed to send email notification: ${err.message}`);
         });
       }
 
       // TODO: Send push notification if enabled
-      // if (prefs.shouldSendNotification(type, 'push')) {
+      // if (prefs.shouldSendNotification(category, 'push')) {
       //   this.sendPushNotification(notification, user).catch(err => {
       //     console.error(`❌ Failed to send push notification: ${err.message}`);
       //   });
@@ -168,9 +192,9 @@ class NotificationService {
    * Notify all admins
    */
   async notifyAdmins(params) {
-    const admins = await User.find({ 
+    const admins = await User.find({
       role: { $in: ['admin', 'super_admin'] },
-      isActive: true 
+      isActive: true
     });
 
     const adminIds = admins.map(admin => admin._id);
@@ -192,9 +216,10 @@ class NotificationService {
   async notifyStrategicLevelMet(symbol, magicLine, currentPrice, userId = null) {
     const title = `🎯 Strategic Level Met: ${symbol}`;
     const message = `${symbol} has reached its strategic level of ${magicLine.toFixed(2)}. Current price: ${currentPrice.toFixed(2)}`;
-    
+
     const params = {
-      type: 'strategic_level_met',
+      category: 'magic_line',
+      event: 'strategic_level_met',
       title,
       message,
       data: { symbol, magicLine, currentPrice },
@@ -215,14 +240,15 @@ class NotificationService {
   async notifyTradePlanBuyLevel(tradePlan, level, userId = null) {
     const title = `💰 Buy Level Hit: ${tradePlan.symbol}`;
     const message = `Buy Level ${level.level} (${level.priceFrom.toFixed(2)} - ${level.priceTo.toFixed(2)}) has been hit for ${tradePlan.symbol}`;
-    
+
     const params = {
-      type: 'trade_plan_buy_level',
+      category: 'trade_plans',
+      event: 'buy_level_hit',
       title,
       message,
-      data: { 
+      data: {
         tradePlanId: tradePlan._id,
-        symbol: tradePlan.symbol, 
+        symbol: tradePlan.symbol,
         level: level.level,
         priceFrom: level.priceFrom,
         priceTo: level.priceTo
@@ -244,14 +270,15 @@ class NotificationService {
   async notifyTradePlanTarget(tradePlan, target, userId = null) {
     const title = `🎉 Target Hit: ${tradePlan.symbol}`;
     const message = `Target ${target.level} (${target.price.toFixed(2)}) has been hit for ${tradePlan.symbol}!`;
-    
+
     const params = {
-      type: 'trade_plan_target',
+      category: 'trade_plans',
+      event: 'target_hit',
       title,
       message,
-      data: { 
+      data: {
         tradePlanId: tradePlan._id,
-        symbol: tradePlan.symbol, 
+        symbol: tradePlan.symbol,
         level: target.level,
         price: target.price
       },
@@ -272,14 +299,15 @@ class NotificationService {
   async notifyTradePlanStopLoss(tradePlan, stopLoss, userId = null) {
     const title = `⚠️ Stop Loss Hit: ${tradePlan.symbol}`;
     const message = `Stop Loss (${stopLoss.price.toFixed(2)}) has been hit for ${tradePlan.symbol}`;
-    
+
     const params = {
-      type: 'trade_plan_stop_loss',
+      category: 'trade_plans',
+      event: 'stop_loss_hit',
       title,
       message,
-      data: { 
+      data: {
         tradePlanId: tradePlan._id,
-        symbol: tradePlan.symbol, 
+        symbol: tradePlan.symbol,
         price: stopLoss.price
       },
       priority: 'urgent',
@@ -294,17 +322,18 @@ class NotificationService {
   }
 
   /**
-   * New Trade Plan Created
+   * New Trade Plan Created (Admin notification)
    */
   async notifyTradePlanCreated(tradePlan, userId = null) {
     const title = `📋 New Trade Plan: ${tradePlan.symbol}`;
     const message = `A new ${tradePlan.tradeType} trade plan has been created for ${tradePlan.symbol}`;
-    
+
     const params = {
-      type: 'trade_plan_created',
+      category: 'trade_plans',
+      event: 'plan_created',
       title,
       message,
-      data: { 
+      data: {
         tradePlanId: tradePlan._id,
         symbol: tradePlan.symbol,
         tradeType: tradePlan.tradeType,
@@ -314,25 +343,23 @@ class NotificationService {
       actionUrl: '/trade-signals'
     };
 
-    if (userId) {
-      return this.send({ ...params, userId });
-    } else {
-      return this.notifyAll(params);
-    }
+    // Only notify admins for new trade plan creation
+    return this.notifyAdmins(params);
   }
 
   /**
-   * Trading Signal Generated
+   * Trading Signal Generated (Admin notification)
    */
   async notifySignalGenerated(signal, userId = null) {
     const title = `📊 New Signal: ${signal.symbol}`;
     const message = `${signal.signalType.toUpperCase()} signal generated for ${signal.symbol} by ${signal.strategyName}`;
-    
+
     const params = {
-      type: 'signal_generated',
+      category: 'admin',
+      event: 'signal_generated',
       title,
       message,
-      data: { 
+      data: {
         signalId: signal._id,
         symbol: signal.symbol,
         signalType: signal.signalType,
@@ -343,11 +370,8 @@ class NotificationService {
       actionUrl: '/trading-bot'
     };
 
-    if (userId) {
-      return this.send({ ...params, userId });
-    } else {
-      return this.notifyAdmins(params); // Only notify admins for signals
-    }
+    // Only notify admins for signals (incomplete setups)
+    return this.notifyAdmins(params);
   }
 }
 

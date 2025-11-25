@@ -2,32 +2,38 @@ import express from 'express';
 import Notification from '../models/Notification.js';
 import NotificationPreference from '../models/NotificationPreference.js';
 import { authenticate, adminOnly } from '../middleware/auth.js';
+import { getFeaturesForUser, getUserControllableFeatures } from '../config/notificationConfig.js';
+import { requireFeature } from '../config/featureFlags.js';
 
 const router = express.Router();
 
 // GET /api/notifications - Get user's notifications
 router.get('/', authenticate, async (req, res) => {
   try {
-    const { 
-      page = 1, 
-      limit = 20, 
-      read, 
+    const {
+      page = 1,
+      limit = 20,
+      read,
       type,
-      priority 
+      priority
     } = req.query;
 
     const query = { userId: req.user._id };
-    
+
     // Filter by read status
     if (read !== undefined) {
       query.read = read === 'true';
     }
-    
-    // Filter by type
+
+    // Filter by category or legacy type
     if (type) {
-      query.type = type;
+      // Support both category and legacy type field
+      query.$or = [
+        { category: type },
+        { type: type }
+      ];
     }
-    
+
     // Filter by priority
     if (priority) {
       query.priority = priority;
@@ -145,6 +151,32 @@ router.put('/mark-all-read', authenticate, async (req, res) => {
   }
 });
 
+// DELETE /api/notifications/clear-read - Delete all read notifications
+// IMPORTANT: This must come BEFORE /:id route to avoid matching "clear-read" as an ID
+router.delete('/clear-read', authenticate, async (req, res) => {
+  try {
+    const result = await Notification.deleteMany({
+      userId: req.user._id,
+      read: true
+    });
+
+    res.json({
+      success: true,
+      message: `Deleted ${result.deletedCount} read notifications`,
+      data: {
+        deletedCount: result.deletedCount
+      }
+    });
+  } catch (error) {
+    console.error('Error deleting read notifications:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete notifications',
+      error: error.message
+    });
+  }
+});
+
 // DELETE /api/notifications/:id - Delete a notification
 router.delete('/:id', authenticate, async (req, res) => {
   try {
@@ -169,31 +201,6 @@ router.delete('/:id', authenticate, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to delete notification',
-      error: error.message
-    });
-  }
-});
-
-// DELETE /api/notifications/clear-read - Delete all read notifications
-router.delete('/clear-read', authenticate, async (req, res) => {
-  try {
-    const result = await Notification.deleteMany({
-      userId: req.user._id,
-      read: true
-    });
-
-    res.json({
-      success: true,
-      message: `Deleted ${result.deletedCount} read notifications`,
-      data: {
-        deletedCount: result.deletedCount
-      }
-    });
-  } catch (error) {
-    console.error('Error deleting read notifications:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to delete notifications',
       error: error.message
     });
   }
@@ -227,7 +234,7 @@ router.put('/preferences', authenticate, async (req, res) => {
 
     // Update preferences
     const allowedFields = ['enabled', 'channels', 'types', 'quietHours', 'digest'];
-    
+
     allowedFields.forEach(field => {
       if (req.body[field] !== undefined) {
         prefs[field] = req.body[field];
@@ -253,34 +260,23 @@ router.put('/preferences', authenticate, async (req, res) => {
   }
 });
 
-// POST /api/notifications/test - Send test notification (for testing)
-router.post('/test', authenticate, async (req, res) => {
+// GET /api/notifications/features - Get available notification features
+router.get('/features', authenticate, async (req, res) => {
   try {
-    const notification = await Notification.create({
-      userId: req.user._id,
-      type: 'system_alert',
-      title: 'Test Notification',
-      message: 'This is a test notification to verify the system is working correctly.',
-      priority: 'medium',
-      channels: {
-        inApp: {
-          sent: true,
-          sentAt: new Date()
-        }
-      },
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
-    });
+    // Get only user-controllable features (no system/admin)
+    const features = getUserControllableFeatures();
 
     res.json({
       success: true,
-      message: 'Test notification sent',
-      data: notification
+      data: {
+        features
+      }
     });
   } catch (error) {
-    console.error('Error sending test notification:', error);
+    console.error('Error fetching notification features:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to send test notification',
+      message: 'Failed to fetch notification features',
       error: error.message
     });
   }
