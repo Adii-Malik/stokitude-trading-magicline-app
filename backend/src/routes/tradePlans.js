@@ -156,9 +156,31 @@ router.get('/stats/summary', authenticate, async (req, res) => {
     const activePlans = await TradePlan.countDocuments({ isActive: true });
     const closedPlans = await TradePlan.countDocuments({ isActive: false });
 
-    // Count target hits
+    // Count target hits (any target hit)
     const tpHits = await TradePlan.countDocuments({ 'targetPrices.isHit': true });
     const slHit = await TradePlan.countDocuments({ 'stopLoss.isHit': true });
+
+    // Get recently closed plans with outcomes
+    const recentClosed = await TradePlan.find({
+      isActive: false,
+      exitDate: { $exists: true }
+    })
+      .sort({ exitDate: -1 })
+      .limit(5)
+      .select('symbol exitDate targetPrices.isHit stopLoss.isHit')
+      .lean();
+
+    // Get active plans with buy levels hit
+    const activeBuyHits = await TradePlan.countDocuments({
+      isActive: true,
+      'buyLevels.isHit': true
+    });
+
+    // Calculate success metrics
+    const successfulPlans = await TradePlan.countDocuments({
+      'targetPrices.isHit': true,
+      'stopLoss.isHit': false
+    });
 
     res.json({
       success: true,
@@ -167,7 +189,14 @@ router.get('/stats/summary', authenticate, async (req, res) => {
         activePlans,
         closedPlans,
         tpHits,
-        slHit
+        slHit,
+        activeBuyHits,
+        successfulPlans,
+        recentClosed: recentClosed.map(plan => ({
+          symbol: plan.symbol,
+          exitDate: plan.exitDate,
+          outcome: plan.targetPrices.some(t => t.isHit) ? 'target' : (plan.stopLoss.isHit ? 'stop_loss' : 'manual')
+        }))
       }
     });
   } catch (error) {

@@ -16,7 +16,7 @@ class Database {
   async setSymbol(symbol, magicLine) {
     try {
       const normalized = this.normalizeSymbol(symbol);
-      
+
       const symbolDoc = await MagicLine.findOneAndUpdate(
         { symbol: normalized },
         {
@@ -28,7 +28,7 @@ class Database {
         },
         { upsert: true, new: true }
       );
-      
+
       return symbolDoc;
     } catch (error) {
       console.error(`Error setting symbol ${symbol}:`, error);
@@ -97,7 +97,7 @@ class Database {
   async getFullData() {
     try {
       const symbols = await MagicLine.find({}).lean();
-      
+
       // 🚀 OPTIMIZED: Only fetch stocks for the symbols we need (not all stocks in DB)
       const symbolNames = symbols.map(s => s.symbol);
       const stocks = await Stock.find({ symbol: { $in: symbolNames } }).lean();
@@ -105,13 +105,13 @@ class Database {
       stocks.forEach(stock => {
         stockMap[stock.symbol] = stock;
       });
-      
+
       return symbols.map(symbolInfo => {
         // Read price from Stock model (centralized)
         const stock = stockMap[symbolInfo.symbol];
         const currentPrice = stock?.currentPrice || null;
         const isMet = currentPrice !== null && currentPrice >= symbolInfo.magicLine;
-        
+
         return {
           symbol: symbolInfo.symbol,
           magicLine: symbolInfo.magicLine,
@@ -168,11 +168,11 @@ class Database {
     }
   }
 
-  // Get statistics
+  // Get statistics with historical tracking
   async getStats() {
     try {
       const symbols = await MagicLine.find({}).lean();
-      
+
       // 🚀 OPTIMIZED: Only fetch stocks for the symbols we need (not all stocks in DB)
       const symbolNames = symbols.map(s => s.symbol);
       const stocks = await Stock.find({ symbol: { $in: symbolNames } }).lean();
@@ -180,41 +180,63 @@ class Database {
       stocks.forEach(stock => {
         stockMap[stock.symbol] = stock;
       });
-      
+
       const totalSymbols = symbols.length;
       let metCount = 0;
-      let unmetCount = 0;
+      let pendingCount = 0;
       let noDataCount = 0;
-      
+
+      // Track recently met levels (status changed to 'met' recently)
+      const recentlyMet = [];
+
       symbols.forEach(symbolInfo => {
         // Read price from Stock model (centralized)
         const stock = stockMap[symbolInfo.symbol];
         const currentPrice = stock?.currentPrice;
-        
+
         if (currentPrice !== null && currentPrice !== undefined) {
           if (currentPrice >= symbolInfo.magicLine) {
             metCount++;
+            // Track if recently met (status is 'met' and lastUpdated is recent)
+            if (symbolInfo.status === 'met' && symbolInfo.lastUpdated) {
+              const hoursSinceUpdate = (Date.now() - new Date(symbolInfo.lastUpdated)) / (1000 * 60 * 60);
+              if (hoursSinceUpdate < 24) { // Within last 24 hours
+                recentlyMet.push({
+                  symbol: symbolInfo.symbol,
+                  magicLine: symbolInfo.magicLine,
+                  currentPrice: currentPrice,
+                  metAt: symbolInfo.lastUpdated
+                });
+              }
+            }
           } else {
-            unmetCount++;
+            pendingCount++;
           }
         } else {
           noDataCount++;
         }
       });
 
+      // Count how many times status changed from pending to met (historical)
+      const totalMet = await MagicLine.countDocuments({ status: 'met' });
+
       return {
-        totalSymbols,
-        metThreshold: metCount,
-        belowThreshold: unmetCount,
-        noData: noDataCount
+        total: totalSymbols,
+        met: metCount,
+        pending: pendingCount,
+        noData: noDataCount,
+        totalEverMet: totalMet,
+        recentlyMet: recentlyMet.slice(0, 5) // Latest 5
       };
     } catch (error) {
       console.error('Error getting stats:', error);
       return {
-        totalSymbols: 0,
-        metThreshold: 0,
-        belowThreshold: 0,
-        noData: 0
+        total: 0,
+        met: 0,
+        pending: 0,
+        noData: 0,
+        totalEverMet: 0,
+        recentlyMet: []
       };
     }
   }
