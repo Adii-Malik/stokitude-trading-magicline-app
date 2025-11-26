@@ -7,8 +7,8 @@ const Landing = ({ onSwitchToLogin, onSwitchToSignup }) => {
   const features = [
     {
       icon: <LineChart className="w-8 h-8" />,
-      title: "Magic Line Analysis",
-      description: "Track critical price levels and make informed decisions with our intelligent magic line indicators."
+      title: "Strategic Level Analysis",
+      description: "Track critical price levels and make informed decisions with our intelligent strategic level indicators."
     },
     {
       icon: <Target className="w-8 h-8" />,
@@ -39,7 +39,7 @@ const Landing = ({ onSwitchToLogin, onSwitchToSignup }) => {
 
   const benefits = [
     "Professional-grade trading tools",
-    "Customizable magic lines and alerts",
+    "Customizable strategic levels and alerts",
     "Comprehensive trade planning",
     "Portfolio tracking and management",
     "Real-time market insights",
@@ -107,19 +107,19 @@ const Landing = ({ onSwitchToLogin, onSwitchToSignup }) => {
               🚀 Advanced Trading Tools for PSX
             </span>
           </div>
-          
+
           <h2 className="text-5xl md:text-6xl font-extrabold text-gray-900 dark:text-white mb-6">
             Trade Smarter with
             <span className="block mt-2 text-cyan-600 dark:text-cyan-400">
               PSX SmartDesk
             </span>
           </h2>
-          
+
           <p className="text-xl text-gray-600 dark:text-gray-300 mb-10 max-w-3xl mx-auto">
-            Your all-in-one platform for intelligent trading on the Pakistan Stock Exchange. 
-            Track magic lines, create trade plans, and make data-driven decisions with confidence.
+            Your all-in-one platform for intelligent trading on the Pakistan Stock Exchange.
+            Track strategic levels, create trade plans, and make data-driven decisions with confidence.
           </p>
-          
+
           <div className="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-4">
             <button
               onClick={onSwitchToSignup}
@@ -176,7 +176,7 @@ const Landing = ({ onSwitchToLogin, onSwitchToSignup }) => {
               Why Choose PSX SmartDesk?
             </h3>
             <p className="text-lg text-gray-600 dark:text-gray-300 mb-8">
-              We're building the most comprehensive and user-friendly trading platform for Pakistani traders. 
+              We're building the most comprehensive and user-friendly trading platform for Pakistani traders.
               Join us on this journey and get access to professional-grade tools.
             </p>
             <div className="space-y-4">
@@ -190,7 +190,7 @@ const Landing = ({ onSwitchToLogin, onSwitchToSignup }) => {
               ))}
             </div>
           </div>
-          
+
           <div className="bg-gradient-to-br from-cyan-50 to-gray-50 dark:from-cyan-900/20 dark:to-gray-900/20 p-8 rounded-2xl border border-cyan-200 dark:border-cyan-800">
             <div className="space-y-6">
               <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
@@ -200,7 +200,7 @@ const Landing = ({ onSwitchToLogin, onSwitchToSignup }) => {
                 </div>
                 <p className="text-3xl font-bold text-gray-900 dark:text-white">Growing Fast</p>
               </div>
-              
+
               <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-gray-600 dark:text-gray-400">Trade Plans Created</span>
@@ -208,7 +208,7 @@ const Landing = ({ onSwitchToLogin, onSwitchToSignup }) => {
                 </div>
                 <p className="text-3xl font-bold text-gray-900 dark:text-white">Coming Soon</p>
               </div>
-              
+
               <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-gray-600 dark:text-gray-400">Market Coverage</span>
@@ -228,7 +228,7 @@ const Landing = ({ onSwitchToLogin, onSwitchToSignup }) => {
             Ready to Start Trading Smarter?
           </h3>
           <p className="text-xl text-cyan-100 mb-8 max-w-2xl mx-auto">
-            Join PSX SmartDesk today and get access to powerful trading tools. 
+            Join PSX SmartDesk today and get access to powerful trading tools.
             Sign up now and take control of your trading journey.
           </p>
           <button
@@ -255,7 +255,7 @@ const Landing = ({ onSwitchToLogin, onSwitchToSignup }) => {
                 </h4>
               </div>
               <p className="text-gray-600 dark:text-gray-400 mb-4 max-w-md">
-                Your intelligent trading companion for the Pakistan Stock Exchange. 
+                Your intelligent trading companion for the Pakistan Stock Exchange.
                 Professional tools for better control, privacy, and smarter trading decisions.
               </p>
               <p className="text-sm text-gray-500 dark:text-gray-500">
@@ -310,7 +310,7 @@ const Landing = ({ onSwitchToLogin, onSwitchToSignup }) => {
 
           <div className="border-t border-gray-200 dark:border-gray-700 mt-8 pt-8 text-center">
             <p className="text-sm text-gray-500 dark:text-gray-500">
-              Disclaimer: Trading in stocks involves risk. PSX SmartDesk is a tool to assist in your trading decisions. 
+              Disclaimer: Trading in stocks involves risk. PSX SmartDesk is a tool to assist in your trading decisions.
               Always do your own research and consult with financial advisors before making investment decisions.
             </p>
           </div>

@@ -7,27 +7,27 @@
 import Stock from '../../models/Stock.js';
 import psxScraper from '../../services/psxScraper.js';
 import marketHoursService from '../../services/marketHoursService.js';
-import MagicLine from '../../models/MagicLine.js';
-import TradePlan from '../../models/TradePlan.js';
+import magicLineHandler from '../../handlers/magicLineHandler.js';
+import tradePlanHandler from '../../handlers/tradePlanHandler.js';
 
 export default async function pricePollingJob(context) {
   const { logger, config } = context;
-  
+
   const startTime = Date.now();
-  
+
   logger.info('Starting price fetch...', { config });
 
   try {
     // Check market hours (unless skipMarketCheck is enabled)
     if (!config.skipMarketCheck) {
       const marketStatus = marketHoursService.getMarketStatus();
-      
+
       if (!marketStatus.isOpen) {
-        logger.info(`Market is ${marketStatus.status}, skipping price fetch`, { 
+        logger.info(`Market is ${marketStatus.status}, skipping price fetch`, {
           marketStatus: marketStatus.status,
-          nextOpen: marketStatus.nextOpen 
+          nextOpen: marketStatus.nextOpen
         });
-        
+
         return {
           success: true,
           message: `Market closed (${marketStatus.status})`,
@@ -118,7 +118,7 @@ export default async function pricePollingJob(context) {
         }
 
       } catch (error) {
-        logger.error(`Batch processing failed`, { 
+        logger.error(`Batch processing failed`, {
           batch: Math.floor(i / batchSize) + 1,
           error: error.message,
           stack: error.stack
@@ -129,26 +129,20 @@ export default async function pricePollingJob(context) {
 
     // Update Magic Lines
     try {
-      const magicLines = await MagicLine.find({ enabled: true });
-      logger.info(`Updating ${magicLines.length} magic lines...`);
-      
-      // Magic line logic would go here (reuse existing handler logic)
-      // For now, just log
-      
+      logger.info('Checking magic lines after price update...');
+      await magicLineHandler.checkMagicLines();
+      logger.info('Magic lines checked successfully');
     } catch (error) {
-      logger.warn('Failed to update magic lines', { error: error.message });
+      logger.warn('Failed to check magic lines', { error: error.message });
     }
 
     // Update Trade Plans
     try {
-      const tradePlans = await TradePlan.find({ enabled: true });
-      logger.info(`Updating ${tradePlans.length} trade plans...`);
-      
-      // Trade plan logic would go here (reuse existing handler logic)
-      // For now, just log
-      
+      logger.info('Checking trade plans after price update...');
+      await tradePlanHandler.checkTradePlans();
+      logger.info('Trade plans checked successfully');
     } catch (error) {
-      logger.warn('Failed to update trade plans', { error: error.message });
+      logger.warn('Failed to check trade plans', { error: error.message });
     }
 
     const duration = Date.now() - startTime;
@@ -173,9 +167,9 @@ export default async function pricePollingJob(context) {
     };
 
   } catch (error) {
-    logger.error('Price polling job failed', { 
+    logger.error('Price polling job failed', {
       error: error.message,
-      stack: error.stack 
+      stack: error.stack
     });
 
     return {

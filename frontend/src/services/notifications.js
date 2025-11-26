@@ -90,6 +90,36 @@ export const sendTestEmail = async () => {
   return response.data;
 };
 
+// Trigger manual magic line check
+export const triggerMagicLineCheck = async () => {
+  const response = await api.post('/notifications/test-magic-line-trigger');
+  return response.data;
+};
+
+// Mock magic line met for a symbol
+export const mockMagicLineMet = async (symbol) => {
+  const response = await api.post('/notifications/test-magic-line-mock', { symbol });
+  return response.data;
+};
+
+// Trigger manual trade plan check
+export const triggerTradePlanCheck = async () => {
+  const response = await api.post('/notifications/test-trade-plan-trigger');
+  return response.data;
+};
+
+// Mock trade plan scenario
+export const mockTradePlanScenario = async (planId, scenario) => {
+  const response = await api.post('/notifications/test-trade-plan-mock', { planId, scenario });
+  return response.data;
+};
+
+// Reset trade plan state
+export const resetTradePlan = async (planId) => {
+  const response = await api.post('/notifications/test-trade-plan-reset', { planId });
+  return response.data;
+};
+
 export default {
   getNotifications,
   getUnreadCount,

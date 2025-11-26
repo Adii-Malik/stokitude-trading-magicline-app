@@ -215,7 +215,7 @@ class NotificationService {
    */
   async notifyStrategicLevelMet(symbol, magicLine, currentPrice, userId = null) {
     const title = `🎯 Strategic Level Met: ${symbol}`;
-    const message = `${symbol} has reached its strategic level of ${magicLine.toFixed(2)}. Current price: ${currentPrice.toFixed(2)}`;
+    const message = `${symbol} has reached its strategic level of Rs. ${magicLine.toFixed(2)}. Current price: Rs. ${currentPrice.toFixed(2)}`;
 
     const params = {
       category: 'magic_line',

@@ -66,14 +66,14 @@ export default function Dashboard() {
             Welcome back, {user?.username}!
           </h1>
           <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-            Your PSX SmartDesk command center. Monitor magic lines, manage trade plans, and stay ahead of the market.
+            Your PSX SmartDesk command center. Monitor strategic levels, manage trade plans, and stay ahead of the market.
           </p>
         </div>
 
         {/* Quick Access Cards */}
         <div className="max-w-6xl mx-auto">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Quick Access</h2>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {availableLinks.map((link, index) => (
               <button
@@ -83,21 +83,21 @@ export default function Dashboard() {
               >
                 {/* Gradient Background on Hover */}
                 <div className={`absolute inset-0 bg-gradient-to-br ${link.color} opacity-0 group-hover:opacity-10 transition-opacity duration-300`}></div>
-                
+
                 {/* Content */}
                 <div className="relative z-10">
                   <div className={`inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br ${link.color} rounded-xl mb-4 text-white shadow-lg`}>
                     {link.icon}
                   </div>
-                  
+
                   <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
                     {link.title}
                   </h3>
-                  
+
                   <p className="text-gray-600 dark:text-gray-400 text-sm">
                     {link.description}
                   </p>
-                  
+
                   {link.adminOnly && (
                     <div className="mt-3">
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-400">
@@ -128,8 +128,8 @@ export default function Dashboard() {
               <div>
                 <h3 className="text-xl font-bold mb-2">PSX SmartDesk</h3>
                 <p className="text-cyan-100">
-                  Your intelligent trading companion for the Pakistan Stock Exchange. 
-                  Make data-driven decisions with real-time price monitoring, magic line analysis, and comprehensive trade planning.
+                  Your intelligent trading companion for the Pakistan Stock Exchange.
+                  Make data-driven decisions with real-time price monitoring, strategic level analysis, and comprehensive trade planning.
                 </p>
               </div>
             </div>

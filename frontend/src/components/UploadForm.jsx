@@ -21,7 +21,7 @@ export default function UploadForm({ onUploadSuccess }) {
     try {
       const data = await uploadFile(file, setProgress);
       setResult(data);
-      
+
       if (onUploadSuccess) {
         onUploadSuccess(data);
       }
@@ -50,7 +50,7 @@ export default function UploadForm({ onUploadSuccess }) {
     <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-md">
       <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-gray-900 dark:text-white">
         <Upload className="w-5 h-5 text-cyan-500 dark:text-cyan-400" />
-        Upload Magic Line Data
+        Upload Strategic Level Data
       </h2>
 
       {/* Dropzone */}
@@ -61,18 +61,18 @@ export default function UploadForm({ onUploadSuccess }) {
           ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
       >
         <input {...getInputProps()} />
-        
+
         <div className="flex flex-col items-center gap-3">
           <div className="flex gap-4">
             <FileText className="w-12 h-12 text-cyan-500 dark:text-cyan-500" />
             <Image className="w-12 h-12 text-green-500 dark:text-green-500" />
           </div>
-          
+
           {uploading ? (
             <>
               <p className="text-lg font-medium text-gray-900 dark:text-white">Uploading...</p>
               <div className="w-full max-w-xs bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
-                <div 
+                <div
                   className="bg-cyan-500 h-2.5 rounded-full transition-all duration-300"
                   style={{ width: `${progress}%` }}
                 />
@@ -120,7 +120,7 @@ export default function UploadForm({ onUploadSuccess }) {
               </div>
             )}
           </div>
-          <button 
+          <button
             onClick={() => setResult(null)}
             className="text-green-400 hover:text-green-300"
           >
@@ -137,7 +137,7 @@ export default function UploadForm({ onUploadSuccess }) {
             <p className="font-medium text-red-400">Upload Failed</p>
             <p className="text-sm text-red-300 mt-1">{error}</p>
           </div>
-          <button 
+          <button
             onClick={() => setError(null)}
             className="text-red-400 hover:text-red-300"
           >
@@ -150,8 +150,8 @@ export default function UploadForm({ onUploadSuccess }) {
       <div className="mt-6 p-4 bg-cyan-50 dark:bg-cyan-500/10 border border-cyan-200 dark:border-cyan-500/30 rounded-lg">
         <h3 className="font-semibold text-cyan-700 dark:text-cyan-400 mb-2">Expected Format:</h3>
         <div className="text-sm text-cyan-800 dark:text-cyan-300 space-y-1">
-          <p><strong>CSV:</strong> Columns: "Scrip" (or "Symbol") and "Magic Line" (or "Magic Lin")</p>
-          <p><strong>Image:</strong> Table with two columns showing Symbol and Magic Line values</p>
+          <p><strong>CSV:</strong> Columns: "Scrip" (or "Symbol") and "Strategic Level" (or "Magic Line" for backwards compatibility)</p>
+          <p><strong>Image:</strong> Table with two columns showing Symbol and Strategic Level values</p>
           <p className="text-xs text-cyan-600 dark:text-cyan-500 mt-2">
             Example: ABL | 205, Dyno | 341, LCI | 336
           </p>

@@ -515,7 +515,7 @@ function SymbolCard({ symbol }) {
   const changePercent = priceData?.changePercent || 0;
   const isPositive = change >= 0;
 
-  // Calculate how close to magic line (as percentage)
+  // Calculate how close to strategic level (as percentage)
   const percentToTarget = hasPrice ? ((currentPrice / magicLine) * 100) : 0;
 
   return (

@@ -24,13 +24,13 @@ class TradePlanHandler {
   // Check all active Trade Plans against current prices
   async checkTradePlans() {
     const currentTime = new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' });
-    
+
     try {
       console.log(`\n📈 [${currentTime} PKT] Checking Trade Plan statuses...`);
-      
+
       // Get all active trade plans
       const activePlans = await TradePlan.find({ isActive: true, status: 'active' });
-      
+
       if (activePlans.length === 0) {
         console.log('   ℹ️ No active trade plans');
         return { checked: 0, updated: 0 };
@@ -42,10 +42,10 @@ class TradePlanHandler {
       // Check each plan
       for (const plan of activePlans) {
         checked++;
-        
+
         // Get current price from Stock model
         const stock = await Stock.findOne({ symbol: plan.symbol });
-        
+
         if (!stock || !stock.currentPrice) {
           console.log(`   ⚠️ ${plan.symbol}: No price data available`);
           continue;
@@ -57,13 +57,17 @@ class TradePlanHandler {
 
         // Check Buy Levels (entry points)
         for (const level of plan.buyLevels) {
-          if (!level.isHit && currentPrice >= level.minPrice && currentPrice <= level.maxPrice) {
+          // Support both field name formats
+          const minPrice = level.priceFrom || level.minPrice;
+          const maxPrice = level.priceTo || level.maxPrice;
+
+          if (!level.isHit && currentPrice >= minPrice && currentPrice <= maxPrice) {
             level.isHit = true;
             level.hitDate = new Date();
             planUpdated = true;
             updates.push(`Buy Level ${level.level} HIT`);
-            console.log(`   ✅ ${plan.symbol}: Buy Level ${level.level} HIT at ${currentPrice}`);
-            
+            console.log(`   ✅ ${plan.symbol}: Buy Level ${level.level} HIT at ${currentPrice} (range: ${minPrice}-${maxPrice})`);
+
             // Send notification
             notificationService.notifyTradePlanBuyLevel(plan, level)
               .catch(err => console.error('Failed to send notification:', err));
@@ -94,7 +98,7 @@ class TradePlanHandler {
                 planUpdated = true;
                 updates.push(`Target ${target.level} HIT`);
                 console.log(`   🎯 ${plan.symbol}: Target ${target.level} HIT at ${currentPrice}`);
-                
+
                 // Send notification
                 notificationService.notifyTradePlanTarget(plan, target)
                   .catch(err => console.error('Failed to send notification:', err));
@@ -123,7 +127,7 @@ class TradePlanHandler {
               planUpdated = true;
               updates.push(`Stop Loss HIT - Call CLOSED`);
               console.log(`   ❌ ${plan.symbol}: Stop Loss HIT at ${currentPrice} - Call closed`);
-              
+
               // Send notification
               notificationService.notifyTradePlanStopLoss(plan, plan.stopLoss)
                 .catch(err => console.error('Failed to send notification:', err));
@@ -168,7 +172,7 @@ class TradePlanHandler {
       }
 
       console.log(`   ✅ Checked: ${checked}, Updated: ${updated}`);
-      
+
       return { checked, updated };
     } catch (error) {
       console.error('❌ Error checking trade plans:', error);

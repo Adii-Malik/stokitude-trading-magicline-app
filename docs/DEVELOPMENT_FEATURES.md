@@ -51,6 +51,74 @@ VITE_ENABLE_DEV_FEATURES=false
 - 👨‍💼 Admin Signal (admin only, simulates ENGRO signal)
 - 📧 Email Testing with debug info
 
+### 3. Magic Line Testing
+**Location**: Testing Page → Magic Line Testing tab
+
+**Features**:
+- 🔄 **Trigger Magic Line Check** - Manually run the monitoring process to check all symbols
+- 🎯 **Mock Magic Line Met** - Simulate a symbol reaching its magic line using actual production logic
+- 📊 View all active magic lines with current status
+- 📝 Real-time test results log
+
+**How Mock Testing Works**:
+The mock test simulates **actual production behavior** with a 2-step process:
+1. **Step 1 - Set Pending**: Price set below magic line → Handler runs → Status becomes "pending"
+2. **Step 2 - Trigger Met**: Price set above magic line → Handler runs → Status becomes "met" & notification sent
+3. **Cleanup**: Original price and status restored after test
+
+This ensures tests match the complete pending→met cycle exactly as it happens in production.
+
+**Benefits**:
+- ✅ Tests use the same code path as production
+- ✅ Simulates complete status transition cycle
+- ✅ No manual status manipulation needed
+- ✅ Always triggers notification regardless of current state
+- ✅ Safe - original data restored after test
+
+**Use Cases**:
+- Test if magic line notifications work without waiting for market hours
+- Verify notification delivery for specific symbols
+- Debug magic line monitoring logic without altering production data
+- Validate status transitions and notification triggers
+
+### 4. Trade Plan Testing
+**Location**: Testing Page → Trade Plan Testing tab
+
+**Features**:
+- 🔄 **Trigger Trade Plan Check** - Manually run monitoring for all active trade plans
+- 💰 **Mock Buy Level** - Simulate price entering a buy level range
+- 🎯 **Mock Target** - Simulate price reaching a target level
+- ⚠️ **Mock Stop Loss** - Simulate price hitting stop loss
+- 🔄 **Reset Plan** - Clear all hits to test the same plan multiple times
+- 📊 View active trade plans with status
+- 📝 Real-time test results log
+
+**How Mock Testing Works**:
+Each scenario test uses **actual production logic**:
+1. **Buy Level**: Sets price within unhit buy level range → Runs handler → Triggers buy notification
+2. **Target**: Sets price to meet target (requires buy level hit) → Runs handler → Triggers target notification  
+3. **Stop Loss**: Sets price to trigger SL (requires buy level hit) → Runs handler → Closes trade & sends notification
+
+The tests temporarily set mock prices and execute the real trade plan handler, ensuring tests match production behavior exactly.
+
+**Testing Workflow**:
+1. Select a trade plan from dropdown
+2. Test scenarios in sequence (Buy Level → Target/Stop Loss)
+3. Use "Reset Plan" button to clear all hits
+4. Test the same plan again with different scenarios
+
+**Test Requirements**:
+- Targets and Stop Loss can only be tested after a buy level is hit (matches production logic)
+- Use Reset button to unmark all levels and test multiple cycles on the same plan
+- Each test validates the complete flow including notifications, status updates, and trade closure logic
+- Original prices are always restored after tests
+
+**Use Cases**:
+- Test all trade plan scenarios without waiting for market conditions
+- Verify buy level, target, and stop loss notifications
+- Validate trade closure logic when SL hits or all targets complete
+- Debug trade plan monitoring without affecting real data
+
 **Backend Endpoints** (auto-mounted in dev):
 - `POST /api/notifications/test` - Basic notification
 - `POST /api/notifications/test-magic-line` - Magic line alert
@@ -58,8 +126,10 @@ VITE_ENABLE_DEV_FEATURES=false
 - `POST /api/notifications/test-admin` - Admin signal (admin only)
 - `POST /api/notifications/test-email` - Direct email test
 - `GET /api/notifications/email-debug` - Email config viewer
+- `POST /api/notifications/test-magic-line-trigger` - Trigger magic line check
+- `POST /api/notifications/test-magic-line-mock` - Mock magic line met for symbol
 
-### 3. Dev Tools Panel
+### 4. Dev Tools Panel
 **Location**: Floating panel (bottom-right corner)
 
 **Shows**:
@@ -68,7 +138,7 @@ VITE_ENABLE_DEV_FEATURES=false
 - Quick link to Testing Page
 - Environment info
 
-### 4. Job Testing
+### 5. Job Testing
 **Location**: Jobs page
 
 **Features**:

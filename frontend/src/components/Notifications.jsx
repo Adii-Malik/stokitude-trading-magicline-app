@@ -181,13 +181,13 @@ export default function Notifications() {
 
     const categoryMap = {
       // New categories
-      'magic_line': { label: '🎯 Magic Line', color: 'cyan' },
+      'magic_line': { label: '🎯 Strategic Level', color: 'cyan' },
       'trade_plans': { label: '💰 Trade Plans', color: 'green' },
       'system': { label: '🔔 System', color: 'blue' },
       'admin': { label: '👨‍💼 Admin', color: 'purple' },
 
       // Legacy types (backward compatibility)
-      'strategic_level_met': { label: '🎯 Magic Line', color: 'cyan' },
+      'strategic_level_met': { label: '🎯 Strategic Level', color: 'cyan' },
       'trade_plan_buy_level': { label: '💰 Trade Plans', color: 'green' },
       'trade_plan_target': { label: '💰 Trade Plans', color: 'green' },
       'trade_plan_stop_loss': { label: '💰 Trade Plans', color: 'green' },
