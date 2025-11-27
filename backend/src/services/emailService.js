@@ -202,6 +202,7 @@ PSX SmartDesk Team
     const priorityLabel = priorityLabels[priority] || priorityLabels.medium;
 
     const mailOptions = {
+      from: `"${config.email.fromName}" <${config.email.fromEmail}>`,
       to: email,
       subject: `${title} - PSX SmartDesk`,
       html: `

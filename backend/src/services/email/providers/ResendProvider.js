@@ -49,12 +49,16 @@ export default class ResendProvider extends BaseProvider {
                 text
             });
 
+            // Resend returns { data: { id: '...' }, error: null }
+            const messageId = result?.data?.id || result?.id || 'no-id';
+
             return {
                 success: true,
-                messageId: result.data?.id,
+                messageId: messageId,
                 provider: this.getName()
             };
         } catch (error) {
+            console.error(`❌ Resend API error:`, error);
             throw new Error(`${this.getName()} send failed: ${error.message}`);
         }
     }
