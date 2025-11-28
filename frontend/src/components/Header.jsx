@@ -105,9 +105,9 @@ export default function Header({
 
           {/* Right Section: Market Status + Theme + User/Login */}
           <div className="flex items-center gap-2">
-            {/* Market Status */}
+            {/* Market Status - Desktop Only */}
             {user && (
-              <div className="hidden md:flex items-center gap-2 bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-lg">
+              <div className="hidden lg:flex items-center gap-2 bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-lg">
                 <div className={`w-2 h-2 rounded-full ${isMarketOpen ? 'bg-green-500 animate-pulse' : 'bg-orange-500'}`}></div>
                 <span className={`text-sm font-medium ${isMarketOpen ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'}`}>
                   {isMarketOpen ? 'OPEN' : 'CLOSED'}
@@ -121,7 +121,7 @@ export default function Header({
                 {/* Theme Toggle - Desktop */}
                 <button
                   onClick={toggleTheme}
-                  className="hidden sm:block p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
+                  className="hidden lg:block p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
                   title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
                 >
                   {theme === 'dark' ? (
@@ -132,12 +132,12 @@ export default function Header({
                 </button>
 
                 {/* Notification Bell - Desktop */}
-                <div className="hidden sm:block">
+                <div className="hidden lg:block">
                   <NotificationBell />
                 </div>
 
                 {/* User Dropdown - Desktop */}
-                <div className="hidden sm:block">
+                <div className="hidden lg:block">
                   <UserProfileDropdown isConnected={isConnected} />
                 </div>
 
@@ -216,16 +216,18 @@ export default function Header({
         {/* Mobile Navigation Menu */}
         {user && mobileMenuOpen && (
           <nav className="lg:hidden mt-4 py-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
-            {/* Status Badges - Mobile */}
-            <div className="flex items-center justify-center gap-3 px-4 pb-4 mb-2 border-b border-gray-200 dark:border-gray-700">
+            {/* Status Badges - Mobile/Tablet */}
+            <div className="flex items-center justify-between px-4 pb-4 mb-2 border-b border-gray-200 dark:border-gray-700">
               {/* Market Status */}
-              <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-lg">
-                <div className={`w-2 h-2 rounded-full ${isMarketOpen ? 'bg-green-500 animate-pulse' : 'bg-orange-500'}`}></div>
-                <span className={`text-sm font-medium ${isMarketOpen ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'}`}>
-                  {isMarketOpen ? 'OPEN' : 'CLOSED'}
-                </span>
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Market:</span>
+                <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-lg">
+                  <div className={`w-2 h-2 rounded-full ${isMarketOpen ? 'bg-green-500 animate-pulse' : 'bg-orange-500'}`}></div>
+                  <span className={`text-sm font-medium ${isMarketOpen ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'}`}>
+                    {isMarketOpen ? 'OPEN' : 'CLOSED'}
+                  </span>
+                </div>
               </div>
-
             </div>
 
             <button

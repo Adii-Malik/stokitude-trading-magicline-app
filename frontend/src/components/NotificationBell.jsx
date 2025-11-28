@@ -13,10 +13,10 @@ export default function NotificationBell() {
 
   useEffect(() => {
     loadUnreadCount();
-    
+
     // Poll for new notifications every 30 seconds
     const interval = setInterval(loadUnreadCount, 30000);
-    
+
     return () => clearInterval(interval);
   }, []);
 
@@ -141,16 +141,16 @@ export default function NotificationBell() {
     const notifDate = new Date(date);
     const diffMs = now - notifDate;
     const diffMins = Math.floor(diffMs / 60000);
-    
+
     if (diffMins < 1) return 'Just now';
     if (diffMins < 60) return `${diffMins}m ago`;
-    
+
     const diffHours = Math.floor(diffMins / 60);
     if (diffHours < 24) return `${diffHours}h ago`;
-    
+
     const diffDays = Math.floor(diffHours / 24);
     if (diffDays < 7) return `${diffDays}d ago`;
-    
+
     return notifDate.toLocaleDateString();
   };
 
@@ -172,7 +172,7 @@ export default function NotificationBell() {
 
       {/* Dropdown Panel */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-96 max-w-[calc(100vw-2rem)] bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50">
+        <div className="absolute right-0 sm:right-0 -left-60 sm:left-auto mt-2 w-96 max-w-[calc(100vw-2rem)] bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50">
           {/* Header */}
           <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -214,9 +214,8 @@ export default function NotificationBell() {
                   <div
                     key={notification._id}
                     onClick={() => handleNotificationClick(notification)}
-                    className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer ${
-                      !notification.read ? 'bg-cyan-50 dark:bg-cyan-500/10' : ''
-                    }`}
+                    className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer ${!notification.read ? 'bg-cyan-50 dark:bg-cyan-500/10' : ''
+                      }`}
                   >
                     <div className="flex items-start gap-3">
                       {/* Priority Icon */}
@@ -227,11 +226,10 @@ export default function NotificationBell() {
                       {/* Content */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
-                          <h4 className={`text-sm font-medium ${
-                            !notification.read 
-                              ? 'text-gray-900 dark:text-white' 
-                              : 'text-gray-700 dark:text-gray-300'
-                          }`}>
+                          <h4 className={`text-sm font-medium ${!notification.read
+                            ? 'text-gray-900 dark:text-white'
+                            : 'text-gray-700 dark:text-gray-300'
+                            }`}>
                             {notification.title}
                           </h4>
                           {!notification.read && (

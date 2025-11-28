@@ -20,7 +20,7 @@ export function useLayoutProps() {
             try {
                 const marketStatusRes = await api.get('/settings/market-status');
                 if (marketStatusRes.data?.success) {
-                    setMarketStatus(marketStatusRes.data.data.marketStatus);
+                    setMarketStatus(marketStatusRes.data.data.status);
                 }
             } catch (error) {
                 console.error('Error fetching market status:', error);

@@ -207,54 +207,54 @@ export default function Notifications() {
       {/* Header */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-16 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
-                <Bell className="w-8 h-8 text-cyan-600 dark:text-cyan-400" />
-                Notifications
-              </h1>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up!'} · {totalCount} total
-              </p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+            <div className="flex items-center gap-3">
+              <Bell className="w-8 h-8 text-cyan-500 dark:text-cyan-400" />
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Notifications</h1>
+                <p className="text-gray-600 dark:text-gray-400">
+                  {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up!'} · {totalCount} total
+                </p>
+              </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex gap-2">
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition ${showFilters
-                  ? 'bg-cyan-600 text-white'
+                className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center gap-2 ${showFilters
+                  ? 'bg-cyan-500 hover:bg-cyan-600 text-white'
                   : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                   }`}
               >
                 <Filter className="w-4 h-4" />
-                Filters
+                <span className="hidden sm:inline">Filters</span>
               </button>
 
               <button
                 onClick={loadNotifications}
                 disabled={loading}
-                className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition text-sm font-medium flex items-center gap-2"
+                className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200 font-medium flex items-center gap-2"
               >
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                Refresh
+                <span className="hidden sm:inline">Refresh</span>
               </button>
 
               {unreadCount > 0 && (
                 <button
                   onClick={handleMarkAllAsRead}
-                  className="px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition text-sm font-medium flex items-center gap-2"
+                  className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg transition-colors duration-200 font-medium flex items-center gap-2"
                 >
                   <Check className="w-4 h-4" />
-                  Mark All Read
+                  <span className="hidden sm:inline">Mark All Read</span>
                 </button>
               )}
 
               <button
                 onClick={handleClearRead}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium flex items-center gap-2"
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors duration-200 font-medium flex items-center gap-2"
               >
                 <Trash className="w-4 h-4" />
-                Clear Read
+                <span className="hidden sm:inline">Clear Read</span>
               </button>
             </div>
           </div>
