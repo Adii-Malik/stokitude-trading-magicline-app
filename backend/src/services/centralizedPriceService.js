@@ -223,6 +223,7 @@ class CentralizedPriceService {
         data: {
           checked: activeSymbols.length,
           updated: stocksUpdated,
+          updatedSymbols: activeSymbols, // Include symbols for portfolio handler
           timestamp: now,
           errors
         }

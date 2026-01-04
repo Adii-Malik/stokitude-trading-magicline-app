@@ -11,6 +11,7 @@ import { connectDB } from './config/mongodb.js';
 import centralizedPriceService from './services/centralizedPriceService.js';
 import magicLineHandler from './handlers/magicLineHandler.js';
 import tradePlanHandler from './handlers/tradePlanHandler.js';
+import portfolioHandler from './handlers/portfolioHandler.js';
 import marketHoursService from './services/marketHoursService.js';
 import db from './db/database.js';
 import uploadRoutes from './routes/upload.js';
@@ -26,6 +27,7 @@ import signalsRoutes from './routes/signals.js';
 import jobsRoutes from './routes/jobs.js';
 import notificationsRoutes from './routes/notifications.js';
 import systemRoutes from './routes/system.js';
+import portfoliosRoutes from './routes/portfolios.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -126,6 +128,7 @@ app.use('/api/signals', signalsRoutes);
 app.use('/api/jobs', jobsRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/system', systemRoutes);
+app.use('/api/portfolios', portfoliosRoutes);
 
 // Mount test routes only in development
 if (process.env.NODE_ENV === 'development') {
@@ -237,6 +240,11 @@ centralizedPriceService.onUpdate(async (data) => {
     // Trigger feature handlers to check their logic
     await magicLineHandler.checkMagicLines();
     await tradePlanHandler.checkTradePlans();
+
+    // Update portfolio positions with new prices
+    if (data.data.updatedSymbols && data.data.updatedSymbols.length > 0) {
+      await portfolioHandler.handlePriceUpdate(data.data.updatedSymbols);
+    }
   }
 });
 
@@ -265,6 +273,18 @@ tradePlanHandler.onUpdate(async (data) => {
       targetPrices: data.data.targetPrices,
       stopLoss: data.data.stopLoss,
       isActive: data.data.isActive,
+      timestamp: data.data.timestamp
+    });
+  }
+});
+
+// Setup Portfolio handler - Broadcasts when portfolio positions update
+portfolioHandler.onUpdate(async (data) => {
+  if (data.type === 'portfolioUpdate') {
+    io.emit('portfolioUpdate', {
+      affectedPortfolios: data.data.affectedPortfolios,
+      updatedSymbols: data.data.updatedSymbols,
+      positionsUpdated: data.data.positionsUpdated,
       timestamp: data.data.timestamp
     });
   }

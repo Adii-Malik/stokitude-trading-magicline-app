@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { TrendingUp, Shield, BarChart3, Target, Sun, Moon, Menu, X, Home, ChevronDown } from 'lucide-react';
+import { TrendingUp, Shield, BarChart3, Target, Sun, Moon, Menu, X, Home, ChevronDown, Briefcase } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import NotificationBell from './NotificationBell';
@@ -15,6 +15,7 @@ export default function Header({
   onNavigateToStocks,
   onNavigateToTradeSignals,
   onNavigateToTradingBot,
+  onNavigateToPortfolios,
   onNavigateToAdmin,
   onNavigateToSettings,
   onNavigateToProfile,
@@ -76,7 +77,6 @@ export default function Header({
                 <BarChart3 className="w-4 h-4" />
                 <span>Strategic Levels</span>
               </button>
-
               <button
                 onClick={() => handleNavigation(onNavigateToTradeSignals)}
                 className={`px-3 py-2 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${currentPage === 'trade-signals'
@@ -86,6 +86,17 @@ export default function Header({
               >
                 <Target className="w-4 h-4" />
                 <span>Trade Calls</span>
+              </button>
+
+              <button
+                onClick={() => handleNavigation(onNavigateToPortfolios)}
+                className={`px-3 py-2 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${currentPage === 'portfolios'
+                  ? 'bg-cyan-500 text-white'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                  }`}
+              >
+                <Briefcase className="w-4 h-4" />
+                <span>Portfolios</span>
               </button>
 
               {isAdmin() && (

@@ -15,6 +15,8 @@ import Landing from './components/Landing';
 import Profile from './components/Profile';
 import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
+import PortfolioList from './components/Portfolio/PortfolioList';
+import PortfolioDetail from './components/Portfolio/PortfolioDetail';
 import featureFlags from './config/featureFlags';
 
 // Conditionally import dev tools only in development
@@ -112,6 +114,23 @@ function AppContent() {
         <ProtectedRoute>
           <LayoutProvider currentPage="trade-signals">
             <TradePlans />
+          </LayoutProvider>
+        </ProtectedRoute>
+      } />
+
+      {/* Portfolios */}
+      <Route path="/portfolios" element={
+        <ProtectedRoute>
+          <LayoutProvider currentPage="portfolios">
+            <PortfolioList />
+          </LayoutProvider>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/portfolios/:id" element={
+        <ProtectedRoute>
+          <LayoutProvider currentPage="portfolios">
+            <PortfolioDetail />
           </LayoutProvider>
         </ProtectedRoute>
       } />
