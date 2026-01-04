@@ -132,25 +132,48 @@ class AllocationEngineService {
         const filters = policy.filters;
 
         const scored = universe.map(fund => {
-            // Skip if missing critical data
-            if (!fund.dividendMetrics || !fund.financialHealth) {
+            // StockFundamental model stores flat data, so create virtual nested objects
+            const dividendMetrics = {
+                dividendTTM: fund.dividendTTM,
+                dividendYield: fund.dividendYield,
+                payoutRatio: fund.payoutRatio,
+                dividendGrowth3Y: fund.dividendGrowth3Y,
+                dividendConsistencyYears: fund.dividendConsistencyYears
+            };
+
+            const growthMetrics = {
+                epsGrowthYoY: fund.epsGrowthYoY,
+                revenueGrowth3Y: fund.revenueGrowth3Y
+            };
+
+            const financialHealth = {
+                debtToEquity: fund.debtToEquity,
+                currentRatio: fund.currentRatio,
+                roe: fund.roe
+            };
+
+            // Skip if missing critical dividend data
+            if (!dividendMetrics.dividendYield && !dividendMetrics.dividendTTM) {
+                console.log(`   ⚠ ${fund.symbol}: Missing dividend data, skipping`);
                 return null;
             }
 
             // Apply hard filters
-            if (filters.minDividendYield && fund.dividendMetrics.dividendYield < filters.minDividendYield) {
+            if (filters.minDividendYield && dividendMetrics.dividendYield < filters.minDividendYield) {
+                console.log(`   ⚠ ${fund.symbol}: Yield ${dividendMetrics.dividendYield.toFixed(1)}% below min ${filters.minDividendYield}%, filtered out`);
                 return null;
             }
 
-            if (filters.maxPayoutRatio && fund.dividendMetrics.payoutRatio > filters.maxPayoutRatio) {
+            if (filters.maxPayoutRatio && dividendMetrics.payoutRatio > filters.maxPayoutRatio) {
+                console.log(`   ⚠ ${fund.symbol}: Payout ${dividendMetrics.payoutRatio}% above max ${filters.maxPayoutRatio}%, filtered out`);
                 return null;
             }
 
             // Calculate component scores (0-100)
-            const dividendYieldScore = this._scoreDividendYield(fund.dividendMetrics);
-            const payoutSafetyScore = this._scorePayoutSafety(fund.dividendMetrics);
-            const growthScore = this._scoreGrowth(fund.growthMetrics);
-            const qualityScore = this._scoreQuality(fund.financialHealth);
+            const dividendYieldScore = this._scoreDividendYield(dividendMetrics);
+            const payoutSafetyScore = this._scorePayoutSafety(dividendMetrics);
+            const growthScore = this._scoreGrowth(growthMetrics);
+            const qualityScore = this._scoreQuality(financialHealth);
 
             // Weighted composite score
             const compositeScore =
@@ -158,6 +181,8 @@ class AllocationEngineService {
                 (payoutSafetyScore * weights.payoutSafety) +
                 (growthScore * weights.growth) +
                 (qualityScore * weights.quality);
+
+            console.log(`   ✓ ${fund.symbol}: Score ${compositeScore.toFixed(1)} (Div:${dividendYieldScore.toFixed(0)} Safe:${payoutSafetyScore.toFixed(0)} Grow:${growthScore.toFixed(0)} Qual:${qualityScore.toFixed(0)})`);
 
             return {
                 symbol: fund.symbol,
@@ -174,6 +199,8 @@ class AllocationEngineService {
 
         // Sort by score descending
         scored.sort((a, b) => b.score - a.score);
+
+        console.log(`\n📊 Scored ${scored.length} stocks (filtered ${universe.length - scored.length})`);
 
         return scored;
     }

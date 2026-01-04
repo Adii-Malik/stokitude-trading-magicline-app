@@ -9,7 +9,7 @@ const router = express.Router();
 
 // Configure multer for CSV upload
 const storage = multer.memoryStorage();
-const upload = multer({ 
+const upload = multer({
   storage,
   fileFilter: (req, file, cb) => {
     if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
@@ -24,9 +24,9 @@ const upload = multer({
 router.get('/', async (req, res) => {
   try {
     const { page = 1, limit = 100, search = '', sector = '', shariahCompliant = '' } = req.query;
-    
+
     const query = {};
-    
+
     // Search by symbol or company name
     if (search) {
       query.$or = [
@@ -34,23 +34,23 @@ router.get('/', async (req, res) => {
         { companyName: { $regex: search, $options: 'i' } }
       ];
     }
-    
+
     // Filter by sector
     if (sector) {
       query.sector = sector;
     }
-    
+
     // Filter by shariah compliance
     if (shariahCompliant) {
       query.shariahCompliant = shariahCompliant;
     }
-    
+
     const total = await Stock.countDocuments(query);
     const stocks = await Stock.find(query)
       .sort({ symbol: 1 })
       .limit(parseInt(limit))
       .skip((parseInt(page) - 1) * parseInt(limit));
-    
+
     res.json({
       success: true,
       data: {
@@ -77,14 +77,14 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const stock = await Stock.findById(req.params.id);
-    
+
     if (!stock) {
       return res.status(404).json({
         success: false,
         message: 'Stock not found'
       });
     }
-    
+
     res.json({
       success: true,
       data: stock
@@ -103,24 +103,24 @@ router.get('/:id', async (req, res) => {
 router.get('/search/autocomplete', async (req, res) => {
   try {
     const { q } = req.query;
-    
+
     if (!q || q.length < 1) {
       return res.json({
         success: true,
         data: []
       });
     }
-    
+
     const stocks = await Stock.find({
       $or: [
         { symbol: { $regex: `^${q}`, $options: 'i' } },
         { companyName: { $regex: q, $options: 'i' } }
       ]
     })
-    .select('symbol companyName sector shariahCompliant')
-    .limit(10)
-    .sort({ symbol: 1 });
-    
+      .select('symbol companyName sector shariahCompliant currentPrice')
+      .limit(10)
+      .sort({ symbol: 1 });
+
     res.json({
       success: true,
       data: stocks
@@ -139,7 +139,7 @@ router.get('/search/autocomplete', async (req, res) => {
 router.post('/', adminOnly, async (req, res) => {
   try {
     const { symbol, companyName, sector, shariahCompliant } = req.body;
-    
+
     // Validate required fields
     if (!symbol || !companyName) {
       return res.status(400).json({
@@ -147,7 +147,7 @@ router.post('/', adminOnly, async (req, res) => {
         message: 'Symbol and Company Name are required'
       });
     }
-    
+
     // Check if stock already exists
     const existing = await Stock.findOne({ symbol: symbol.toUpperCase() });
     if (existing) {
@@ -156,16 +156,16 @@ router.post('/', adminOnly, async (req, res) => {
         message: `Stock with symbol ${symbol} already exists`
       });
     }
-    
+
     const stock = new Stock({
       symbol: symbol.toUpperCase(),
       companyName: companyName.trim(),
       sector: sector?.trim() || null,
       shariahCompliant: shariahCompliant || null
     });
-    
+
     await stock.save();
-    
+
     res.status(201).json({
       success: true,
       message: 'Stock created successfully',
@@ -185,7 +185,7 @@ router.post('/', adminOnly, async (req, res) => {
 router.put('/:id', adminOnly, async (req, res) => {
   try {
     const { symbol, companyName, sector, shariahCompliant } = req.body;
-    
+
     // Validate required fields
     if (!symbol || !companyName) {
       return res.status(400).json({
@@ -193,7 +193,7 @@ router.put('/:id', adminOnly, async (req, res) => {
         message: 'Symbol and Company Name are required'
       });
     }
-    
+
     // Check if symbol is being changed and if new symbol exists
     const stock = await Stock.findById(req.params.id);
     if (!stock) {
@@ -202,7 +202,7 @@ router.put('/:id', adminOnly, async (req, res) => {
         message: 'Stock not found'
       });
     }
-    
+
     if (stock.symbol !== symbol.toUpperCase()) {
       const existing = await Stock.findOne({ symbol: symbol.toUpperCase() });
       if (existing) {
@@ -212,14 +212,14 @@ router.put('/:id', adminOnly, async (req, res) => {
         });
       }
     }
-    
+
     stock.symbol = symbol.toUpperCase();
     stock.companyName = companyName.trim();
     stock.sector = sector?.trim() || null;
     stock.shariahCompliant = shariahCompliant || null;
-    
+
     await stock.save();
-    
+
     res.json({
       success: true,
       message: 'Stock updated successfully',
@@ -239,14 +239,14 @@ router.put('/:id', adminOnly, async (req, res) => {
 router.delete('/:id', adminOnly, async (req, res) => {
   try {
     const stock = await Stock.findByIdAndDelete(req.params.id);
-    
+
     if (!stock) {
       return res.status(404).json({
         success: false,
         message: 'Stock not found'
       });
     }
-    
+
     res.json({
       success: true,
       message: 'Stock deleted successfully'
@@ -270,24 +270,24 @@ router.post('/upload/csv', adminOnly, upload.single('file'), async (req, res) =>
         message: 'No file uploaded'
       });
     }
-    
+
     const results = [];
     const errors = [];
     let lineNumber = 1;
-    
+
     // Parse CSV
     const stream = Readable.from(req.file.buffer.toString());
-    
+
     await new Promise((resolve, reject) => {
       stream
         .pipe(csv())
         .on('data', (row) => {
           lineNumber++;
-          
+
           // Validate required fields
           const symbol = row.Symbol?.trim()?.toUpperCase();
           const companyName = row.CompanyName?.trim();
-          
+
           if (!symbol || !companyName) {
             errors.push({
               line: lineNumber,
@@ -296,7 +296,7 @@ router.post('/upload/csv', adminOnly, upload.single('file'), async (req, res) =>
             });
             return;
           }
-          
+
           results.push({
             symbol,
             companyName,
@@ -307,7 +307,7 @@ router.post('/upload/csv', adminOnly, upload.single('file'), async (req, res) =>
         .on('end', resolve)
         .on('error', reject);
     });
-    
+
     if (results.length === 0) {
       return res.status(400).json({
         success: false,
@@ -315,7 +315,7 @@ router.post('/upload/csv', adminOnly, upload.single('file'), async (req, res) =>
         errors
       });
     }
-    
+
     // Bulk insert with upsert (update if exists, insert if not)
     const bulkOps = results.map(stock => ({
       updateOne: {
@@ -324,9 +324,9 @@ router.post('/upload/csv', adminOnly, upload.single('file'), async (req, res) =>
         upsert: true
       }
     }));
-    
+
     const bulkResult = await Stock.bulkWrite(bulkOps);
-    
+
     res.json({
       success: true,
       message: 'Stocks uploaded successfully',
@@ -351,7 +351,7 @@ router.post('/upload/csv', adminOnly, upload.single('file'), async (req, res) =>
 router.get('/meta/sectors', async (req, res) => {
   try {
     const sectors = await Stock.distinct('sector', { sector: { $ne: null } });
-    
+
     res.json({
       success: true,
       data: sectors.sort()

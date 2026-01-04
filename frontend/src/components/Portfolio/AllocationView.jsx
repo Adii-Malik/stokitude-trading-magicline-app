@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Target, Calendar, CheckCircle, Edit, TrendingUp } from 'lucide-react';
+import { Target, Calendar, CheckCircle, Edit, TrendingUp, Settings } from 'lucide-react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
+import PolicyEditorModal from './PolicyEditorModal';
+import SIPPlanModal from './SIPPlanModal';
 
 export default function AllocationView({ portfolioId, currency }) {
     const [policy, setPolicy] = useState(null);
@@ -10,6 +12,7 @@ export default function AllocationView({ portfolioId, currency }) {
     const [drift, setDrift] = useState(null);
     const [loading, setLoading] = useState(true);
     const [showPolicyEditor, setShowPolicyEditor] = useState(false);
+    const [showSIPPlanEditor, setShowSIPPlanEditor] = useState(false);
 
     useEffect(() => {
         loadAllocationData();
@@ -52,79 +55,119 @@ export default function AllocationView({ portfolioId, currency }) {
     if (loading) {
         return (
             <div className="flex justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-500"></div>
             </div>
         );
     }
 
     if (!policy || !sipPlan) {
         return (
-            <div className="text-center py-12">
-                <Target className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">SIP Allocation Not Configured</h3>
-                <p className="text-gray-600 mb-4">Set up your allocation policy and SIP plan to get started</p>
-                <button
-                    onClick={() => setShowPolicyEditor(true)}
-                    className="bg-emerald-600 text-white px-6 py-2 rounded-lg hover:bg-emerald-700"
-                >
-                    Configure Now
-                </button>
-            </div>
+            <>
+                <div className="text-center py-12">
+                    <Target className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">SIP Allocation Not Configured</h3>
+                    <p className="text-gray-600 dark:text-gray-400 mb-4">Set up your allocation policy and SIP plan to get started</p>
+                    <div className="flex gap-3 justify-center">
+                        <button
+                            onClick={() => setShowPolicyEditor(true)}
+                            className="bg-cyan-500 text-white px-6 py-2 rounded-lg hover:bg-cyan-600"
+                        >
+                            Configure Policy
+                        </button>
+                        {policy && !sipPlan && (
+                            <button
+                                onClick={() => setShowSIPPlanEditor(true)}
+                                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+                            >
+                                Setup SIP Plan
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                {showPolicyEditor && (
+                    <PolicyEditorModal
+                        portfolioId={portfolioId}
+                        existingPolicy={policy}
+                        onClose={() => setShowPolicyEditor(false)}
+                        onSaved={loadAllocationData}
+                    />
+                )}
+
+                {showSIPPlanEditor && (
+                    <SIPPlanModal
+                        portfolioId={portfolioId}
+                        currency={currency}
+                        existingPlan={sipPlan}
+                        onClose={() => setShowSIPPlanEditor(false)}
+                        onSaved={loadAllocationData}
+                    />
+                )}
+            </>
         );
     }
 
     return (
         <div className="space-y-6">
             {/* Policy Summary */}
-            <div className="bg-gradient-to-r from-emerald-50 to-blue-50 rounded-lg p-6">
+            <div className="bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-900/20 dark:to-blue-900/20 rounded-lg p-6">
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900">Allocation Strategy</h3>
-                    <button
-                        onClick={() => setShowPolicyEditor(true)}
-                        className="text-emerald-600 hover:text-emerald-700 flex items-center gap-1 text-sm"
-                    >
-                        <Edit className="w-4 h-4" />
-                        Edit
-                    </button>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Allocation Strategy</h3>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setShowPolicyEditor(true)}
+                            className="text-cyan-600 hover:text-cyan-700 dark:text-cyan-400 dark:hover:text-cyan-300 flex items-center gap-1 text-sm"
+                        >
+                            <Edit className="w-4 h-4" />
+                            Edit Policy
+                        </button>
+                        <button
+                            onClick={() => setShowSIPPlanEditor(true)}
+                            className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1 text-sm"
+                        >
+                            <Settings className="w-4 h-4" />
+                            Edit SIP Plan
+                        </button>
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
-                        <div className="text-sm text-gray-600">Strategy Type</div>
-                        <div className="font-semibold text-gray-900">{policy.strategyType}</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">Strategy Type</div>
+                        <div className="font-semibold text-gray-900 dark:text-white">{policy.strategyType}</div>
                     </div>
                     <div>
-                        <div className="text-sm text-gray-600">Monthly SIP</div>
-                        <div className="font-semibold text-gray-900">
+                        <div className="text-sm text-gray-600 dark:text-gray-400">Monthly SIP</div>
+                        <div className="font-semibold text-gray-900 dark:text-white">
                             {currency === 'USD' ? '$' : 'Rs.'} {sipPlan.monthlyAmount.toLocaleString()}
                         </div>
                     </div>
                     <div>
-                        <div className="text-sm text-gray-600">Universe</div>
-                        <div className="font-semibold text-gray-900">{policy.universeMode}</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">Universe</div>
+                        <div className="font-semibold text-gray-900 dark:text-white">{policy.universeMode}</div>
                     </div>
                     <div>
-                        <div className="text-sm text-gray-600">Execution</div>
-                        <div className="font-semibold text-gray-900">{sipPlan.executionMode}</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">Execution</div>
+                        <div className="font-semibold text-gray-900 dark:text-white">{sipPlan.executionMode}</div>
                     </div>
                 </div>
             </div>
 
             {/* Drift Alert */}
             {drift?.hasDrift && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                    <div className="flex items-center gap-2 text-yellow-800 mb-2">
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                    <div className="flex items-center gap-2 text-yellow-800 dark:text-yellow-300 mb-2">
                         <TrendingUp className="w-5 h-5" />
                         <span className="font-semibold">Portfolio Drift Detected</span>
                     </div>
-                    <p className="text-sm text-yellow-700 mb-3">
+                    <p className="text-sm text-yellow-700 dark:text-yellow-400 mb-3">
                         {drift.drifts.length} position(s) have drifted from target weights
                     </p>
                     <div className="space-y-2">
                         {drift.drifts.map((d) => (
                             <div key={d.symbol} className="flex justify-between text-sm">
-                                <span className="font-medium">{d.symbol}</span>
-                                <span className="text-yellow-700">
+                                <span className="font-medium dark:text-white">{d.symbol}</span>
+                                <span className="text-yellow-700 dark:text-yellow-400">
                                     {d.currentWeight.toFixed(1)}% → {d.targetWeight.toFixed(1)}% (Drift: {d.drift.toFixed(1)}%)
                                 </span>
                             </div>
@@ -135,10 +178,10 @@ export default function AllocationView({ portfolioId, currency }) {
 
             {/* Generate Recommendation */}
             <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold text-gray-900">Monthly Recommendations</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Monthly Recommendations</h3>
                 <button
                     onClick={generateRecommendation}
-                    className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 flex items-center gap-2"
+                    className="bg-cyan-500 text-white px-4 py-2 rounded-lg hover:bg-cyan-600 flex items-center gap-2"
                 >
                     <Calendar className="w-4 h-4" />
                     Generate for This Month
@@ -147,7 +190,7 @@ export default function AllocationView({ portfolioId, currency }) {
 
             {/* Recommendations List */}
             {recommendations.length === 0 ? (
-                <div className="text-center py-8 text-gray-600">
+                <div className="text-center py-8 text-gray-600 dark:text-gray-400">
                     No recommendations yet. Generate your first recommendation above.
                 </div>
             ) : (
@@ -163,16 +206,36 @@ export default function AllocationView({ portfolioId, currency }) {
                     ))}
                 </div>
             )}
+
+            {/* Modals */}
+            {showPolicyEditor && (
+                <PolicyEditorModal
+                    portfolioId={portfolioId}
+                    existingPolicy={policy}
+                    onClose={() => setShowPolicyEditor(false)}
+                    onSaved={loadAllocationData}
+                />
+            )}
+
+            {showSIPPlanEditor && (
+                <SIPPlanModal
+                    portfolioId={portfolioId}
+                    currency={currency}
+                    existingPlan={sipPlan}
+                    onClose={() => setShowSIPPlanEditor(false)}
+                    onSaved={loadAllocationData}
+                />
+            )}
         </div>
     );
 }
 
 function RecommendationCard({ recommendation, currency, portfolioId, onUpdate }) {
     const statusColors = {
-        DRAFT: 'bg-gray-100 text-gray-700',
-        APPROVED: 'bg-emerald-100 text-emerald-700',
-        EXECUTED: 'bg-blue-100 text-blue-700',
-        SKIPPED: 'bg-red-100 text-red-700'
+        DRAFT: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
+        APPROVED: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+        EXECUTED: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+        SKIPPED: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
     };
 
     const approveRecommendation = async () => {
@@ -196,13 +259,13 @@ function RecommendationCard({ recommendation, currency, portfolioId, onUpdate })
     };
 
     return (
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
             <div className="flex items-center justify-between mb-4">
                 <div>
-                    <h4 className="text-lg font-semibold text-gray-900">
+                    <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
                         {new Date(recommendation.forMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                     </h4>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
                         Budget: {currency === 'USD' ? '$' : 'Rs.'} {recommendation.budget.toLocaleString()}
                     </p>
                 </div>
@@ -213,7 +276,7 @@ function RecommendationCard({ recommendation, currency, portfolioId, onUpdate })
                     {recommendation.status === 'DRAFT' && (
                         <button
                             onClick={approveRecommendation}
-                            className="text-emerald-600 hover:text-emerald-700 text-sm font-medium"
+                            className="text-cyan-600 hover:text-cyan-700 dark:text-cyan-400 dark:hover:text-cyan-300 text-sm font-medium"
                         >
                             Approve
                         </button>
@@ -221,7 +284,7 @@ function RecommendationCard({ recommendation, currency, portfolioId, onUpdate })
                     {recommendation.status === 'APPROVED' && (
                         <button
                             onClick={markExecuted}
-                            className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                            className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 text-sm font-medium"
                         >
                             Mark Executed
                         </button>
@@ -231,18 +294,18 @@ function RecommendationCard({ recommendation, currency, portfolioId, onUpdate })
 
             <div className="space-y-3">
                 {recommendation.allocations.map((alloc) => (
-                    <div key={alloc.symbol} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                    <div key={alloc.symbol} className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
                         <div className="flex-1">
-                            <div className="font-semibold text-gray-900">{alloc.symbol}</div>
-                            <div className="text-sm text-gray-600">
+                            <div className="font-semibold text-gray-900 dark:text-white">{alloc.symbol}</div>
+                            <div className="text-sm text-gray-600 dark:text-gray-400">
                                 {alloc.estShares} shares @ {currency === 'USD' ? '$' : 'Rs.'} {alloc.estPrice.toFixed(2)}
                             </div>
                         </div>
                         <div className="text-right">
-                            <div className="font-semibold text-gray-900">
+                            <div className="font-semibold text-gray-900 dark:text-white">
                                 {currency === 'USD' ? '$' : 'Rs.'} {alloc.amount.toLocaleString()}
                             </div>
-                            <div className="text-xs text-gray-600">
+                            <div className="text-xs text-gray-600 dark:text-gray-400">
                                 Target: {alloc.targetWeight.toFixed(1)}% | Current: {alloc.currentWeight.toFixed(1)}%
                             </div>
                         </div>

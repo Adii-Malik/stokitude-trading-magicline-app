@@ -1,0 +1,41 @@
+Type,Symbol,Quantity,Price,Fees,Amount,Date,Notes
+DEPOSIT,,,,,100000,2026-01-01,Initial capital for portfolio
+BUY,OGDC,84,118,100,,2026-01-05,Jan 2026 SIP - Building position
+BUY,HUBC,100,100,50,,2026-01-05,Jan 2026 SIP - Power sector
+BUY,PPL,125,80,60,,2026-01-05,Jan 2026 SIP - O&G diversification
+BUY,MCB,66,150,80,,2026-01-05,Jan 2026 SIP - Banking exposure
+BUY,LUCK,16,600,110,,2026-01-05,Jan 2026 SIP - Cement growth play
+DEPOSIT,,,,,50000,2026-02-01,Feb 2026 monthly SIP
+BUY,OGDC,42,120,50,,2026-02-05,Feb 2026 SIP - Adding to position
+BUY,HUBC,49,102,40,,2026-02-05,Feb 2026 SIP - Rebalancing
+BUY,PPL,61,82,30,,2026-02-05,Feb 2026 SIP - Price increased
+BUY,MCB,32,152,40,,2026-02-05,Feb 2026 SIP - Banking stability
+BUY,LUCK,8,605,40,,2026-02-05,Feb 2026 SIP - Slight price increase
+DIV,OGDC,,,,2520,2026-02-15,Dividend received (126 shares @ 20 PKR/share)
+DEPOSIT,,,,,50000,2026-03-01,Mar 2026 monthly SIP
+BUY,OGDC,40,125,50,,2026-03-05,Mar 2026 SIP - Continued accumulation
+BUY,HUBC,48,104,45,,2026-03-05,Mar 2026 SIP - Price trending up
+BUY,PPL,59,85,35,,2026-03-05,Mar 2026 SIP - Good entry point
+BUY,MCB,32,156,40,,2026-03-05,Mar 2026 SIP - Banking strength
+BUY,LUCK,8,610,30,,2026-03-05,Mar 2026 SIP - Cement sector strong
+DEPOSIT,,,,,50000,2026-04-01,Apr 2026 monthly SIP
+BUY,FFC,16,293,50,,2026-04-05,Apr 2026 SIP - Adding fertilizer sector
+BUY,HUBC,96,104,48,,2026-04-05,Apr 2026 SIP - Power sector bullish
+BUY,MCB,64,157,42,,2026-04-05,Apr 2026 SIP - Banking diversification
+BUY,ENGRO,45,220,60,,2026-04-05,Apr 2026 SIP - Chemical sector entry
+DIV,PPL,,,,3720,2026-04-18,Dividend received (310 shares @ 12 PKR/share)
+DIV,HUBC,,,,3564,2026-04-20,Dividend received (297 shares @ 12 PKR/share)
+DEPOSIT,,,,,50000,2026-05-01,May 2026 monthly SIP
+SELL,PSO,100,195,80,,2026-05-03,Exiting weak performer
+BUY,OGDC,42,122,50,,2026-05-05,May 2026 SIP - O&G leader
+BUY,LUCK,16,615,90,,2026-05-05,May 2026 SIP - Strong cement demand
+BUY,FFC,34,295,70,,2026-05-05,May 2026 SIP - Fertilizer season
+BUY,MEBL,110,92,60,,2026-05-05,May 2026 SIP - Islamic banking growth
+DEPOSIT,,,,,150000,2026-06-01,Jun 2026 SIP + Bonus lump sum
+BUY,TRG,263,115,150,,2026-06-05,Jun 2026 - Tech sector entry (bonus investment)
+BUY,MLCF,225,134,120,,2026-06-05,Jun 2026 - Second cement stock
+BUY,SNGP,316,96,100,,2026-06-05,Jun 2026 - Gas utility stable dividend
+BUY,OGDC,84,124,100,,2026-06-05,Jun 2026 - Core holding boost
+BUY,FFC,50,298,80,,2026-06-05,Jun 2026 - Fertilizer expansion
+DIV,OGDC,,,,6336,2026-06-15,Dividend received (792 shares @ 8 PKR/share)
+DIV,MCB,,,,3492,2026-06-18,Dividend received (194 shares @ 18 PKR/share)

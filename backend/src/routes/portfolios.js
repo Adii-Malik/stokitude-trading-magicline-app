@@ -4,6 +4,9 @@
  * Supports CRUD, transactions, holdings, dashboard, sharing
  */
 import express from 'express';
+import multer from 'multer';
+import csv from 'csv-parser';
+import { Readable } from 'stream';
 import { authenticate } from '../middleware/auth.js';
 import portfolioService from '../services/portfolioService.js';
 import allocationEngineService from '../services/allocationEngineService.js';
@@ -15,6 +18,19 @@ import SIPPlan from '../models/SIPPlan.js';
 import Recommendation from '../models/Recommendation.js';
 
 const router = express.Router();
+
+// Configure multer for CSV upload
+const storage = multer.memoryStorage();
+const upload = multer({
+    storage,
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only CSV files are allowed'));
+        }
+    }
+});
 
 // All routes require authentication
 router.use(authenticate);
@@ -319,6 +335,187 @@ router.delete('/:portfolioId/transactions/:transactionId', async (req, res) => {
         res.status(500).json({
             success: false,
             message: error.message
+        });
+    }
+});
+
+/**
+ * POST /api/portfolios/:id/transactions/upload/csv
+ * Bulk upload transactions from CSV
+ */
+router.post('/:id/transactions/upload/csv', upload.single('file'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                message: 'No file uploaded'
+            });
+        }
+
+        const results = [];
+        const errors = [];
+        let lineNumber = 1;
+
+        // Parse CSV
+        const stream = Readable.from(req.file.buffer.toString());
+
+        await new Promise((resolve, reject) => {
+            stream
+                .pipe(csv())
+                .on('data', (row) => {
+                    lineNumber++;
+
+                    try {
+                        const type = row.Type?.trim()?.toUpperCase();
+                        const symbol = row.Symbol?.trim()?.toUpperCase();
+                        const executedAt = row.Date?.trim();
+
+                        // Validate required fields
+                        if (!type || !executedAt) {
+                            errors.push({
+                                line: lineNumber,
+                                error: 'Type and Date are required',
+                                data: row
+                            });
+                            return;
+                        }
+
+                        const transaction = {
+                            type,
+                            executedAt: new Date(executedAt),
+                            notes: row.Notes?.trim() || ''
+                        };
+
+                        // Handle BUY/SELL transactions
+                        if (['BUY', 'SELL'].includes(type)) {
+                            if (!symbol) {
+                                errors.push({
+                                    line: lineNumber,
+                                    error: 'Symbol is required for BUY/SELL',
+                                    data: row
+                                });
+                                return;
+                            }
+
+                            const quantity = parseFloat(row.Quantity);
+                            const price = parseFloat(row.Price);
+
+                            if (isNaN(quantity) || isNaN(price)) {
+                                errors.push({
+                                    line: lineNumber,
+                                    error: 'Valid Quantity and Price are required for BUY/SELL',
+                                    data: row
+                                });
+                                return;
+                            }
+
+                            transaction.symbol = symbol;
+                            transaction.quantity = quantity;
+                            transaction.price = price;
+                            transaction.fees = parseFloat(row.Fees) || 0;
+                        }
+                        // Handle DIVIDEND transactions
+                        else if (type === 'DIV') {
+                            if (!symbol) {
+                                errors.push({
+                                    line: lineNumber,
+                                    error: 'Symbol is required for DIV',
+                                    data: row
+                                });
+                                return;
+                            }
+
+                            const dividendCash = parseFloat(row.Amount);
+                            if (isNaN(dividendCash)) {
+                                errors.push({
+                                    line: lineNumber,
+                                    error: 'Valid Amount is required for DIV',
+                                    data: row
+                                });
+                                return;
+                            }
+
+                            transaction.symbol = symbol;
+                            transaction.dividendCash = dividendCash;
+                            transaction.dividendType = 'CASH';
+                        }
+                        // Handle DEPOSIT/WITHDRAW transactions
+                        else if (['DEPOSIT', 'WITHDRAW'].includes(type)) {
+                            const amount = parseFloat(row.Amount);
+                            if (isNaN(amount)) {
+                                errors.push({
+                                    line: lineNumber,
+                                    error: 'Valid Amount is required for DEPOSIT/WITHDRAW',
+                                    data: row
+                                });
+                                return;
+                            }
+
+                            transaction.amount = amount;
+                        }
+                        else {
+                            errors.push({
+                                line: lineNumber,
+                                error: 'Invalid transaction type. Must be BUY, SELL, DIV, DEPOSIT, or WITHDRAW',
+                                data: row
+                            });
+                            return;
+                        }
+
+                        results.push(transaction);
+                    } catch (err) {
+                        errors.push({
+                            line: lineNumber,
+                            error: err.message,
+                            data: row
+                        });
+                    }
+                })
+                .on('end', resolve)
+                .on('error', reject);
+        });
+
+        if (results.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'No valid data found in CSV',
+                errors
+            });
+        }
+
+        // Bulk insert transactions
+        let inserted = 0;
+        for (const transactionData of results) {
+            try {
+                await portfolioService.addTransaction(
+                    req.params.id,
+                    req.user._id,
+                    transactionData
+                );
+                inserted++;
+            } catch (err) {
+                errors.push({
+                    error: err.message,
+                    data: transactionData
+                });
+            }
+        }
+
+        res.json({
+            success: true,
+            message: 'Transactions uploaded successfully',
+            data: {
+                total: results.length,
+                inserted,
+                errors: errors.length > 0 ? errors : undefined
+            }
+        });
+    } catch (error) {
+        console.error('Error uploading transactions:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to upload transactions',
+            error: error.message
         });
     }
 });

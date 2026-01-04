@@ -48,7 +48,7 @@ export default function HoldingsTable({ portfolioId, currency }) {
     if (loading) {
         return (
             <div className="flex justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-500"></div>
             </div>
         );
     }
@@ -71,7 +71,7 @@ export default function HoldingsTable({ portfolioId, currency }) {
                     placeholder="Search by symbol or company name..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
                 />
             </div>
 
@@ -79,8 +79,8 @@ export default function HoldingsTable({ portfolioId, currency }) {
             <div className="overflow-x-auto">
                 <table className="w-full">
                     <thead>
-                        <tr className="border-b border-gray-200 text-left">
-                            <th className="pb-3 font-semibold text-gray-700">Symbol</th>
+                        <tr className="border-b border-gray-200 dark:border-gray-700 text-left">
+                            <th className="pb-3 font-semibold text-gray-700 dark:text-gray-300">Symbol</th>
                             <SortableHeader
                                 label="Shares"
                                 field="quantity"
@@ -161,11 +161,11 @@ function SortableHeader({ label, field, currentField, direction, onSort }) {
     return (
         <th
             onClick={() => onSort(field)}
-            className="pb-3 font-semibold text-gray-700 cursor-pointer hover:text-emerald-600 transition-colors"
+            className="pb-3 font-semibold text-gray-700 dark:text-gray-300 cursor-pointer hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors"
         >
             <div className="flex items-center gap-1">
                 {label}
-                <ArrowUpDown className={`w-4 h-4 ${isActive ? 'text-emerald-600' : 'text-gray-400'}`} />
+                <ArrowUpDown className={`w-4 h-4 ${isActive ? 'text-cyan-600 dark:text-cyan-400' : 'text-gray-400'}`} />
             </div>
         </th>
     );
@@ -175,33 +175,33 @@ function HoldingRow({ holding, currency }) {
     const isProfit = holding.totalPnL >= 0;
 
     return (
-        <tr className="border-b border-gray-100 hover:bg-gray-50">
+        <tr className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
             <td className="py-3">
-                <div className="font-semibold text-gray-900">{holding.symbol}</div>
+                <div className="font-semibold text-gray-900 dark:text-white">{holding.symbol}</div>
                 {holding.companyName && (
-                    <div className="text-sm text-gray-600">{holding.companyName}</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">{holding.companyName}</div>
                 )}
             </td>
-            <td className="py-3 text-gray-900">{holding.quantity.toLocaleString()}</td>
-            <td className="py-3 text-gray-900">
+            <td className="py-3 text-gray-900 dark:text-white">{holding.quantity.toLocaleString()}</td>
+            <td className="py-3 text-gray-900 dark:text-white">
                 {currency === 'USD' ? '$' : 'Rs.'} {holding.avgCost.toFixed(2)}
             </td>
-            <td className="py-3 text-gray-900">
+            <td className="py-3 text-gray-900 dark:text-white">
                 {currency === 'USD' ? '$' : 'Rs.'} {holding.currentPrice.toFixed(2)}
             </td>
-            <td className="py-3 text-gray-900">
+            <td className="py-3 text-gray-900 dark:text-white">
                 {currency === 'USD' ? '$' : 'Rs.'} {holding.totalValue.toLocaleString()}
             </td>
-            <td className={`py-3 font-semibold ${isProfit ? 'text-emerald-600' : 'text-red-600'}`}>
+            <td className={`py-3 font-semibold ${isProfit ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                 <div className="flex items-center gap-1">
                     {isProfit ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
                     {isProfit ? '+' : ''}{currency === 'USD' ? '$' : 'Rs.'} {holding.totalPnL.toLocaleString()}
                 </div>
             </td>
-            <td className={`py-3 font-semibold ${isProfit ? 'text-emerald-600' : 'text-red-600'}`}>
+            <td className={`py-3 font-semibold ${isProfit ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                 {isProfit ? '+' : ''}{holding.totalPnLPct.toFixed(2)}%
             </td>
-            <td className="py-3 text-gray-600">
+            <td className="py-3 text-gray-600 dark:text-gray-400">
                 {holding.weightPct.toFixed(1)}%
             </td>
         </tr>
