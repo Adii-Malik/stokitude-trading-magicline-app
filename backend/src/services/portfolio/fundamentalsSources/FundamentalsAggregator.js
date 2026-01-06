@@ -1,21 +1,23 @@
 /**
  * Fundamentals Aggregator
  * Combines data from multiple sources with caching and fallback logic
- * Sources checked in priority order: Manual > StockAnalysis > PSX > Cached
+ * Sources checked in priority order: Manual > TradingView API > PSX Scraper > Stock Analysis > Cached
  */
 import ManualOverrideSource from './ManualOverrideSource.js';
 import PSXScraperSource from './PSXScraperSource.js';
 import StockAnalysisSource from './StockAnalysisSource.js';
+import TradingViewApiSource from './TradingViewApiSource.js';
 import StockFundamental from '../../../models/StockFundamental.js';
 import Stock from '../../../models/Stock.js';
 
 class FundamentalsAggregator {
     constructor() {
-        // Priority order: Manual > StockAnalysis > PSX
+        // Priority order: Manual (100) > TradingView API (60) > PSX Scraper (50) > Stock Analysis (30)
         this.sources = [
             new ManualOverrideSource(),
-            new StockAnalysisSource(),
-            new PSXScraperSource()
+            new TradingViewApiSource(),
+            new PSXScraperSource(),
+            new StockAnalysisSource()
         ];
 
         // Sort by priority (highest first)
@@ -35,13 +37,10 @@ class FundamentalsAggregator {
         // Check cache first (unless force refresh)
         if (!forceRefresh) {
             const cached = await StockFundamental.findOne({ symbol });
-            if (cached && cached.isFresh(24)) {
-                console.log(`✓ ${symbol}: Using cached fundamentals (age: ${this._getAgeHours(cached.lastUpdated)}h)`);
+            if (cached && cached.isFresh(2160)) { // 90 days
                 return cached;
             }
         }
-
-        console.log(`\n🔍 Fetching fundamentals for ${symbol}...`);
 
         // Aggregate from sources
         const aggregated = {};
@@ -64,7 +63,7 @@ class FundamentalsAggregator {
                         Object.assign(aggregated, filtered);
                     }
                 } catch (error) {
-                    console.error(`   ❌ Error from ${source.getName()}:`, error.message);
+                    // Silent fail, try next source
                 }
             }
         }
@@ -93,7 +92,6 @@ class FundamentalsAggregator {
             { upsert: true, new: true, runValidators: true }
         );
 
-        console.log(`✅ ${symbol}: Cached ${Object.keys(aggregated).length} fundamental metrics`);
         return fundamental;
     }
 
@@ -104,8 +102,6 @@ class FundamentalsAggregator {
      * @returns {Array} - Results for each symbol
      */
     async refreshAll(symbols) {
-        console.log(`\n🔄 Batch refreshing ${symbols.length} symbols...`);
-
         const results = [];
         for (const symbol of symbols) {
             try {
@@ -122,24 +118,18 @@ class FundamentalsAggregator {
                     status: 'error',
                     error: error.message
                 });
-                console.error(`❌ ${symbol}: ${error.message}`);
             }
         }
-
-        const success = results.filter(r => r.status === 'success').length;
-        const errors = results.filter(r => r.status === 'error').length;
-
-        console.log(`\n✅ Batch complete: ${success} succeeded, ${errors} failed`);
 
         return results;
     }
 
     /**
      * Get stale symbols that need refresh
-     * @param {Number} maxAgeHours
+     * @param {Number} maxAgeHours - Max age for fundamental data
      * @returns {Array<String>}
      */
-    async getStaleSymbols(maxAgeHours = 24) {
+    async getStaleSymbols(maxAgeHours = 168) { // 7 days (weekly)
         // Get all active stock symbols
         const activeSymbols = await Stock.find({
             currentPrice: { $ne: null }
@@ -155,8 +145,6 @@ class FundamentalsAggregator {
         );
 
         const allStale = [...new Set([...staleSymbols, ...missingSymbols])];
-
-        console.log(`Found ${allStale.length} stale/missing symbols (out of ${activeSymbols.length} active)`);
 
         return allStale;
     }

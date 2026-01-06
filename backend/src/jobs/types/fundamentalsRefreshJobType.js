@@ -43,11 +43,11 @@ export default {
             name: 'maxAgeHours',
             label: 'Max Age (Hours)',
             type: 'number',
-            default: 24,
-            min: 1,
-            max: 168,
+            default: 168, // 7 days (weekly)
+            min: 24,
+            max: 8760,
             description: 'Consider data stale after this many hours',
-            helpText: '24 hours recommended for daily refresh'
+            helpText: '168h (7 days) = weekly refresh'
         },
         {
             name: 'notifyOnComplete',
@@ -63,8 +63,8 @@ export default {
         defaultType: 'recurring',
         defaultRecurring: {
             amount: 1,
-            interval: 'days',
-            daysOfWeek: [0, 1, 2, 3, 4, 5, 6], // Daily
+            interval: 'weeks',
+            daysOfWeek: [0], // Sunday only
             time: '02:00' // 2 AM PKT (off-peak)
         },
         respectMarketHours: false,

@@ -12,7 +12,7 @@ export default async function fundamentalsRefreshJob(job, done) {
         batchSize = 10,
         delayBetweenBatches = 5000,
         refreshStaleOnly = true,
-        maxAgeHours = 24,
+        maxAgeHours = 168, // 7 days (weekly)
         notifyOnComplete = false
     } = config;
 
@@ -32,7 +32,7 @@ export default async function fundamentalsRefreshJob(job, done) {
 
         if (refreshStaleOnly) {
             symbolsToRefresh = await FundamentalsAggregator.getStaleSymbols(maxAgeHours);
-            console.log(`\n   Found ${symbolsToRefresh.length} stale/missing symbols`);
+            console.log(`\n   Found ${symbolsToRefresh.length} stale/missing symbols (>${maxAgeHours}h)`);
         } else {
             // Get all active symbols
             const activeSymbols = await Stock.find({

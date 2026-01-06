@@ -132,7 +132,7 @@ stockFundamentalSchema.index({ lastUpdated: -1 });
 stockFundamentalSchema.index({ dataQuality: 1 });
 
 // Methods
-stockFundamentalSchema.methods.isFresh = function (maxAgeHours = 24) {
+stockFundamentalSchema.methods.isFresh = function (maxAgeHours = 168) { // 7 days (weekly)
     if (!this.lastUpdated) return false;
     const now = new Date();
     const ageHours = (now - new Date(this.lastUpdated)) / (1000 * 60 * 60);
