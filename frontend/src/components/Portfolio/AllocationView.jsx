@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Target, Calendar, CheckCircle, Edit, TrendingUp, Settings } from 'lucide-react';
+import { Target, Calendar, CheckCircle, Edit, TrendingUp, Settings, Trash2 } from 'lucide-react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import PolicyEditorModal from './PolicyEditorModal';
@@ -49,6 +49,30 @@ export default function AllocationView({ portfolioId, currency }) {
             loadAllocationData();
         } catch (error) {
             toast.error(error.response?.data?.message || 'Failed to generate recommendation');
+        }
+    };
+
+    const deletePolicy = async () => {
+        if (!confirm('Delete allocation policy? This will also delete all recommendations.')) return;
+
+        try {
+            await api.delete(`/portfolios/${portfolioId}/policy`);
+            toast.success('Policy deleted');
+            loadAllocationData();
+        } catch (error) {
+            toast.error(error.response?.data?.message || 'Failed to delete policy');
+        }
+    };
+
+    const deleteSIPPlan = async () => {
+        if (!confirm('Delete SIP plan? Monthly allocations will stop.')) return;
+
+        try {
+            await api.delete(`/portfolios/${portfolioId}/sip-plan`);
+            toast.success('SIP plan deleted');
+            loadAllocationData();
+        } catch (error) {
+            toast.error(error.response?.data?.message || 'Failed to delete SIP plan');
         }
     };
 
@@ -119,14 +143,21 @@ export default function AllocationView({ portfolioId, currency }) {
                             className="text-cyan-600 hover:text-cyan-700 dark:text-cyan-400 dark:hover:text-cyan-300 flex items-center gap-1 text-sm"
                         >
                             <Edit className="w-4 h-4" />
-                            Edit Policy
+                            Edit
                         </button>
                         <button
                             onClick={() => setShowSIPPlanEditor(true)}
                             className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1 text-sm"
                         >
                             <Settings className="w-4 h-4" />
-                            Edit SIP Plan
+                            SIP Plan
+                        </button>
+                        <button
+                            onClick={deletePolicy}
+                            className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 flex items-center gap-1 text-sm"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                            Delete
                         </button>
                     </div>
                 </div>
@@ -244,39 +275,62 @@ function RecommendationCard({ recommendation, currency, portfolioId, onUpdate })
             toast.success('Recommendation approved');
             onUpdate();
         } catch (error) {
-            toast.error('Failed to approve');
+            toast.error(error.response?.data?.message || 'Failed to approve recommendation');
         }
     };
 
     const markExecuted = async () => {
+        const allocCount = recommendation.allocations?.length || 0;
+        const confirmed = window.confirm(
+            `Execute this recommendation?\n\n` +
+            `This will create ${allocCount} BUY transactions in your portfolio.\n` +
+            `You can edit the transaction details later if needed.`
+        );
+
+        if (!confirmed) return;
+
         try {
-            await api.patch(`/portfolios/${portfolioId}/recommendations/${recommendation.forMonth}/execute`);
-            toast.success('Marked as executed');
+            const response = await api.patch(`/portfolios/${portfolioId}/recommendations/${recommendation.forMonth}/execute`);
+            const transactionCount = response.data.transactions?.length || 0;
+            toast.success(
+                `✅ Created ${transactionCount} BUY transactions!\n\n` +
+                `Switch to the "Transactions" tab to view them, or refresh the page.`,
+                { duration: 6000 }
+            );
             onUpdate();
         } catch (error) {
-            toast.error('Failed to update status');
+            toast.error(error.response?.data?.message || 'Failed to mark as executed');
         }
     };
 
     return (
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
-            <div className="flex items-center justify-between mb-4">
-                <div>
-                    <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
-                        {new Date(recommendation.forMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                    </h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Budget: {currency === 'USD' ? '$' : 'Rs.'} {recommendation.budget.toLocaleString()}
-                    </p>
+        <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm hover:shadow-md transition-shadow p-6">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-cyan-100 dark:bg-cyan-900/30 rounded-lg">
+                        <Calendar className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
+                    </div>
+                    <div>
+                        <h4 className="text-xl font-bold text-gray-900 dark:text-white">
+                            {new Date(recommendation.forMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                        </h4>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                            <span className="font-medium">Budget:</span>
+                            <span className="font-semibold text-cyan-600 dark:text-cyan-400">
+                                {currency === 'USD' ? '$' : 'Rs.'} {recommendation.budget.toLocaleString()}
+                            </span>
+                        </p>
+                    </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColors[recommendation.status]}`}>
+                <div className="flex items-center gap-3">
+                    <span className={`px-4 py-1.5 rounded-full text-sm font-semibold shadow-sm ${statusColors[recommendation.status]}`}>
                         {recommendation.status}
                     </span>
                     {recommendation.status === 'DRAFT' && (
                         <button
                             onClick={approveRecommendation}
-                            className="text-cyan-600 hover:text-cyan-700 dark:text-cyan-400 dark:hover:text-cyan-300 text-sm font-medium"
+                            className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
                         >
                             Approve
                         </button>
@@ -284,7 +338,7 @@ function RecommendationCard({ recommendation, currency, portfolioId, onUpdate })
                     {recommendation.status === 'APPROVED' && (
                         <button
                             onClick={markExecuted}
-                            className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 text-sm font-medium"
+                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
                         >
                             Mark Executed
                         </button>
@@ -292,26 +346,92 @@ function RecommendationCard({ recommendation, currency, portfolioId, onUpdate })
                 </div>
             </div>
 
-            <div className="space-y-3">
-                {recommendation.allocations.map((alloc) => (
-                    <div key={alloc.symbol} className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
-                        <div className="flex-1">
-                            <div className="font-semibold text-gray-900 dark:text-white">{alloc.symbol}</div>
-                            <div className="text-sm text-gray-600 dark:text-gray-400">
-                                {alloc.estShares} shares @ {currency === 'USD' ? '$' : 'Rs.'} {alloc.estPrice.toFixed(2)}
+            {recommendation.allocations && recommendation.allocations.length > 0 ? (
+                <div className="space-y-4">
+                    {recommendation.allocations.map((alloc, index) => (
+                        <div
+                            key={alloc.symbol}
+                            className="group bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 hover:border-cyan-400 dark:hover:border-cyan-500 hover:shadow-md transition-all"
+                        >
+                            {/* Stock Header */}
+                            <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center shadow-sm">
+                                        <span className="text-white font-bold text-sm">{alloc.symbol.substring(0, 2)}</span>
+                                    </div>
+                                    <div>
+                                        <div className="text-lg font-bold text-gray-900 dark:text-white">{alloc.symbol}</div>
+                                        <div className="text-sm text-gray-600 dark:text-gray-400">
+                                            <span className="font-medium">{alloc.estShares} shares</span>
+                                            <span className="mx-2">×</span>
+                                            <span>{currency === 'USD' ? '$' : 'Rs.'} {alloc.estPrice.toFixed(2)}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <div className="text-2xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent">
+                                        {currency === 'USD' ? '$' : 'Rs.'} {alloc.amount.toLocaleString()}
+                                    </div>
+                                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center justify-end gap-2">
+                                        <div className="flex items-center gap-1">
+                                            <TrendingUp className="w-3 h-3" />
+                                            <span className="font-medium">{alloc.targetWeight.toFixed(1)}%</span>
+                                        </div>
+                                        <span>→</span>
+                                        <span>Current: {alloc.currentWeight.toFixed(1)}%</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Research Links */}
+                            <div className="flex items-center gap-2 pt-3 border-t border-gray-100 dark:border-gray-700">
+                                <span className="text-xs font-medium text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                                    <Target className="w-3 h-3" />
+                                    Research:
+                                </span>
+                                <div className="flex items-center gap-2">
+                                    <a
+                                        href={`https://scstrade.com/stockscreening/SS_CompanySnapShot.aspx?symbol=${alloc.symbol}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="px-2 py-1 bg-cyan-50 dark:bg-cyan-900/20 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-100 dark:hover:bg-cyan-900/40 text-xs font-medium rounded transition-colors"
+                                    >
+                                        SCS Trade
+                                    </a>
+                                    <a
+                                        href={`https://www.tradingview.com/symbols/PSX-${alloc.symbol}/financials-overview/`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="px-2 py-1 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-xs font-medium rounded transition-colors"
+                                    >
+                                        TradingView
+                                    </a>
+                                    <a
+                                        href={`https://stockanalysis.com/quote/psx/${alloc.symbol}/`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="px-2 py-1 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/40 text-xs font-medium rounded transition-colors"
+                                    >
+                                        Stock Analysis
+                                    </a>
+                                </div>
                             </div>
                         </div>
-                        <div className="text-right">
-                            <div className="font-semibold text-gray-900 dark:text-white">
-                                {currency === 'USD' ? '$' : 'Rs.'} {alloc.amount.toLocaleString()}
-                            </div>
-                            <div className="text-xs text-gray-600 dark:text-gray-400">
-                                Target: {alloc.targetWeight.toFixed(1)}% | Current: {alloc.currentWeight.toFixed(1)}%
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
+                    ))}
+                </div>
+            ) : (
+                <div className="text-center py-12 bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 border-2 border-dashed border-yellow-300 dark:border-yellow-700 rounded-xl">
+                    <div className="text-5xl mb-3">⚠️</div>
+                    <p className="text-yellow-800 dark:text-yellow-200 font-bold text-lg mb-2">No Allocations Generated</p>
+                    <p className="text-sm text-yellow-700 dark:text-yellow-300 mb-1">
+                        Your filters might be too strict, or no stocks matched the criteria
+                    </p>
+                    <p className="text-sm text-yellow-600 dark:text-yellow-400">
+                        Try adjusting your policy settings (e.g., lower Min Dividend Yield)
+                    </p>
+                </div>
+            )}
         </div>
     );
 }
+
