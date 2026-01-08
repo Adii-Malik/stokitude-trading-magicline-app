@@ -15,79 +15,29 @@ const stockFundamentalSchema = new mongoose.Schema({
         index: true
     },
 
-    // Dividend metrics
-    dividendTTM: {
-        type: Number, // Trailing twelve months dividend (PKR)
-        min: 0
-    },
-
-    dividendYield: {
-        type: Number, // Percentage (calculated from TTM and current price)
-        min: 0,
-        max: 100
-    },
-
-    payoutRatio: {
-        type: Number, // Percentage (0-100)
-        min: 0,
-        max: 200 // Can exceed 100 in some cases
-    },
-
-    dividendGrowth3Y: {
-        type: Number // Percentage growth over 3 years
-    },
-
-    dividendConsistencyYears: {
-        type: Number, // Years of consecutive dividends
-        min: 0
-    },
-
-    // Growth metrics
-    epsGrowthYoY: {
-        type: Number // Percentage year-over-year EPS growth
-    },
-
-    revenueGrowth3Y: {
-        type: Number // Percentage revenue growth over 3 years
-    },
-
-    // Financial health
-    debtToEquity: {
-        type: Number,
-        min: 0
-    },
-
-    currentRatio: {
-        type: Number,
-        min: 0
-    },
-
-    roe: {
-        type: Number // Return on Equity (percentage)
-    },
-
-    // Company information
-    sector: {
-        type: String,
-        trim: true,
-        index: true
-    },
-
-    industry: {
-        type: String,
-        trim: true
-    },
-
-    marketCap: {
-        type: Number, // in PKR millions
-        min: 0
-    },
-
-    // Shariah compliance
-    shariahCompliant: {
-        type: Boolean,
-        default: null, // null = unknown
-        index: true
+    // Flexible fundamental data storage (JSON)
+    // All financial metrics stored here for flexibility
+    metrics: {
+        type: mongoose.Schema.Types.Mixed,
+        default: {}
+        // Example structure:
+        // {
+        //   dividendTTM: 5.0,
+        //   dividendYield: 6.5,
+        //   payoutRatio: 45.0,
+        //   dividendGrowth3Y: 8.2,
+        //   dividendConsistencyYears: 10,
+        //   epsGrowthYoY: 12.5,
+        //   revenueGrowth3Y: 15.0,
+        //   debtToEquity: 0.45,
+        //   currentRatio: 1.8,
+        //   roe: 18.5,
+        //   sector: "Oil & Gas",
+        //   industry: "Exploration & Production",
+        //   marketCap: 450000,
+        //   shariahCompliant: true,
+        //   ... any future metrics ...
+        // }
     },
 
     // Data source tracking
@@ -98,7 +48,7 @@ const stockFundamentalSchema = new mongoose.Schema({
 
     dataSource: {
         type: String,
-        enum: ['PSX', 'STOCK_ANALYSIS', 'API', 'MANUAL', 'COMPOSITE'],
+        enum: ['PSX', 'STOCK_ANALYSIS', 'TRADINGVIEW', 'API', 'MANUAL', 'COMPOSITE'],
         default: 'COMPOSITE'
     },
 
@@ -125,34 +75,48 @@ const stockFundamentalSchema = new mongoose.Schema({
     timestamps: true
 });
 
-// Indexes for efficient querying
-stockFundamentalSchema.index({ shariahCompliant: 1 });
-stockFundamentalSchema.index({ sector: 1 });
+// Indexes for efficient querying (on nested metrics fields)
+stockFundamentalSchema.index({ 'metrics.sector': 1 });
+stockFundamentalSchema.index({ 'metrics.shariahCompliant': 1 });
 stockFundamentalSchema.index({ lastUpdated: -1 });
 stockFundamentalSchema.index({ dataQuality: 1 });
 
 // Methods
-stockFundamentalSchema.methods.isFresh = function (maxAgeHours = 168) { // 7 days (weekly)
+stockFundamentalSchema.methods.isFresh = function (maxAgeHours = 2160) { // 90 days default
     if (!this.lastUpdated) return false;
-    const now = new Date();
-    const ageHours = (now - new Date(this.lastUpdated)) / (1000 * 60 * 60);
+    const ageHours = (Date.now() - new Date(this.lastUpdated)) / 3600000; // Optimize calculation
     return ageHours < maxAgeHours;
 };
 
-stockFundamentalSchema.methods.calculateDividendYield = function (currentPrice) {
-    if (this.dividendTTM && currentPrice > 0) {
-        this.dividendYield = (this.dividendTTM / currentPrice) * 100;
+stockFundamentalSchema.methods.getMetric = function (key, defaultValue = null) {
+    return this.metrics?.[key] ?? defaultValue;
+};
+
+stockFundamentalSchema.methods.setMetric = function (key, value) {
+    if (!this.metrics) {
+        this.metrics = {};
     }
-    return this.dividendYield;
+    this.metrics[key] = value;
+    this.markModified('metrics'); // Tell Mongoose the Mixed field changed
+};
+
+stockFundamentalSchema.methods.calculateDividendYield = function (currentPrice) {
+    const dividendTTM = this.getMetric('dividendTTM');
+    if (dividendTTM && currentPrice > 0) {
+        const dividendYield = (dividendTTM / currentPrice) * 100;
+        this.setMetric('dividendYield', dividendYield);
+        return dividendYield;
+    }
+    return this.getMetric('dividendYield');
 };
 
 // Static methods
 stockFundamentalSchema.statics.findByShariahCompliant = function () {
-    return this.find({ shariahCompliant: true });
+    return this.find({ 'metrics.shariahCompliant': true });
 };
 
 stockFundamentalSchema.statics.findBySector = function (sector) {
-    return this.find({ sector: new RegExp(sector, 'i') });
+    return this.find({ 'metrics.sector': new RegExp(sector, 'i') });
 };
 
 stockFundamentalSchema.statics.findStale = function (maxAgeHours = 24) {

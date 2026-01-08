@@ -108,7 +108,7 @@ class TradingViewApiSource {
                 }
             );
 
-            if (!response.data || !response.data.success || !response.data.data?.[0]) {
+            if (!response || !response.data || !response.data.success || !response.data.data?.[0]) {
                 return null;
             }
 
@@ -138,43 +138,44 @@ class TradingViewApiSource {
                 return num !== null ? num * 100 : null;
             };
 
-            const transformed = {
-                symbol: symbol.toUpperCase(),
-                source: this.name,
-                priority: this.priority,
-
-                // Price Data
-                currentPrice: getNumber(data.close),
-                marketCap: getNumber(data.market_cap_basic),
-
-                // Dividend Metrics (40% weight)
-                dividendYield: getNumber(data.dividend_yield_recent), // Already in percentage
+            // Build flexible metrics object - add ANY field from TradingView
+            const metrics = {
+                // Core metrics for allocation engine
+                dividendYield: getNumber(data.dividend_yield_recent),
                 payoutRatio: getNumber(data.dividend_payout_ratio_ttm),
                 dividendTTM: getNumber(data.dps_common_stock_prim_issue_ttm),
                 dividendGrowth3Y: getNumber(data.dps_common_stock_prim_issue_yoy_growth_fy),
                 dividendConsistencyYears: getNumber(data.continuous_dividend_growth),
-
-                // Growth Metrics (20% weight)
                 epsGrowthYoY: getNumber(data.earnings_per_share_diluted_yoy_growth_ttm),
                 revenueGrowth3Y: getNumber(data.total_revenue_yoy_growth_ttm) || getNumber(data.total_revenue_cagr_5y),
-
-                // Safety Metrics (25% weight)
                 debtToEquity: getNumber(data.debt_to_equity),
                 currentRatio: getNumber(data.current_ratio),
+                roe: getNumber(data.return_on_equity),
 
-                // Quality Metrics (15% weight)
-                roe: getNumber(data.return_on_equity), // Already in percentage
-
-                // Additional Data
+                // Additional financial data
+                currentPrice: getNumber(data.close),
+                marketCap: getNumber(data.market_cap_basic),
                 eps: getNumber(data.earnings_per_share_diluted_ttm) || getNumber(data.earnings_per_share_basic_ttm),
                 pe: getNumber(data.price_earnings_ttm) || getNumber(data.price_book_ratio),
                 revenue: getNumber(data.total_revenue),
                 netIncome: getNumber(data.net_income),
+
+                // Company info
                 sector: data.sector || null,
                 industry: data.industry || null,
-                shariahCompliant: data.is_shariah_compliant === true || data.is_shariah_compliant === 1,
+                shariahCompliant: data.is_shariah_compliant === true || data.is_shariah_compliant === 1
+            };
 
-                // Metadata
+            // Remove null/undefined values
+            const cleanedMetrics = Object.fromEntries(
+                Object.entries(metrics).filter(([_, v]) => v !== null && v !== undefined)
+            );
+
+            const transformed = {
+                symbol: symbol.toUpperCase(),
+                source: this.name,
+                priority: this.priority,
+                metrics: cleanedMetrics,
                 lastUpdated: new Date(),
                 dataQuality: this._assessDataQuality(data)
             };

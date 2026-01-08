@@ -43,51 +43,69 @@ class FundamentalsAggregator {
         }
 
         // Aggregate from sources
-        const aggregated = {};
+        const aggregatedMetrics = {};
         const sourcesUsed = [];
 
         for (const source of this.sources) {
             if (source.isEnabled()) {
                 try {
                     const sourceData = await source.getFundamentals(symbol);
-                    const filtered = this._filterNonNull(sourceData);
 
-                    if (Object.keys(filtered).length > 0) {
-                        sourcesUsed.push({
-                            source: source.getName(),
-                            lastFetched: new Date(),
-                            fieldsProvided: Object.keys(filtered)
-                        });
+                    // Check if sourceData exists and has metrics
+                    if (!sourceData) continue;
 
-                        // Merge data (earlier sources override later ones)
-                        Object.assign(aggregated, filtered);
-                    }
+                    const metrics = sourceData.metrics || {};
+                    if (Object.keys(metrics).length === 0) continue;
+
+                    sourcesUsed.push({
+                        source: source.getName(),
+                        lastFetched: new Date(),
+                        fieldsProvided: Object.keys(metrics)
+                    });
+
+                    // Merge metrics (earlier sources override later ones)
+                    Object.assign(aggregatedMetrics, metrics);
                 } catch (error) {
-                    // Silent fail, try next source
+                    // Continue to next source on error
                 }
             }
         }
 
         // Calculate dividend yield if we have TTM and current price
-        if (aggregated.dividendTTM && !aggregated.dividendYield) {
+        if (aggregatedMetrics.dividendTTM && !aggregatedMetrics.dividendYield) {
             const stock = await Stock.findOne({ symbol });
             if (stock && stock.currentPrice > 0) {
-                aggregated.dividendYield = (aggregated.dividendTTM / stock.currentPrice) * 100;
+                aggregatedMetrics.dividendYield = (aggregatedMetrics.dividendTTM / stock.currentPrice) * 100;
             }
         }
 
-        // Determine data quality
-        aggregated.dataQuality = this._assessDataQuality(aggregated);
+        // Determine data quality based on metrics completeness
+        const dataQuality = this._assessDataQuality(aggregatedMetrics);
+
+        // Map source names to valid enum values
+        const mapSourceToEnum = (sourceName) => {
+            if (!sourceName) return 'COMPOSITE';
+            if (sourceName.includes('TradingView')) return 'TRADINGVIEW';
+            if (sourceName.includes('PSX')) return 'PSX';
+            if (sourceName.includes('Stock Analysis')) return 'STOCK_ANALYSIS';
+            if (sourceName.includes('Manual')) return 'MANUAL';
+            return 'API';
+        };
+
+        const dataSourceValue = sourcesUsed.length > 1
+            ? 'COMPOSITE'
+            : mapSourceToEnum(sourcesUsed[0]?.source);
 
         // Save to cache
         const fundamental = await StockFundamental.findOneAndUpdate(
             { symbol },
             {
-                ...aggregated,
                 symbol,
+                metrics: aggregatedMetrics,
                 lastUpdated: new Date(),
                 sourcesUsed,
-                dataSource: sourcesUsed.length > 1 ? 'COMPOSITE' : (sourcesUsed[0]?.source || 'UNKNOWN')
+                dataSource: dataSourceValue,
+                dataQuality
             },
             { upsert: true, new: true, runValidators: true }
         );
@@ -106,11 +124,21 @@ class FundamentalsAggregator {
         for (const symbol of symbols) {
             try {
                 const fundamental = await this.getFundamentals(symbol, true);
+
+                if (!fundamental || !fundamental.metrics) {
+                    results.push({
+                        symbol,
+                        status: 'error',
+                        error: 'No fundamental data returned'
+                    });
+                    continue;
+                }
+
                 results.push({
                     symbol,
                     status: 'success',
                     dataQuality: fundamental.dataQuality,
-                    fieldsCount: Object.keys(fundamental.toObject()).length
+                    fieldsCount: Object.keys(fundamental.metrics || {}).length
                 });
             } catch (error) {
                 results.push({

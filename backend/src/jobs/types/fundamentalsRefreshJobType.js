@@ -15,11 +15,12 @@ export default {
             name: 'batchSize',
             label: 'Batch Size',
             type: 'number',
-            default: 10,
-            min: 1,
-            max: 50,
-            description: 'Number of symbols to process at once',
-            helpText: 'Smaller batches = slower but more reliable'
+            default: 50,
+            min: 10,
+            max: 100,
+            required: true,
+            description: 'Number of symbols to process per batch',
+            helpText: 'Lower values are safer but slower'
         },
         {
             name: 'delayBetweenBatches',
@@ -32,29 +33,14 @@ export default {
             helpText: 'Recommended: 5000ms (5 seconds)'
         },
         {
-            name: 'refreshStaleOnly',
-            label: 'Refresh Stale Data Only',
-            type: 'boolean',
-            default: true,
-            description: 'Only refresh data older than maxAgeHours',
-            helpText: 'Saves time and resources'
-        },
-        {
-            name: 'maxAgeHours',
-            label: 'Max Age (Hours)',
+            name: 'maxSymbols',
+            label: 'Max Symbols Per Run',
             type: 'number',
-            default: 168, // 7 days (weekly)
-            min: 24,
-            max: 8760,
-            description: 'Consider data stale after this many hours',
-            helpText: '168h (7 days) = weekly refresh'
-        },
-        {
-            name: 'notifyOnComplete',
-            label: 'Notify on Completion',
-            type: 'boolean',
-            default: false,
-            description: 'Send notification when job completes'
+            default: 0,
+            min: 0,
+            max: 1000,
+            description: 'Maximum symbols to process (0 = all)',
+            helpText: 'Use for testing with limited symbols'
         }
     ],
 

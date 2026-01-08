@@ -16,6 +16,7 @@ import StockFundamental from '../models/StockFundamental.js';
 import PortfolioPolicy from '../models/PortfolioPolicy.js';
 import SIPPlan from '../models/SIPPlan.js';
 import Recommendation from '../models/Recommendation.js';
+import Transaction from '../models/Transaction.js';
 
 const router = express.Router();
 
@@ -787,6 +788,29 @@ router.put('/:id/policy', async (req, res) => {
 });
 
 /**
+ * DELETE /api/portfolios/:id/policy
+ * Delete allocation policy
+ */
+router.delete('/:id/policy', async (req, res) => {
+    try {
+        await PortfolioPolicy.findOneAndDelete({ portfolioId: req.params.id });
+
+        // Also delete associated recommendations
+        await Recommendation.deleteMany({ portfolioId: req.params.id });
+
+        res.json({
+            success: true,
+            message: 'Policy and recommendations deleted'
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+});
+
+/**
  * GET /api/portfolios/:id/sip-plan
  * Get SIP plan
  */
@@ -821,6 +845,26 @@ router.put('/:id/sip-plan', async (req, res) => {
         res.json({
             success: true,
             data: plan
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+});
+
+/**
+ * DELETE /api/portfolios/:id/sip-plan
+ * Delete SIP plan
+ */
+router.delete('/:id/sip-plan', async (req, res) => {
+    try {
+        await SIPPlan.findOneAndDelete({ portfolioId: req.params.id });
+
+        res.json({
+            success: true,
+            message: 'SIP plan deleted'
         });
     } catch (error) {
         res.status(500).json({
@@ -914,7 +958,7 @@ router.get('/:id/recommendations/:month', async (req, res) => {
  * PATCH /api/portfolios/:id/recommendations/:month/approve
  * Approve recommendation
  */
-router.patch('/:id/recommendations/:month/approve', async (req, res) => {
+router.patch('/:id/recommendations/:month/approve', authenticate, async (req, res) => {
     try {
         const userId = req.user._id;
         const recommendation = await Recommendation.findOneAndUpdate(
@@ -926,6 +970,13 @@ router.patch('/:id/recommendations/:month/approve', async (req, res) => {
             },
             { new: true }
         );
+
+        if (!recommendation) {
+            return res.status(404).json({
+                success: false,
+                message: 'Recommendation not found'
+            });
+        }
 
         res.json({
             success: true,
@@ -941,24 +992,63 @@ router.patch('/:id/recommendations/:month/approve', async (req, res) => {
 
 /**
  * PATCH /api/portfolios/:id/recommendations/:month/execute
- * Mark recommendation as executed
+ * Mark recommendation as executed and create transactions
  */
-router.patch('/:id/recommendations/:month/execute', async (req, res) => {
+router.patch('/:id/recommendations/:month/execute', authenticate, async (req, res) => {
     try {
-        const recommendation = await Recommendation.findOneAndUpdate(
-            { portfolioId: req.params.id, forMonth: req.params.month },
-            {
-                status: 'EXECUTED',
-                executedAt: new Date()
-            },
-            { new: true }
-        );
+        const recommendation = await Recommendation.findOne({
+            portfolioId: req.params.id,
+            forMonth: req.params.month
+        });
+
+        if (!recommendation) {
+            return res.status(404).json({
+                success: false,
+                message: 'Recommendation not found'
+            });
+        }
+
+        // Create BUY transactions for each allocation
+        const transactions = [];
+        const executionDate = new Date();
+
+        for (const alloc of recommendation.allocations) {
+
+            const transaction = await Transaction.create({
+                portfolioId: req.params.id,
+                symbol: alloc.symbol,
+                type: 'BUY',
+                quantity: alloc.estShares,
+                price: alloc.estPrice,
+                fees: 0, // User can edit later if needed
+                executedAt: executionDate,
+                notes: `SIP ${recommendation.forMonth} - Auto-created from recommendation`
+            });
+
+            transactions.push(transaction);
+        }
+
+        // Trigger portfolio recalculation to update holdings
+        try {
+            await portfolioService.getDashboard(req.params.id, req.user._id);
+        } catch (recalcError) {
+            // Non-fatal, holdings will update on next dashboard load
+        }
+
+        // Update recommendation status
+        recommendation.status = 'EXECUTED';
+        recommendation.executedAt = executionDate;
+        await recommendation.save();
 
         res.json({
             success: true,
-            data: recommendation
+            data: recommendation,
+            transactions: transactions,
+            message: `Created ${transactions.length} BUY transactions`
         });
     } catch (error) {
+        console.error('❌ Error executing recommendation:', error);
+        console.error('Stack:', error.stack);
         res.status(500).json({
             success: false,
             message: error.message

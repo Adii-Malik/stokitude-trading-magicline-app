@@ -15,113 +15,135 @@ class AllocationEngineService {
      * Generate monthly SIP allocation recommendation
      */
     async generateRecommendation(portfolioId, forMonth, options = {}) {
-        const policy = await PortfolioPolicy.findOne({ portfolioId, isActive: true });
-        if (!policy) {
-            throw new Error('No active policy found for portfolio');
-        }
+        try {
+            const policy = await PortfolioPolicy.findOne({ portfolioId, isActive: true });
+            if (!policy) {
+                throw new Error('No active policy found for portfolio');
+            }
 
-        const sipPlan = await SIPPlan.findOne({ portfolioId, isActive: true });
-        if (!sipPlan) {
-            throw new Error('No active SIP plan found for portfolio');
-        }
+            const sipPlan = await SIPPlan.findOne({ portfolioId, isActive: true });
+            if (!sipPlan) {
+                throw new Error('No active SIP plan found for portfolio');
+            }
 
-        // Calculate available budget
-        const monthlyAmount = sipPlan.monthlyAmount;
-        const lumpSum = sipPlan.lumpSums
-            .filter(ls => ls.date.toISOString().slice(0, 7) === forMonth)
-            .reduce((sum, ls) => sum + ls.amount, 0);
+            // Calculate available budget
+            const monthlyAmount = sipPlan.monthlyAmount;
+            const lumpSum = (sipPlan.lumpSums || [])
+                .filter(ls => {
+                    if (!ls.date) return false;
+                    const lsDate = ls.date instanceof Date ? ls.date : new Date(ls.date);
+                    return lsDate.toISOString().slice(0, 7) === forMonth;
+                })
+                .reduce((sum, ls) => sum + ls.amount, 0);
 
-        const totalBudget = monthlyAmount + lumpSum;
+            const totalBudget = monthlyAmount + lumpSum;
 
-        if (totalBudget <= 0) {
-            throw new Error('No budget available for this month');
-        }
+            if (totalBudget <= 0) {
+                throw new Error('No budget available for this month');
+            }
 
-        // Get eligible stocks
-        const universe = await this._getUniverse(policy, portfolioId);
+            // Get eligible stocks
+            const universe = await this._getUniverse(policy, portfolioId, options.userId);
 
-        // Score stocks
-        const scored = await this._scoreStocks(universe, policy);
+            // Score stocks
+            const scored = await this._scoreStocks(universe, policy);
 
-        // Get current holdings
-        const holdings = await portfolioService.getHoldings(portfolioId);
-        const dashboard = await portfolioService.getDashboard(portfolioId);
-        const totalValue = dashboard.totalValue;
+            // Get current holdings
+            const holdings = await portfolioService.getHoldings(portfolioId, options.userId);
+            const dashboard = await portfolioService.getDashboard(portfolioId, options.userId);
 
-        // Calculate target weights
-        const targets = this._calculateTargetWeights(scored, policy);
+            // Calculate total value from holdings if dashboard is broken
+            let totalValue = dashboard.totalValue || 0;
+            if (totalValue === 0 && holdings.length > 0) {
+                totalValue = holdings.reduce((sum, h) => sum + (h.totalValue || 0), 0);
+            }
 
-        // Allocate budget
-        const allocations = this._allocateBudget({
-            targets,
-            holdings,
-            totalValue,
-            budget: totalBudget,
-            policy,
-            sipPlan
-        });
+            // Calculate target weights
+            const targets = this._calculateTargetWeights(scored, policy);
 
-        // Create or update recommendation
-        const recommendation = await Recommendation.findOneAndUpdate(
-            { portfolioId, forMonth },
-            {
-                portfolioId,
-                forMonth,
+            // Allocate budget
+            const allocations = await this._allocateBudget({
+                targets,
+                holdings,
+                totalValue,
                 budget: totalBudget,
-                allocations,
-                status: options.autoApprove ? 'APPROVED' : 'DRAFT',
-                approvedBy: options.autoApprove ? options.userId : undefined,
-                approvedAt: options.autoApprove ? new Date() : undefined
-            },
-            { upsert: true, new: true }
-        );
+                policy,
+                sipPlan
+            });
 
-        return recommendation;
+            // Create or update recommendation
+            const recommendation = await Recommendation.findOneAndUpdate(
+                { portfolioId, forMonth },
+                {
+                    portfolioId,
+                    forMonth,
+                    budget: totalBudget,
+                    allocations,
+                    status: options.autoApprove ? 'APPROVED' : 'DRAFT',
+                    approvedBy: options.autoApprove ? options.userId : undefined,
+                    approvedAt: options.autoApprove ? new Date() : undefined
+                },
+                { upsert: true, new: true }
+            );
+
+            return recommendation;
+        } catch (error) {
+            console.error('Error in generateRecommendation:', error);
+            console.error('Stack:', error.stack);
+            throw error;
+        }
     }
 
     /**
      * Get eligible stock universe based on policy
      */
-    async _getUniverse(policy, portfolioId) {
-        let query = { isActive: true };
+    async _getUniverse(policy, portfolioId, userId) {
+        try {
+            let query = { currentPrice: { $ne: null } }; // Active stocks with price data
 
-        // Apply filters
-        if (policy.filters.shariahOnly) {
-            query['$and'] = [{ 'shariahCompliant': true }];
+            // Apply filters (if policy has filters object)
+            if (policy.filters) {
+                if (policy.filters.shariahOnly) {
+                    query.shariahCompliant = 'Yes';
+                }
+
+                if (policy.filters.excludeSymbols?.length) {
+                    query.symbol = { $nin: policy.filters.excludeSymbols };
+                }
+
+                if (policy.filters.sectors?.length) {
+                    query.sector = { $in: policy.filters.sectors };
+                }
+            }
+
+            // Get stocks based on universe mode
+            let symbols;
+
+            if (policy.universeMode === 'MANUAL_LIST') {
+                symbols = policy.allowedSymbols || [];
+            } else if (policy.universeMode === 'ALL_ACTIVE_HOLDINGS') {
+                const holdings = await portfolioService.getHoldings(portfolioId, userId);
+                symbols = Array.isArray(holdings) ? holdings.map(h => h?.symbol).filter(Boolean) : [];
+            } else {
+                // ALL or WATCHLIST - query all matching stocks
+                const stocks = await Stock.find(query).select('symbol').lean();
+                symbols = stocks.map(s => s.symbol);
+            }
+
+            if (!symbols || symbols.length === 0) {
+                throw new Error('No eligible stocks in universe');
+            }
+
+            // Get fundamentals for eligible stocks
+            const fundamentals = await StockFundamental.find({
+                symbol: { $in: symbols }
+            }).lean();
+
+            return fundamentals;
+        } catch (error) {
+            console.error('Error in _getUniverse:', error);
+            throw error;
         }
-
-        if (policy.filters.excludeSymbols?.length) {
-            query.symbol = { $nin: policy.filters.excludeSymbols };
-        }
-
-        if (policy.filters.sectors?.length) {
-            query.sector = { $in: policy.filters.sectors };
-        }
-
-        // Get stocks based on universe mode
-        let symbols;
-
-        if (policy.universeMode === 'MANUAL_LIST') {
-            symbols = policy.allowedSymbols;
-        } else if (policy.universeMode === 'ALL_ACTIVE_HOLDINGS') {
-            const holdings = await portfolioService.getHoldings(portfolioId);
-            symbols = holdings.map(h => h.symbol);
-        } else {
-            // ALL or WATCHLIST - query all matching stocks
-            const stocks = await Stock.find(query).select('symbol').lean();
-            symbols = stocks.map(s => s.symbol);
-        }
-
-        if (!symbols || symbols.length === 0) {
-            throw new Error('No eligible stocks in universe');
-        }
-
-        // Get fundamentals for eligible stocks
-        const fundamentals = await StockFundamental.find({
-            symbol: { $in: symbols }
-        }).lean();
-
-        return fundamentals;
     }
 
     /**
@@ -132,48 +154,27 @@ class AllocationEngineService {
         const filters = policy.filters;
 
         const scored = universe.map(fund => {
-            // StockFundamental model stores flat data, so create virtual nested objects
-            const dividendMetrics = {
-                dividendTTM: fund.dividendTTM,
-                dividendYield: fund.dividendYield,
-                payoutRatio: fund.payoutRatio,
-                dividendGrowth3Y: fund.dividendGrowth3Y,
-                dividendConsistencyYears: fund.dividendConsistencyYears
-            };
-
-            const growthMetrics = {
-                epsGrowthYoY: fund.epsGrowthYoY,
-                revenueGrowth3Y: fund.revenueGrowth3Y
-            };
-
-            const financialHealth = {
-                debtToEquity: fund.debtToEquity,
-                currentRatio: fund.currentRatio,
-                roe: fund.roe
-            };
+            const m = fund.metrics || {}; // Access metrics object
 
             // Skip if missing critical dividend data
-            if (!dividendMetrics.dividendYield && !dividendMetrics.dividendTTM) {
-                console.log(`   ⚠ ${fund.symbol}: Missing dividend data, skipping`);
+            if (!m.dividendYield && !m.dividendTTM) {
                 return null;
             }
 
             // Apply hard filters
-            if (filters.minDividendYield && dividendMetrics.dividendYield < filters.minDividendYield) {
-                console.log(`   ⚠ ${fund.symbol}: Yield ${dividendMetrics.dividendYield.toFixed(1)}% below min ${filters.minDividendYield}%, filtered out`);
+            if (filters.minDividendYield && m.dividendYield < filters.minDividendYield) {
                 return null;
             }
 
-            if (filters.maxPayoutRatio && dividendMetrics.payoutRatio > filters.maxPayoutRatio) {
-                console.log(`   ⚠ ${fund.symbol}: Payout ${dividendMetrics.payoutRatio}% above max ${filters.maxPayoutRatio}%, filtered out`);
+            if (filters.maxPayoutRatio && m.payoutRatio > filters.maxPayoutRatio) {
                 return null;
             }
 
             // Calculate component scores (0-100)
-            const dividendYieldScore = this._scoreDividendYield(dividendMetrics);
-            const payoutSafetyScore = this._scorePayoutSafety(dividendMetrics);
-            const growthScore = this._scoreGrowth(growthMetrics);
-            const qualityScore = this._scoreQuality(financialHealth);
+            const dividendYieldScore = this._scoreDividendYield(m);
+            const payoutSafetyScore = this._scorePayoutSafety(m);
+            const growthScore = this._scoreGrowth(m);
+            const qualityScore = this._scoreQuality(m);
 
             // Weighted composite score
             const compositeScore =
@@ -199,8 +200,6 @@ class AllocationEngineService {
 
         // Sort by score descending
         scored.sort((a, b) => b.score - a.score);
-
-        console.log(`\n📊 Scored ${scored.length} stocks (filtered ${universe.length - scored.length})`);
 
         return scored;
     }
@@ -325,16 +324,20 @@ class AllocationEngineService {
     /**
      * Allocate budget to stocks based on target weights
      */
-    _allocateBudget({ targets, holdings, totalValue, budget, policy, sipPlan }) {
+    async _allocateBudget({ targets, holdings, totalValue, budget, policy, sipPlan }) {
         const futureValue = totalValue + budget;
 
         // Calculate current weights
         const holdingsMap = new Map(
-            holdings.map(h => [h.symbol, {
-                value: h.totalValue,
-                weight: (h.totalValue / totalValue) * 100,
-                shares: h.quantity
-            }])
+            holdings.map(h => {
+                const weight = totalValue > 0 ? (h.totalValue / totalValue) * 100 : 0;
+                return [h.symbol, {
+                    value: h.totalValue,
+                    weight: weight,
+                    shares: h.quantity,
+                    currentPrice: h.currentPrice
+                }];
+            })
         );
 
         // Calculate gaps
@@ -362,19 +365,34 @@ class AllocationEngineService {
         let remainingBudget = budget;
         const finalAllocations = [];
 
+        // For SIP, use lower minimum when budget is limited
+        // Allow allocations as low as 10% of budget or min trade amount, whichever is lower
+        const budgetBasedMin = budget * 0.10; // 10% of total budget
+        const sipFlexibleMin = Math.min(
+            policy.rebalance.minTradeAmount,
+            budgetBasedMin
+        );
+
         for (const alloc of allocations) {
             if (remainingBudget <= 0) break;
             if (alloc.gap <= 0) continue; // Skip overweight
 
             const allocation = Math.min(alloc.gap, remainingBudget);
 
-            if (allocation < policy.rebalance.minTradeAmount) {
-                continue; // Skip tiny allocations
+            if (allocation < sipFlexibleMin) continue; // Skip tiny allocations
+
+            // Get current price - check holdings first, then fetch from Stock model
+            let estPrice;
+            const holding = holdingsMap.get(alloc.symbol);
+            if (holding && holding.currentPrice) {
+                estPrice = holding.currentPrice;
+            } else {
+                // Fetch from Stock model for new stocks
+                const stock = await Stock.findOne({ symbol: alloc.symbol }).select('currentPrice');
+                estPrice = stock?.currentPrice;
             }
 
-            // Get current price
-            const stock = holdings.find(h => h.symbol === alloc.symbol);
-            const estPrice = stock?.currentPrice || alloc.currentValue / (holdingsMap.get(alloc.symbol)?.shares || 1);
+            if (!estPrice) continue; // Skip if no price data
 
             let estShares = allocation / estPrice;
 

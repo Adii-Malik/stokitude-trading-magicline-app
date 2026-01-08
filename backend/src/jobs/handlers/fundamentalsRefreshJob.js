@@ -6,14 +6,14 @@ import FundamentalsAggregator from '../../services/portfolio/fundamentalsSources
 import Stock from '../../models/Stock.js';
 import StockFundamental from '../../models/StockFundamental.js';
 
-export default async function fundamentalsRefreshJob(job, done) {
-    const config = job.attrs.data.config || {};
+export default async function fundamentalsRefreshJob(context) {
+    const { config, logger } = context;
+
+    // Extract config parameters
     const {
-        batchSize = 10,
+        batchSize = 50,
         delayBetweenBatches = 5000,
-        refreshStaleOnly = true,
-        maxAgeHours = 168, // 7 days (weekly)
-        notifyOnComplete = false
+        maxSymbols = 0
     } = config;
 
     const startTime = Date.now();
@@ -24,34 +24,30 @@ export default async function fundamentalsRefreshJob(job, done) {
         console.log('📊 ════════════════════════════════════════════════');
         console.log(`   Batch Size: ${batchSize}`);
         console.log(`   Delay: ${delayBetweenBatches}ms`);
-        console.log(`   Refresh Mode: ${refreshStaleOnly ? 'Stale only' : 'All'}`);
-        console.log(`   Max Age: ${maxAgeHours} hours`);
+        console.log(`   Max Symbols: ${maxSymbols || 'All'}`);
 
-        // Get symbols to refresh
-        let symbolsToRefresh = [];
+        logger.info('Starting fundamentals refresh', { batchSize, delayBetweenBatches, maxSymbols });
+        // Get all active symbols
+        const activeSymbols = await Stock.find({
+            currentPrice: { $ne: null }
+        }).distinct('symbol');
 
-        if (refreshStaleOnly) {
-            symbolsToRefresh = await FundamentalsAggregator.getStaleSymbols(maxAgeHours);
-            console.log(`\n   Found ${symbolsToRefresh.length} stale/missing symbols (>${maxAgeHours}h)`);
-        } else {
-            // Get all active symbols
-            const activeSymbols = await Stock.find({
-                currentPrice: { $ne: null }
-            }).distinct('symbol');
-            symbolsToRefresh = activeSymbols;
-            console.log(`\n   Refreshing all ${symbolsToRefresh.length} active symbols`);
-        }
+        // Limit symbols if maxSymbols is set (useful for testing)
+        const symbolsToRefresh = maxSymbols > 0
+            ? activeSymbols.slice(0, maxSymbols)
+            : activeSymbols;
+
+        console.log(`\n   Processing ${symbolsToRefresh.length} symbols${maxSymbols > 0 ? ` (limited from ${activeSymbols.length})` : ''}`);
 
         if (symbolsToRefresh.length === 0) {
-            console.log('\n✓ All fundamentals are up to date - nothing to refresh');
+            console.log('\n⚠️ No active symbols found to refresh');
 
-            done(null, {
+            return {
                 success: true,
-                message: 'All fundamentals up to date',
+                message: 'No active symbols to refresh',
                 symbolsProcessed: 0,
                 duration: Date.now() - startTime
-            });
-            return;
+            };
         }
 
         // Process in batches
@@ -110,28 +106,25 @@ export default async function fundamentalsRefreshJob(job, done) {
         console.log(`   ⏱️ Duration: ${durationSec}s`);
         console.log(`   📈 Rate: ${Math.round(symbolsToRefresh.length / durationSec)} symbols/sec`);
 
-        // Send notification if enabled
-        if (notifyOnComplete) {
-            try {
-                const notificationService = (await import('../../services/notificationService.js')).default;
-                await notificationService.sendSystemNotification(
-                    'Fundamentals Refresh Complete',
-                    `Refreshed ${results.success} symbols in ${durationSec}s. ${results.errors} errors.`,
-                    'info'
-                );
-            } catch (error) {
-                console.error('   ⚠️ Failed to send notification:', error.message);
-            }
-        }
-
-        done(null, {
-            success: true,
+        logger.info('Fundamentals refresh completed', {
             symbolsProcessed: symbolsToRefresh.length,
             successCount: results.success,
             errorCount: results.errors,
-            duration,
-            details: results.details.slice(0, 100) // Limit details to prevent huge payloads
+            duration
         });
+
+        return {
+            success: true,
+            message: `Refreshed ${results.success} of ${symbolsToRefresh.length} symbols in ${durationSec}s`,
+            metadata: {
+                symbolsProcessed: symbolsToRefresh.length,
+                successCount: results.success,
+                errorCount: results.errors,
+                duration,
+                rate: Math.round(symbolsToRefresh.length / durationSec),
+                details: results.details.slice(0, 100)
+            }
+        };
 
     } catch (error) {
         console.error('\n❌ ════════════════════════════════════════════════');
@@ -140,6 +133,15 @@ export default async function fundamentalsRefreshJob(job, done) {
         console.error('   Error:', error.message);
         console.error('   Stack:', error.stack);
 
-        done(error);
+        logger.error('Fundamentals refresh failed', { error: error.message });
+
+        return {
+            success: false,
+            message: `Failed: ${error.message}`,
+            metadata: {
+                error: error.message,
+                stack: error.stack
+            }
+        };
     }
 }
