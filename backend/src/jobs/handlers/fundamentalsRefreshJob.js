@@ -27,6 +27,7 @@ export default async function fundamentalsRefreshJob(context) {
         console.log(`   Max Symbols: ${maxSymbols || 'All'}`);
 
         logger.info('Starting fundamentals refresh', { batchSize, delayBetweenBatches, maxSymbols });
+        
         // Get all active symbols
         const activeSymbols = await Stock.find({
             currentPrice: { $ne: null }

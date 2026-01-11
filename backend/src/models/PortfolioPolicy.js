@@ -39,6 +39,7 @@ const portfolioPolicySchema = new mongoose.Schema({
             default: false
         },
         minDividendYield: Number,
+        minPayoutRatio: Number,
         maxPayoutRatio: Number,
         minMarketCap: Number,
         sectors: [String],

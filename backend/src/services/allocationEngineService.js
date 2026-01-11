@@ -8,6 +8,7 @@ import Recommendation from '../models/Recommendation.js';
 import Stock from '../models/Stock.js';
 import StockFundamental from '../models/StockFundamental.js';
 import portfolioService from './portfolioService.js';
+import scoringEngine from '../utils/scoringEngine.js';
 
 class AllocationEngineService {
 
@@ -99,45 +100,48 @@ class AllocationEngineService {
      */
     async _getUniverse(policy, portfolioId, userId) {
         try {
-            let query = { currentPrice: { $ne: null } }; // Active stocks with price data
+            // Build query for StockFundamental - get ALL stocks with fundamental data
+            let fundQuery = {};
 
-            // Apply filters (if policy has filters object)
-            if (policy.filters) {
-                if (policy.filters.shariahOnly) {
-                    query.shariahCompliant = 'Yes';
-                }
-
-                if (policy.filters.excludeSymbols?.length) {
-                    query.symbol = { $nin: policy.filters.excludeSymbols };
-                }
-
-                if (policy.filters.sectors?.length) {
-                    query.sector = { $in: policy.filters.sectors };
-                }
-            }
-
-            // Get stocks based on universe mode
-            let symbols;
+            // Get symbols based on universe mode first
+            let allowedSymbols;
 
             if (policy.universeMode === 'MANUAL_LIST') {
-                symbols = policy.allowedSymbols || [];
+                allowedSymbols = policy.allowedSymbols || [];
             } else if (policy.universeMode === 'ALL_ACTIVE_HOLDINGS') {
                 const holdings = await portfolioService.getHoldings(portfolioId, userId);
-                symbols = Array.isArray(holdings) ? holdings.map(h => h?.symbol).filter(Boolean) : [];
+                allowedSymbols = Array.isArray(holdings) ? holdings.map(h => h?.symbol).filter(Boolean) : [];
             } else {
-                // ALL or WATCHLIST - query all matching stocks
-                const stocks = await Stock.find(query).select('symbol').lean();
-                symbols = stocks.map(s => s.symbol);
+                // ALL or MARKET mode - get all stocks with fundamentals
+                // Apply sector/shariah filters if needed
+                if (policy.filters) {
+                    if (policy.filters.shariahOnly) {
+                        fundQuery['metrics.shariahCompliant'] = true;
+                    }
+
+                    if (policy.filters.excludeSymbols?.length) {
+                        fundQuery.symbol = { $nin: policy.filters.excludeSymbols };
+                    }
+
+                    if (policy.filters.sectors?.length) {
+                        fundQuery['metrics.sector'] = { $in: policy.filters.sectors };
+                    }
+                }
             }
 
-            if (!symbols || symbols.length === 0) {
+            // If we have a specific list, filter by symbols
+            if (allowedSymbols && allowedSymbols.length > 0) {
+                fundQuery.symbol = { $in: allowedSymbols };
+            }
+
+            if (allowedSymbols && allowedSymbols.length === 0) {
                 throw new Error('No eligible stocks in universe');
             }
 
-            // Get fundamentals for eligible stocks
-            const fundamentals = await StockFundamental.find({
-                symbol: { $in: symbols }
-            }).lean();
+            // Get fundamentals - price is NOT required for scoring, only for allocation
+            const fundamentals = await StockFundamental.find(fundQuery).lean();
+
+            console.log(`\n📊 Universe: Found ${fundamentals.length} stocks with fundamental data`);
 
             return fundamentals;
         } catch (error) {
@@ -147,131 +151,58 @@ class AllocationEngineService {
     }
 
     /**
-     * Score stocks based on policy weights
+     * Score stocks based on policy weights using config-driven scoring engine
      */
     async _scoreStocks(universe, policy) {
         const weights = policy.scoringWeights;
-        const filters = policy.filters;
+        const filters = policy.filters || {};
+
+        // Map strategy name from weights
+        const strategy = this._detectStrategy(weights);
 
         const scored = universe.map(fund => {
-            const m = fund.metrics || {}; // Access metrics object
+            const m = fund.metrics || {};
 
-            // Skip if missing critical dividend data
-            if (!m.dividendYield && !m.dividendTTM) {
+            // Apply Shariah filter
+            if (filters.shariahOnly && !m.shariahCompliant) {
                 return null;
             }
 
-            // Apply hard filters
-            if (filters.minDividendYield && m.dividendYield < filters.minDividendYield) {
-                return null;
+            // Apply hard filters for dividend strategies
+            const isDividendFocused = weights.dividendYield >= 0.3;
+            if (isDividendFocused) {
+                if (!m.dividendYield && !m.dividendTTM) return null;
+                if (filters.minDividendYield && m.dividendYield < filters.minDividendYield) return null;
+                if (filters.minPayoutRatio && m.payoutRatio < filters.minPayoutRatio) return null;
             }
 
-            if (filters.maxPayoutRatio && m.payoutRatio > filters.maxPayoutRatio) {
-                return null;
-            }
-
-            // Calculate component scores (0-100)
-            const dividendYieldScore = this._scoreDividendYield(m);
-            const payoutSafetyScore = this._scorePayoutSafety(m);
-            const growthScore = this._scoreGrowth(m);
-            const qualityScore = this._scoreQuality(m);
-
-            // Weighted composite score
-            const compositeScore =
-                (dividendYieldScore * weights.dividendYield) +
-                (payoutSafetyScore * weights.payoutSafety) +
-                (growthScore * weights.growth) +
-                (qualityScore * weights.quality);
-
-            console.log(`   ✓ ${fund.symbol}: Score ${compositeScore.toFixed(1)} (Div:${dividendYieldScore.toFixed(0)} Safe:${payoutSafetyScore.toFixed(0)} Grow:${growthScore.toFixed(0)} Qual:${qualityScore.toFixed(0)})`);
+            // Use scoring engine to calculate scores
+            const result = scoringEngine.calculateOverallScore(strategy, m);
 
             return {
                 symbol: fund.symbol,
-                score: compositeScore,
-                components: {
-                    dividendYield: dividendYieldScore,
-                    payoutSafety: payoutSafetyScore,
-                    growth: growthScore,
-                    quality: qualityScore
-                },
+                score: result.total,
+                components: result.breakdown,
                 fundamentals: fund
             };
-        }).filter(Boolean); // Remove nulls
+        }).filter(Boolean);
 
-        // Sort by score descending
         scored.sort((a, b) => b.score - a.score);
-
         return scored;
     }
 
     /**
-     * Score dividend yield (0-100)
+     * Detect strategy from weights (map to config strategies)
      */
-    _scoreDividendYield(metrics) {
-        const yield_ = metrics.dividendYield || 0;
-
-        // Normalize: 0% = 0, 10%+ = 100
-        return Math.min(100, (yield_ / 10) * 100);
-    }
-
-    /**
-     * Score payout safety (0-100)
-     */
-    _scorePayoutSafety(metrics) {
-        const ratio = metrics.payoutRatio || 100;
-        const consistency = metrics.dividendConsistencyYears || 0;
-
-        // Ideal payout: 40-60% = 100, >90% = 0
-        let ratioScore;
-        if (ratio >= 40 && ratio <= 60) {
-            ratioScore = 100;
-        } else if (ratio < 40) {
-            ratioScore = 70 + (ratio / 40) * 30;
-        } else if (ratio > 90) {
-            ratioScore = 0;
+    _detectStrategy(weights) {
+        // Check if weights match predefined strategies
+        if (weights.dividendYield >= 0.25 && weights.payoutSafety >= 0.35) {
+            return 'DIVIDEND_GROWTH';
+        } else if (weights.growth >= 0.40) {
+            return 'GROWTH';
         } else {
-            ratioScore = 100 - ((ratio - 60) / 30) * 100;
+            return 'BALANCED';
         }
-
-        // Consistency: 5+ years = 100
-        const consistencyScore = Math.min(100, (consistency / 5) * 100);
-
-        // Weighted average
-        return (ratioScore * 0.7) + (consistencyScore * 0.3);
-    }
-
-    /**
-     * Score growth (0-100)
-     */
-    _scoreGrowth(metrics) {
-        if (!metrics) return 50; // Neutral if no data
-
-        const epsGrowth = metrics.epsGrowth3Y || 0;
-        const revenueGrowth = metrics.revenueGrowth3Y || 0;
-
-        // Normalize: 15%+ growth = 100, 0% = 50, negative = lower
-        const epsScore = 50 + Math.min(50, (epsGrowth / 15) * 50);
-        const revScore = 50 + Math.min(50, (revenueGrowth / 15) * 50);
-
-        return (epsScore * 0.6) + (revScore * 0.4);
-    }
-
-    /**
-     * Score quality (0-100)
-     */
-    _scoreQuality(health) {
-        if (!health) return 50;
-
-        const roe = health.roe || 0;
-        const debtToEquity = health.debtToEquity || 0;
-
-        // ROE: 15%+ = 100
-        const roeScore = Math.min(100, (roe / 15) * 100);
-
-        // Debt/Equity: 0 = 100, 1+ = 0
-        const debtScore = Math.max(0, 100 - (debtToEquity * 100));
-
-        return (roeScore * 0.6) + (debtScore * 0.4);
     }
 
     /**
@@ -368,18 +299,30 @@ class AllocationEngineService {
         // For SIP, use lower minimum when budget is limited
         // Allow allocations as low as 10% of budget or min trade amount, whichever is lower
         const budgetBasedMin = budget * 0.10; // 10% of total budget
-        const sipFlexibleMin = Math.min(
-            policy.rebalance.minTradeAmount,
-            budgetBasedMin
-        );
+        const minTradeAmount = policy.rebalance?.minTradeAmount || 5000; // Default 5000 if not set
+        const sipFlexibleMin = Math.min(minTradeAmount, budgetBasedMin);
 
-        for (const alloc of allocations) {
+        // Calculate how many stocks we can realistically afford
+        const maxAffordableStocks = Math.floor(budget / sipFlexibleMin);
+
+        // Limit allocations to top stocks we can actually afford
+        const affordableAllocations = allocations.slice(0, Math.max(1, maxAffordableStocks));        // Recalculate weights for only affordable stocks (normalize to 100%)
+        const totalAffordableWeight = affordableAllocations.reduce((sum, a) => sum + a.targetWeight, 0);
+        affordableAllocations.forEach(alloc => {
+            alloc.targetWeight = (alloc.targetWeight / totalAffordableWeight) * 100;
+            alloc.targetValue = (alloc.targetWeight / 100) * futureValue;
+            alloc.gap = alloc.targetValue - alloc.currentValue;
+        });
+
+        // Re-sort by gap after recalculation
+        affordableAllocations.sort((a, b) => b.gap - a.gap);
+
+        for (const alloc of affordableAllocations) {
             if (remainingBudget <= 0) break;
-            if (alloc.gap <= 0) continue; // Skip overweight
+            if (alloc.gap <= 0) continue;
 
             const allocation = Math.min(alloc.gap, remainingBudget);
-
-            if (allocation < sipFlexibleMin) continue; // Skip tiny allocations
+            if (allocation < sipFlexibleMin) continue;
 
             // Get current price - check holdings first, then fetch from Stock model
             let estPrice;
@@ -392,13 +335,19 @@ class AllocationEngineService {
                 estPrice = stock?.currentPrice;
             }
 
-            if (!estPrice) continue; // Skip if no price data
+            if (!estPrice) {
+                console.warn(`⚠️ ${alloc.symbol}: No price available, skipping`);
+                continue; // Skip if no price data
+            }
+
+            if (!estPrice) {
+                continue; // Skip if no price data
+            }
 
             let estShares = allocation / estPrice;
+            const lotSize = sipPlan.rounding.lotSize || 1;
 
-            // Apply rounding
             if (sipPlan.rounding.type === 'LOT') {
-                const lotSize = sipPlan.rounding.lotSize;
                 estShares = Math.floor(estShares / lotSize) * lotSize;
             } else if (sipPlan.rounding.type === 'SHARES') {
                 estShares = Math.round(estShares);
@@ -423,7 +372,6 @@ class AllocationEngineService {
                         quality: alloc.components.quality
                     }
                 });
-
                 remainingBudget -= actualAmount;
             }
         }

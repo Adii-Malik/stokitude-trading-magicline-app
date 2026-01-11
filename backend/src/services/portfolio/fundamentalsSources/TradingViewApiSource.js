@@ -1,5 +1,6 @@
 import axios from 'axios';
 import config from '../../../config/config.js';
+import fundamentalMapper from '../../../utils/fundamentalMapper.js';
 
 class TradingViewApiSource {
     constructor() {
@@ -121,61 +122,22 @@ class TradingViewApiSource {
 
     /**
      * Transform TradingView API response to StockFundamental model format
+     * Uses decoupled mapper for field transformation
      * @private
      */
     _transformData(symbol, data) {
         try {
-            // Helper to safely get numeric values
-            const getNumber = (value) => {
-                if (value === null || value === undefined || value === '') return null;
-                const num = parseFloat(value);
-                return isNaN(num) ? null : num;
-            };
+            // Use mapper to convert Python core fields to scoring format
+            const mappedMetrics = fundamentalMapper.mapPythonFundamentals(data);
 
-            // Helper to convert decimal to percentage (e.g., 0.05 -> 5.00)
-            const toPercent = (value) => {
-                const num = getNumber(value);
-                return num !== null ? num * 100 : null;
-            };
-
-            // Build flexible metrics object - add ANY field from TradingView
-            const metrics = {
-                // Core metrics for allocation engine
-                dividendYield: getNumber(data.dividend_yield_recent),
-                payoutRatio: getNumber(data.dividend_payout_ratio_ttm),
-                dividendTTM: getNumber(data.dps_common_stock_prim_issue_ttm),
-                dividendGrowth3Y: getNumber(data.dps_common_stock_prim_issue_yoy_growth_fy),
-                dividendConsistencyYears: getNumber(data.continuous_dividend_growth),
-                epsGrowthYoY: getNumber(data.earnings_per_share_diluted_yoy_growth_ttm),
-                revenueGrowth3Y: getNumber(data.total_revenue_yoy_growth_ttm) || getNumber(data.total_revenue_cagr_5y),
-                debtToEquity: getNumber(data.debt_to_equity),
-                currentRatio: getNumber(data.current_ratio),
-                roe: getNumber(data.return_on_equity),
-
-                // Additional financial data
-                currentPrice: getNumber(data.close),
-                marketCap: getNumber(data.market_cap_basic),
-                eps: getNumber(data.earnings_per_share_diluted_ttm) || getNumber(data.earnings_per_share_basic_ttm),
-                pe: getNumber(data.price_earnings_ttm) || getNumber(data.price_book_ratio),
-                revenue: getNumber(data.total_revenue),
-                netIncome: getNumber(data.net_income),
-
-                // Company info
-                sector: data.sector || null,
-                industry: data.industry || null,
-                shariahCompliant: data.is_shariah_compliant === true || data.is_shariah_compliant === 1
-            };
-
-            // Remove null/undefined values
-            const cleanedMetrics = Object.fromEntries(
-                Object.entries(metrics).filter(([_, v]) => v !== null && v !== undefined)
-            );
+            // Enrich with calculated metrics (volatility, stability)
+            const enrichedMetrics = fundamentalMapper.enrichFundamentals(mappedMetrics);
 
             const transformed = {
                 symbol: symbol.toUpperCase(),
                 source: this.name,
                 priority: this.priority,
-                metrics: cleanedMetrics,
+                metrics: enrichedMetrics,
                 lastUpdated: new Date(),
                 dataQuality: this._assessDataQuality(data)
             };

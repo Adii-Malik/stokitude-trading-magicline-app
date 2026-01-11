@@ -11,6 +11,7 @@ export default function AllocationView({ portfolioId, currency }) {
     const [recommendations, setRecommendations] = useState([]);
     const [drift, setDrift] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [generating, setGenerating] = useState(false);
     const [showPolicyEditor, setShowPolicyEditor] = useState(false);
     const [showSIPPlanEditor, setShowSIPPlanEditor] = useState(false);
 
@@ -39,6 +40,7 @@ export default function AllocationView({ portfolioId, currency }) {
     };
 
     const generateRecommendation = async () => {
+        setGenerating(true);
         try {
             const currentMonth = new Date().toISOString().slice(0, 7);
             await api.post(`/portfolios/${portfolioId}/recommendations/generate`, {
@@ -46,9 +48,11 @@ export default function AllocationView({ portfolioId, currency }) {
                 autoApprove: false
             });
             toast.success('Recommendation generated');
-            loadAllocationData();
+            await loadAllocationData();
         } catch (error) {
             toast.error(error.response?.data?.message || 'Failed to generate recommendation');
+        } finally {
+            setGenerating(false);
         }
     };
 
@@ -212,10 +216,20 @@ export default function AllocationView({ portfolioId, currency }) {
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Monthly Recommendations</h3>
                 <button
                     onClick={generateRecommendation}
-                    className="bg-cyan-500 text-white px-4 py-2 rounded-lg hover:bg-cyan-600 flex items-center gap-2"
+                    disabled={generating}
+                    className="bg-cyan-500 text-white px-4 py-2 rounded-lg hover:bg-cyan-600 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    <Calendar className="w-4 h-4" />
-                    Generate for This Month
+                    {generating ? (
+                        <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            Generating...
+                        </>
+                    ) : (
+                        <>
+                            <Calendar className="w-4 h-4" />
+                            Generate for This Month
+                        </>
+                    )}
                 </button>
             </div>
 
