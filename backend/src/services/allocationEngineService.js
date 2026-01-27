@@ -116,7 +116,9 @@ class AllocationEngineService {
                 // Apply sector/shariah filters if needed
                 if (policy.filters) {
                     if (policy.filters.shariahOnly) {
-                        fundQuery['metrics.shariahCompliant'] = true;
+                        // Only include stocks that are explicitly Shariah compliant
+                        // Check both boolean true and string "Yes" for backward compatibility
+                        fundQuery['metrics.shariahCompliant'] = { $in: [true, 'Yes'] };
                     }
 
                     if (policy.filters.excludeSymbols?.length) {
@@ -163,9 +165,12 @@ class AllocationEngineService {
         const scored = universe.map(fund => {
             const m = fund.metrics || {};
 
-            // Apply Shariah filter
-            if (filters.shariahOnly && !m.shariahCompliant) {
-                return null;
+            // Apply Shariah filter - check both boolean and string values
+            if (filters.shariahOnly) {
+                const isShariahCompliant = m.shariahCompliant === true || m.shariahCompliant === 'Yes';
+                if (!isShariahCompliant) {
+                    return null;
+                }
             }
 
             // Apply hard filters for dividend strategies

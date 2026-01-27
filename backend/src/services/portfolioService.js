@@ -336,8 +336,13 @@ class PortfolioService {
         const holdings = [];
         for (const position of positions) {
             const stock = await Stock.findOne({ symbol: position.symbol });
+            const currentPrice = stock?.currentPrice || 0;
 
-            const totalPnL = position.unrealizedPnL + position.realizedPnL + position.dividendsReceived;
+            // Recalculate market value and unrealized P/L with current price
+            const marketValue = position.netShares * currentPrice;
+            const unrealizedPnL = marketValue - position.costBasis;
+
+            const totalPnL = unrealizedPnL + position.realizedPnL + position.dividendsReceived;
             const totalPnLPct = position.costBasis > 0 ? (totalPnL / position.costBasis) * 100 : 0;
 
             holdings.push({
@@ -345,16 +350,16 @@ class PortfolioService {
                 companyName: stock?.companyName || position.symbol,
                 quantity: position.netShares,
                 avgCost: position.avgCost,
-                currentPrice: stock?.currentPrice || 0,
-                totalValue: position.marketValue,
+                currentPrice: currentPrice,
+                totalValue: marketValue,
                 costBasis: position.costBasis,
-                unrealizedPnL: position.unrealizedPnL,
+                unrealizedPnL: unrealizedPnL,
                 realizedPnL: position.realizedPnL,
                 totalPnL,
                 totalPnLPct,
                 dividendsReceived: position.dividendsReceived,
-                totalReturn: position.totalReturn,
-                yieldOnCost: position.yieldOnCost,
+                totalReturn: position.costBasis > 0 ? (totalPnL / position.costBasis) * 100 : 0,
+                yieldOnCost: position.costBasis > 0 ? (position.dividendsReceived / position.costBasis) * 100 : 0,
                 weightPct: 0, // Calculated below
                 firstPurchaseDate: position.firstPurchaseDate
             });
@@ -386,7 +391,7 @@ class PortfolioService {
         let totalDividends = 0;
 
         for (const holding of holdings) {
-            totalValue += holding.marketValue;
+            totalValue += holding.totalValue; // Use totalValue (recalculated market value)
             totalCost += holding.costBasis;
             unrealizedPnL += holding.unrealizedPnL;
             realizedPnL += holding.realizedPnL;
@@ -398,11 +403,11 @@ class PortfolioService {
 
         // Top 5 holdings by market value
         const topHoldings = holdings
-            .sort((a, b) => b.marketValue - a.marketValue)
+            .sort((a, b) => b.totalValue - a.totalValue)
             .slice(0, 5)
             .map(h => ({
                 symbol: h.symbol,
-                marketValue: h.marketValue,
+                marketValue: h.totalValue,
                 weightPct: h.weightPct
             }));
 

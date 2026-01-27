@@ -40,17 +40,46 @@ router.use(authenticate);
 
 /**
  * GET /api/portfolios
- * Get all portfolios accessible by user
+ * Get all portfolios accessible by user (with dashboard summary)
  */
 router.get('/', async (req, res) => {
     try {
         const userId = req.user._id;
         const portfolios = await portfolioService.getAccessiblePortfolios(userId);
 
+        // Enrich each portfolio with dashboard data
+        const enrichedPortfolios = await Promise.all(
+            portfolios.map(async (portfolio) => {
+                try {
+                    const dashboard = await portfolioService.getDashboard(portfolio._id, userId);
+                    return {
+                        ...portfolio.toObject(),
+                        dashboardCache: dashboard
+                    };
+                } catch (error) {
+                    // If dashboard fails, return portfolio without cache
+                    console.error(`Failed to get dashboard for ${portfolio._id}:`, error.message);
+                    return {
+                        ...portfolio.toObject(),
+                        dashboardCache: {
+                            totalValue: 0,
+                            totalCost: 0,
+                            totalPnL: 0,
+                            totalPnLPct: 0,
+                            unrealizedPnL: 0,
+                            realizedPnL: 0,
+                            totalDividends: 0,
+                            holdingsCount: 0
+                        }
+                    };
+                }
+            })
+        );
+
         res.json({
             success: true,
-            count: portfolios.length,
-            data: portfolios
+            count: enrichedPortfolios.length,
+            data: enrichedPortfolios
         });
     } catch (error) {
         console.error('Error fetching portfolios:', error);
@@ -1011,9 +1040,9 @@ router.patch('/:id/recommendations/:month/execute', authenticate, async (req, re
         // Create BUY transactions for each allocation
         const transactions = [];
         const executionDate = new Date();
+        const symbolsToUpdate = new Set();
 
         for (const alloc of recommendation.allocations) {
-
             const transaction = await Transaction.create({
                 portfolioId: req.params.id,
                 symbol: alloc.symbol,
@@ -1022,17 +1051,23 @@ router.patch('/:id/recommendations/:month/execute', authenticate, async (req, re
                 price: alloc.estPrice,
                 fees: 0, // User can edit later if needed
                 executedAt: executionDate,
-                notes: `SIP ${recommendation.forMonth} - Auto-created from recommendation`
+                notes: `SIP ${recommendation.forMonth} - Auto-created from recommendation`,
+                createdBy: req.user._id
             });
 
             transactions.push(transaction);
+            symbolsToUpdate.add(alloc.symbol);
         }
 
-        // Trigger portfolio recalculation to update holdings
-        try {
-            await portfolioService.getDashboard(req.params.id, req.user._id);
-        } catch (recalcError) {
-            // Non-fatal, holdings will update on next dashboard load
+        // Update positions for all affected symbols
+        console.log(`📊 Updating positions for ${symbolsToUpdate.size} symbols...`);
+        for (const symbol of symbolsToUpdate) {
+            try {
+                await portfolioService.updatePosition(req.params.id, symbol);
+                console.log(`  ✓ Updated position for ${symbol}`);
+            } catch (posError) {
+                console.error(`  ❌ Failed to update position for ${symbol}:`, posError.message);
+            }
         }
 
         // Update recommendation status
@@ -1044,7 +1079,7 @@ router.patch('/:id/recommendations/:month/execute', authenticate, async (req, re
             success: true,
             data: recommendation,
             transactions: transactions,
-            message: `Created ${transactions.length} BUY transactions`
+            message: `Created ${transactions.length} BUY transactions and updated positions`
         });
     } catch (error) {
         console.error('❌ Error executing recommendation:', error);
