@@ -7,8 +7,8 @@ const Landing = ({ onSwitchToLogin, onSwitchToSignup }) => {
   const features = [
     {
       icon: <LineChart className="w-8 h-8" />,
-      title: "Strategic Level Analysis",
-      description: "Track critical price levels and make informed decisions with our intelligent strategic level indicators."
+      title: "Portfolio & SIP",
+      description: "Track holdings with live profit and loss, and get monthly SIP allocation recommendations scored on fundamentals."
     },
     {
       icon: <Target className="w-8 h-8" />,
@@ -39,7 +39,7 @@ const Landing = ({ onSwitchToLogin, onSwitchToSignup }) => {
 
   const benefits = [
     "Professional-grade trading tools",
-    "Customizable strategic levels and alerts",
+    "Automated SIP allocation recommendations",
     "Comprehensive trade planning",
     "Portfolio tracking and management",
     "Real-time market insights",
@@ -117,7 +117,7 @@ const Landing = ({ onSwitchToLogin, onSwitchToSignup }) => {
 
           <p className="text-xl text-gray-600 dark:text-gray-300 mb-10 max-w-3xl mx-auto">
             Your all-in-one platform for intelligent trading on the Pakistan Stock Exchange.
-            Track strategic levels, create trade plans, and make data-driven decisions with confidence.
+            Track your portfolio, create trade plans, and make data-driven decisions with confidence.
           </p>
 
           <div className="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-4">

@@ -10,7 +10,7 @@ class NotificationService {
    * @param {Object} params - Notification parameters
    * @param {String|Array} params.userId - User ID(s) to send notification to
    * @param {String} params.category - Notification category (trade_plans, system, admin)
-   * @param {String} params.event - Notification event (strategic_level_met, buy_level_hit, etc.)
+   * @param {String} params.event - Notification event (buy_level_hit, target_hit, etc.)
    * @param {String} params.title - Notification title
    * @param {String} params.message - Notification message
    * @param {Object} params.data - Additional data

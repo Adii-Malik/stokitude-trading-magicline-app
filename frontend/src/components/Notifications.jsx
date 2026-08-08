@@ -186,7 +186,6 @@ export default function Notifications() {
       'admin': { label: '👨‍💼 Admin', color: 'purple' },
 
       // Legacy types (backward compatibility)
-      'strategic_level_met': { label: '🎯 Strategic Level', color: 'cyan' },
       'trade_plan_buy_level': { label: '💰 Trade Plans', color: 'green' },
       'trade_plan_target': { label: '💰 Trade Plans', color: 'green' },
       'trade_plan_stop_loss': { label: '💰 Trade Plans', color: 'green' },
@@ -316,7 +315,6 @@ export default function Notifications() {
                     className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-cyan-500"
                   >
                     <option value="all">All Types</option>
-                    <option value="strategic_level_met">Strategic Level</option>
                     <option value="trade_plan_buy_level">Buy Level</option>
                     <option value="trade_plan_target">Target Hit</option>
                     <option value="trade_plan_stop_loss">Stop Loss</option>
