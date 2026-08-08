@@ -59,12 +59,14 @@ export default async function logCleanupJob(context) {
       logger.info('Cleaning JobExecution entries...', { cutoffDate });
       
       try {
-        const jobs = await Job.find({}).select('_id');
+        // Agenda is the source of truth for jobs (there is no Job model), so
+        // derive the job list from the executions we are about to clean.
+        const jobIds = await JobExecution.distinct('jobId');
         let jobExecutionsDeleted = 0;
 
-        for (const job of jobs) {
+        for (const jobId of jobIds) {
           // Get all executions for this job, sorted by newest first
-          const executions = await JobExecution.find({ jobId: job._id })
+          const executions = await JobExecution.find({ jobId })
             .sort({ createdAt: -1 })
             .select('_id createdAt');
 

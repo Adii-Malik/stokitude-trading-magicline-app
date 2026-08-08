@@ -9,7 +9,7 @@ class NotificationService {
    * Send a notification to a user or multiple users
    * @param {Object} params - Notification parameters
    * @param {String|Array} params.userId - User ID(s) to send notification to
-   * @param {String} params.category - Notification category (magic_line, trade_plans, system, admin)
+   * @param {String} params.category - Notification category (trade_plans, system, admin)
    * @param {String} params.event - Notification event (strategic_level_met, buy_level_hit, etc.)
    * @param {String} params.title - Notification title
    * @param {String} params.message - Notification message
@@ -208,30 +208,6 @@ class NotificationService {
     const users = await User.find({ isActive: true });
     const userIds = users.map(user => user._id);
     return this.send({ ...params, userId: userIds });
-  }
-
-  /**
-   * Strategic Level Met Notification
-   */
-  async notifyStrategicLevelMet(symbol, magicLine, currentPrice, userId = null) {
-    const title = `🎯 Strategic Level Met: ${symbol}`;
-    const message = `${symbol} has reached its strategic level of Rs. ${magicLine.toFixed(2)}. Current price: Rs. ${currentPrice.toFixed(2)}`;
-
-    const params = {
-      category: 'magic_line',
-      event: 'strategic_level_met',
-      title,
-      message,
-      data: { symbol, magicLine, currentPrice },
-      priority: 'high',
-      actionUrl: '/magic-line'
-    };
-
-    if (userId) {
-      return this.send({ ...params, userId });
-    } else {
-      return this.notifyAll(params);
-    }
   }
 
   /**

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, FolderOpen, TrendingUp, TrendingDown, Users, MoreVertical, Edit2, Trash2 } from 'lucide-react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
+import { formatCurrency, formatPercent, getPnLColorClass } from '../../utils/portfolioUtils';
 
 export default function PortfolioList() {
     const navigate = useNavigate();
@@ -190,15 +191,15 @@ function PortfolioCard({ portfolio, onClick, onDelete, onEdit }) {
                     <div>
                         <div className="text-sm text-gray-600 dark:text-gray-400">Total Value</div>
                         <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                            {portfolio.currency === 'USD' ? '$' : 'Rs.'} {totalValue.toLocaleString()}
+                            {formatCurrency(totalValue, portfolio.currency)}
                         </div>
                     </div>
 
                     <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
                         <div>
                             <div className="text-sm text-gray-600 dark:text-gray-400">P/L</div>
-                            <div className={`text-lg font-semibold ${isProfit ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                {isProfit ? '+' : ''}{portfolio.currency === 'USD' ? '$' : 'Rs.'} {totalPnL.toLocaleString()}
+                            <div className={`text-lg font-semibold ${getPnLColorClass(totalPnL)}`}>
+                                {formatCurrency(totalPnL, portfolio.currency, { signed: true })}
                             </div>
                         </div>
                         <div className="flex items-center gap-1">
@@ -207,8 +208,8 @@ function PortfolioCard({ portfolio, onClick, onDelete, onEdit }) {
                             ) : (
                                 <TrendingDown className="w-5 h-5 text-red-600 dark:text-red-400" />
                             )}
-                            <span className={`text-lg font-semibold ${isProfit ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                {totalPnLPct.toFixed(2)}%
+                            <span className={`text-lg font-semibold ${getPnLColorClass(totalPnL)}`}>
+                                {formatPercent(totalPnLPct)}
                             </span>
                         </div>
                     </div>

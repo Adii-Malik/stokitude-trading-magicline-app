@@ -9,13 +9,9 @@ import { fileURLToPath } from 'url';
 import config from './config/config.js';
 import { connectDB } from './config/mongodb.js';
 import centralizedPriceService from './services/centralizedPriceService.js';
-import magicLineHandler from './handlers/magicLineHandler.js';
 import tradePlanHandler from './handlers/tradePlanHandler.js';
 import portfolioHandler from './handlers/portfolioHandler.js';
 import marketHoursService from './services/marketHoursService.js';
-import db from './db/database.js';
-import uploadRoutes from './routes/upload.js';
-import magicLineRoutes from './routes/magicLine.js';
 import authRoutes from './routes/auth.js';
 import adminRoutes from './routes/admin.js';
 import stocksRoutes from './routes/stocks.js';
@@ -118,8 +114,6 @@ app.get('/health', async (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/historical', historicalRoutes);
-app.use('/api/upload', uploadRoutes);
-app.use('/api/magic-line', magicLineRoutes);
 app.use('/api/stocks', stocksRoutes);
 app.use('/api/trade-plans', tradePlansRoutes);
 app.use('/api/settings', settingsRoutes);
@@ -139,32 +133,22 @@ if (process.env.NODE_ENV === 'development') {
 // Root API endpoint
 app.get('/api', (req, res) => {
   res.json({
-    name: 'PSX Magic Line Monitor API',
-    version: '2.0.0',
+    name: 'PSX SmartDesk API',
+    version: '3.0.0',
     endpoints: {
       health: '/health',
-      auth: {
-        signup: '/api/auth/signup (POST)',
-        login: '/api/auth/login (POST)',
-        logout: '/api/auth/logout (POST)',
-        me: '/api/auth/me (GET)',
-        check: '/api/auth/check (GET)'
-      },
-      admin: {
-        users: '/api/admin/users (GET) [Admin]',
-        pendingUsers: '/api/admin/users/pending (GET) [Admin]',
-        activateUser: '/api/admin/users/:userId/activate (PUT) [Admin]',
-        deactivateUser: '/api/admin/users/:userId/deactivate (PUT) [Admin]',
-        toggleRole: '/api/admin/users/:userId/toggle-role (PUT) [Admin]',
-        deleteUser: '/api/admin/users/:userId (DELETE) [Admin]',
-        stats: '/api/admin/stats (GET) [Admin]'
-      },
-      upload: '/api/upload (POST) [Admin]',
-      uploadManual: '/api/upload/manual (POST) [Admin]',
-      magicLine: '/api/magic-line (GET)',
-      magicLineDetail: '/api/magic-line/:symbol (GET)',
-      clearMagicLine: '/api/magic-line (DELETE) [Admin]',
-      stats: '/api/magic-line/stats/summary (GET)'
+      auth: '/api/auth',
+      admin: '/api/admin  [Admin]',
+      portfolios: '/api/portfolios',
+      tradePlans: '/api/trade-plans',
+      stocks: '/api/stocks',
+      historical: '/api/historical',
+      strategies: '/api/strategies',
+      signals: '/api/signals',
+      jobs: '/api/jobs  [Admin]',
+      notifications: '/api/notifications',
+      settings: '/api/settings',
+      system: '/api/system'
     },
     websocket: 'Socket.IO available for real-time updates',
     note: '[Admin] routes require authentication with admin role'
@@ -182,13 +166,9 @@ io.on('connection', async (socket) => {
 
   // Send initial data
   try {
-    const initialData = await db.getFullData();
-    const stats = await db.getStats();
-
-    // Get last price update time from Stock model (centralized)
+    // Report when prices were last refreshed (Stock model is the source of truth)
     let lastUpdate = null;
 
-    // Check Stock model for most recent price update
     const Stock = (await import('./models/Stock.js')).default;
     const mostRecentStock = await Stock.findOne({ currentPrice: { $ne: null } })
       .sort({ lastUpdated: -1 })
@@ -199,11 +179,7 @@ io.on('connection', async (socket) => {
       lastUpdate = new Date(mostRecentStock.lastUpdated).toISOString();
     }
 
-    socket.emit('initialData', {
-      symbols: initialData,
-      stats,
-      lastUpdate
-    });
+    socket.emit('initialData', { lastUpdate });
 
     if (lastUpdate) {
       console.log(`   📊 Last price update: ${new Date(lastUpdate).toLocaleString('en-US', { timeZone: 'Asia/Karachi' })} PKT`);
@@ -238,26 +214,12 @@ centralizedPriceService.onUpdate(async (data) => {
     });
 
     // Trigger feature handlers to check their logic
-    await magicLineHandler.checkMagicLines();
     await tradePlanHandler.checkTradePlans();
 
     // Update portfolio positions with new prices
     if (data.data.updatedSymbols && data.data.updatedSymbols.length > 0) {
       await portfolioHandler.handlePriceUpdate(data.data.updatedSymbols);
     }
-  }
-});
-
-// Setup Magic Line handler - Broadcasts when magic line status changes
-magicLineHandler.onUpdate(async (data) => {
-  if (data.type === 'magicLineUpdate') {
-    io.emit('magicLineUpdate', {
-      symbol: data.data.symbol,
-      status: data.data.status,
-      currentPrice: data.data.currentPrice,
-      magicLine: data.data.magicLine,
-      timestamp: data.data.timestamp
-    });
   }
 });
 

@@ -1,7 +1,7 @@
 /**
  * Portfolio Handler
  * Listens to price updates and emits portfolio update events
- * Follows the same pattern as magicLineHandler and tradePlanHandler
+ * Follows the same pattern as tradePlanHandler
  */
 import Position from '../models/Position.js';
 import Stock from '../models/Stock.js';
@@ -33,13 +33,13 @@ class PortfolioHandler {
                 return { checked: 0, updated: 0 };
             }
 
-            // Find positions affected by these price updates
-            const affectedPositions = await Position.find({
+            // Portfolios holding any of the updated symbols
+            const affectedPortfolioIds = await Position.find({
                 symbol: { $in: updatedSymbols },
                 netShares: { $gt: 0 }
             }).distinct('portfolioId');
 
-            if (affectedPositions.length === 0) {
+            if (affectedPortfolioIds.length === 0) {
                 return { checked: 0, updated: 0 };
             }
 
@@ -70,7 +70,7 @@ class PortfolioHandler {
             this.notifyHandlers({
                 type: 'portfolioUpdate',
                 data: {
-                    affectedPortfolios: affectedPositions,
+                    affectedPortfolios: affectedPortfolioIds,
                     updatedSymbols,
                     positionsUpdated: updated,
                     timestamp: new Date()
@@ -78,12 +78,12 @@ class PortfolioHandler {
             });
 
             // Check for drift on affected portfolios
-            this.checkDriftAsync(affectedPortfolios);
+            this.checkDriftAsync(affectedPortfolioIds);
 
             return {
                 checked: updatedSymbols.length,
                 updated,
-                affectedPortfolios: affectedPositions.length
+                affectedPortfolios: affectedPortfolioIds.length
             };
 
         } catch (error) {

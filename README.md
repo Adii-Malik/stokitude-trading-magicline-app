@@ -2,9 +2,8 @@
 
 **Intelligent Trading Platform for Pakistan Stock Exchange (PSX)**
 
-Real-time stock monitoring and trade management platform featuring Magic Line price alerts, comprehensive trade plan tracking, and automated price updates from PSX official website.
+Portfolio tracking with automated SIP recommendations, multi-level trade plans, and real-time price monitoring scraped from the PSX official website.
 
-![PSX SmartDesk](https://img.shields.io/badge/PSX-SmartDesk-cyan)
 ![Node.js](https://img.shields.io/badge/Node.js-v18+-green)
 ![React](https://img.shields.io/badge/React-18-blue)
 ![MongoDB](https://img.shields.io/badge/MongoDB-7.0-green)
@@ -14,34 +13,20 @@ Real-time stock monitoring and trade management platform featuring Magic Line pr
 
 ## 🌟 Key Features
 
-- **🎯 Magic Line Analysis** - Smart price alerts with real-time monitoring
-- **📊 Trade Plans & Signals** - Multi-level plans with target management
-- **💼 User Management** - Role-based access with approval system
-- **📈 Centralized Price Service** - Single source of truth for all stock data
-- **🎨 Modern UI/UX** - Responsive design with dark mode
-- **🔐 Security** - JWT authentication with bcrypt encryption
+- **💼 Portfolio & SIP** — Track holdings with live P/L, plus AI-scored monthly SIP allocation recommendations
+- **📊 Trade Plans** — Multi-level buy zones, targets, and stop losses with live status tracking
+- **📈 Centralized Price Service** — One scraper feeds every feature; `Stock` is the single source of truth
+- **🔔 Notifications** — In-app, email, and real-time WebSocket alerts with per-user preferences
+- **⚙️ Job Management** — All automation scheduled and monitored from one admin screen
+- **🔐 Auth & Roles** — JWT + bcrypt with an admin approval workflow
 
 ---
 
 ## 🏗️ Tech Stack
 
-### Backend
-- **Node.js + Express.js** - REST API server
-- **MongoDB + Mongoose** - Database & ODM
-- **Socket.IO** - Real-time updates
-- **JWT + Bcrypt** - Authentication & security
-
-### Frontend
-- **React 18 + Vite** - Fast, modern UI
-- **Tailwind CSS** - Utility-first styling
-- **React Router v6** - Client-side routing
-- **Socket.IO Client** - Real-time connection
-
-### Architecture
-- **Event-Driven** - Centralized price service with handlers
-- **Single Source of Truth** - Stock model for all price data
-- **Job Management System** - Scheduled tasks & automation
-- **PWA Ready** - Progressive web app capabilities
+**Backend** — Node.js, Express, MongoDB/Mongoose, Socket.IO, Agenda (job scheduling), JWT + bcrypt
+**Frontend** — React 18, Vite, Tailwind CSS, React Router v7, Socket.IO client
+**Architecture** — Event-driven: the centralized price service emits, feature handlers react
 
 ---
 
@@ -49,133 +34,89 @@ Real-time stock monitoring and trade management platform featuring Magic Line pr
 
 ### Prerequisites
 - Node.js v18+
-- MongoDB v7.0+
+- MongoDB v7.0+ (local or Atlas)
 - npm v9+
 
 ### Installation
 
 ```bash
-# Clone repository
 git clone <repository-url>
-cd psx_terminal_app
+cd stokitude-trading-magicline-app
 
-# Backend setup
+# Backend
 cd backend
 npm install
-cp .env.example .env  # Configure your environment variables
+cp .env.example .env        # then fill in MONGO_URI, JWT_SECRET, SUPER_ADMIN_*
 
-# Create super admin
-npm run create-admin
+npm run create-admin        # bootstraps the super admin from your .env
+npm run dev                 # Terminal 1
 
-# Start backend (Terminal 1)
-npm run dev
-
-# Frontend setup (Terminal 2)
+# Frontend
 cd ../frontend
 npm install
-npm run dev
+npm run dev                 # Terminal 2
 ```
 
-**Access:** `http://localhost:3000`
+**Frontend:** `http://localhost:3000` · **API:** `http://localhost:5000`
 
-**📖 For detailed setup instructions, see [GETTING_STARTED.md](docs/GETTING_STARTED.md)**
+**📖 Detailed setup: [GETTING_STARTED.md](docs/GETTING_STARTED.md)**
 
 ---
 
 ## 📁 Project Structure
 
 ```
-psx_terminal_app/
-├── backend/              # Node.js + Express API
-│   ├── src/
-│   │   ├── models/       # MongoDB models
-│   │   ├── routes/       # API endpoints
-│   │   ├── services/     # Business logic
-│   │   ├── handlers/     # Event handlers
-│   │   ├── jobs/         # Job management system
-│   │   └── middleware/   # Auth & validation
-│   └── package.json
-├── frontend/             # React + Vite app
-│   ├── src/
-│   │   ├── components/   # React components
-│   │   ├── contexts/     # State management
-│   │   └── services/     # API clients
-│   └── package.json
-└── docs/                 # Technical documentation
-    ├── GETTING_STARTED.md
-    ├── ARCHITECTURE.md
-    ├── FRONTEND.md
-    └── ...
+stokitude-trading-magicline-app/
+├── backend/                  # Node.js + Express API
+│   └── src/
+│       ├── models/           # Mongoose schemas
+│       ├── routes/           # API endpoints
+│       ├── services/         # Business logic (scrapers, portfolio, notifications)
+│       ├── handlers/         # Event handlers reacting to price updates
+│       ├── jobs/             # Agenda-based job management system
+│       └── middleware/       # Auth
+├── frontend/                 # React + Vite
+│   └── src/
+│       ├── components/       # UI, grouped by feature
+│       ├── contexts/         # Auth + theme
+│       ├── services/         # API clients
+│       └── utils/            # Shared formatters
+└── docs/                     # Technical documentation
 ```
-
----
-
-## 📚 Documentation
-
-### 🎯 Getting Started
-- **[GETTING_STARTED.md](docs/GETTING_STARTED.md)** - Installation, database setup, deployment
-
-### 🏗️ Technical Documentation
-- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Backend architecture, database schema, API endpoints
-- **[FRONTEND.md](docs/FRONTEND.md)** - React components, state management, routing
-
-### 🎨 Design & Features
-- **[DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md)** - UI/UX guidelines, color system, components
-- **[JOBS.md](docs/JOBS.md)** - Job management system & scheduling
-- **[TRADING_BOT.md](docs/TRADING_BOT.md)** - Trading bot integration & Python service
-- **[PWA_NOTIFICATIONS.md](docs/PWA_NOTIFICATIONS.md)** - Progressive Web App & push notifications
 
 ---
 
 ## 🎯 Core Features
 
-### Magic Line Analysis
-Upload CSV files or manually enter stock symbols with price thresholds. System monitors in real-time and alerts when prices hit targets.
+### Portfolio & SIP
+Track multiple portfolios with per-position P/L (FIFO or average-cost). The allocation engine scores stocks on fundamentals and recommends how to split each month's SIP budget.
 
 ### Trade Plans
-Create multi-level trade plans with buy levels, targets, and stop losses. Real-time status tracking for all levels.
-
-### User Management
-Role-based access control with approval workflow. Admins can manage users, approve registrations, and configure system settings.
+Multi-level trade plans with buy zones, targets, and stop losses. Levels update in real time as prices move, and fire notifications on hit.
 
 ### Automated Price Updates
-Centralized service scrapes PSX website every 15 minutes (configurable) during market hours. All prices stored in single Stock model.
+The centralized price service scrapes PSX on a configurable schedule during market hours. It polls symbols that appear in **active trade plans** or **open portfolio positions**, then fans results out to every feature handler.
+
+### Job Management
+All automation (price polling, TradingView sync, signal generation, fundamentals refresh, log cleanup) runs as scheduled jobs configurable from Admin → Jobs.
 
 ---
 
 ## 🔌 API Overview
 
 ```
-Authentication    /api/auth/*          - Login, signup, JWT tokens
-Magic Line       /api/magic-line/*    - Price alerts & thresholds
-Trade Plans      /api/trade-plans/*   - Trading strategies
-Admin            /api/admin/*         - User & system management
-Historical Data  /api/historical/*    - OHLCV data scraping
-Jobs             /api/jobs/*          - Job management
-Settings         /api/settings/*      - System configuration
+/api/auth            Login, signup, JWT
+/api/portfolios      Portfolios, positions, transactions, SIP
+/api/trade-plans     Trade plans & levels
+/api/stocks          Stock master data
+/api/historical      OHLCV data
+/api/strategies      Trading strategies  (needs Python engine)
+/api/signals         Generated signals   (needs Python engine)
+/api/jobs            Job management      [Admin]
+/api/notifications   Notifications & preferences
+/api/settings        System configuration
+/api/admin           User management     [Admin]
 ```
-
-**📖 For complete API documentation, see [ARCHITECTURE.md](docs/ARCHITECTURE.md)**
-
----
-
-## 🚀 Deployment
-
-### Quick Deploy
-
-**Fly.io:**
-```bash
-fly launch
-fly secrets set JWT_SECRET=your-secret
-fly deploy
-```
-
-**Railway:**
-- Connect GitHub repository
-- Set environment variables
-- Deploy automatically
-
-**📖 For detailed deployment guide, see [GETTING_STARTED.md](docs/GETTING_STARTED.md)**
 
 ---
 
@@ -183,80 +124,72 @@ fly deploy
 
 ```env
 # Required
-MONGODB_URI=mongodb://localhost:27017/psx_smartdesk
+MONGO_URI=mongodb://localhost:27017/psx_smartdesk
 JWT_SECRET=your-super-secret-jwt-key-here
-FRONTEND_URL=http://localhost:3000
+
+# Super admin bootstrap (used by: npm run create-admin)
+SUPER_ADMIN_EMAIL=you@example.com
+SUPER_ADMIN_PASSWORD=change-this-strong-password
 
 # Optional
 PORT=5000
 NODE_ENV=development
-POLLING_INTERVAL=15
+ADMIN_SIGNUP_CODE=admin123
+
+# Python strategy engine (separate service - powers Trading Bot)
+PYTHON_SERVICE_URL=http://localhost:5002
+PYTHON_SERVICE_HEALTHCHECK=false
 ```
 
-**📖 For complete configuration, see [GETTING_STARTED.md](docs/GETTING_STARTED.md)**
+**📖 Full configuration: [GETTING_STARTED.md](docs/GETTING_STARTED.md)**
 
 ---
 
-## 🐛 Troubleshooting
+## ⚠️ Known Constraints
 
-**MongoDB connection failed?**
-- Check `MONGODB_URI` in `.env`
-- Ensure MongoDB is running
-- Verify network access (Atlas IP whitelist)
-
-**Port already in use?**
-```bash
-# Kill process on port 5000
-lsof -ti:5000 | xargs kill -9
-```
-
-**JWT token invalid?**
-- Clear browser localStorage
-- Re-login with valid credentials
-
-**📖 For detailed troubleshooting, see [GETTING_STARTED.md](docs/GETTING_STARTED.md)**
+- **Trading Bot needs a separate service.** `/api/strategies` and `/api/signals` proxy to a Python strategy engine that is **not part of this repo**. Without it running at `PYTHON_SERVICE_URL`, those screens will not work. Keep `PYTHON_SERVICE_HEALTHCHECK=false` unless it is up.
+- **No automated test suite.** `backend/src/test/` and `frontend/src/test/` are dev-only manual testing tools, not tests.
 
 ---
 
-## 📖 Documentation Index
+## 📚 Documentation
 
-| Document | Description |
-|----------|-------------|
-| **[GETTING_STARTED.md](docs/GETTING_STARTED.md)** | Installation, setup, deployment |
-| **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** | System architecture, API, database |
-| **[FRONTEND.md](docs/FRONTEND.md)** | React components & state |
-| **[DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md)** | UI/UX guidelines |
-| **[JOBS.md](docs/JOBS.md)** | Job management system |
-| **[TRADING_BOT.md](docs/TRADING_BOT.md)** | Trading bot integration |
-| **[PWA_NOTIFICATIONS.md](docs/PWA_NOTIFICATIONS.md)** | PWA & notifications |
+| Document | Description | Status |
+|----------|-------------|--------|
+| [GETTING_STARTED.md](docs/GETTING_STARTED.md) | Installation, database, deployment | Implemented |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Backend architecture, schema, API | Implemented |
+| [FRONTEND.md](docs/FRONTEND.md) | React components, state, routing | Implemented |
+| [PORTFOLIO.md](docs/PORTFOLIO.md) | Portfolio & SIP system | Implemented |
+| [JOBS.md](docs/JOBS.md) | Job management & scheduling | Implemented |
+| [NOTIFICATIONS_GUIDE.md](docs/NOTIFICATIONS_GUIDE.md) | Notification system | Implemented |
+| [DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md) | UI/UX guidelines, colors | Implemented |
+| [DEVELOPMENT_FEATURES.md](docs/DEVELOPMENT_FEATURES.md) | Dev-mode testing tools | Implemented |
+| [TRADING_BOT.md](docs/TRADING_BOT.md) | Trading bot & Python service | Partial — needs external service |
+| [PWA_GUIDE.md](docs/PWA_GUIDE.md) | Progressive Web App | **Planned — not implemented** |
+| [TRADING_JOURNAL_PLAN.md](docs/TRADING_JOURNAL_PLAN.md) | Journal, risk calculator, positions | **Planned — not implemented** |
+| [TRADINGVIEW_COMPARISON.md](docs/TRADINGVIEW_COMPARISON.md) | Gap analysis vs TradingView | Archived — Jan 2026 snapshot |
+
+> Docs still contain references to the removed Magic Line feature and have not
+> all been re-verified against the current code. Treat the "Status" column as
+> authoritative.
 
 ---
 
 ## 🛣️ Roadmap
 
-- [ ] Email & SMS notifications
-- [ ] Advanced charting (TradingView)
-- [ ] Portfolio management
-- [ ] Historical data analysis
-- [ ] Mobile app (React Native)
-- [ ] Multi-language support
+- [ ] Trading journal, risk calculator & open positions ([plan](docs/TRADING_JOURNAL_PLAN.md))
+- [ ] PWA / installable app ([plan](docs/PWA_GUIDE.md))
+- [ ] Automated test suite
+- [ ] Bundle code-splitting (single chunk is currently ~790 kB)
 
 ---
 
 ## 📝 License
 
-MIT License - See LICENSE file for details
+MIT
 
 ---
 
 ## 🙏 Credits
 
 **Data Source:** [Pakistan Stock Exchange (PSX)](https://dps.psx.com.pk)
-
-**Built with:** Node.js • Express • MongoDB • React • Vite • Tailwind CSS • Socket.IO
-
----
-
-**Built with ❤️ for PSX Traders**
-
-🚀 **Start Trading Smarter Today!**

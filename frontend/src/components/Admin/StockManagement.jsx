@@ -300,15 +300,6 @@ export default function StockManagement() {
     }
   };
 
-  const fetchScrapeStatus = async () => {
-    try {
-      const response = await getScrapeStatus();
-      setScrapeStatuses(response.data || []);
-    } catch (error) {
-      console.error('Error fetching scrape status:', error);
-    }
-  };
-
   // Fetch selected symbols data when selection changes
   useEffect(() => {
     if (showScrapeModal) {

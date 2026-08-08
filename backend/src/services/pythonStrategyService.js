@@ -10,6 +10,8 @@ class PythonStrategyService {
     this.endpoints = config.pythonCore.endpoints;
     this.isHealthy = true;
     this.lastHealthCheck = null;
+    this.healthTimer = null;
+    this.loggedUnhealthy = false;
 
     this.client = axios.create({
       baseURL: this.baseUrl,
@@ -19,8 +21,11 @@ class PythonStrategyService {
       }
     });
 
-    // Start health check monitoring
-    this.startHealthCheckMonitoring();
+    // The Python strategy engine is a separate service that is not always running.
+    // Polling it unconditionally floods the logs, so monitoring is opt-in.
+    if (config.pythonCore.healthCheckEnabled) {
+      this.startHealthCheckMonitoring();
+    }
   }
 
   /**
@@ -43,16 +48,33 @@ class PythonStrategyService {
    * Start periodic health check monitoring
    */
   startHealthCheckMonitoring() {
-    setInterval(async () => {
+    if (this.healthTimer) return;
+
+    this.healthTimer = setInterval(async () => {
       try {
         await this.healthCheck();
-        if (!this.isHealthy) {
-          console.warn('[Python Service] Service is unhealthy');
+        if (this.loggedUnhealthy) {
+          console.log('[Python Service] Service is reachable again');
+          this.loggedUnhealthy = false;
         }
       } catch (error) {
-        console.error('[Python Service] Health check error:', error.message);
+        // Log the first failure only, then stay quiet until it recovers.
+        if (!this.loggedUnhealthy) {
+          console.warn(`[Python Service] Unreachable at ${this.baseUrl}: ${error.message}`);
+          console.warn('[Python Service] Suppressing further health-check warnings until it recovers.');
+          this.loggedUnhealthy = true;
+        }
       }
     }, 30000); // Check every 30 seconds
+
+    this.healthTimer.unref?.();
+  }
+
+  stopHealthCheckMonitoring() {
+    if (this.healthTimer) {
+      clearInterval(this.healthTimer);
+      this.healthTimer = null;
+    }
   }
 
   /**

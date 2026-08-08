@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
+import { currencySymbol } from '../../utils/portfolioUtils';
 
 export default function SIPPlanModal({ portfolioId, currency, existingPlan, onClose, onSaved }) {
     const [formData, setFormData] = useState({
@@ -57,7 +58,7 @@ export default function SIPPlanModal({ portfolioId, currency, existingPlan, onCl
                             Monthly Investment Amount
                         </label>
                         <div className="flex items-center gap-2">
-                            <span className="text-gray-600 dark:text-gray-400">{currency === 'USD' ? '$' : 'Rs.'}</span>
+                            <span className="text-gray-600 dark:text-gray-400">{currencySymbol(currency)}</span>
                             <input
                                 type="number"
                                 value={formData.monthlyAmount}

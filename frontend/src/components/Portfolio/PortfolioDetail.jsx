@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
+import { formatCurrency, formatPercent } from '../../utils/portfolioUtils';
 import HoldingsTable from './HoldingsTable';
 import TransactionList from './TransactionList';
 import AddTransactionModal from './AddTransactionModal';
@@ -133,22 +134,22 @@ export default function PortfolioDetail() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                         <StatCard
                             title="Total Value"
-                            value={`${portfolio.currency === 'USD' ? '$' : 'Rs.'} ${(totalValue || 0).toLocaleString()}`}
+                            value={formatCurrency(totalValue, portfolio.currency)}
                             icon={DollarSign}
                             iconColor="text-blue-600"
                             iconBg="bg-blue-50"
                         />
                         <StatCard
                             title="Total Cost"
-                            value={`${portfolio.currency === 'USD' ? '$' : 'Rs.'} ${(totalCost || 0).toLocaleString()}`}
+                            value={formatCurrency(totalCost, portfolio.currency)}
                             icon={PieChart}
                             iconColor="text-purple-600"
                             iconBg="bg-purple-50"
                         />
                         <StatCard
                             title="Total P/L"
-                            value={`${isProfit ? '+' : ''}${portfolio.currency === 'USD' ? '$' : 'Rs.'} ${(totalPnL || 0).toLocaleString()}`}
-                            subtitle={`${(totalPnLPct || 0).toFixed(2)}%`}
+                            value={formatCurrency(totalPnL, portfolio.currency, { signed: true })}
+                            subtitle={formatPercent(totalPnLPct)}
                             icon={isProfit ? TrendingUp : TrendingDown}
                             iconColor={isProfit ? 'text-green-600' : 'text-red-600'}
                             iconBg={isProfit ? 'bg-green-50' : 'bg-red-50'}
@@ -156,8 +157,8 @@ export default function PortfolioDetail() {
                         />
                         <StatCard
                             title="Realized P/L"
-                            value={`${(realizedPnL || 0) >= 0 ? '+' : ''}${portfolio.currency === 'USD' ? '$' : 'Rs.'} ${(realizedPnL || 0).toLocaleString()}`}
-                            subtitle={`Unrealized: ${(unrealizedPnL || 0).toLocaleString()}`}
+                            value={formatCurrency(realizedPnL, portfolio.currency, { signed: true })}
+                            subtitle={`Unrealized: ${formatCurrency(unrealizedPnL, portfolio.currency)}`}
                             icon={Target}
                             iconColor={(realizedPnL || 0) >= 0 ? 'text-green-600' : 'text-red-600'}
                             iconBg={(realizedPnL || 0) >= 0 ? 'bg-green-50' : 'bg-red-50'}

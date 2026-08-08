@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Calendar, TrendingUp, TrendingDown, Filter, Download, Edit2, Trash2 } from 'lucide-react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
+import { formatCurrency, formatShares } from '../../utils/portfolioUtils';
 import EditTransactionModal from './EditTransactionModal';
 
 export default function TransactionList({ portfolioId, currency, onTransactionChange }) {
@@ -163,14 +164,14 @@ function TransactionRow({ transaction, currency, onDelete, onEdit }) {
                         {(['BUY', 'SELL'].includes(transaction.type)) && (
                             <>
                                 <div className="text-sm text-gray-600 dark:text-gray-400">
-                                    {transaction.quantity} shares @ {currency === 'USD' ? '$' : 'Rs.'} {transaction.price.toFixed(2)}
+                                    {formatShares(transaction.quantity)} shares @ {formatCurrency(transaction.price, currency)}
                                 </div>
                                 <div className="font-semibold text-gray-900 dark:text-white">
-                                    {currency === 'USD' ? '$' : 'Rs.'} {(transaction.quantity * transaction.price).toLocaleString()}
+                                    {formatCurrency(transaction.quantity * transaction.price, currency)}
                                 </div>
                                 {transaction.fees > 0 && (
                                     <div className="text-xs text-gray-500 dark:text-gray-400">
-                                        Fees: {currency === 'USD' ? '$' : 'Rs.'} {transaction.fees}
+                                        Fees: {formatCurrency(transaction.fees, currency)}
                                     </div>
                                 )}
                             </>
@@ -178,13 +179,13 @@ function TransactionRow({ transaction, currency, onDelete, onEdit }) {
 
                         {transaction.type === 'DIV' && (
                             <div className="font-semibold text-green-600 dark:text-green-400">
-                                +{currency === 'USD' ? '$' : 'Rs.'} {transaction.dividendCash?.toLocaleString() || '0'}
+                                {formatCurrency(transaction.dividendCash, currency, { signed: true })}
                             </div>
                         )}
 
                         {(['DEPOSIT', 'WITHDRAW'].includes(transaction.type)) && (
                             <div className={`font-semibold ${transaction.type === 'DEPOSIT' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                {transaction.type === 'DEPOSIT' ? '+' : '-'}{currency === 'USD' ? '$' : 'Rs.'} {transaction.amount?.toLocaleString() || '0'}
+                                {transaction.type === 'DEPOSIT' ? '+' : '-'}{formatCurrency(transaction.amount, currency)}
                             </div>
                         )}
                     </div>

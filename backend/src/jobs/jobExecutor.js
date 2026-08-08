@@ -111,8 +111,8 @@ class JobExecutor {
       this.runningExecutions.delete(executionId);
 
       // Retry if failed and retry enabled
-      if (!result.success && jobTypeDef.execution.retryEnabled && attemptNumber < jobTypeDef.execution.maxRetries) {
-        await this.scheduleRetry(job, execution, jobTypeDef, attemptNumber);
+      if (!result.success && jobTypeDef.execution.retryEnabled && currentExecution.attemptNumber < jobTypeDef.execution.maxRetries) {
+        await this.scheduleRetry(job, currentExecution, jobTypeDef, currentExecution.attemptNumber);
       }
 
     } catch (error) {

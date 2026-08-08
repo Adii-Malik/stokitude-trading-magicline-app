@@ -68,45 +68,5 @@ export const uploadFile = async (file, onProgress) => {
   return response.data;
 };
 
-export const uploadManual = async (symbols) => {
-  const response = await api.post('/upload/manual', { symbols });
-  return response.data;
-};
-
-// Magic Line API
-export const getSymbols = async () => {
-  const response = await api.get('/magic-line');
-  return response.data;
-};
-
-export const getSymbol = async (symbol) => {
-  const response = await api.get(`/magic-line/${symbol}`);
-  return response.data;
-};
-
-export const clearSymbols = async () => {
-  const response = await api.delete('/magic-line');
-  return response.data;
-};
-
-export const getStats = async () => {
-  const response = await api.get('/magic-line/stats/summary');
-  return response.data;
-};
-
-export const healthCheck = async () => {
-  // Use the same base URL as other API calls to avoid hardcoded localhost
-  const response = await axios.get('/health', {
-    baseURL: API_URL.replace('/api', ''),
-    timeout: 10000
-  });
-  return response.data;
-};
-
-export const fetchPrices = async () => {
-  const response = await api.post('/magic-line/fetch-prices');
-  return response.data;
-};
-
 export default api;
 

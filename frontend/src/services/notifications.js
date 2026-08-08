@@ -60,12 +60,6 @@ export const sendTestNotification = async () => {
   return response.data;
 };
 
-// Test magic line notification
-export const testMagicLineNotification = async () => {
-  const response = await api.post('/notifications/test-magic-line');
-  return response.data;
-};
-
 // Test trade plan notification
 export const testTradePlanNotification = async (type = 'buy') => {
   const response = await api.post('/notifications/test-trade-plan', { type });
@@ -87,18 +81,6 @@ export const getEmailDebugInfo = async () => {
 // Send direct test email
 export const sendTestEmail = async () => {
   const response = await api.post('/notifications/test-email');
-  return response.data;
-};
-
-// Trigger manual magic line check
-export const triggerMagicLineCheck = async () => {
-  const response = await api.post('/notifications/test-magic-line-trigger');
-  return response.data;
-};
-
-// Mock magic line met for a symbol
-export const mockMagicLineMet = async (symbol) => {
-  const response = await api.post('/notifications/test-magic-line-mock', { symbol });
   return response.data;
 };
 

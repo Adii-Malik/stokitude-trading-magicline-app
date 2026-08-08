@@ -41,6 +41,9 @@ export default {
   // Python Core System (Trading Strategy Engine)
   pythonCore: {
     baseUrl: process.env.PYTHON_SERVICE_URL || 'http://localhost:5002',
+    // Off by default: the Python strategy engine is a separate service and is
+    // usually not running. Set PYTHON_SERVICE_HEALTHCHECK=true when it is.
+    healthCheckEnabled: process.env.PYTHON_SERVICE_HEALTHCHECK === 'true',
     timeout: parseInt(process.env.PYTHON_SERVICE_TIMEOUT) || 60000, // 1 minute
     retryAttempts: parseInt(process.env.PYTHON_SERVICE_RETRY_ATTEMPTS) || 3,
     retryDelay: parseInt(process.env.PYTHON_SERVICE_RETRY_DELAY) || 1000,

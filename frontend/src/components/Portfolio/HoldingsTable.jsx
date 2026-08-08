@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Search, ArrowUpDown, TrendingUp, TrendingDown } from 'lucide-react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
+import { formatCurrency, formatPercent, formatShares, getPnLColorClass } from '../../utils/portfolioUtils';
 
 export default function HoldingsTable({ portfolioId, currency }) {
     const [holdings, setHoldings] = useState([]);
@@ -141,10 +142,10 @@ export default function HoldingsTable({ portfolioId, currency }) {
                         <tr className="border-t-2 border-gray-300 font-semibold">
                             <td className="pt-4" colSpan="4">Total</td>
                             <td className="pt-4">
-                                {currency === 'USD' ? '$' : 'Rs.'} {filteredAndSorted.reduce((sum, h) => sum + h.totalValue, 0).toLocaleString()}
+                                {formatCurrency(filteredAndSorted.reduce((sum, h) => sum + h.totalValue, 0), currency)}
                             </td>
                             <td className="pt-4">
-                                {currency === 'USD' ? '$' : 'Rs.'} {filteredAndSorted.reduce((sum, h) => sum + h.totalPnL, 0).toLocaleString()}
+                                {formatCurrency(filteredAndSorted.reduce((sum, h) => sum + h.totalPnL, 0), currency)}
                             </td>
                             <td className="pt-4" colSpan="2"></td>
                         </tr>
@@ -182,27 +183,27 @@ function HoldingRow({ holding, currency }) {
                     <div className="text-sm text-gray-600 dark:text-gray-400">{holding.companyName}</div>
                 )}
             </td>
-            <td className="py-3 text-gray-900 dark:text-white">{holding.quantity.toLocaleString()}</td>
+            <td className="py-3 text-gray-900 dark:text-white">{formatShares(holding.quantity)}</td>
             <td className="py-3 text-gray-900 dark:text-white">
-                {currency === 'USD' ? '$' : 'Rs.'} {holding.avgCost.toFixed(2)}
+                {formatCurrency(holding.avgCost, currency)}
             </td>
             <td className="py-3 text-gray-900 dark:text-white">
-                {currency === 'USD' ? '$' : 'Rs.'} {holding.currentPrice.toFixed(2)}
+                {formatCurrency(holding.currentPrice, currency)}
             </td>
             <td className="py-3 text-gray-900 dark:text-white">
-                {currency === 'USD' ? '$' : 'Rs.'} {holding.totalValue.toLocaleString()}
+                {formatCurrency(holding.totalValue, currency)}
             </td>
-            <td className={`py-3 font-semibold ${isProfit ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+            <td className={`py-3 font-semibold ${getPnLColorClass(holding.totalPnL)}`}>
                 <div className="flex items-center gap-1">
                     {isProfit ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-                    {isProfit ? '+' : ''}{currency === 'USD' ? '$' : 'Rs.'} {holding.totalPnL.toLocaleString()}
+                    {formatCurrency(holding.totalPnL, currency, { signed: true })}
                 </div>
             </td>
-            <td className={`py-3 font-semibold ${isProfit ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                {isProfit ? '+' : ''}{holding.totalPnLPct.toFixed(2)}%
+            <td className={`py-3 font-semibold ${getPnLColorClass(holding.totalPnL)}`}>
+                {formatPercent(holding.totalPnLPct, 2, { signed: true })}
             </td>
             <td className="py-3 text-gray-600 dark:text-gray-400">
-                {holding.weightPct.toFixed(1)}%
+                {formatPercent(holding.weightPct, 1)}
             </td>
         </tr>
     );

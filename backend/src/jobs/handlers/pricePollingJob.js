@@ -7,7 +7,6 @@
 import Stock from '../../models/Stock.js';
 import psxScraper from '../../services/psxScraper.js';
 import marketHoursService from '../../services/marketHoursService.js';
-import magicLineHandler from '../../handlers/magicLineHandler.js';
 import tradePlanHandler from '../../handlers/tradePlanHandler.js';
 
 export default async function pricePollingJob(context) {
@@ -125,15 +124,6 @@ export default async function pricePollingJob(context) {
         });
         failCount += batch.length;
       }
-    }
-
-    // Update Magic Lines
-    try {
-      logger.info('Checking magic lines after price update...');
-      await magicLineHandler.checkMagicLines();
-      logger.info('Magic lines checked successfully');
-    } catch (error) {
-      logger.warn('Failed to check magic lines', { error: error.message });
     }
 
     // Update Trade Plans

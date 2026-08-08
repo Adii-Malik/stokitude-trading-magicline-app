@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Target, Calendar, CheckCircle, Edit, TrendingUp, Settings, Trash2 } from 'lucide-react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
+import { formatCurrency, formatPercent } from '../../utils/portfolioUtils';
 import PolicyEditorModal from './PolicyEditorModal';
 import SIPPlanModal from './SIPPlanModal';
 
@@ -174,7 +175,7 @@ export default function AllocationView({ portfolioId, currency }) {
                     <div>
                         <div className="text-sm text-gray-600 dark:text-gray-400">Monthly SIP</div>
                         <div className="font-semibold text-gray-900 dark:text-white">
-                            {currency === 'USD' ? '$' : 'Rs.'} {sipPlan.monthlyAmount.toLocaleString()}
+                            {formatCurrency(sipPlan.monthlyAmount, currency)}
                         </div>
                     </div>
                     <div>
@@ -332,7 +333,7 @@ function RecommendationCard({ recommendation, currency, portfolioId, onUpdate })
                         <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
                             <span className="font-medium">Budget:</span>
                             <span className="font-semibold text-cyan-600 dark:text-cyan-400">
-                                {currency === 'USD' ? '$' : 'Rs.'} {recommendation.budget.toLocaleString()}
+                                {formatCurrency(recommendation.budget, currency)}
                             </span>
                         </p>
                     </div>
@@ -378,21 +379,21 @@ function RecommendationCard({ recommendation, currency, portfolioId, onUpdate })
                                         <div className="text-sm text-gray-600 dark:text-gray-400">
                                             <span className="font-medium">{alloc.estShares} shares</span>
                                             <span className="mx-2">×</span>
-                                            <span>{currency === 'USD' ? '$' : 'Rs.'} {alloc.estPrice.toFixed(2)}</span>
+                                            <span>{formatCurrency(alloc.estPrice, currency)}</span>
                                         </div>
                                     </div>
                                 </div>
                                 <div className="text-right">
                                     <div className="text-2xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent">
-                                        {currency === 'USD' ? '$' : 'Rs.'} {alloc.amount.toLocaleString()}
+                                        {formatCurrency(alloc.amount, currency)}
                                     </div>
                                     <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center justify-end gap-2">
                                         <div className="flex items-center gap-1">
                                             <TrendingUp className="w-3 h-3" />
-                                            <span className="font-medium">{alloc.targetWeight.toFixed(1)}%</span>
+                                            <span className="font-medium">{formatPercent(alloc.targetWeight, 1)}</span>
                                         </div>
                                         <span>→</span>
-                                        <span>Current: {alloc.currentWeight.toFixed(1)}%</span>
+                                        <span>Current: {formatPercent(alloc.currentWeight, 1)}</span>
                                     </div>
                                 </div>
                             </div>

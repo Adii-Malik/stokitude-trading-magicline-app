@@ -680,6 +680,7 @@ router.post('/test/mock-hit', adminOnly, async (req, res) => {
             message: 'level is required for hitBuyLevel action (1, 2, or 3)'
           });
         }
+        {
         const buyLevel = plan.buyLevels.find(bl => bl.level === parseInt(level));
         if (buyLevel) {
           buyLevel.isHit = true;
@@ -692,6 +693,7 @@ router.post('/test/mock-hit', adminOnly, async (req, res) => {
             message: `Buy Level ${level} not found`
           });
         }
+        }
         break;
 
       case 'hitTP':
@@ -701,6 +703,7 @@ router.post('/test/mock-hit', adminOnly, async (req, res) => {
             message: 'level is required for hitTP action (1, 2, or 3)'
           });
         }
+        {
         const tp = plan.targetPrices.find(t => t.level === parseInt(level));
         if (tp) {
           // Check if any buy level is hit first
@@ -729,6 +732,7 @@ router.post('/test/mock-hit', adminOnly, async (req, res) => {
             success: false,
             message: `TP${level} not found`
           });
+        }
         }
         break;
 

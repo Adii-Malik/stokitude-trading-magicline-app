@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Bell, TestTube, Send, Loader2, CheckCircle, AlertCircle, Mail, Info, Bug } from 'lucide-react';
 import {
     sendTestNotification,
-    testMagicLineNotification,
     testTradePlanNotification,
     testAdminNotification,
     getEmailDebugInfo,
@@ -74,17 +73,6 @@ export default function NotificationTester() {
             category: 'system',
             action: async () => {
                 const result = await sendTestNotification();
-                return result;
-            }
-        },
-        {
-            id: 'magic_line',
-            label: 'Magic Line Alert',
-            description: 'Strategic level met notification (OGDC @ 85.50)',
-            icon: '🎯',
-            category: 'magic_line',
-            action: async () => {
-                const result = await testMagicLineNotification();
                 return result;
             }
         },

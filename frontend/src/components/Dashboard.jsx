@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
-  BarChart3, Target, TrendingUp, Activity,
-  CheckCircle, XCircle, Clock, Award, ArrowUpRight
+  Target, TrendingUp, Activity, CheckCircle, XCircle, Clock, Award, ArrowUpRight
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -11,7 +10,6 @@ export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const [strategicLevelStats, setStrategicLevelStats] = useState(null);
   const [tradePlanStats, setTradePlanStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -25,12 +23,8 @@ export default function Dashboard() {
       setLoading(true);
       setError(null);
 
-      const [slResponse, tpResponse] = await Promise.all([
-        api.get('/magic-line/stats/summary'),
-        api.get('/trade-plans/stats/summary')
-      ]);
+      const tpResponse = await api.get('/trade-plans/stats/summary');
 
-      setStrategicLevelStats(slResponse.data.stats);
       setTradePlanStats(tpResponse.data.data);
 
     } catch (err) {
@@ -42,10 +36,6 @@ export default function Dashboard() {
   };
 
   // Calculate key metrics
-  const strategicSuccessRate = strategicLevelStats && strategicLevelStats.total > 0
-    ? ((strategicLevelStats.met / strategicLevelStats.total) * 100).toFixed(1)
-    : 0;
-
   const tradeWinRate = tradePlanStats && tradePlanStats.totalPlans > 0
     ? ((tradePlanStats.tpHits / tradePlanStats.totalPlans) * 100).toFixed(1)
     : 0;
@@ -91,22 +81,7 @@ export default function Dashboard() {
         )}
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-cyan-100 dark:bg-cyan-900/30 rounded-lg">
-                <BarChart3 className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{strategicLevelStats?.met || 0}</p>
-                <p className="text-xs text-gray-600 dark:text-gray-400">Levels Met</p>
-              </div>
-            </div>
-            <div className="text-xs text-gray-500 dark:text-gray-500">
-              of {strategicLevelStats?.total || 0} total • {strategicLevelStats?.totalEverMet || 0} all-time
-            </div>
-          </div>
-
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
           <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-3 mb-2">
               <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
@@ -154,43 +129,7 @@ export default function Dashboard() {
         </div>
 
         {/* Main Sections */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Strategic Levels */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5 text-cyan-500" />
-                  Strategic Levels
-                </h2>
-                <button
-                  onClick={() => navigate('/magic-line')}
-                  className="text-cyan-500 hover:text-cyan-600 text-sm font-medium flex items-center gap-1"
-                >
-                  View All
-                  <ArrowUpRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            {strategicLevelStats && (
-              <div className="p-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                    <p className="text-3xl font-bold text-green-600 dark:text-green-400">{strategicLevelStats.met || 0}</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Met</p>
-                  </div>
-                  <div className="text-center p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-                    <p className="text-3xl font-bold text-yellow-600 dark:text-yellow-400">
-                      {(strategicLevelStats.total || 0) - (strategicLevelStats.met || 0)}
-                    </p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Not Met</p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
+        <div className="grid grid-cols-1 gap-6 mb-8">
           {/* Trade Plans */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
@@ -244,36 +183,7 @@ export default function Dashboard() {
         </div>
 
         {/* Recent Activity */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Recently Met Levels */}
-          {strategicLevelStats?.recentlyMet && strategicLevelStats.recentlyMet.length > 0 && (
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-              <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                  <CheckCircle className="w-5 h-5 text-green-500" />
-                  Recently Met Levels (24h)
-                </h2>
-              </div>
-              <div className="p-6">
-                <div className="space-y-3">
-                  {strategicLevelStats.recentlyMet.map((item, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                      <div>
-                        <p className="font-medium text-gray-900 dark:text-white">{item.symbol}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          Level: Rs. {item.magicLine} → Price: Rs. {item.currentPrice}
-                        </p>
-                      </div>
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        {new Date(item.metAt).toLocaleTimeString()}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
+        <div className="grid grid-cols-1 gap-6 mb-8">
           {/* Recent Trade Outcomes */}
           {tradePlanStats?.recentClosed && tradePlanStats.recentClosed.length > 0 && (
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">

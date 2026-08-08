@@ -7,17 +7,25 @@
  */
 
 import Stock from '../models/Stock.js';
-import MagicLine from '../models/MagicLine.js';
+import Position from '../models/Position.js';
 import TradePlan from '../models/TradePlan.js';
 import Settings from '../models/Settings.js';
 import psxScraper from './psxScraper.js';
 import marketHoursService from './marketHoursService.js';
 
 let serviceMonitor = null;
-// Lazy load to avoid circular dependency
+// Lazy load to avoid circular dependency.
+// Monitoring is best-effort: if it cannot load, fall back to a no-op so that
+// logging can never interrupt the price pipeline.
+const NOOP_MONITOR = { log: async () => { } };
 const getServiceMonitor = async () => {
   if (!serviceMonitor) {
-    serviceMonitor = (await import('./serviceMonitor.js')).default;
+    try {
+      serviceMonitor = (await import('./serviceMonitor.js')).default;
+    } catch (error) {
+      console.error('⚠️ Service monitor unavailable:', error.message);
+      return NOOP_MONITOR;
+    }
   }
   return serviceMonitor;
 };
@@ -88,11 +96,11 @@ class CentralizedPriceService {
       const isManual = skipMarketCheck;
       console.log(`\n💰 [${currentTime} PKT] ${isManual ? 'Manual' : 'Automatic'} price fetch initiated`);
 
-      // Get symbols from active trade plans and magic line entries
+      // Get symbols from active trade plans and currently held portfolio positions
       const tradePlanSymbols = await TradePlan.find({ isActive: true }).distinct('symbol');
-      const magicLineSymbols = await MagicLine.find({ isActive: true }).distinct('symbol');
+      const positionSymbols = await Position.find({ netShares: { $gt: 0 } }).distinct('symbol');
       // Filter out null/undefined/empty symbols and ensure they're strings
-      const activeSymbols = [...new Set([...tradePlanSymbols, ...magicLineSymbols])]
+      const activeSymbols = [...new Set([...tradePlanSymbols, ...positionSymbols])]
         .filter(symbol => symbol && typeof symbol === 'string' && symbol.trim().length > 0);
 
       if (activeSymbols.length === 0) {

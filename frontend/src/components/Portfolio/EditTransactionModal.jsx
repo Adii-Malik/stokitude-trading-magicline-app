@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import api from '../../services/api';
 import { searchStocks } from '../../services/stocks';
 import toast from 'react-hot-toast';
+import { currencySymbol } from '../../utils/portfolioUtils';
 
 export default function EditTransactionModal({ portfolioId, transaction, currency, onClose, onUpdated }) {
     const [formData, setFormData] = useState({
@@ -151,7 +152,7 @@ export default function EditTransactionModal({ portfolioId, transaction, currenc
                                     Price per Share *
                                 </label>
                                 <div className="flex items-center gap-2">
-                                    <span className="text-gray-600 dark:text-gray-400">{currency === 'USD' ? '$' : 'Rs.'}</span>
+                                    <span className="text-gray-600 dark:text-gray-400">{currencySymbol(currency)}</span>
                                     <input
                                         type="number"
                                         value={formData.price}
@@ -170,7 +171,7 @@ export default function EditTransactionModal({ portfolioId, transaction, currenc
                                     Fees/Commission
                                 </label>
                                 <div className="flex items-center gap-2">
-                                    <span className="text-gray-600 dark:text-gray-400">{currency === 'USD' ? '$' : 'Rs.'}</span>
+                                    <span className="text-gray-600 dark:text-gray-400">{currencySymbol(currency)}</span>
                                     <input
                                         type="number"
                                         value={formData.fees}
@@ -192,7 +193,7 @@ export default function EditTransactionModal({ portfolioId, transaction, currenc
                                 Dividend Amount *
                             </label>
                             <div className="flex items-center gap-2">
-                                <span className="text-gray-600 dark:text-gray-400">{currency === 'USD' ? '$' : 'Rs.'}</span>
+                                <span className="text-gray-600 dark:text-gray-400">{currencySymbol(currency)}</span>
                                 <input
                                     type="number"
                                     value={formData.dividendCash}

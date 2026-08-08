@@ -8,7 +8,10 @@
     "dev:frontend": "cd frontend && npm run dev",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "build:frontend": "cd frontend && npm run build",
-    "start": "cd backend && npm start"
+    "start": "cd backend && npm start",
+    "lint": "eslint backend/src frontend/src",
+    "lint:errors": "eslint backend/src frontend/src --quiet",
+    "lint:fix": "eslint backend/src frontend/src --fix"
   },
   "keywords": [
     "psx",
@@ -20,6 +23,9 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react": "^7.37.5",
+    "globals": "^17.9.0"
   }
 }

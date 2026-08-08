@@ -9,9 +9,15 @@ const createSuperAdmin = async () => {
     await connectDB(config.mongoUri);
     console.log('📦 Connected to MongoDB');
 
-    // Super admin details
-    const superAdminEmail = 'assassinboys22@gmail.com';
-    const temporaryPassword = 'Admin@123'; // Change this after first login
+    // Super admin details - supplied via environment, never hardcoded
+    const superAdminEmail = process.env.SUPER_ADMIN_EMAIL;
+    const temporaryPassword = process.env.SUPER_ADMIN_PASSWORD;
+
+    if (!superAdminEmail || !temporaryPassword) {
+      console.error('❌ SUPER_ADMIN_EMAIL and SUPER_ADMIN_PASSWORD must be set.');
+      console.error('   Add them to backend/.env, then re-run: npm run create-admin');
+      process.exit(1);
+    }
 
     // Check if super admin already exists
     const existingSuperAdmin = await User.findOne({ email: superAdminEmail });
@@ -45,7 +51,7 @@ const createSuperAdmin = async () => {
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log(`   Email:    ${superAdminEmail}`);
     console.log(`   Username: superadmin`);
-    console.log(`   Password: ${temporaryPassword}`);
+    console.log(`   Password: (as set in SUPER_ADMIN_PASSWORD)`);
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('⚠️  IMPORTANT: Change your password after first login!');
     console.log('   Go to Settings → Change Password');

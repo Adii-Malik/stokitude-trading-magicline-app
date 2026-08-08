@@ -37,7 +37,6 @@ const notificationPreferenceSchema = new mongoose.Schema({
       enabled: { type: Boolean, default: true }
     },
     default: () => new Map([
-      ['magic_line', { enabled: true }],
       ['trade_plans', { enabled: true }]
     ])
   },

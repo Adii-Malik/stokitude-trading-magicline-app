@@ -5,7 +5,6 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LayoutProvider } from './components/Layout';
 import { FullPageLoader } from './components/common';
 import Dashboard from './components/Dashboard';
-import MagicLine from './components/MagicLine';
 import AdminDashboard from './components/Admin/AdminDashboard';
 import TradePlans from './components/TradePlans';
 import Notifications from './components/Notifications';
@@ -98,14 +97,6 @@ function AppContent() {
         <ProtectedRoute>
           <LayoutProvider currentPage="dashboard">
             <Dashboard />
-          </LayoutProvider>
-        </ProtectedRoute>
-      } />
-
-      <Route path="/magic-line" element={
-        <ProtectedRoute>
-          <LayoutProvider currentPage="magic-line">
-            <MagicLine />
           </LayoutProvider>
         </ProtectedRoute>
       } />

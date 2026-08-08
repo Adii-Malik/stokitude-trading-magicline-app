@@ -18,7 +18,6 @@ export default function MainLayout({
                 currentPage={currentPage}
                 marketStatus={marketStatus}
                 onNavigateToDashboard={() => navigate('/dashboard')}
-                onNavigateToMagicLine={() => navigate('/magic-line')}
                 onNavigateToStocks={() => navigate('/stocks')}
                 onNavigateToTradeSignals={() => navigate('/trade-signals')}
                 onNavigateToPortfolios={() => navigate('/portfolios')}

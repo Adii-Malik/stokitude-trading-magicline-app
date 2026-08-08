@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { TestTube, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import NotificationTester from '../components/NotificationTester';
-import MagicLineTester from '../components/MagicLineTester';
 import TradePlanTester from '../components/TradePlanTester';
 
 export default function TestingPage() {
@@ -65,15 +64,6 @@ export default function TestingPage() {
                             Notification Testing
                         </button>
                         <button
-                            onClick={() => setActiveSection('magicLine')}
-                            className={`px-6 py-4 font-medium text-sm transition ${activeSection === 'magicLine'
-                                ? 'border-b-2 border-cyan-500 text-cyan-600 dark:text-cyan-400'
-                                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                                }`}
-                        >
-                            Strategic Level Testing
-                        </button>
-                        <button
                             onClick={() => setActiveSection('tradePlan')}
                             className={`px-6 py-4 font-medium text-sm transition ${activeSection === 'tradePlan'
                                 ? 'border-b-2 border-cyan-500 text-cyan-600 dark:text-cyan-400'
@@ -90,12 +80,6 @@ export default function TestingPage() {
                     {activeSection === 'notifications' && (
                         <div className="p-6">
                             <NotificationTester />
-                        </div>
-                    )}
-
-                    {activeSection === 'magicLine' && (
-                        <div className="p-6">
-                            <MagicLineTester />
                         </div>
                     )}
 

@@ -181,7 +181,6 @@ export default function Notifications() {
 
     const categoryMap = {
       // New categories
-      'magic_line': { label: '🎯 Strategic Level', color: 'cyan' },
       'trade_plans': { label: '💰 Trade Plans', color: 'green' },
       'system': { label: '🔔 System', color: 'blue' },
       'admin': { label: '👨‍💼 Admin', color: 'purple' },

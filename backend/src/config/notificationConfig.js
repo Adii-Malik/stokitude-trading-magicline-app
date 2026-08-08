@@ -10,22 +10,6 @@
  */
 
 export const NOTIFICATION_CATEGORIES = {
-    magic_line: {
-        id: 'magic_line',
-        label: 'Magic Line Alerts',
-        description: 'Get notified when stocks hit your strategic levels',
-        icon: '🎯',
-        userControllable: true,
-        defaultEnabled: true,
-        events: [
-            {
-                id: 'strategic_level_met',
-                label: 'Strategic Level Met',
-                description: 'Stock reached magic line threshold'
-            }
-        ]
-    },
-
     trade_plans: {
         id: 'trade_plans',
         label: 'Trade Plan Alerts',
@@ -176,7 +160,7 @@ export function getFeaturesForUser(userRole) {
  * @returns {Boolean}
  */
 export function isValidCategory(category) {
-    return NOTIFICATION_CATEGORIES.hasOwnProperty(category);
+    return Object.prototype.hasOwnProperty.call(NOTIFICATION_CATEGORIES, category);
 }
 
 /**

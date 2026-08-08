@@ -10,7 +10,7 @@ const notificationSchema = new mongoose.Schema({
   },
 
   // Notification details
-  // Category: High-level feature grouping (magic_line, trade_plans, system, admin)
+  // Category: High-level feature grouping (trade_plans, system, admin)
   category: {
     type: String,
     required: true,
