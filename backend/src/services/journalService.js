@@ -102,9 +102,21 @@ function statsFor(entries) {
         })).sort((a, b) => a.netPnL - b.netPnL);
     };
 
+    // The single most expensive habit, and what the account looks like without it.
+    const worst = byMistake[0];
+    const headline = worst ? {
+        mistake: worst.code,
+        count: worst.count,
+        cost: worst.cost,
+        netWithout: closed
+            .filter(e => !(e.mistakes || []).includes(worst.code))
+            .reduce((t, e) => t + (e.netPnL || 0), 0)
+    } : null;
+
     return {
         totalTrades: entries.length,
         openTrades: entries.length - closed.length,
+        headline,
         closedTrades: closed.length,
         wins: wins.length,
         losses: losses.length,
@@ -207,9 +219,10 @@ class JournalService {
                 goodProcessBadOutcome: all.goodProcessBadOutcome,
                 badProcessGoodOutcome: all.badProcessGoodOutcome,
                 unconfirmedExits: all.unconfirmedExits,
-                byMistake: all.byMistake,
-                bySetup: all.bySetup,
-                byEmotion: all.byEmotion
+                // Counts only. A cost here would sum currencies, so it lives in byCurrency.
+                byMistake: all.byMistake.map(({ code, count }) => ({ code, count })),
+                bySetup: all.bySetup.map(({ key, count, winRate }) => ({ key, count, winRate })),
+                byEmotion: all.byEmotion.map(({ key, count, winRate }) => ({ key, count, winRate }))
             }
         };
     }

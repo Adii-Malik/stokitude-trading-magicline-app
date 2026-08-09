@@ -1,16 +1,6 @@
 import { ShieldCheck, ShieldAlert, AlertTriangle } from 'lucide-react';
 import { formatCurrency, formatPercent, getPnLColorClass } from '../../utils/portfolioUtils';
-
-export const MISTAKE_LABELS = {
-    no_stop_placed: 'No stop placed',
-    held_through_event: 'Held through event',
-    no_profit_protection: 'No profit protection',
-    moved_stop_down: 'Moved stop against me',
-    oversized: 'Position too large',
-    fomo_entry: 'FOMO entry',
-    no_thesis: 'No thesis',
-    exited_early: 'Exited early'
-};
+import { mistakeLabel } from './labels';
 
 export default function JournalStats({ stats }) {
     if (!stats) return null;
@@ -65,23 +55,27 @@ export default function JournalStats({ stats }) {
                     body="These prices came from memory, not a broker fill. Every figure above inherits that uncertainty until confirmed." />
             )}
 
-            {process.byMistake?.length > 0 && (
-                <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
-                    <h3 className="font-semibold text-gray-900 dark:text-white mb-3">What it cost</h3>
+            {/* Costs stay inside a currency; totalling them across markets would be meaningless. */}
+            {byCurrency.filter((c) => c.byMistake?.length).map((c) => (
+                <div key={`cost-${c.currency}`}
+                    className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+                    <h3 className="font-semibold text-gray-900 dark:text-white mb-3">
+                        What it cost ({c.currency})
+                    </h3>
                     <div className="space-y-2">
-                        {process.byMistake.map((m) => {
-                            const worst = Math.abs(process.byMistake[0].cost) || 1;
+                        {c.byMistake.map((m) => {
+                            const worst = Math.abs(c.byMistake[0].cost) || 1;
                             return (
                                 <div key={m.code} className="flex items-center gap-3">
-                                    <div className="w-44 shrink-0 text-sm text-gray-700 dark:text-gray-300">
-                                        {MISTAKE_LABELS[m.code] || m.code}
+                                    <div className="w-40 shrink-0 text-sm text-gray-700 dark:text-gray-300">
+                                        {mistakeLabel(m.code)}
                                     </div>
                                     <div className="flex-1 bg-gray-100 dark:bg-gray-700 rounded h-5 overflow-hidden">
                                         <div className="bg-red-400 dark:bg-red-500 h-full"
                                             style={{ width: `${Math.min(100, (Math.abs(m.cost) / worst) * 100)}%` }} />
                                     </div>
                                     <div className="w-28 text-right text-sm font-semibold text-red-600 dark:text-red-400">
-                                        {m.cost.toFixed(2)}
+                                        {formatCurrency(m.cost, c.currency)}
                                     </div>
                                     <div className="w-10 text-right text-xs text-gray-500">×{m.count}</div>
                                 </div>
@@ -89,7 +83,7 @@ export default function JournalStats({ stats }) {
                         })}
                     </div>
                 </div>
-            )}
+            ))}
         </div>
     );
 }

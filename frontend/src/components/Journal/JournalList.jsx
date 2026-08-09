@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { Pencil, Trash2, ShieldCheck, HelpCircle } from 'lucide-react';
 import { formatCurrency, formatPercent, getPnLColorClass } from '../../utils/portfolioUtils';
-import { MISTAKE_LABELS } from './JournalStats';
+import { mistakeLabel } from './labels';
 
 const shortDate = (d) => (d ? new Date(d).toLocaleDateString() : '—');
 
@@ -76,15 +77,13 @@ export default function JournalList({ entries, onEdit, onDelete }) {
                         <div className="flex flex-wrap gap-1.5 mt-3">
                             {e.mistakes.map((m) => (
                                 <span key={m} className="px-2 py-0.5 rounded-full text-xs bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400">
-                                    {MISTAKE_LABELS[m] || m}
+                                    {mistakeLabel(m)}
                                 </span>
                             ))}
                         </div>
                     )}
 
-                    {e.notes && (
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-3 whitespace-pre-wrap">{e.notes}</p>
-                    )}
+                    {e.notes && <Notes text={e.notes} />}
                     {e.lesson && (
                         <p className="text-sm mt-2 pl-3 border-l-2 border-cyan-400 text-gray-700 dark:text-gray-300 italic">
                             {e.lesson}
@@ -93,6 +92,24 @@ export default function JournalList({ entries, onEdit, onDelete }) {
                 </div>
             ))}
         </div>
+    );
+}
+
+/** Long notes are the point of a journal, but they shouldn't bury the list. */
+function Notes({ text, limit = 150 }) {
+    const [open, setOpen] = useState(false);
+    const long = text.length > limit;
+
+    return (
+        <p className="text-sm text-gray-600 dark:text-gray-400 mt-3 whitespace-pre-wrap">
+            {open || !long ? text : `${text.slice(0, limit).trimEnd()}…`}
+            {long && (
+                <button onClick={() => setOpen(!open)}
+                    className="ml-1 text-cyan-600 dark:text-cyan-400 hover:underline">
+                    {open ? 'less' : 'more'}
+                </button>
+            )}
+        </p>
     );
 }
 

@@ -5,8 +5,9 @@
 import express from 'express';
 import { authenticate } from '../middleware/auth.js';
 import journalService from '../services/journalService.js';
+import RiskProfile from '../models/RiskProfile.js';
 import { SETUP_TYPES, EMOTIONS, MARKET_CONDITIONS, MISTAKES } from '../models/JournalEntry.js';
-import { EXCHANGE_CODES } from '../config/exchanges.js';
+import { EXCHANGE_CODES, EXCHANGES } from '../config/exchanges.js';
 
 const router = express.Router();
 
@@ -26,9 +27,37 @@ router.get('/options', (req, res) => {
             emotions: EMOTIONS,
             marketConditions: MARKET_CONDITIONS,
             mistakes: MISTAKES,
-            exchanges: EXCHANGE_CODES
+            exchanges: EXCHANGE_CODES,
+            // Currency and fractional-share rules per market, so sizing matches the venue.
+            exchangeRules: Object.values(EXCHANGES).map(x => ({
+                code: x.code, currency: x.currency, fractionalShares: x.fractionalShares
+            }))
         }
     });
+});
+
+/** Account capital and risk tolerance, one profile per currency. */
+router.get('/risk-profiles', async (req, res) => {
+    try {
+        const profiles = await RiskProfile.find({ user: req.user._id }).sort({ currency: 1 });
+        res.json({ success: true, data: profiles });
+    } catch (error) {
+        fail(res, error);
+    }
+});
+
+router.put('/risk-profiles/:currency', async (req, res) => {
+    try {
+        const { accountCapital, defaultRiskPct, maxPositionPct } = req.body;
+        const profile = await RiskProfile.findOneAndUpdate(
+            { user: req.user._id, currency: req.params.currency.toUpperCase() },
+            { accountCapital, defaultRiskPct, maxPositionPct },
+            { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true }
+        );
+        res.json({ success: true, data: profile });
+    } catch (error) {
+        fail(res, error);
+    }
 });
 
 router.get('/stats', async (req, res) => {

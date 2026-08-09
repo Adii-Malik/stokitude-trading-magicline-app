@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { createEntry, updateEntry } from '../../services/journal';
-import { MISTAKE_LABELS } from './JournalStats';
+import { mistakeLabel } from './labels';
 
 const dateValue = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '');
 
@@ -211,7 +211,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                                         className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${form.mistakes.includes(code)
                                             ? 'bg-red-500 border-red-500 text-white'
                                             : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-red-400'}`}>
-                                        {MISTAKE_LABELS[code] || code}
+                                        {mistakeLabel(code)}
                                     </button>
                                 ))}
                             </div>
