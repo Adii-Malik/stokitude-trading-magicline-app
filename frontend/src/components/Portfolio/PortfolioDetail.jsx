@@ -136,7 +136,7 @@ export default function PortfolioDetail() {
                                 )}
                             </div>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
                             <button
                                 onClick={handleRebuild}
                                 title="Recalculate positions from the transaction ledger"

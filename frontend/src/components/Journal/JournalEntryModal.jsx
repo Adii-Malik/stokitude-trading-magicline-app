@@ -117,7 +117,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                                 </select>
                             </Field>
                         </div>
-                        <div className="grid grid-cols-3 gap-3 mt-3">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
                             <Field label="Entry date *">
                                 <input type="date" required value={form.entryDate} className={input}
                                     onChange={(e) => set('entryDate', e.target.value)} />
@@ -134,7 +134,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                     </Section>
 
                     <Section title="The plan" hint="Filled in before the outcome is known.">
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                             <Field label="Stop level">
                                 <input type="number" step="any" value={form.plannedStop} className={input}
                                     onChange={(e) => set('plannedStop', e.target.value)} />
@@ -162,7 +162,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                     </Section>
 
                     <Section title="Exit" hint="Leave blank while the trade is open.">
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                             <Field label="Exit date">
                                 <input type="date" value={form.exitDate} className={input}
                                     onChange={(e) => set('exitDate', e.target.value)} />
@@ -197,7 +197,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                     </Section>
 
                     <Section title="Review">
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <Field label="How I felt">
                                 <select value={form.emotionalState} className={input}
                                     onChange={(e) => set('emotionalState', e.target.value)}>

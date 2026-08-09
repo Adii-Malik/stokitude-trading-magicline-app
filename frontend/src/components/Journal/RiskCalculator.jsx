@@ -80,8 +80,8 @@ export default function RiskCalculator({ options }) {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
-                    <div className="col-span-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div className="col-span-2 sm:col-span-3">
                         <Label>Account capital ({currency})</Label>
                         <input type="number" step="any" className={input} value={profile.accountCapital}
                             placeholder="What this account holds"
@@ -103,7 +103,7 @@ export default function RiskCalculator({ options }) {
                             <span className="absolute right-3 top-2 text-gray-400 text-sm">%</span>
                         </div>
                     </div>
-                    <p className="col-span-3 text-xs text-gray-500 dark:text-gray-400">
+                    <p className="col-span-2 sm:col-span-3 text-xs text-gray-500 dark:text-gray-400">
                         Risk per trade is what you lose when the stop works. The gap cap limits the
                         position itself, for when price jumps straight past it — 20–25% is sensible.
                     </p>
@@ -115,7 +115,7 @@ export default function RiskCalculator({ options }) {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3 border-t border-gray-200 dark:border-gray-700 pt-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 border-t border-gray-200 dark:border-gray-700 pt-4">
                     <div>
                         <Label>Entry</Label>
                         <input type="number" step="any" className={input} value={trade.entryPrice}

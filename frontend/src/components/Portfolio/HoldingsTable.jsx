@@ -78,8 +78,15 @@ export default function HoldingsTable({ portfolioId, currency }) {
                 />
             </div>
 
+            {/* Phones get cards; eight columns of numbers do not survive a 390px screen. */}
+            <div className="md:hidden space-y-3">
+                {filteredAndSorted.map((holding) => (
+                    <HoldingCard key={holding.symbol} holding={holding} currency={currency} />
+                ))}
+            </div>
+
             {/* Table */}
-            <div className="overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
                     <thead>
                         <tr className="border-b border-gray-200 dark:border-gray-700 text-left">
@@ -153,6 +160,41 @@ export default function HoldingsTable({ portfolioId, currency }) {
                         </tr>
                     </tfoot>
                 </table>
+            </div>
+        </div>
+    );
+}
+
+function HoldingCard({ holding, currency }) {
+    return (
+        <div className={`rounded-xl border border-gray-200 dark:border-gray-700 p-4 ${holding.closed ? 'opacity-60' : ''}`}>
+            <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                        <span className="font-semibold text-gray-900 dark:text-white">{holding.symbol}</span>
+                        {holding.closed && (
+                            <span className="px-1.5 py-0.5 text-xs rounded bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                                Closed
+                            </span>
+                        )}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                        {formatShares(holding.quantity)} @ {formatCurrency(holding.avgCost, currency)}
+                    </div>
+                </div>
+                <div className="text-right shrink-0">
+                    <div className="font-semibold text-gray-900 dark:text-white">
+                        {formatCurrency(holding.totalValue, currency)}
+                    </div>
+                    <div className={`text-xs font-medium ${getPnLColorClass(holding.totalPnL)}`}>
+                        {formatCurrency(holding.totalPnL, currency, { signed: true })}
+                        {' · '}{formatPercent(holding.totalPnLPct, 1, { signed: true })}
+                    </div>
+                </div>
+            </div>
+            <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+                <span>Now {formatCurrency(holding.currentPrice, currency)}</span>
+                <span>{formatPercent(holding.weightPct, 1)} of book</span>
             </div>
         </div>
     );
