@@ -1,18 +1,43 @@
 // Centralized Configuration - Only base URLs in .env
+const isProduction = process.env.NODE_ENV === 'production';
+
+/**
+ * In production a missing secret must stop the boot. Falling back to a value
+ * that is published in this repo would leave tokens forgeable and the admin
+ * signup code public.
+ */
+function required(name, devFallback) {
+  const value = process.env[name];
+  if (value) return value;
+  if (isProduction) {
+    console.error(`FATAL: ${name} must be set when NODE_ENV=production`);
+    process.exit(1);
+  }
+  return devFallback;
+}
+
 export default {
   port: parseInt(process.env.PORT) || 5000,
   nodeEnv: process.env.NODE_ENV || 'development',
-  mongoUri: process.env.MONGO_URI || 'mongodb://localhost:27017/psx_monitor',
+  isProduction,
+  mongoUri: required('MONGO_URI', 'mongodb://localhost:27017/psx_monitor'),
+
+  // Comma-separated list of allowed browser origins. Empty means same-origin
+  // only, which is right when this server also serves the built frontend.
+  allowedOrigins: (process.env.ALLOWED_ORIGINS || '')
+    .split(',')
+    .map(o => o.trim())
+    .filter(Boolean),
 
   // Smart cache configuration (prevent excessive scraping)
   cacheDuration: parseInt(process.env.CACHE_DURATION) || 30 * 60 * 1000, // 30 minutes in milliseconds
 
   // JWT Authentication
-  jwtSecret: process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production',
+  jwtSecret: required('JWT_SECRET', 'dev-only-insecure-jwt-secret'),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
 
   // Admin signup code (required to create admin accounts)
-  adminSignupCode: process.env.ADMIN_SIGNUP_CODE || 'admin123',
+  adminSignupCode: required('ADMIN_SIGNUP_CODE', 'admin123'),
 
   // Email Configuration - Multi-Provider Support
   email: {

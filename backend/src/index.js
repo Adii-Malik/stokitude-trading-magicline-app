@@ -33,17 +33,27 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const httpServer = createServer(app);
 
+/**
+ * In production this server also serves the built frontend, so same-origin
+ * requests carry no Origin restriction to satisfy. Anything else must be
+ * named explicitly in ALLOWED_ORIGINS. Development stays permissive so the
+ * Vite dev server on another port keeps working.
+ */
+const corsOrigin = config.isProduction
+  ? (config.allowedOrigins.length ? config.allowedOrigins : false)
+  : true;
+
 // Initialize Socket.IO
 const io = new Server(httpServer, {
   cors: {
-    origin: '*',
+    origin: corsOrigin,
     methods: ['GET', 'POST']
   }
 });
 
 // Middleware
 app.use(cors({
-  origin: true,
+  origin: corsOrigin,
   credentials: true
 }));
 app.use(express.json());

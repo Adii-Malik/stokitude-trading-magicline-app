@@ -1,0 +1,19 @@
+services:
+  app:
+    build: .
+    image: stokitude:latest
+    container_name: stokitude
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+      PORT: 5001
+    # Bound to loopback: nginx terminates TLS and proxies in. The app is
+    # never reachable on the public interface directly.
+    ports:
+      - "127.0.0.1:5001:5001"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
