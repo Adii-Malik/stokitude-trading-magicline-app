@@ -22,7 +22,7 @@ export default function AddTransactionModal({ portfolioId, currency, onClose, on
 
     useEffect(() => {
         api.get(`/portfolios/${portfolioId}/holdings`)
-            .then(res => setHoldings((res.data.data || []).filter(h => h.netShares > 0)))
+            .then(res => setHoldings((res.data.data || []).filter(h => h.quantity > 0)))
             .catch(() => setHoldings([]));
     }, [portfolioId]);
 
@@ -32,7 +32,7 @@ export default function AddTransactionModal({ portfolioId, currency, onClose, on
     const isCash = ['DEPOSIT', 'WITHDRAW'].includes(formData.type);
     const pickFromHoldings = isSell || isRatio;
     const owned = holdings.find(h => h.symbol === formData.symbol);
-    const ownedQty = owned?.netShares ?? 0;
+    const ownedQty = owned?.quantity ?? 0;
     const overSelling = isSell && formData.quantity && parseFloat(formData.quantity) > ownedQty;
 
     // A symbol picked for BUY may not be held, so clear it when switching to SELL.
@@ -157,7 +157,7 @@ export default function AddTransactionModal({ portfolioId, currency, onClose, on
                                     <option value="">Select a holding...</option>
                                     {holdings.map(h => (
                                         <option key={h.symbol} value={h.symbol}>
-                                            {h.symbol} — {formatShares(h.netShares)} shares
+                                            {h.symbol} — {formatShares(h.quantity)} shares
                                         </option>
                                     ))}
                                 </select>
