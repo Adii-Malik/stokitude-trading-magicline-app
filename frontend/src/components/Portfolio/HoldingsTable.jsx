@@ -17,7 +17,7 @@ export default function HoldingsTable({ portfolioId, currency }) {
 
     const loadHoldings = async () => {
         try {
-            const response = await api.get(`/portfolios/${portfolioId}/holdings`);
+            const response = await api.get(`/portfolios/${portfolioId}/holdings?includeClosed=true`);
             setHoldings(response.data.data);
         } catch (error) {
             toast.error('Failed to load holdings');
@@ -42,6 +42,8 @@ export default function HoldingsTable({ portfolioId, currency }) {
             h.companyName?.toLowerCase().includes(searchTerm.toLowerCase())
         )
         .sort((a, b) => {
+            // Closed positions always sink below open ones.
+            if (a.closed !== b.closed) return a.closed ? 1 : -1;
             const multiplier = sortDirection === 'asc' ? 1 : -1;
             return (a[sortField] - b[sortField]) * multiplier;
         });
@@ -176,9 +178,16 @@ function HoldingRow({ holding, currency }) {
     const isProfit = holding.totalPnL >= 0;
 
     return (
-        <tr className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+        <tr className={`border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 ${holding.closed ? 'opacity-60' : ''}`}>
             <td className="py-3">
-                <div className="font-semibold text-gray-900 dark:text-white">{holding.symbol}</div>
+                <div className="flex items-center gap-2">
+                    <span className="font-semibold text-gray-900 dark:text-white">{holding.symbol}</span>
+                    {holding.closed && (
+                        <span className="px-1.5 py-0.5 text-xs rounded bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                            Closed
+                        </span>
+                    )}
+                </div>
                 {holding.companyName && (
                     <div className="text-sm text-gray-600 dark:text-gray-400">{holding.companyName}</div>
                 )}

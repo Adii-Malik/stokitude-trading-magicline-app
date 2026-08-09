@@ -3,6 +3,7 @@
  * Core business logic for portfolio management
  * Handles CRUD, holdings calculation, P/L computation, and position updates
  */
+import mongoose from 'mongoose';
 import Portfolio from '../models/Portfolio.js';
 import Transaction from '../models/Transaction.js';
 import Position from '../models/Position.js';
@@ -422,13 +423,12 @@ class PortfolioService {
     /**
      * Get holdings (positions with current prices)
      */
-    async getHoldings(portfolioId, userId) {
+    async getHoldings(portfolioId, userId, { includeClosed = false } = {}) {
         await this.getPortfolio(portfolioId, userId); // Access check
 
-        const positions = await Position.find({
-            portfolioId,
-            netShares: { $gt: 0 } // Only active positions
-        }).sort({ marketValue: -1 });
+        const query = { portfolioId };
+        if (!includeClosed) query.netShares = { $gt: 0 };
+        const positions = await Position.find(query).sort({ marketValue: -1 });
 
         // Enrich with current stock data
         const holdings = [];
@@ -459,7 +459,8 @@ class PortfolioService {
                 totalReturn: position.costBasis > 0 ? (totalPnL / position.costBasis) * 100 : 0,
                 yieldOnCost: position.costBasis > 0 ? (position.dividendsReceived / position.costBasis) * 100 : 0,
                 weightPct: 0, // Calculated below
-                firstPurchaseDate: position.firstPurchaseDate
+                firstPurchaseDate: position.firstPurchaseDate,
+                closed: position.netShares <= 0
             });
         }
 
@@ -485,16 +486,29 @@ class PortfolioService {
         let totalValue = 0;
         let totalCost = 0;
         let unrealizedPnL = 0;
-        let realizedPnL = 0;
-        let totalDividends = 0;
 
         for (const holding of holdings) {
             totalValue += holding.totalValue; // Use totalValue (recalculated market value)
             totalCost += holding.costBasis;
             unrealizedPnL += holding.unrealizedPnL;
-            realizedPnL += holding.realizedPnL;
-            totalDividends += holding.dividendsReceived;
         }
+
+        // Realized P/L and dividends outlive the position, so total them across
+        // every position rather than only the open ones.
+        const booked = await Position.aggregate([
+            { $match: { portfolioId: new mongoose.Types.ObjectId(String(portfolioId)) } },
+            {
+                $group: {
+                    _id: null,
+                    realizedPnL: { $sum: '$realizedPnL' },
+                    dividends: { $sum: '$dividendsReceived' },
+                    closed: { $sum: { $cond: [{ $lte: ['$netShares', 0] }, 1, 0] } }
+                }
+            }
+        ]);
+        const realizedPnL = booked[0]?.realizedPnL || 0;
+        const totalDividends = booked[0]?.dividends || 0;
+        const closedCount = booked[0]?.closed || 0;
 
         const cash = await this.getCashBalance(portfolioId);
         const totalPnL = unrealizedPnL + realizedPnL + totalDividends;
@@ -521,6 +535,7 @@ class PortfolioService {
             cashBalance: cash.balance,
             cashTracked: cash.tracked,
             holdingsCount: holdings.length,
+            closedCount,
             topHoldings
         };
     }

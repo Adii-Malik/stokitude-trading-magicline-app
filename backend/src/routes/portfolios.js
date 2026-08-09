@@ -576,7 +576,9 @@ router.post('/:id/transactions/upload/csv', upload.single('file'), async (req, r
 router.get('/:id/holdings', async (req, res) => {
     try {
         const userId = req.user._id;
-        const holdings = await portfolioService.getHoldings(req.params.id, userId);
+        const holdings = await portfolioService.getHoldings(req.params.id, userId, {
+            includeClosed: req.query.includeClosed === 'true'
+        });
 
         res.json({
             success: true,
