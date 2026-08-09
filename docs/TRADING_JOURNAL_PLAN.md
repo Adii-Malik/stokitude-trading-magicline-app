@@ -56,6 +56,7 @@ a number that means nothing. Process metrics are currency-free and reported once
 | Identity | `user`, `portfolioId?`, `symbol`, `exchange`, `currency`, `direction`, `setupType` |
 | Entry | `entryDate`, `entryPrice`, `quantity` |
 | Exit | `exitPrice?`, `exitDate?`, `exitConfirmed`, `fees` |
+| Open mark | `markPrice?` — hand-entered last price, kept out of realized totals |
 | The plan | `plannedStop?`, `plannedTarget?`, `stopPlaced`, `eventChecked` |
 | Review | `emotionalState`, `marketCondition`, `mistakes[]`, `tags[]`, `notes`, `lesson` |
 | Provenance | `datesEstimated`, `reviewedAt` |
@@ -100,11 +101,17 @@ streaks, breakdowns by setup and emotion.
 
 ## Seed data
 
-`node src/scripts/seedJournal.js <userEmail>` loads the five trades from the handoff.
-Only what the handoff states is recorded; everything it flags as unconfirmed stays flagged.
+`node src/scripts/seedJournal.js <userEmail>` **replaces** the journal with the seven
+reviewed trades — three UPS lots, SMCI, DXCM, INTC and the open MAS position. It replaces
+rather than merges because every figure is confirmed, and merging would leave older
+estimates behind.
 
-The seeded record already makes the point: the two trades with no resting stop cost −$97.00,
-while every other trade combined made +$5.07. The stop discipline is the entire loss.
+The record makes the point on its own: 4 wins against 2 losses, a 67% win rate, and the
+account still down. INTC alone — the one closed trade with no resting stop — cost $70.77,
+while every other closed trade combined made +$62.84. Losses average roughly twice the
+size of wins, which is what an unstopped loss does to an otherwise decent hit rate.
+
+Only 1 of the 7 trades had a stop actually resting at the broker.
 
 ## What's next
 

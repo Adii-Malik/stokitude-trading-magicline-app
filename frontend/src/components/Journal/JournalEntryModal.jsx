@@ -19,6 +19,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
         exitDate: dateValue(entry?.exitDate),
         exitPrice: entry?.exitPrice ?? '',
         exitConfirmed: entry?.exitConfirmed ?? false,
+        markPrice: entry?.markPrice ?? '',
         fees: entry?.fees ?? '',
         plannedStop: entry?.plannedStop ?? '',
         plannedTarget: entry?.plannedTarget ?? '',
@@ -53,16 +54,18 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
         }
         setSaving(true);
         try {
-            const num = (v) => (v === '' ? undefined : parseFloat(v));
+            // null rather than undefined, so clearing a field survives JSON.stringify.
+            const num = (v) => (v === '' || v == null ? null : parseFloat(v));
             const payload = {
                 ...form,
                 entryPrice: num(form.entryPrice),
                 quantity: num(form.quantity),
                 exitPrice: num(form.exitPrice),
+                markPrice: num(form.markPrice),
                 fees: num(form.fees) || 0,
                 plannedStop: num(form.plannedStop),
                 plannedTarget: num(form.plannedTarget),
-                exitDate: form.exitDate || undefined
+                exitDate: form.exitDate || null
             };
             if (editing) await updateEntry(entry._id, payload);
             else await createEntry(payload);
@@ -173,11 +176,22 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                                     onChange={(e) => set('fees', e.target.value)} />
                             </Field>
                         </div>
-                        {form.exitPrice !== '' && (
+                        {form.exitPrice !== '' ? (
                             <div className="mt-2">
                                 <Check checked={form.exitConfirmed} onChange={(v) => set('exitConfirmed', v)}
                                     label="Confirmed from a broker fill or statement"
                                     hint="Leave unchecked if this is from memory — the stats will flag it." />
+                            </div>
+                        ) : (
+                            <div className="mt-3 w-1/3">
+                                <Field label="Last price">
+                                    <input type="number" step="any" className={input} value={form.markPrice}
+                                        placeholder="optional"
+                                        onChange={(e) => set('markPrice', e.target.value)} />
+                                </Field>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    Marks an open trade by hand. Kept out of realized P/L.
+                                </p>
                             </div>
                         )}
                     </Section>

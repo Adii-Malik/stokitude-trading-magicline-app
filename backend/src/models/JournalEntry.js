@@ -117,6 +117,13 @@ const journalEntrySchema = new mongoose.Schema({
         min: [0, 'Fees cannot be negative']
     },
 
+    // Hand-entered last price for an open trade. Not a live quote — it exists so
+    // an open position can show where it stands until a US price source lands.
+    markPrice: {
+        type: Number,
+        min: [0, 'Mark price cannot be negative']
+    },
+
     // ----- The plan, recorded before the outcome is known -----
     plannedStop: {
         type: Number,

@@ -1,9 +1,8 @@
 /**
- * Seed the journal from the trading-journal handoff.
+ * Seed the journal from the reviewed trade table.
  *
- * Only what the handoff actually states is recorded. Anything it marks as
- * unconfirmed stays flagged (exitConfirmed / datesEstimated) so the stats can
- * discount it instead of treating recollection as fact.
+ * Replaces the user's journal entirely: every figure below is confirmed, so
+ * partial merging would leave older estimates behind.
  *
  * Usage: node src/scripts/seedJournal.js <userEmail>
  */
@@ -12,61 +11,75 @@ import mongoose from 'mongoose';
 import User from '../models/User.js';
 import JournalEntry from '../models/JournalEntry.js';
 
-// The 6/30 statement is the only date anchor the handoff gives for these trades.
-const ANCHOR = new Date('2026-06-30');
+const d = (iso) => new Date(`${iso}T00:00:00.000Z`);
 
 const TRADES = [
     {
+        symbol: 'UPS', exchange: 'NYSE', direction: 'long', setupType: 'other',
+        entryDate: d('2026-01-08'), entryPrice: 107.43, quantity: 4,
+        exitDate: d('2026-06-01'), exitPrice: 109.155, exitConfirmed: true,
+        stopPlaced: false, eventChecked: false,
+        emotionalState: 'neutral', marketCondition: 'sideways', mistakes: [],
+        tags: ['lot-1'],
+        notes: 'Lot 1 of three. Clean entry and exit, no issues identified. Whether a resting stop was in place is not recorded — left unticked rather than assumed.'
+    },
+    {
+        symbol: 'UPS', exchange: 'NYSE', direction: 'long', setupType: 'other',
+        entryDate: d('2026-04-14'), entryPrice: 101.74, quantity: 5,
+        exitDate: d('2026-06-08'), exitPrice: 108.31, exitConfirmed: true,
+        stopPlaced: false, eventChecked: false,
+        emotionalState: 'neutral', marketCondition: 'sideways', mistakes: [],
+        tags: ['lot-2'],
+        notes: 'Lot 2 of three. Cost basis is the average of two purchases, 4/14 and 5/8; the entry date shown is the first of them. Clean entry and exit.'
+    },
+    {
+        symbol: 'UPS', exchange: 'NYSE', direction: 'long', setupType: 'other',
+        entryDate: d('2026-06-24'), entryPrice: 106.095, quantity: 4,
+        exitDate: d('2026-07-08'), exitPrice: 110.60, exitConfirmed: true,
+        stopPlaced: false, eventChecked: false,
+        emotionalState: 'neutral', marketCondition: 'sideways', mistakes: [],
+        tags: ['lot-3'],
+        notes: 'Lot 3 of three. Clean entry and exit, no issues identified.'
+    },
+    {
+        symbol: 'SMCI', exchange: 'NASDAQ', direction: 'long', setupType: 'other',
+        entryDate: d('2026-05-28'), entryPrice: 42.027, quantity: 3,
+        exitDate: d('2026-06-02'), exitPrice: 50.16, exitConfirmed: true,
+        stopPlaced: false, eventChecked: false,
+        emotionalState: 'confident', marketCondition: 'bullish', mistakes: [],
+        notes: 'Best percentage gain of the set, held five days. Clean entry and exit. No resting stop recorded — the result was right but the protection is unconfirmed.'
+    },
+    {
+        // The reference trade: a loss that cost exactly what it was supposed to.
+        symbol: 'DXCM', exchange: 'NASDAQ', direction: 'long', setupType: 'other',
+        entryDate: d('2026-06-08'), entryPrice: 77.575, quantity: 5,
+        exitDate: d('2026-06-15'), exitPrice: 73.71, exitConfirmed: true,
+        plannedStop: 73.71, stopPlaced: true, eventChecked: true,
+        emotionalState: 'disciplined', marketCondition: 'sideways', mistakes: [],
+        notes: 'Correctly managed. A real stop order was resting at the broker and it filled exactly as planned — a well-run loss, not a mistake. The only trade in the set with a placed stop.',
+        lesson: 'A placed stop turns an open-ended loss into a known, budgeted one.'
+    },
+    {
+        symbol: 'INTC', exchange: 'NASDAQ', direction: 'long', setupType: 'other',
+        entryDate: d('2026-06-24'), entryPrice: 131.68, quantity: 3,
+        exitDate: d('2026-07-08'), exitPrice: 108.09, exitConfirmed: true,
+        stopPlaced: false, eventChecked: false,
+        emotionalState: 'fearful', marketCondition: 'volatile',
+        mistakes: ['no_stop_placed', 'no_profit_protection'],
+        notes: 'No stop placed at the broker. Was +6% unrealized on the 6/30 statement and gave the whole gain back and more — no rule to protect an open profit and no cap on the eventual loss. The single worst trade of the set.',
+        lesson: 'An open gain needs a rule to protect it, not an opinion about it.'
+    },
+    {
+        // Still open. The mark is hand-entered, not a live quote.
         symbol: 'MAS', exchange: 'NYSE', direction: 'long', setupType: 'other',
-        entryDate: ANCHOR, entryPrice: 79.47, quantity: 4,
-        exitPrice: 71.48, exitConfirmed: false, datesEstimated: true,
+        entryDate: d('2026-07-16'), entryPrice: 79.47, quantity: 4,
+        markPrice: 71.48,
         stopPlaced: false, eventChecked: false,
         emotionalState: 'neutral', marketCondition: 'volatile',
         mistakes: ['no_stop_placed', 'held_through_event'],
         tags: ['earnings'],
-        notes: 'Held through a scheduled earnings print with no stop resting at the broker. Gapped through — no fill was possible at any stop level. Exit price ~71.48 is unconfirmed; entry date needs a broker statement.',
-        lesson: 'Check the earnings calendar before entering any multi-day swing.'
-    },
-    {
-        symbol: 'INTC', exchange: 'NASDAQ', direction: 'long', setupType: 'other',
-        entryDate: ANCHOR, entryPrice: 131.68, quantity: 3,
-        exitPrice: 110, exitConfirmed: false, datesEstimated: true,
-        stopPlaced: false, eventChecked: false,
-        emotionalState: 'neutral', marketCondition: 'volatile',
-        mistakes: ['no_stop_placed', 'no_profit_protection'],
-        notes: 'Was +6% unrealized as of the 6/30 statement, then gave it all back. No trailing stop and no partial profit-take. Exit ~110 is recalled, not confirmed — an earlier recollection of "-25%" turned out to be wrong, which is why this stays flagged.',
-        lesson: 'An open gain needs a rule to protect it, not just an opinion.'
-    },
-    {
-        // The handoff is explicit: correctly managed. A loss, but not a mistake.
-        symbol: 'DXCM', exchange: 'NASDAQ', direction: 'long', setupType: 'other',
-        entryDate: ANCHOR, entryPrice: 77.575, quantity: 5,
-        exitPrice: 73.71, exitConfirmed: true, datesEstimated: true,
-        plannedStop: 73.71, stopPlaced: true, eventChecked: true,
-        emotionalState: 'disciplined', marketCondition: 'sideways',
-        mistakes: [],
-        notes: 'Stop was placed at the broker and filled exactly as planned. Textbook -1R. Do not "fix" this trade — the process was right and the outcome was the cost of doing business.',
-        lesson: 'A placed stop turns an open-ended loss into a known one.'
-    },
-    {
-        symbol: 'SMCI', exchange: 'NASDAQ', direction: 'long', setupType: 'other',
-        entryDate: ANCHOR, entryPrice: 42.027, quantity: 3,
-        exitPrice: 50.16, exitConfirmed: true, datesEstimated: true,
-        stopPlaced: false, eventChecked: false,
-        emotionalState: 'neutral', marketCondition: 'bullish',
-        mistakes: [],
-        notes: 'Clean entry and exit, no issues flagged. Whether a stop was actually resting at the broker is not recorded in the handoff — stopPlaced/eventChecked are left false rather than assumed. Correct them if you know.',
-        lesson: ''
-    },
-    {
-        // Still open: 4 shares bought 6/24. No exit, so no P/L claimed.
-        symbol: 'UPS', exchange: 'NYSE', direction: 'long', setupType: 'other',
-        entryDate: new Date('2026-06-24'), entryPrice: 106.095, quantity: 4,
-        stopPlaced: false, eventChecked: false,
-        emotionalState: 'neutral', marketCondition: 'sideways',
-        mistakes: [],
-        notes: 'Open position. Separate from this: partial sells on 6/1 @ 109.155 and 6/8 @ 108.31 belong to older lots whose cost basis predates the April 2026 statement — those cannot be journaled until an earlier statement or the 1099 turns up.',
-        lesson: ''
+        notes: 'Still open. No stop placed at the broker, and held through a known, scheduled earnings date — the stock gapped down after the print with no chance to exit at any intended level. The mark of 71.48 is hand-entered, not a live quote.',
+        lesson: 'Check the earnings calendar before entering, and place the stop before the print.'
     }
 ];
 
@@ -86,21 +99,10 @@ async function main() {
         process.exit(1);
     }
 
-    let created = 0;
-    let skipped = 0;
-    for (const trade of TRADES) {
-        const exists = await JournalEntry.findOne({
-            user: user._id, symbol: trade.symbol, entryPrice: trade.entryPrice
-        });
-        if (exists) {
-            skipped++;
-            continue;
-        }
-        await JournalEntry.create({ ...trade, user: user._id });
-        created++;
-    }
+    const removed = await JournalEntry.deleteMany({ user: user._id });
+    await JournalEntry.insertMany(TRADES.map(t => ({ ...t, user: user._id })));
 
-    console.log(`Journal seeded for ${email}: ${created} created, ${skipped} already present.`);
+    console.log(`Journal replaced for ${email}: ${removed.deletedCount} removed, ${TRADES.length} inserted.`);
     await mongoose.disconnect();
 }
 

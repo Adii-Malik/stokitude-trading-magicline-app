@@ -24,9 +24,16 @@ export function computeMetrics(entry) {
     const followedPlan = entry.stopPlaced && entry.eventChecked && (entry.mistakes || []).length === 0;
 
     if (!closed) {
+        // Marked to a hand-entered price, kept out of realized totals.
+        const marked = entry.markPrice != null
+            ? (entry.markPrice - entry.entryPrice) * entry.quantity * sign
+            : null;
+        const cost = entry.entryPrice * entry.quantity;
         return {
             status: 'open', grossPnL: null, netPnL: null, pnlPct: null,
-            rMultiple: null, outcome: null, riskAmount, plannedRR, followedPlan
+            rMultiple: null, outcome: null, riskAmount, plannedRR, followedPlan,
+            unrealizedPnL: marked,
+            unrealizedPct: marked != null && cost > 0 ? (marked / cost) * 100 : null
         };
     }
 
@@ -45,7 +52,9 @@ export function computeMetrics(entry) {
         outcome: netPnL > 0 ? 'win' : netPnL < 0 ? 'loss' : 'breakeven',
         riskAmount,
         plannedRR,
-        followedPlan
+        followedPlan,
+        unrealizedPnL: null,
+        unrealizedPct: null
     };
 }
 
@@ -216,7 +225,14 @@ class JournalService {
     async update(id, userId, data) {
         const entry = await JournalEntry.findOne({ _id: id, user: userId });
         if (!entry) throw new Error('Journal entry not found');
-        Object.assign(entry, data, { user: userId });
+
+        // null clears a field. Without this, an emptied exit price is simply
+        // dropped from the JSON body and a closed trade can never be reopened.
+        for (const [key, value] of Object.entries(data)) {
+            if (key === 'user' || key === '_id') continue;
+            entry[key] = value === null ? undefined : value;
+        }
+
         await entry.save();
         return decorate(entry);
     }

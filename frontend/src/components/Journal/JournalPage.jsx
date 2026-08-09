@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, BookOpen, Search } from 'lucide-react';
+import { Plus, BookOpen, Search, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getEntries, getStats, getOptions, deleteEntry } from '../../services/journal';
 import JournalHeadline from './JournalHeadline';
@@ -90,6 +90,16 @@ export default function JournalPage() {
         }
     };
 
+    // "Open by default" is the resting state, so returning to it counts as clear.
+    const dirty = Boolean(search || mistake || sort !== 'recent' || status !== 'open');
+    const clearFilters = () => {
+        setSearch('');
+        setQuery('');
+        setMistake('');
+        setSort('recent');
+        setStatus('open');
+        setLimit(PAGE);
+    };
     const filtered = Boolean(query || mistake);
 
     return (
@@ -157,11 +167,19 @@ export default function JournalPage() {
                                         </button>
                                     ))}
                                 </div>
-                                {total > 0 && (
-                                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                                        Showing {entries.length} of {total}
-                                    </span>
-                                )}
+                                <div className="flex items-center gap-3">
+                                    {dirty && (
+                                        <button onClick={clearFilters}
+                                            className="inline-flex items-center gap-1 text-xs text-cyan-600 dark:text-cyan-400 hover:underline">
+                                            <XCircle className="w-3.5 h-3.5" /> Clear filters
+                                        </button>
+                                    )}
+                                    {total > 0 && (
+                                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                                            Showing {entries.length} of {total}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
 
                             <JournalList entries={entries}

@@ -43,13 +43,15 @@ export default function JournalList({ entries, onEdit, onDelete, emptyHint }) {
                             </div>
                             <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                                 {e.quantity} @ {e.entryPrice} · {shortDate(e.entryDate)}
-                                {e.status === 'closed' && ` → ${e.exitPrice} · ${shortDate(e.exitDate)}`}
+                                {e.status === 'closed'
+                                    ? ` → ${e.exitPrice} · ${shortDate(e.exitDate)}`
+                                    : e.markPrice != null && ` · marked ${e.markPrice}`}
                                 {e.datesEstimated && <span className="text-amber-600 dark:text-amber-400"> · dates estimated</span>}
                             </div>
                         </div>
 
                         <div className="flex items-center gap-4">
-                            {e.status === 'closed' && (
+                            {e.status === 'closed' ? (
                                 <div className="text-right">
                                     <div className={`font-bold ${getPnLColorClass(e.netPnL)}`}>
                                         {formatCurrency(e.netPnL, e.currency, { signed: true })}
@@ -57,6 +59,15 @@ export default function JournalList({ entries, onEdit, onDelete, emptyHint }) {
                                     <div className="text-xs text-gray-500 dark:text-gray-400">
                                         {formatPercent(e.pnlPct, 2, { signed: true })}
                                         {e.rMultiple != null && ` · ${e.rMultiple.toFixed(2)}R`}
+                                    </div>
+                                </div>
+                            ) : e.unrealizedPnL != null && (
+                                <div className="text-right">
+                                    <div className={`font-bold ${getPnLColorClass(e.unrealizedPnL)}`}>
+                                        {formatCurrency(e.unrealizedPnL, e.currency, { signed: true })}
+                                    </div>
+                                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                                        {formatPercent(e.unrealizedPct, 2, { signed: true })} · unrealized
                                     </div>
                                 </div>
                             )}
