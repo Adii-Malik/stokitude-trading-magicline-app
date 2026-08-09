@@ -4,6 +4,7 @@
  * Supports CRUD, transactions, holdings, dashboard, sharing
  */
 import express from 'express';
+import mongoose from 'mongoose';
 import multer from 'multer';
 import csv from 'csv-parser';
 import { Readable } from 'stream';
@@ -513,30 +514,43 @@ router.post('/:id/transactions/upload/csv', upload.single('file'), async (req, r
             });
         }
 
-        // Bulk insert transactions
+        // Tag every row of this upload so a batch can be traced or rolled back
+        const importBatchId = new mongoose.Types.ObjectId();
+
+        // Bulk insert transactions. Rows that already exist are skipped rather
+        // than duplicated, so re-uploading the same file is a no-op.
         let inserted = 0;
+        let skipped = 0;
         for (const transactionData of results) {
             try {
                 await portfolioService.addTransaction(
                     req.params.id,
                     req.user._id,
-                    transactionData
+                    { ...transactionData, source: 'import', importBatchId }
                 );
                 inserted++;
             } catch (err) {
-                errors.push({
-                    error: err.message,
-                    data: transactionData
-                });
+                if (err.code === 'DUPLICATE_TRANSACTION') {
+                    skipped++;
+                } else {
+                    errors.push({
+                        error: err.message,
+                        data: transactionData
+                    });
+                }
             }
         }
 
         res.json({
             success: true,
-            message: 'Transactions uploaded successfully',
+            message: skipped > 0
+                ? `Imported ${inserted} transaction(s), skipped ${skipped} already present`
+                : 'Transactions uploaded successfully',
             data: {
                 total: results.length,
                 inserted,
+                skipped,
+                importBatchId,
                 errors: errors.length > 0 ? errors : undefined
             }
         });

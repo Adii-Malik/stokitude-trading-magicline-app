@@ -125,11 +125,30 @@ class PortfolioService {
     /**
      * Add transaction
      */
-    async addTransaction(portfolioId, userId, transactionData) {
+    async addTransaction(portfolioId, userId, transactionData, options = {}) {
         const portfolio = await this.getPortfolio(portfolioId, userId);
 
         if (!portfolio.canEdit(userId)) {
             throw new Error('Edit permission required');
+        }
+
+        // Guard against accidental double submits and re-imports. A retried
+        // request or a CSV uploaded twice would otherwise silently create a
+        // second identical row and corrupt the position. Pass
+        // allowDuplicate to record a genuine repeat trade.
+        if (!options.allowDuplicate) {
+            const existing = await this.findDuplicateTransaction(portfolioId, transactionData);
+            if (existing) {
+                const err = new Error(
+                    `Duplicate transaction: ${transactionData.type} ${transactionData.quantity} ` +
+                    `${transactionData.symbol} @ ${transactionData.price} on ` +
+                    `${new Date(transactionData.executedAt).toISOString().slice(0, 10)} already exists. ` +
+                    `Set allowDuplicate to record it anyway.`
+                );
+                err.code = 'DUPLICATE_TRANSACTION';
+                err.existingId = existing._id;
+                throw err;
+            }
         }
 
         const transaction = new Transaction({
@@ -146,6 +165,37 @@ class PortfolioService {
         }
 
         return transaction;
+    }
+
+    /**
+     * Find an identical transaction on the same calendar day.
+     * Used to reject accidental double submits and repeated CSV imports.
+     * @returns {Promise<Object|null>} the existing transaction, or null
+     */
+    async findDuplicateTransaction(portfolioId, data) {
+        if (!data.executedAt || !data.symbol || !data.type) return null;
+
+        const day = new Date(data.executedAt);
+        if (isNaN(day)) return null;
+
+        const start = new Date(day); start.setHours(0, 0, 0, 0);
+        const end = new Date(day); end.setHours(23, 59, 59, 999);
+
+        const query = {
+            portfolioId,
+            symbol: String(data.symbol).toUpperCase(),
+            type: data.type,
+            executedAt: { $gte: start, $lte: end }
+        };
+
+        // Compare the value fields that are meaningful for this type
+        for (const field of ['quantity', 'price', 'dividendCash', 'cashAmount']) {
+            if (data[field] !== undefined && data[field] !== null) {
+                query[field] = data[field];
+            }
+        }
+
+        return Transaction.findOne(query).lean();
     }
 
     /**
