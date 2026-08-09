@@ -16,7 +16,8 @@ const transactionSchema = new mongoose.Schema({
 
     symbol: {
         type: String,
-        required: [true, 'Symbol is required'],
+        // Cash movements are not tied to an instrument.
+        required: [function () { return !['DEPOSIT', 'WITHDRAW'].includes(this.type); }, 'Symbol is required'],
         uppercase: true,
         trim: true,
         index: true

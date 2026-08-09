@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     ArrowLeft, TrendingUp, TrendingDown, DollarSign,
-    PieChart, Plus, Download, RefreshCw, Target, Upload, FileText, X
+    PieChart, Plus, Download, RefreshCw, Target, Upload, FileText, Wallet, X
 } from 'lucide-react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
@@ -113,7 +113,7 @@ export default function PortfolioDetail() {
         );
     }
 
-    const { totalValue, totalCost, totalPnL, totalPnLPct, realizedPnL, unrealizedPnL } = dashboard;
+    const { totalValue, totalCost, totalPnL, totalPnLPct, realizedPnL, unrealizedPnL, cashBalance, cashTracked } = dashboard;
     const isProfit = (totalPnL || 0) >= 0;
 
     return (
@@ -170,7 +170,7 @@ export default function PortfolioDetail() {
                     </div>
 
                     {/* Stats Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6">
                         <StatCard
                             title="Total Value"
                             value={formatCurrency(totalValue, portfolio.currency)}
@@ -194,6 +194,16 @@ export default function PortfolioDetail() {
                             iconBg={isProfit ? 'bg-green-50' : 'bg-red-50'}
                             valueColor={isProfit ? 'text-green-600' : 'text-red-600'}
                         />
+                        {cashTracked && (
+                            <StatCard
+                                title="Cash Balance"
+                                value={formatCurrency(cashBalance, portfolio.currency)}
+                                subtitle={cashBalance < 0 ? 'Overdrawn - check deposits' : 'Available to invest'}
+                                icon={Wallet}
+                                iconColor={cashBalance < 0 ? 'text-red-600' : 'text-emerald-600'}
+                                iconBg={cashBalance < 0 ? 'bg-red-50' : 'bg-emerald-50'}
+                            />
+                        )}
                         <StatCard
                             title="Realized P/L"
                             value={formatCurrency(realizedPnL, portfolio.currency, { signed: true })}

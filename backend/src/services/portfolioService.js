@@ -176,6 +176,32 @@ class PortfolioService {
         return transaction;
     }
 
+    /**
+     * Cash held, from the full ledger: deposits and sale proceeds and dividends
+     * in, withdrawals and purchase costs out. Only meaningful once the user
+     * records cash movements, so `tracked` says whether any exist.
+     */
+    async getCashBalance(portfolioId) {
+        const transactions = await Transaction.find({ portfolioId }).lean();
+
+        let balance = 0;
+        let tracked = false;
+
+        for (const tx of transactions) {
+            const fees = tx.fees || 0;
+            switch (tx.type) {
+                case 'DEPOSIT': balance += tx.cashAmount || 0; tracked = true; break;
+                case 'WITHDRAW': balance -= tx.cashAmount || 0; tracked = true; break;
+                case 'BUY': balance -= (tx.quantity * tx.price) + fees; break;
+                case 'SELL': balance += (tx.quantity * tx.price) - fees; break;
+                case 'DIV': balance += tx.dividendCash || 0; break;
+                default: break;
+            }
+        }
+
+        return { balance: Math.round(balance * 100) / 100, tracked };
+    }
+
     /** Shares held, derived from the ledger rather than the Position view. */
     async getSharesHeld(portfolioId, symbol) {
         const portfolio = await Portfolio.findById(portfolioId).lean();
@@ -470,6 +496,7 @@ class PortfolioService {
             totalDividends += holding.dividendsReceived;
         }
 
+        const cash = await this.getCashBalance(portfolioId);
         const totalPnL = unrealizedPnL + realizedPnL + totalDividends;
         const totalPnLPct = totalCost > 0 ? (totalPnL / totalCost) * 100 : 0;
 
@@ -491,6 +518,8 @@ class PortfolioService {
             unrealizedPnL,
             realizedPnL,
             totalDividends,
+            cashBalance: cash.balance,
+            cashTracked: cash.tracked,
             holdingsCount: holdings.length,
             topHoldings
         };

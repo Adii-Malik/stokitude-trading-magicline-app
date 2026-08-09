@@ -85,7 +85,9 @@ export default function AddTransactionModal({ portfolioId, currency, onClose, on
         setSubmitting(true);
 
         try {
-            const payload = isRatio
+            const payload = isCash
+                ? { type: formData.type, cashAmount: parseFloat(formData.cashAmount), executedAt: formData.executedAt, notes: formData.notes }
+                : isRatio
                 ? { type: formData.type, symbol: formData.symbol, ratio: formData.ratio, executedAt: formData.executedAt, notes: formData.notes }
                 : {
                     ...formData,
@@ -135,6 +137,7 @@ export default function AddTransactionModal({ portfolioId, currency, onClose, on
                         </select>
                     </div>
 
+                    {!isCash && (
                     <div className="relative">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Symbol *
@@ -186,6 +189,8 @@ export default function AddTransactionModal({ portfolioId, currency, onClose, on
                             </div>
                         )}
                     </div>
+
+                    )}
 
                     {isRatio && (
                         <div>
