@@ -21,11 +21,9 @@ export default class FIFOCalculator extends BasePnLCalculator {
     calculate(transactions, currentPrice) {
         const lots = []; // Track individual purchase lots
         let realizedPnL = 0;
+        let oversoldShares = 0;
 
-        // Sort by execution date
-        const sorted = transactions
-            .filter(tx => ['BUY', 'SELL'].includes(tx.type))
-            .sort((a, b) => new Date(a.executedAt) - new Date(b.executedAt));
+        const sorted = this.sortTransactions(transactions);
 
         for (const tx of sorted) {
             if (tx.type === 'BUY') {
@@ -65,9 +63,8 @@ export default class FIFOCalculator extends BasePnLCalculator {
                     }
                 }
 
-                // Edge case: overselling (shouldn't happen with validation)
                 if (remainingToSell > 0) {
-                    console.warn(`FIFO: Attempted to sell ${remainingToSell} more shares than owned`);
+                    oversoldShares += remainingToSell;
                 }
             }
         }
@@ -92,6 +89,7 @@ export default class FIFOCalculator extends BasePnLCalculator {
             realizedPnL: Math.round(realizedPnL * 100) / 100,
             unrealizedPnL: Math.round(unrealizedPnL * 100) / 100,
             marketValue: Math.round(marketValue * 100) / 100,
+            oversoldShares,
             lots: lots.map(lot => ({
                 quantity: lot.quantity,
                 price: lot.price,

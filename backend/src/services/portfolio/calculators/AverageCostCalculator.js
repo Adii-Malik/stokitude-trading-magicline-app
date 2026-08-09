@@ -18,11 +18,9 @@ export default class AverageCostCalculator extends BasePnLCalculator {
         let totalShares = 0;
         let totalCost = 0;
         let realizedPnL = 0;
+        let oversoldShares = 0;
 
-        // Sort by execution date
-        const sorted = transactions
-            .filter(tx => ['BUY', 'SELL'].includes(tx.type))
-            .sort((a, b) => new Date(a.executedAt) - new Date(b.executedAt));
+        const sorted = this.sortTransactions(transactions);
 
         for (const tx of sorted) {
             if (tx.type === 'BUY') {
@@ -31,20 +29,23 @@ export default class AverageCostCalculator extends BasePnLCalculator {
                 totalShares += tx.quantity;
                 totalCost += buyCost;
             } else if (tx.type === 'SELL') {
-                // Calculate average cost at time of sale
-                const avgCost = totalShares > 0 ? totalCost / totalShares : 0;
+                // Excess beyond the holding has no cost basis - don't price it.
+                const sellable = Math.min(tx.quantity, totalShares);
+                oversoldShares += tx.quantity - sellable;
 
-                // Calculate realized P/L
-                const sellProceeds = (tx.quantity * tx.price) - (tx.fees || 0);
-                const sellCost = tx.quantity * avgCost;
-                realizedPnL += (sellProceeds - sellCost);
+                if (sellable > 0) {
+                    const avgCost = totalCost / totalShares;
 
-                // Reduce position
-                totalShares -= tx.quantity;
-                totalCost -= sellCost;
+                    const feesPortion = (tx.fees || 0) * (sellable / tx.quantity);
+                    const sellProceeds = (sellable * tx.price) - feesPortion;
+                    const sellCost = sellable * avgCost;
+                    realizedPnL += (sellProceeds - sellCost);
 
-                // Handle edge case: selling more than owned (shouldn't happen with validation)
-                if (totalShares < 0) {
+                    totalShares -= sellable;
+                    totalCost -= sellCost;
+                }
+
+                if (totalShares <= 0) {
                     totalShares = 0;
                     totalCost = 0;
                 }
@@ -62,7 +63,8 @@ export default class AverageCostCalculator extends BasePnLCalculator {
             costBasis: Math.round(totalCost * 100) / 100,
             realizedPnL: Math.round(realizedPnL * 100) / 100,
             unrealizedPnL: Math.round(unrealizedPnL * 100) / 100,
-            marketValue: Math.round(marketValue * 100) / 100
+            marketValue: Math.round(marketValue * 100) / 100,
+            oversoldShares
         };
     }
 }

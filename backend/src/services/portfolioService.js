@@ -132,10 +132,6 @@ class PortfolioService {
             throw new Error('Edit permission required');
         }
 
-        // Guard against accidental double submits and re-imports. A retried
-        // request or a CSV uploaded twice would otherwise silently create a
-        // second identical row and corrupt the position. Pass
-        // allowDuplicate to record a genuine repeat trade.
         if (!options.allowDuplicate) {
             const existing = await this.findDuplicateTransaction(portfolioId, transactionData);
             if (existing) {
@@ -147,6 +143,19 @@ class PortfolioService {
                 );
                 err.code = 'DUPLICATE_TRANSACTION';
                 err.existingId = existing._id;
+                throw err;
+            }
+        }
+
+        if (transactionData.type === 'SELL') {
+            const held = await this.getSharesHeld(portfolioId, transactionData.symbol);
+            if (transactionData.quantity > held) {
+                const err = new Error(
+                    `Cannot sell ${transactionData.quantity} ${String(transactionData.symbol).toUpperCase()} ` +
+                    `- only ${held} held.`
+                );
+                err.code = 'INSUFFICIENT_SHARES';
+                err.held = held;
                 throw err;
             }
         }
@@ -165,6 +174,21 @@ class PortfolioService {
         }
 
         return transaction;
+    }
+
+    /** Shares held, derived from the ledger rather than the Position view. */
+    async getSharesHeld(portfolioId, symbol) {
+        const portfolio = await Portfolio.findById(portfolioId).lean();
+        const transactions = await Transaction.find({
+            portfolioId,
+            symbol: String(symbol).toUpperCase(),
+            type: { $in: ['BUY', 'SELL'] }
+        }).lean();
+
+        if (!transactions.length) return 0;
+
+        const calculator = CalculatorRegistry.get(portfolio?.calculationMethod);
+        return calculator.calculate(transactions, 0).netShares;
     }
 
     /**
