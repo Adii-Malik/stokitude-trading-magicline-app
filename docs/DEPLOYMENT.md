@@ -129,7 +129,28 @@ them would leave tokens forgeable and the admin signup code public.
 
 ---
 
-## 7. nginx and TLS
+## 7. TLS
+
+Caddy obtains and renews certificates itself, so `docker-compose.prod.yml`
+already includes it and there is nothing to install. Point DNS at the machine,
+put your domain in `.env.production`:
+
+```
+SITE_ADDRESS=your-domain.com
+```
+
+then `docker compose -f docker-compose.prod.yml up -d`. HTTPS, the HTTP
+redirect and renewal all come up on their own.
+
+Leave `SITE_ADDRESS` unset and it serves plain HTTP on port 80, which is what
+you want for the first smoke test against an IP.
+
+<details>
+<summary>nginx + certbot instead</summary>
+
+`deploy/nginx.conf` (TLS) and `deploy/nginx-http.conf` (plain) remain for anyone
+who prefers nginx. They need certbot and a renewal timer; Caddy does not, which
+is why it is the default.
 
 ```bash
 sudo cp deploy/nginx.conf /etc/nginx/sites-available/stokitude
@@ -137,19 +158,9 @@ sudo sed -i 's/example.com/your-domain.com/g' /etc/nginx/sites-available/stokitu
 sudo ln -sf /etc/nginx/sites-available/stokitude /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default
 sudo mkdir -p /var/www/certbot
-
-sudo certbot --nginx -d your-domain.com    # obtains the cert and reloads
-sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d your-domain.com
 ```
-
-Certbot installs its own renewal timer. Confirm it:
-
-```bash
-systemctl list-timers | grep certbot
-sudo certbot renew --dry-run
-```
-
----
+</details>
 
 ## 8. Create the first admin
 

@@ -1,11 +1,13 @@
-# Pulls the image built by CI instead of building on the server.
-# Use this on any small VM - a 1 GB instance cannot run a Vite build.
+# Full production stack: the app plus Caddy for TLS.
 #
-#   docker compose -f docker-compose.prod.yml pull
 #   docker compose -f docker-compose.prod.yml up -d
 #
-# Set IMAGE to your registry path, e.g.
-#   export IMAGE=ghcr.io/adii-malik/stokitude-trading-magicline-app:latest
+# That is the whole deployment. Caddy obtains and renews certificates itself,
+# so there is no nginx, no certbot and no renewal timer.
+#
+# Before DNS exists, leave SITE_ADDRESS unset and browse the VM's IP over HTTP.
+# Once it points here, set SITE_ADDRESS=your-domain.com in .env.production and
+# re-run the same command - HTTPS comes up on its own.
 
 services:
   app:
@@ -16,10 +18,38 @@ services:
     environment:
       NODE_ENV: production
       PORT: 5001
-    ports:
-      - "127.0.0.1:5001:5001"
+    # No published ports: only Caddy reaches the app, over the internal network.
+    expose:
+      - "5001"
     logging:
       driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: caddy
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      # ":-" covers unset and empty; Caddy's own default only covers unset.
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data    # certificates live here; losing this re-issues them
+      - caddy_config:/config
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  caddy_data:
+  caddy_config:

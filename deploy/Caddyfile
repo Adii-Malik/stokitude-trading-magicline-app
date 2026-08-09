@@ -1,0 +1,25 @@
+# Caddy gets and renews certificates on its own, so there is no certbot,
+# no renewal timer and no TLS block to maintain.
+#
+# SITE_ADDRESS is supplied by docker-compose and defaults to :80 there.
+#   :80              -> plain HTTP, for the first smoke test against an IP
+#   your-domain.com  -> automatic HTTPS, including redirect and renewal
+#
+# Defaults live in compose rather than here: Caddy's {$VAR:default} only
+# applies when a variable is unset, and compose passes empty strings.
+
+{$SITE_ADDRESS} {
+	encode gzip
+
+	# WebSocket upgrades pass through untouched; Caddy needs no hints.
+	reverse_proxy app:5001
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options SAMEORIGIN
+	}
+
+	request_body {
+		max_size 5MB
+	}
+}
