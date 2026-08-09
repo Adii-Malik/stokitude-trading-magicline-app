@@ -318,8 +318,11 @@ router.post('/:id/transactions', async (req, res) => {
             data: transaction
         });
     } catch (error) {
-        res.status(500).json({
+        const isValidation = ['INSUFFICIENT_SHARES', 'DUPLICATE_TRANSACTION'].includes(error.code);
+        res.status(isValidation ? 400 : 500).json({
             success: false,
+            code: error.code,
+            held: error.held,
             message: error.message
         });
     }

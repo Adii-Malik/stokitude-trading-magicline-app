@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import api from '../../services/api';
 import { searchStocks } from '../../services/stocks';
 import toast from 'react-hot-toast';
-import { formatCurrency } from '../../utils/portfolioUtils';
+import { formatCurrency, formatShares } from '../../utils/portfolioUtils';
 
 export default function AddTransactionModal({ portfolioId, currency, onClose, onAdded }) {
     const [formData, setFormData] = useState({
@@ -18,6 +18,29 @@ export default function AddTransactionModal({ portfolioId, currency, onClose, on
     const [submitting, setSubmitting] = useState(false);
     const [stockSuggestions, setStockSuggestions] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
+    const [holdings, setHoldings] = useState([]);
+
+    useEffect(() => {
+        api.get(`/portfolios/${portfolioId}/holdings`)
+            .then(res => setHoldings((res.data.data || []).filter(h => h.netShares > 0)))
+            .catch(() => setHoldings([]));
+    }, [portfolioId]);
+
+    const isSell = formData.type === 'SELL';
+    const owned = holdings.find(h => h.symbol === formData.symbol);
+    const ownedQty = owned?.netShares ?? 0;
+    const overSelling = isSell && formData.quantity && parseFloat(formData.quantity) > ownedQty;
+
+    // A symbol picked for BUY may not be held, so clear it when switching to SELL.
+    const changeType = (type) => {
+        const keep = type !== 'SELL' || holdings.some(h => h.symbol === formData.symbol);
+        setFormData({ ...formData, type, symbol: keep ? formData.symbol : '', quantity: '' });
+    };
+
+    const selectHolding = (symbol) => {
+        const h = holdings.find(x => x.symbol === symbol);
+        setFormData({ ...formData, symbol, price: h?.currentPrice ?? formData.price });
+    };
 
     const handleSymbolChange = async (value) => {
         setFormData({ ...formData, symbol: value.toUpperCase() });
@@ -50,6 +73,10 @@ export default function AddTransactionModal({ portfolioId, currency, onClose, on
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (overSelling) {
+            toast.error(`You only own ${formatShares(ownedQty)} ${formData.symbol}`);
+            return;
+        }
         setSubmitting(true);
 
         try {
@@ -90,7 +117,7 @@ export default function AddTransactionModal({ portfolioId, currency, onClose, on
                         </label>
                         <select
                             value={formData.type}
-                            onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                            onChange={(e) => changeType(e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500"
                             required
                         >
@@ -106,16 +133,38 @@ export default function AddTransactionModal({ portfolioId, currency, onClose, on
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Symbol *
                         </label>
-                        <input
-                            type="text"
-                            value={formData.symbol}
-                            onChange={(e) => handleSymbolChange(e.target.value)}
-                            onFocus={() => formData.symbol && setShowSuggestions(true)}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500 uppercase"
-                            placeholder="e.g., OGDC"
-                            required
-                        />
-                        {showSuggestions && stockSuggestions.length > 0 && (
+                        {isSell ? (
+                            holdings.length === 0 ? (
+                                <p className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg">
+                                    No holdings to sell.
+                                </p>
+                            ) : (
+                                <select
+                                    value={formData.symbol}
+                                    onChange={(e) => selectHolding(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500"
+                                    required
+                                >
+                                    <option value="">Select a holding...</option>
+                                    {holdings.map(h => (
+                                        <option key={h.symbol} value={h.symbol}>
+                                            {h.symbol} — {formatShares(h.netShares)} shares
+                                        </option>
+                                    ))}
+                                </select>
+                            )
+                        ) : (
+                            <input
+                                type="text"
+                                value={formData.symbol}
+                                onChange={(e) => handleSymbolChange(e.target.value)}
+                                onFocus={() => formData.symbol && setShowSuggestions(true)}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500 uppercase"
+                                placeholder="e.g., OGDC"
+                                required
+                            />
+                        )}
+                        {!isSell && showSuggestions && stockSuggestions.length > 0 && (
                             <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                                 {stockSuggestions.map((stock) => (
                                     <button
@@ -142,11 +191,26 @@ export default function AddTransactionModal({ portfolioId, currency, onClose, on
                                     <input
                                         type="number"
                                         step="1"
+                                        max={isSell && formData.symbol ? ownedQty : undefined}
                                         value={formData.quantity}
                                         onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500"
+                                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-cyan-500 dark:bg-gray-700 dark:text-white ${overSelling ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                                         required
                                     />
+                                    {isSell && formData.symbol && (
+                                        <div className="mt-1 flex items-center justify-between text-xs">
+                                            <span className={overSelling ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}>
+                                                You own {formatShares(ownedQty)}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() => setFormData({ ...formData, quantity: String(ownedQty) })}
+                                                className="text-cyan-600 dark:text-cyan-400 hover:underline"
+                                            >
+                                                Sell all
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -240,7 +304,7 @@ export default function AddTransactionModal({ portfolioId, currency, onClose, on
                         </button>
                         <button
                             type="submit"
-                            disabled={submitting}
+                            disabled={submitting || overSelling}
                             className="flex-1 px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 disabled:opacity-50"
                         >
                             {submitting ? 'Adding...' : 'Add Transaction'}

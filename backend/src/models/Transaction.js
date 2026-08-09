@@ -4,6 +4,7 @@
  * Supports BUY, SELL, DIV (dividends), and future types (SPLIT, BONUS)
  */
 import mongoose from 'mongoose';
+import { EXCHANGE_CODES, DEFAULT_EXCHANGE, currencyOf } from '../config/exchanges.js';
 
 const transactionSchema = new mongoose.Schema({
     portfolioId: {
@@ -19,6 +20,20 @@ const transactionSchema = new mongoose.Schema({
         uppercase: true,
         trim: true,
         index: true
+    },
+
+    exchange: {
+        type: String,
+        enum: EXCHANGE_CODES,
+        default: DEFAULT_EXCHANGE,
+        uppercase: true
+    },
+
+    // Stamped at execution and never recomputed.
+    currency: {
+        type: String,
+        uppercase: true,
+        default: function () { return currencyOf(this.exchange); }
     },
 
     type: {

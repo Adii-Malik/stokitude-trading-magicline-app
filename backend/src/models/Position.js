@@ -5,6 +5,7 @@
  * Improves performance by avoiding recalculation from all transactions
  */
 import mongoose from 'mongoose';
+import { EXCHANGE_CODES, DEFAULT_EXCHANGE, currencyOf } from '../config/exchanges.js';
 
 const positionSchema = new mongoose.Schema({
     portfolioId: {
@@ -19,6 +20,19 @@ const positionSchema = new mongoose.Schema({
         required: true,
         uppercase: true,
         trim: true
+    },
+
+    exchange: {
+        type: String,
+        enum: EXCHANGE_CODES,
+        default: DEFAULT_EXCHANGE,
+        uppercase: true
+    },
+
+    currency: {
+        type: String,
+        uppercase: true,
+        default: function () { return currencyOf(this.exchange); }
     },
 
     // Holdings
@@ -93,7 +107,7 @@ const positionSchema = new mongoose.Schema({
 });
 
 // Unique index: one position per symbol per portfolio
-positionSchema.index({ portfolioId: 1, symbol: 1 }, { unique: true });
+positionSchema.index({ portfolioId: 1, exchange: 1, symbol: 1 }, { unique: true });
 
 // Methods
 positionSchema.methods.calculatePerformanceMetrics = function () {

@@ -1,12 +1,20 @@
 import mongoose from 'mongoose';
+import { EXCHANGE_CODES, DEFAULT_EXCHANGE } from '../config/exchanges.js';
 
 const stockSchema = new mongoose.Schema({
   symbol: {
     type: String,
     required: true,
-    unique: true,
     uppercase: true,
     trim: true,
+    index: true
+  },
+
+  exchange: {
+    type: String,
+    enum: EXCHANGE_CODES,
+    default: DEFAULT_EXCHANGE,
+    uppercase: true,
     index: true
   },
   companyName: {
@@ -96,6 +104,7 @@ const stockSchema = new mongoose.Schema({
 });
 
 // Text index for search/autocomplete
+stockSchema.index({ exchange: 1, symbol: 1 }, { unique: true });
 stockSchema.index({ symbol: 'text', companyName: 'text' });
 
 const Stock = mongoose.model('Stock', stockSchema);
