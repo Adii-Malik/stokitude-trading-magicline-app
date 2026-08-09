@@ -390,8 +390,6 @@ class PortfolioService {
             }
         }
 
-        const success = results.filter(r => r.status === 'success').length;
-
         return results;
     }
 

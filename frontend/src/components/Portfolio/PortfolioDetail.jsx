@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     ArrowLeft, TrendingUp, TrendingDown, DollarSign,
-    PieChart, Plus, Download, Settings, Target, Upload, FileText, X
+    PieChart, Plus, Download, RefreshCw, Target, Upload, FileText, X
 } from 'lucide-react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
@@ -42,6 +42,30 @@ export default function PortfolioDetail() {
             toast.error(error.response?.data?.message || 'Failed to load portfolio');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleExport = async () => {
+        try {
+            const res = await api.get(`/portfolios/${id}/transactions/export`, { responseType: 'blob' });
+            const url = URL.createObjectURL(res.data);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${portfolio.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-transactions.csv`;
+            link.click();
+            URL.revokeObjectURL(url);
+        } catch {
+            toast.error('Failed to export transactions');
+        }
+    };
+
+    const handleRebuild = async () => {
+        try {
+            const res = await api.post(`/portfolios/${id}/rebuild`);
+            toast.success(res.data.message || 'Positions rebuilt');
+            loadPortfolio();
+        } catch (error) {
+            toast.error(error.response?.data?.message || 'Rebuild failed');
         }
     };
 
@@ -113,6 +137,21 @@ export default function PortfolioDetail() {
                             </div>
                         </div>
                         <div className="flex gap-2">
+                            <button
+                                onClick={handleRebuild}
+                                title="Recalculate positions from the transaction ledger"
+                                className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium px-4 py-2 rounded-lg transition-colors"
+                            >
+                                <RefreshCw className="w-5 h-5" />
+                                <span className="hidden sm:inline">Rebuild</span>
+                            </button>
+                            <button
+                                onClick={handleExport}
+                                className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium px-4 py-2 rounded-lg transition-colors"
+                            >
+                                <Download className="w-5 h-5" />
+                                <span className="hidden sm:inline">Export</span>
+                            </button>
                             <button
                                 onClick={() => setShowUploadModal(true)}
                                 className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium px-4 py-2 rounded-lg transition-colors"

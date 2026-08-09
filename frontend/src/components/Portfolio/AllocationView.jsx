@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Target, Calendar, CheckCircle, Edit, TrendingUp, Settings, Trash2 } from 'lucide-react';
+import { Target, Calendar, Edit, TrendingUp, Settings, Trash2 } from 'lucide-react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { formatCurrency, formatPercent } from '../../utils/portfolioUtils';

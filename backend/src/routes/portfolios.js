@@ -637,6 +637,34 @@ router.post('/:id/rebuild', async (req, res) => {
     }
 });
 
+/**
+ * GET /api/portfolios/:id/transactions/export
+ * Download transactions as CSV. Columns match the import format.
+ */
+router.get('/:id/transactions/export', async (req, res) => {
+    try {
+        const portfolio = await portfolioService.getPortfolio(req.params.id, req.user._id);
+        const transactions = await portfolioService.getTransactions(req.params.id, req.user._id);
+
+        const columns = ['symbol', 'exchange', 'type', 'quantity', 'price', 'fees', 'dividendCash', 'cashAmount', 'ratio', 'executedAt', 'notes'];
+        const escape = (v) => {
+            if (v === null || v === undefined) return '';
+            const s = v instanceof Date ? v.toISOString().slice(0, 10) : String(v);
+            return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+        };
+
+        const rows = transactions.map(tx => columns.map(c => escape(tx[c])).join(','));
+        const csv = [columns.join(','), ...rows].join('\n');
+        const filename = `${portfolio.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-transactions.csv`;
+
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.send(csv);
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
 // ===== Fundamentals =====
 
 /**

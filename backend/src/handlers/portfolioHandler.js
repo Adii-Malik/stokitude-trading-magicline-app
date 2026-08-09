@@ -56,7 +56,6 @@ class PortfolioHandler {
 
                 for (const position of positions) {
                     // Recalculate unrealized P/L with new price
-                    const oldMarketValue = position.marketValue;
                     position.marketValue = position.netShares * stock.currentPrice;
                     position.unrealizedPnL = position.marketValue - position.costBasis;
                     position.calculatePerformanceMetrics();

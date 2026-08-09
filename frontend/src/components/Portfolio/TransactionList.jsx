@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar, TrendingUp, TrendingDown, Filter, Download, Edit2, Trash2 } from 'lucide-react';
+import { Calendar, TrendingUp, TrendingDown, Filter, Edit2, Trash2 } from 'lucide-react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { formatCurrency, formatShares } from '../../utils/portfolioUtils';

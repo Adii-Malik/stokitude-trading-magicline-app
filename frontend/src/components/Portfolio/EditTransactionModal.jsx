@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { X } from 'lucide-react';
 import api from '../../services/api';
 import { searchStocks } from '../../services/stocks';
