@@ -1,0 +1,10 @@
+import api from './api';
+
+const unwrap = (res) => res.data.data;
+
+export const getEntries = (params = {}) => api.get('/journal', { params }).then(unwrap);
+export const getStats = (params = {}) => api.get('/journal/stats', { params }).then(unwrap);
+export const getOptions = () => api.get('/journal/options').then(unwrap);
+export const createEntry = (data) => api.post('/journal', data).then(unwrap);
+export const updateEntry = (id, data) => api.put(`/journal/${id}`, data).then(unwrap);
+export const deleteEntry = (id) => api.delete(`/journal/${id}`);

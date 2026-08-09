@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  TrendingUp, Shield, Target, Sun, Moon, Menu, X, Home, ChevronDown, Briefcase
+  TrendingUp, Shield, Target, Sun, Moon, Menu, X, Home, ChevronDown, Briefcase, BookOpen
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -17,6 +17,7 @@ export default function Header({
   onNavigateToTradeSignals,
   onNavigateToTradingBot,
   onNavigateToPortfolios,
+  onNavigateToJournal,
   onNavigateToAdmin,
   onNavigateToSettings,
   onNavigateToProfile,
@@ -88,6 +89,17 @@ export default function Header({
               >
                 <Briefcase className="w-4 h-4" />
                 <span>Portfolios</span>
+              </button>
+
+              <button
+                onClick={() => handleNavigation(onNavigateToJournal)}
+                className={`px-3 py-2 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${currentPage === 'journal'
+                  ? 'bg-cyan-500 text-white'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                  }`}
+              >
+                <BookOpen className="w-4 h-4" />
+                <span>Journal</span>
               </button>
 
               {isAdmin() && (

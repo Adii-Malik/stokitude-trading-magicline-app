@@ -24,6 +24,7 @@ import jobsRoutes from './routes/jobs.js';
 import notificationsRoutes from './routes/notifications.js';
 import systemRoutes from './routes/system.js';
 import portfoliosRoutes from './routes/portfolios.js';
+import journalRoutes from './routes/journal.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -123,6 +124,7 @@ app.use('/api/jobs', jobsRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/system', systemRoutes);
 app.use('/api/portfolios', portfoliosRoutes);
+app.use('/api/journal', journalRoutes);
 
 // Mount test routes only in development
 if (process.env.NODE_ENV === 'development') {
