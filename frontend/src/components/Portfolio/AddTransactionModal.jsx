@@ -27,13 +27,18 @@ export default function AddTransactionModal({ portfolioId, currency, onClose, on
     }, [portfolioId]);
 
     const isSell = formData.type === 'SELL';
+    const isTrade = ['BUY', 'SELL'].includes(formData.type);
+    const isRatio = ['SPLIT', 'BONUS'].includes(formData.type);
+    const isCash = ['DEPOSIT', 'WITHDRAW'].includes(formData.type);
+    const pickFromHoldings = isSell || isRatio;
     const owned = holdings.find(h => h.symbol === formData.symbol);
     const ownedQty = owned?.netShares ?? 0;
     const overSelling = isSell && formData.quantity && parseFloat(formData.quantity) > ownedQty;
 
     // A symbol picked for BUY may not be held, so clear it when switching to SELL.
     const changeType = (type) => {
-        const keep = type !== 'SELL' || holdings.some(h => h.symbol === formData.symbol);
+        const needsHolding = ['SELL', 'SPLIT', 'BONUS'].includes(type);
+        const keep = !needsHolding || holdings.some(h => h.symbol === formData.symbol);
         setFormData({ ...formData, type, symbol: keep ? formData.symbol : '', quantity: '' });
     };
 
@@ -80,12 +85,14 @@ export default function AddTransactionModal({ portfolioId, currency, onClose, on
         setSubmitting(true);
 
         try {
-            const payload = {
-                ...formData,
-                quantity: parseFloat(formData.quantity),
-                price: parseFloat(formData.price),
-                fees: parseFloat(formData.fees) || 0
-            };
+            const payload = isRatio
+                ? { type: formData.type, symbol: formData.symbol, ratio: formData.ratio, executedAt: formData.executedAt, notes: formData.notes }
+                : {
+                    ...formData,
+                    quantity: parseFloat(formData.quantity),
+                    price: parseFloat(formData.price),
+                    fees: parseFloat(formData.fees) || 0
+                };
 
             await api.post(`/portfolios/${portfolioId}/transactions`, payload);
             toast.success('Transaction added successfully');
@@ -96,9 +103,6 @@ export default function AddTransactionModal({ portfolioId, currency, onClose, on
             setSubmitting(false);
         }
     };
-
-    const isTrade = ['BUY', 'SELL'].includes(formData.type);
-    const isCash = ['DEPOSIT', 'WITHDRAW'].includes(formData.type);
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -126,6 +130,8 @@ export default function AddTransactionModal({ portfolioId, currency, onClose, on
                             <option value="DIV">Dividend</option>
                             <option value="DEPOSIT">Cash Deposit</option>
                             <option value="WITHDRAW">Cash Withdrawal</option>
+                            <option value="SPLIT">Stock Split</option>
+                            <option value="BONUS">Bonus Shares</option>
                         </select>
                     </div>
 
@@ -133,10 +139,10 @@ export default function AddTransactionModal({ portfolioId, currency, onClose, on
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Symbol *
                         </label>
-                        {isSell ? (
+                        {pickFromHoldings ? (
                             holdings.length === 0 ? (
                                 <p className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg">
-                                    No holdings to sell.
+                                    No holdings yet.
                                 </p>
                             ) : (
                                 <select
@@ -164,7 +170,7 @@ export default function AddTransactionModal({ portfolioId, currency, onClose, on
                                 required
                             />
                         )}
-                        {!isSell && showSuggestions && stockSuggestions.length > 0 && (
+                        {!pickFromHoldings && showSuggestions && stockSuggestions.length > 0 && (
                             <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                                 {stockSuggestions.map((stock) => (
                                     <button
@@ -180,6 +186,27 @@ export default function AddTransactionModal({ portfolioId, currency, onClose, on
                             </div>
                         )}
                     </div>
+
+                    {isRatio && (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Ratio *
+                            </label>
+                            <input
+                                type="text"
+                                value={formData.ratio || ''}
+                                onChange={(e) => setFormData({ ...formData, ratio: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500"
+                                placeholder={formData.type === 'SPLIT' ? 'e.g., 2:1' : 'e.g., 20%'}
+                                required
+                            />
+                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                {formData.type === 'SPLIT'
+                                    ? '2:1 means each share becomes two.'
+                                    : '20% means 20 extra shares per 100 held.'}
+                            </p>
+                        </div>
+                    )}
 
                     {isTrade && (
                         <>

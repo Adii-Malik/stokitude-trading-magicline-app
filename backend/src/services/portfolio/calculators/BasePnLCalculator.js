@@ -38,7 +38,30 @@ export default class BasePnLCalculator {
     }
 
     /**
-     * Order BUY/SELL deterministically. Same-day trades share an executedAt
+     * Share multiplier for a SPLIT/BONUS ratio.
+     * "2:1" -> 2 (each share becomes two). "10%" -> 1.1 (10 bonus per 100).
+     * Returns 1 when unparseable, so a bad ratio is a no-op rather than a wipe.
+     */
+    parseRatio(ratio) {
+        if (!ratio) return 1;
+        const raw = String(ratio).trim();
+
+        const pct = raw.match(/^(\d+(?:\.\d+)?)\s*%$/);
+        if (pct) return 1 + (parseFloat(pct[1]) / 100);
+
+        const split = raw.match(/^(\d+(?:\.\d+)?)\s*[:/]\s*(\d+(?:\.\d+)?)$/);
+        if (split) {
+            const [, a, b] = split;
+            const to = parseFloat(a), from = parseFloat(b);
+            return from > 0 ? to / from : 1;
+        }
+
+        const plain = parseFloat(raw);
+        return Number.isFinite(plain) && plain > 0 ? plain : 1;
+    }
+
+    /**
+     * Order transactions deterministically. Same-day trades share an executedAt
      * (date-only input), so tie-break on insertion order.
      */
     sortTransactions(transactions) {
@@ -52,7 +75,7 @@ export default class BasePnLCalculator {
         };
 
         return transactions
-            .filter(tx => ['BUY', 'SELL'].includes(tx.type))
+            .filter(tx => ['BUY', 'SELL', 'SPLIT', 'BONUS'].includes(tx.type))
             .map(tx => ({ tx, k: key(tx) }))
             .sort((a, b) => {
                 if (a.k[0] !== b.k[0]) return a.k[0] - b.k[0];

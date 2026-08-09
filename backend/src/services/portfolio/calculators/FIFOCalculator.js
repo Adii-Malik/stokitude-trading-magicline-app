@@ -66,6 +66,13 @@ export default class FIFOCalculator extends BasePnLCalculator {
                 if (remainingToSell > 0) {
                     oversoldShares += remainingToSell;
                 }
+            } else {
+                // SPLIT/BONUS: scale every lot, keeping each lot's cost intact.
+                const ratio = this.parseRatio(tx.ratio);
+                for (const lot of lots) {
+                    lot.quantity *= ratio;
+                    lot.price /= ratio;
+                }
             }
         }
 

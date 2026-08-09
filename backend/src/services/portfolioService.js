@@ -169,7 +169,7 @@ class PortfolioService {
         await transaction.save();
 
         // Update position
-        if (['BUY', 'SELL', 'DIV'].includes(transaction.type)) {
+        if (['BUY', 'SELL', 'DIV', 'SPLIT', 'BONUS'].includes(transaction.type)) {
             await this.updatePosition(portfolioId, transaction.symbol);
         }
 
@@ -182,7 +182,7 @@ class PortfolioService {
         const transactions = await Transaction.find({
             portfolioId,
             symbol: String(symbol).toUpperCase(),
-            type: { $in: ['BUY', 'SELL'] }
+            type: { $in: ['BUY', 'SELL', 'SPLIT', 'BONUS'] }
         }).lean();
 
         if (!transactions.length) return 0;
@@ -324,7 +324,7 @@ class PortfolioService {
         const transactions = await Transaction.find({
             portfolioId,
             symbol,
-            type: { $in: ['BUY', 'SELL'] }
+            type: { $in: ['BUY', 'SELL', 'SPLIT', 'BONUS'] }
         }).sort({ executedAt: 1 });
 
         // Get current stock price

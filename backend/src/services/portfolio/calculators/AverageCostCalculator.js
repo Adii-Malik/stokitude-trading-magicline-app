@@ -49,6 +49,9 @@ export default class AverageCostCalculator extends BasePnLCalculator {
                     totalShares = 0;
                     totalCost = 0;
                 }
+            } else {
+                // SPLIT/BONUS: share count scales, money invested does not.
+                totalShares *= this.parseRatio(tx.ratio);
             }
         }
 

@@ -150,6 +150,12 @@ transactionSchema.pre('save', function (next) {
         }
     }
 
+    if (['SPLIT', 'BONUS'].includes(this.type)) {
+        if (!this.ratio) {
+            return next(new Error(`${this.type} transactions require a ratio (e.g. "2:1" or "20%")`));
+        }
+    }
+
     if (['DEPOSIT', 'WITHDRAW'].includes(this.type)) {
         if (!this.cashAmount) {
             return next(new Error(`${this.type} transactions require cashAmount`));
