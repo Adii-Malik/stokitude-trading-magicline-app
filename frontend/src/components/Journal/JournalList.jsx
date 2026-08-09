@@ -5,11 +5,11 @@ import { mistakeLabel } from './labels';
 
 const shortDate = (d) => (d ? new Date(d).toLocaleDateString() : '—');
 
-export default function JournalList({ entries, onEdit, onDelete }) {
+export default function JournalList({ entries, onEdit, onDelete, emptyHint }) {
     if (!entries.length) {
         return (
             <div className="text-center py-12 text-gray-600 dark:text-gray-400">
-                No trades journaled yet. Log one to start building the record.
+                {emptyHint || 'No trades journaled yet. Log one to start building the record.'}
             </div>
         );
     }

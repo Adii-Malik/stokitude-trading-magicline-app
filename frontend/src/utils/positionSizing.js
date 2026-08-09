@@ -29,12 +29,13 @@ export function sizePosition({
     let shares = round(riskBudget / riskPerShare);
     const byRisk = shares;
 
-    // A wide stop can size small yet still concentrate the account; cap it.
+    // A tight stop sizes a huge position whose risk figure only holds while the
+    // stop fills. Cap the position so a gap through it stays survivable.
     const maxValue = capital * (maxPositionPct / 100);
     let cappedBy = null;
     if (shares * entryPrice > maxValue) {
         shares = round(maxValue / entryPrice);
-        cappedBy = 'position limit';
+        cappedBy = 'gap cap';
     }
 
     if (shares <= 0) {

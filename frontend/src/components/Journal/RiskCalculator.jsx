@@ -96,13 +96,17 @@ export default function RiskCalculator({ options }) {
                         </div>
                     </div>
                     <div>
-                        <Label>Max position</Label>
+                        <Label>Gap cap</Label>
                         <div className="relative">
                             <input type="number" step="any" className={input} value={profile.maxPositionPct}
                                 onChange={(e) => setProfile({ maxPositionPct: e.target.value })} />
                             <span className="absolute right-3 top-2 text-gray-400 text-sm">%</span>
                         </div>
                     </div>
+                    <p className="col-span-3 text-xs text-gray-500 dark:text-gray-400">
+                        Risk per trade is what you lose when the stop works. The gap cap limits the
+                        position itself, for when price jumps straight past it — 20–25% is sensible.
+                    </p>
                     <div className="flex items-end">
                         <button type="button" onClick={saveProfile} disabled={saving}
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center justify-center gap-1 disabled:opacity-50">
@@ -155,7 +159,8 @@ export default function RiskCalculator({ options }) {
 
                         {result.cappedBy && (
                             <p className="text-xs text-amber-600 dark:text-amber-400">
-                                Cut from {result.byRisk.toLocaleString()} by your {profile.maxPositionPct}% {result.cappedBy}.
+                                Cut from {result.byRisk.toLocaleString()} shares by your {profile.maxPositionPct}% gap cap.
+                                The stop is tight enough that a gap through it would hurt far more than the planned risk.
                             </p>
                         )}
 

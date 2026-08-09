@@ -70,8 +70,8 @@ router.get('/stats', async (req, res) => {
 
 router.get('/', async (req, res) => {
     try {
-        const entries = await journalService.list(req.user._id, req.query);
-        res.json({ success: true, count: entries.length, data: entries });
+        const { entries, total } = await journalService.list(req.user._id, req.query);
+        res.json({ success: true, count: entries.length, total, data: entries });
     } catch (error) {
         fail(res, error);
     }

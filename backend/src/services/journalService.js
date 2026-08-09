@@ -153,8 +153,19 @@ function statsFor(entries) {
     };
 }
 
+const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const SORTS = {
+    recent: (a, b) => new Date(b.entryDate) - new Date(a.entryDate),
+    oldest: (a, b) => new Date(a.entryDate) - new Date(b.entryDate),
+    best: (a, b) => (b.netPnL ?? -Infinity) - (a.netPnL ?? -Infinity),
+    worst: (a, b) => (a.netPnL ?? Infinity) - (b.netPnL ?? Infinity),
+    symbol: (a, b) => a.symbol.localeCompare(b.symbol)
+};
+
 class JournalService {
-    async list(userId, filters = {}) {
+    /** Every match, decorated. Stats need the full set, never a page of it. */
+    async findAll(userId, filters = {}) {
         const query = { user: userId };
         if (filters.symbol) query.symbol = filters.symbol.toUpperCase();
         if (filters.exchange) query.exchange = filters.exchange.toUpperCase();
@@ -164,12 +175,31 @@ class JournalService {
             if (filters.from) query.entryDate.$gte = new Date(filters.from);
             if (filters.to) query.entryDate.$lte = new Date(filters.to);
         }
+        if (filters.q) {
+            const rx = new RegExp(escapeRegex(filters.q.trim()), 'i');
+            query.$or = [{ symbol: rx }, { notes: rx }, { lesson: rx }, { tags: rx }];
+        }
 
-        const entries = (await JournalEntry.find(query).sort({ entryDate: -1 })).map(decorate);
+        let entries = (await JournalEntry.find(query)).map(decorate);
 
-        if (filters.status) return entries.filter(e => e.status === filters.status);
-        if (filters.outcome) return entries.filter(e => e.outcome === filters.outcome);
-        return entries;
+        // status/outcome are derived, so they filter after decoration.
+        if (filters.status) entries = entries.filter(e => e.status === filters.status);
+        if (filters.outcome) entries = entries.filter(e => e.outcome === filters.outcome);
+        if (filters.mistake) entries = entries.filter(e => (e.mistakes || []).includes(filters.mistake));
+        if (filters.followedPlan != null) {
+            const want = String(filters.followedPlan) === 'true';
+            entries = entries.filter(e => Boolean(e.followedPlan) === want);
+        }
+
+        return entries.sort(SORTS[filters.sort] || SORTS.recent);
+    }
+
+    /** A page of entries plus the full match count, so the UI can say "20 of 137". */
+    async list(userId, filters = {}) {
+        const entries = await this.findAll(userId, filters);
+        const skip = Math.max(0, parseInt(filters.skip, 10) || 0);
+        const limit = Math.min(200, Math.max(1, parseInt(filters.limit, 10) || 25));
+        return { total: entries.length, entries: entries.slice(skip, skip + limit) };
     }
 
     async get(id, userId) {
@@ -199,7 +229,7 @@ class JournalService {
 
     /** Stats split by currency, plus an overall process view that is currency-free. */
     async stats(userId, filters = {}) {
-        const entries = await this.list(userId, filters);
+        const entries = await this.findAll(userId, filters);
 
         const currencies = [...new Set(entries.map(e => e.currency || 'PKR'))];
         const byCurrency = currencies.map(currency => ({
