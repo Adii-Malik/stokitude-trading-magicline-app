@@ -61,7 +61,8 @@ sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 443 -j ACCEPT
 sudo netfilter-persistent save
 ```
 
-Do **not** open 5001. The app binds to loopback only; nginx is the way in.
+Do **not** open 5001. The app publishes no port at all — only Caddy reaches
+it, over the compose network.
 
 ---
 
@@ -82,8 +83,8 @@ dig +short your-domain.com
 ssh ubuntu@YOUR_IP
 
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y docker.io docker-compose-v2 nginx certbot python3-certbot-nginx git
-sudo systemctl enable --now docker
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
 sudo usermod -aG docker $USER   # log out and back in for this to take effect
 ```
 
@@ -110,14 +111,14 @@ openssl rand -base64 48        # paste into JWT_SECRET
 openssl rand -base64 24        # paste into ADMIN_SIGNUP_CODE
 nano .env.production           # fill MONGO_URI and FRONTEND_URL too
 
-docker compose up -d --build
+docker compose -f docker-compose.prod.yml up -d
 ```
 
 The build takes several minutes on ARM the first time. Check it came up:
 
 ```bash
 docker compose ps
-curl -s localhost:5001/health | head -20
+curl -s localhost/health | head -20   # port 80: Caddy, not the app
 docker compose logs -f app
 ```
 
@@ -176,29 +177,62 @@ from then on, and the script only needs them once.
 
 ## Updating
 
-```bash
-cd ~/stokitude-trading-magicline-app
-git pull
-docker compose up -d --build
+Deploying is deliberately manual. CI builds and publishes on every push to
+`main`, but nothing reaches the server until you ask for it — so a bad push
+sits in the registry rather than in production.
+
+```
+git push  ->  Actions runs the tests and publishes  ->  you pull
 ```
 
-`restart: unless-stopped` plus the Docker healthcheck means the container
-comes back on reboot and after a crash. Nothing else to configure.
+Wait for the **Build image** run to go green, then on the server:
+
+```bash
+cd ~/site
+docker compose pull
+docker compose up -d
+```
+
+About twenty seconds, with a few seconds of downtime while the container
+swaps. `up -d` only recreates a container whose image actually changed.
+
+`restart: unless-stopped` plus the healthcheck means both containers come
+back on reboot and after a crash. Nothing else to configure.
+
+### Rolling back
+
+`:latest` is a moving pointer, so "the previous version" is not something
+`pull` can find. CI also tags every build with its commit, so pin one:
+
+```bash
+IMAGE=ghcr.io/adii-malik/stokitude-trading-magicline-app:sha-abc1234 \
+  docker compose up -d
+```
+
+Take the short SHA from the Actions run, or from the package's version list.
+Once the fix is out, drop the override and go back to `latest`.
+
+### Automating it later
+
+A Watchtower container polling the registry would make deploys hands-off.
+It is left out on purpose: on a 1 GB box it costs ~50 MB, and it removes the
+one moment when a person looks at production before it changes. Worth adding
+when manual deploys start feeling like a chore, not before.
 
 ---
 
 ## Verifying it actually works
 
 ```bash
-curl -s https://your-domain.com/health          # returns JSON, not an nginx error
+curl -s https://your-domain.com/health          # returns JSON
 curl -sI https://your-domain.com | head -1      # 200
 ```
 
 Then in a browser: log in, open the journal, and watch the dashboard for a
 live price update. **The price update is the real test** — it proves the
 WebSocket upgrade survived the proxy. If the page loads but prices never move,
-the `Upgrade`/`Connection` headers in the nginx config are the first thing to
-check.
+check `docker compose logs caddy` — Caddy proxies upgrades without
+configuration, so a failure there is usually the app being unreachable.
 
 ---
 
@@ -209,7 +243,8 @@ check.
 | Connection times out from outside | Port open in only one of the two firewalls (§2) |
 | Container exits at once | A required secret is missing — the log names it |
 | MongoDB timeout at boot | VM's IP not whitelisted in Atlas (§5) |
-| Page loads, prices frozen | WebSocket not upgrading through nginx (§7) |
+| Page loads, prices frozen | Caddy not reaching the app — check `docker compose logs caddy` |
+| `Could not connect` on port 80 | Caddy's PORTS column is empty; the `ports:` block is missing from compose |
 | Certbot fails | DNS not yet pointing at the VM, or port 80 closed |
 | `permission denied` on docker | You have not logged out since `usermod -aG docker` |
 
@@ -217,7 +252,7 @@ Logs:
 
 ```bash
 docker compose logs --tail=100 app
-sudo tail -50 /var/log/nginx/error.log
+docker compose logs --tail=50 caddy
 ```
 
 ---
@@ -251,7 +286,7 @@ docker compose -f docker-compose.prod.yml up -d
 Make the package public in GitHub → Packages → settings, and the `docker
 login` is not needed at all.
 
-**2. Add swap.** Node plus nginx on 1 GB is tight enough that a spike will kill
+**2. Add swap.** Node plus Caddy on 1 GB is tight enough that a spike will kill
 the container without it:
 
 ```bash
@@ -277,7 +312,7 @@ and no amount of retrying fixes it. At that point a small paid VPS is worth
 more than the time already spent: roughly $4–7/month buys 2 vCPU and 4 GB from
 Hetzner, DigitalOcean or similar — more machine than either free tier, with a
 signup that works. Nothing above changes except the provider; the compose file,
-nginx config and runbook are identical.
+Caddyfile and runbook are identical.
 
 ## What this does not cover
 
