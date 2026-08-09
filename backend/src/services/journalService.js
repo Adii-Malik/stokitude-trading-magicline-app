@@ -66,7 +66,7 @@ export function decorate(entry) {
 const pct = (n, d) => (d > 0 ? (n / d) * 100 : 0);
 
 /** Stats for one currency's trades. Mixing PKR and USD into one figure is meaningless. */
-function statsFor(entries) {
+export function statsFor(entries) {
     const closed = entries.filter(e => e.status === 'closed');
     const wins = closed.filter(e => e.outcome === 'win');
     const losses = closed.filter(e => e.outcome === 'loss');

@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "create-admin": "node src/scripts/createSuperAdmin.js"
+    "create-admin": "node src/scripts/createSuperAdmin.js",
+    "test": "node --test src"
   },
   "keywords": [
     "psx",
