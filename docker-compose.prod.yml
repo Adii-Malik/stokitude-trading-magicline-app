@@ -1,0 +1,25 @@
+# Pulls the image built by CI instead of building on the server.
+# Use this on any small VM - a 1 GB instance cannot run a Vite build.
+#
+#   docker compose -f docker-compose.prod.yml pull
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Set IMAGE to your registry path, e.g.
+#   export IMAGE=ghcr.io/adii-malik/stokitude-trading-magicline-app:latest
+
+services:
+  app:
+    image: ${IMAGE:-ghcr.io/adii-malik/stokitude-trading-magicline-app:latest}
+    container_name: stokitude
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+      PORT: 5001
+    ports:
+      - "127.0.0.1:5001:5001"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

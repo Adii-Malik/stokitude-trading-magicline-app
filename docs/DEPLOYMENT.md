@@ -211,6 +211,63 @@ sudo tail -50 /var/log/nginx/error.log
 
 ---
 
+## Alternative: Google Cloud Always Free
+
+If the Oracle signup will not complete — a common outcome, and not something
+you can debug from your side — Google's Always Free tier also gives a VM that
+never sleeps.
+
+| | Oracle | Google |
+|---|---|---|
+| Shape | ARM Ampere, to 4 vCPU / 24 GB | e2-micro, ~1 vCPU / **1 GB** |
+| Regions | Your home region | us-west1 / us-central1 / us-east1 only |
+| Disk | 200 GB | 30 GB |
+| Free egress | 10 TB/mo | **1 GB/mo** from North America |
+
+Everything above applies, with three changes:
+
+**1. Never build on the server.** 1 GB is not enough for a Vite build; it will
+be OOM-killed. The `Build image` workflow publishes a multi-arch image to
+ghcr.io on every push to `main`, so the VM only pulls:
+
+```bash
+export IMAGE=ghcr.io/adii-malik/stokitude-trading-magicline-app:latest
+echo $GITHUB_TOKEN | docker login ghcr.io -u YOUR_USERNAME --password-stdin
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+```
+
+Make the package public in GitHub → Packages → settings, and the `docker
+login` is not needed at all.
+
+**2. Add swap.** Node plus nginx on 1 GB is tight enough that a spike will kill
+the container without it:
+
+```bash
+sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile
+sudo mkswap /swapfile && sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+```
+
+**3. Firewall is one place, not two.** GCP uses VPC firewall rules; there is no
+second iptables layer to open. Tick "Allow HTTP/HTTPS traffic" when creating
+the instance, or add rules for tcp:80 and tcp:443.
+
+Watch the **1 GB monthly egress**. A personal journal will not come close, but
+serving images or a busy dashboard could.
+
+> Free-tier terms change. Check the current limits before committing — the
+> shape of the advice holds, the numbers may not.
+
+## If free tiers keep rejecting you
+
+Signup failures on both Oracle and GCP usually come down to card verification,
+and no amount of retrying fixes it. At that point a small paid VPS is worth
+more than the time already spent: roughly $4–7/month buys 2 vCPU and 4 GB from
+Hetzner, DigitalOcean or similar — more machine than either free tier, with a
+signup that works. Nothing above changes except the provider; the compose file,
+nginx config and runbook are identical.
+
 ## What this does not cover
 
 - **Backups.** Atlas M0 has no automated backup. `mongodump` on a cron is
