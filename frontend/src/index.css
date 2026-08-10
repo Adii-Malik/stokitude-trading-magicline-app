@@ -6,6 +6,27 @@
   body {
     @apply bg-gray-50 text-gray-900;
   }
+
+  /* Only inside the native shell: keep content clear of the notch and the
+     home indicator. The class is added by services/native.js, so the web
+     build is untouched. */
+  .is-native body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* A native app should not feel like a web page under the finger. */
+  .is-native {
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+  }
+
+  .is-native input,
+  .is-native select,
+  .is-native textarea {
+    /* iOS zooms the viewport on focus for anything under 16px. */
+    font-size: max(16px, 1rem);
+  }
 }
 
 @layer components {
