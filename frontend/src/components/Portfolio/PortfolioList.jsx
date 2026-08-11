@@ -234,7 +234,8 @@ function CreatePortfolioModal({ portfolio, onClose, onCreated }) {
         name: portfolio?.name || '',
         description: portfolio?.description || '',
         calculationMethod: portfolio?.calculationMethod || 'AVERAGE_COST',
-        currency: portfolio?.currency || 'PKR'
+        currency: portfolio?.currency || 'PKR',
+        defaultFeePct: portfolio?.defaultFeePct ?? ''
     });
     const [submitting, setSubmitting] = useState(false);
 
@@ -323,6 +324,29 @@ function CreatePortfolioModal({ portfolio, onClose, onCreated }) {
                         {portfolio && (
                             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Currency cannot be changed after creation</p>
                         )}
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Brokerage fee
+                        </label>
+                        <div className="relative">
+                            <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="5"
+                                value={formData.defaultFeePct}
+                                onChange={(e) => setFormData({ ...formData, defaultFeePct: e.target.value })}
+                                className="w-full px-3 py-2 pr-8 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                placeholder="0.20"
+                            />
+                            <span className="absolute right-3 top-2 text-gray-400 text-sm">%</span>
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            Prefills the fee on each trade. PSX commission plus CDC, SECP and CVT
+                            comes to roughly 0.2%; leaving it blank understates cost and overstates gains.
+                        </p>
                     </div>
 
                     <div className="flex gap-3 pt-4">

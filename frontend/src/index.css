@@ -7,11 +7,25 @@
     @apply bg-gray-50 text-gray-900;
   }
 
-  /* Only inside the native shell: keep content clear of the notch and the
-     home indicator. The class is added by services/native.js, so the web
-     build is untouched. */
-  .is-native body {
+  /* Installed as a PWA or running in Capacitor, the web view starts at y=0,
+     so a sticky top-0 header lands under the Dynamic Island. Pad the header
+     itself rather than the body - padding the body would move the viewport
+     the header sticks to and leave the gap unpainted. */
+  @media (display-mode: standalone) {
+    header {
+      padding-top: env(safe-area-inset-top);
+    }
+
+    body {
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+  }
+
+  .is-native header {
     padding-top: env(safe-area-inset-top);
+  }
+
+  .is-native body {
     padding-bottom: env(safe-area-inset-bottom);
   }
 

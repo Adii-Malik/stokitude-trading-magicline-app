@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  TrendingUp, Shield, Target, Sun, Moon, X, Home, ChevronDown, Briefcase, BookOpen
+  TrendingUp, Shield, Target, Sun, Moon, Menu, X, Home, ChevronDown, Briefcase, BookOpen
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -174,23 +174,24 @@ export default function Header({
                   <NotificationBell />
 
                   {/* User Badge + Menu Toggle */}
+                  {/* A hamburger, not a chevron beside a username - nobody
+                      guesses that their own name is the navigation. */}
                   <button
                     onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                    aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+                    aria-expanded={mobileMenuOpen}
+                    className="flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition"
                   >
-                    {/* Connection Status Indicator */}
-                    <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                    <div className={`w-2 h-2 rounded-full shrink-0 ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
 
-                    {/* Username */}
-                    <span className="text-sm font-medium text-gray-900 dark:text-white max-w-[100px] truncate">
+                    <span className="hidden sm:inline text-sm font-medium text-gray-900 dark:text-white max-w-[100px] truncate">
                       {user.username}
                     </span>
 
-                    {/* Menu Icon */}
                     {mobileMenuOpen ? (
-                      <X className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+                      <X className="w-6 h-6 text-gray-700 dark:text-gray-300" />
                     ) : (
-                      <ChevronDown className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+                      <Menu className="w-6 h-6 text-gray-700 dark:text-gray-300" />
                     )}
                   </button>
                 </div>

@@ -5,7 +5,7 @@ import { searchStocks } from '../../services/stocks';
 import toast from 'react-hot-toast';
 import { formatCurrency, formatShares } from '../../utils/portfolioUtils';
 
-export default function AddTransactionModal({ portfolioId, currency, onClose, onAdded }) {
+export default function AddTransactionModal({ portfolioId, currency, defaultFeePct = 0, onClose, onAdded }) {
     const [formData, setFormData] = useState({
         type: 'BUY',
         symbol: '',
@@ -34,6 +34,18 @@ export default function AddTransactionModal({ portfolioId, currency, onClose, on
     const owned = holdings.find(h => h.symbol === formData.symbol);
     const ownedQty = owned?.quantity ?? 0;
     const overSelling = isSell && formData.quantity && parseFloat(formData.quantity) > ownedQty;
+
+    // Brokerage is a percentage of trade value, so it can be derived rather
+    // than typed. Understating it inflates every gain the portfolio reports.
+    const tradeValue = (parseFloat(formData.quantity) || 0) * (parseFloat(formData.price) || 0);
+    const suggestedFee = defaultFeePct > 0 ? (tradeValue * defaultFeePct) / 100 : 0;
+    const feeUntouched = formData.fees === '' || formData.fees === undefined;
+
+    useEffect(() => {
+        if (isTrade && feeUntouched && suggestedFee > 0) {
+            setFormData(f => ({ ...f, fees: suggestedFee.toFixed(2) }));
+        }
+    }, [suggestedFee, isTrade, feeUntouched]);
 
     // A symbol picked for BUY may not be held, so clear it when switching to SELL.
     const changeType = (type) => {

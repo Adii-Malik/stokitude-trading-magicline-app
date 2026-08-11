@@ -51,6 +51,18 @@ const portfolioSchema = new mongoose.Schema({
         uppercase: true
     },
 
+    /**
+     * Percent of trade value charged on each BUY/SELL, used to prefill the fee
+     * when adding a transaction. PSX brokerage plus CDC, SECP and CVT lands
+     * near 0.2%; leaving it at 0 understates cost basis and overstates gains.
+     */
+    defaultFeePct: {
+        type: Number,
+        default: 0,
+        min: [0, 'Fee rate cannot be negative'],
+        max: [5, 'Fee rate cannot exceed 5%']
+    },
+
     description: {
         type: String,
         maxlength: [500, 'Description cannot exceed 500 characters']
