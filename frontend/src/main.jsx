@@ -12,3 +12,12 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   </React.StrictMode>,
 )
 
+// Only in a built site served over HTTPS. Skipped in dev, where it would just
+// cache the Vite output and confuse hot reload, and inside Capacitor, which
+// serves the bundle from the native shell already.
+if ('serviceWorker' in navigator && import.meta.env.PROD && !window.Capacitor) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => { })
+  })
+}
+
