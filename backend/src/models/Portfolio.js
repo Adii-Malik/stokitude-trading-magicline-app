@@ -52,16 +52,23 @@ const portfolioSchema = new mongoose.Schema({
     },
 
     /**
-     * Percent of trade value charged on each BUY/SELL, used to prefill the fee
-     * when adding a transaction. PSX brokerage plus CDC, SECP and CVT lands
-     * near 0.2%; leaving it at 0 understates cost basis and overstates gains.
+     * Brokerage bands, matched on share price. PSX brokers charge a flat rate
+     * per share on cheap stocks and a percentage of value on expensive ones,
+     * so a single rate cannot express it. Used to prefill the fee on a trade.
+     *
+     * `to: null` means the band has no upper bound.
      */
-    defaultFeePct: {
-        type: Number,
-        default: 0,
-        min: [0, 'Fee rate cannot be negative'],
-        max: [5, 'Fee rate cannot exceed 5%']
-    },
+    commissionSlabs: [{
+        _id: false,
+        from: { type: Number, required: true, min: 0 },
+        to: { type: Number, default: null },
+        type: {
+            type: String,
+            enum: ['PER_SHARE', 'PERCENT'],
+            default: 'PER_SHARE'
+        },
+        value: { type: Number, required: true, min: 0 }
+    }],
 
     description: {
         type: String,

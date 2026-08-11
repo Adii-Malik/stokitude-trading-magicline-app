@@ -259,7 +259,7 @@ export default function PortfolioDetail() {
                         <AddTransactionModal
                             portfolioId={id}
                             currency={portfolio.currency}
-                            defaultFeePct={portfolio.defaultFeePct}
+                            commissionSlabs={portfolio.commissionSlabs}
                             onClose={() => setShowAddTransaction(false)}
                             onAdded={() => {
                                 setShowAddTransaction(false);

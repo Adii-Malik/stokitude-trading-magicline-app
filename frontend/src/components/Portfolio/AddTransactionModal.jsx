@@ -4,8 +4,9 @@ import api from '../../services/api';
 import { searchStocks } from '../../services/stocks';
 import toast from 'react-hot-toast';
 import { formatCurrency, formatShares } from '../../utils/portfolioUtils';
+import { commissionFor, slabFor, describeSlab } from '../../utils/commission';
 
-export default function AddTransactionModal({ portfolioId, currency, defaultFeePct = 0, onClose, onAdded }) {
+export default function AddTransactionModal({ portfolioId, currency, commissionSlabs = [], onClose, onAdded }) {
     const [formData, setFormData] = useState({
         type: 'BUY',
         symbol: '',
@@ -35,10 +36,15 @@ export default function AddTransactionModal({ portfolioId, currency, defaultFeeP
     const ownedQty = owned?.quantity ?? 0;
     const overSelling = isSell && formData.quantity && parseFloat(formData.quantity) > ownedQty;
 
-    // Brokerage is a percentage of trade value, so it can be derived rather
-    // than typed. Understating it inflates every gain the portfolio reports.
-    const tradeValue = (parseFloat(formData.quantity) || 0) * (parseFloat(formData.price) || 0);
-    const suggestedFee = defaultFeePct > 0 ? (tradeValue * defaultFeePct) / 100 : 0;
+    // Brokerage follows the portfolio's slab, so it is derived rather than
+    // typed. Entering a per-share rate as a flat fee understates cost basis
+    // and inflates every gain the portfolio reports.
+    const suggestedFee = commissionFor({
+        price: formData.price,
+        quantity: formData.quantity,
+        slabs: commissionSlabs
+    });
+    const matchedSlab = slabFor(formData.price, commissionSlabs);
     const feeUntouched = formData.fees === '' || formData.fees === undefined;
 
     useEffect(() => {
@@ -283,6 +289,20 @@ export default function AddTransactionModal({ portfolioId, currency, defaultFeeP
                                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500"
                                     placeholder="0.00"
                                 />
+                                {matchedSlab && suggestedFee > 0 && (
+                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                        Slab: {describeSlab(matchedSlab)} = {formatCurrency(suggestedFee, currency)}
+                                        {Math.abs((parseFloat(formData.fees) || 0) - suggestedFee) > 0.005 && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setFormData({ ...formData, fees: suggestedFee.toFixed(2) })}
+                                                className="ml-2 text-cyan-600 dark:text-cyan-400 hover:underline"
+                                            >
+                                                use this
+                                            </button>
+                                        )}
+                                    </p>
+                                )}
                             </div>
 
                             {formData.quantity && formData.price && (
