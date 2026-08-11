@@ -132,6 +132,39 @@ describe('fees', () => {
     });
 });
 
+describe('statutory charges', () => {
+    test('other charges join the cost basis alongside commission', () => {
+        const r = avg.calculate([tx('BUY', 500, 17.35, { fees: 15, otherCharges: 4 })], 17.35);
+        assert.equal(r.costBasis, 8694, '8,675 + 15 commission + 4 charges');
+    });
+
+    test('the real ETF book reconciles with the broker', () => {
+        // Commission is 0.03 per share; the charges column is levied separately.
+        const book = [
+            ['2026-07-08', 500, 17.35, 15, 4],
+            ['2026-07-13', 500, 16.90, 15, 4],
+            ['2026-07-14', 1000, 16.46, 30, 10],
+            ['2026-07-15', 500, 16.45, 15, 0],
+            ['2026-07-17', 500, 16.50, 15, 0],
+            ['2026-07-22', 1000, 16.32, 30, 0],
+            ['2026-07-24', 1000, 16.11, 30, 0]
+        ].map(([d, q, p, f, o]) => tx('BUY', q, p, {
+            fees: f, otherCharges: o, executedAt: `${d}T00:00:00.000Z`
+        }));
+
+        const r = avg.calculate(book, 16.90);
+        assert.equal(r.netShares, 5000);
+        assert.equal(r.costBasis, 82658, "matches the broker's statement");
+        assert.equal(r.marketValue, 84500);
+        assert.equal(r.unrealizedPnL, 1842);
+    });
+
+    test('FIFO carries both charges into the lot', () => {
+        const r = fifo.calculate([tx('BUY', 500, 17.35, { fees: 15, otherCharges: 4 })], 17.35);
+        assert.equal(r.costBasis, 8694);
+    });
+});
+
 describe('empty and degenerate input', () => {
     test('no transactions produce a flat position', () => {
         const r = avg.calculate([], 10);

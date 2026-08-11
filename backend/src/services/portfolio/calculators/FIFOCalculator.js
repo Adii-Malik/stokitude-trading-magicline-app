@@ -31,7 +31,7 @@ export default class FIFOCalculator extends BasePnLCalculator {
                 lots.push({
                     quantity: tx.quantity,
                     price: tx.price,
-                    fees: tx.fees || 0,
+                    fees: this.chargesOf(tx),
                     purchaseDate: tx.executedAt,
                     transactionId: tx._id
                 });
@@ -39,7 +39,7 @@ export default class FIFOCalculator extends BasePnLCalculator {
                 // Sell from oldest lots first
                 let remainingToSell = tx.quantity;
                 const sellPrice = tx.price;
-                const totalSellFees = tx.fees || 0;
+                const totalSellFees = this.chargesOf(tx);
 
                 while (remainingToSell > 0 && lots.length > 0) {
                     const lot = lots[0];

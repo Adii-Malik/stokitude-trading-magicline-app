@@ -38,6 +38,14 @@ export default class BasePnLCalculator {
     }
 
     /**
+     * Everything the broker took on a trade. Commission and the statutory
+     * charges are recorded separately but both belong in cost basis.
+     */
+    chargesOf(tx) {
+        return (tx.fees || 0) + (tx.otherCharges || 0);
+    }
+
+    /**
      * Share multiplier for a SPLIT/BONUS ratio.
      * "2:1" -> 2 (each share becomes two). "10%" -> 1.1 (10 bonus per 100).
      * Returns 1 when unparseable, so a bad ratio is a no-op rather than a wipe.

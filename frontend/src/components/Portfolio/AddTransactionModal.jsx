@@ -13,6 +13,7 @@ export default function AddTransactionModal({ portfolioId, currency, commissionS
         quantity: '',
         price: '',
         fees: '',
+        otherCharges: '',
         executedAt: new Date().toISOString().slice(0, 10),
         notes: ''
     });
@@ -111,7 +112,8 @@ export default function AddTransactionModal({ portfolioId, currency, commissionS
                     ...formData,
                     quantity: parseFloat(formData.quantity),
                     price: parseFloat(formData.price),
-                    fees: parseFloat(formData.fees) || 0
+                    fees: parseFloat(formData.fees) || 0,
+                    otherCharges: parseFloat(formData.otherCharges) || 0
                 };
 
             await api.post(`/portfolios/${portfolioId}/transactions`, payload);
@@ -277,9 +279,10 @@ export default function AddTransactionModal({ portfolioId, currency, commissionS
                                 </div>
                             </div>
 
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    Fees/Commission
+                                    Commission
                                 </label>
                                 <input
                                     type="number"
@@ -303,6 +306,24 @@ export default function AddTransactionModal({ portfolioId, currency, commissionS
                                         )}
                                     </p>
                                 )}
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    Other charges
+                                </label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    value={formData.otherCharges}
+                                    onChange={(e) => setFormData({ ...formData, otherCharges: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500"
+                                    placeholder="0.00"
+                                />
+                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                    CDC, SECP and CVT, from your broker note.
+                                </p>
+                            </div>
                             </div>
 
                             {formData.quantity && formData.price && (

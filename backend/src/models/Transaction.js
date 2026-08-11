@@ -54,10 +54,19 @@ const transactionSchema = new mongoose.Schema({
         min: [0, 'Price cannot be negative']
     },
 
+    // Broker commission.
     fees: {
         type: Number,
         default: 0,
         min: [0, 'Fees cannot be negative']
+    },
+
+    // CDC, SECP and CVT - levied separately from commission and not derivable
+    // from the slab, so they are recorded rather than calculated.
+    otherCharges: {
+        type: Number,
+        default: 0,
+        min: [0, 'Charges cannot be negative']
     },
 
     // DIV (dividend) fields

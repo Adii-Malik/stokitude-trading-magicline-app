@@ -25,7 +25,7 @@ export default class AverageCostCalculator extends BasePnLCalculator {
         for (const tx of sorted) {
             if (tx.type === 'BUY') {
                 // Add to position
-                const buyCost = (tx.quantity * tx.price) + (tx.fees || 0);
+                const buyCost = (tx.quantity * tx.price) + this.chargesOf(tx);
                 totalShares += tx.quantity;
                 totalCost += buyCost;
             } else if (tx.type === 'SELL') {
@@ -36,7 +36,7 @@ export default class AverageCostCalculator extends BasePnLCalculator {
                 if (sellable > 0) {
                     const avgCost = totalCost / totalShares;
 
-                    const feesPortion = (tx.fees || 0) * (sellable / tx.quantity);
+                    const feesPortion = this.chargesOf(tx) * (sellable / tx.quantity);
                     const sellProceeds = (sellable * tx.price) - feesPortion;
                     const sellCost = sellable * avgCost;
                     realizedPnL += (sellProceeds - sellCost);

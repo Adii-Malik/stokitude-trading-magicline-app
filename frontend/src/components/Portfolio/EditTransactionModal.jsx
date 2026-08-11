@@ -12,6 +12,7 @@ export default function EditTransactionModal({ portfolioId, transaction, currenc
         quantity: transaction.quantity || '',
         price: transaction.price || '',
         fees: transaction.fees || 0,
+        otherCharges: transaction.otherCharges || 0,
         executedAt: transaction.executedAt ? new Date(transaction.executedAt).toISOString().split('T')[0] : '',
         notes: transaction.notes || '',
         dividendCash: transaction.dividendCash || '',
@@ -182,6 +183,27 @@ export default function EditTransactionModal({ portfolioId, transaction, currenc
                                         step="0.01"
                                     />
                                 </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Other charges
+                                </label>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-gray-600 dark:text-gray-400">{currencySymbol(currency)}</span>
+                                    <input
+                                        type="number"
+                                        value={formData.otherCharges}
+                                        onChange={(e) => setFormData({ ...formData, otherCharges: e.target.value })}
+                                        className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500"
+                                        placeholder="0"
+                                        min="0"
+                                        step="0.01"
+                                    />
+                                </div>
+                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                    CDC, SECP and CVT, separate from commission.
+                                </p>
                             </div>
                         </>
                     )}

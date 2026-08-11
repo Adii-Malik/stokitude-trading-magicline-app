@@ -447,6 +447,7 @@ router.post('/:id/transactions/upload/csv', upload.single('file'), async (req, r
                             transaction.quantity = quantity;
                             transaction.price = price;
                             transaction.fees = parseFloat(row.Fees) || 0;
+                            transaction.otherCharges = parseFloat(row.OtherCharges) || 0;
                         }
                         // Handle DIVIDEND transactions
                         else if (type === 'DIV') {
@@ -648,7 +649,7 @@ router.get('/:id/transactions/export', async (req, res) => {
         const portfolio = await portfolioService.getPortfolio(req.params.id, req.user._id);
         const transactions = await portfolioService.getTransactions(req.params.id, req.user._id);
 
-        const columns = ['symbol', 'exchange', 'type', 'quantity', 'price', 'fees', 'dividendCash', 'cashAmount', 'ratio', 'executedAt', 'notes'];
+        const columns = ['symbol', 'exchange', 'type', 'quantity', 'price', 'fees', 'otherCharges', 'dividendCash', 'cashAmount', 'ratio', 'executedAt', 'notes'];
         const escape = (v) => {
             if (v === null || v === undefined) return '';
             const s = v instanceof Date ? v.toISOString().slice(0, 10) : String(v);
