@@ -142,72 +142,72 @@ function TransactionRow({ transaction, currency, onDelete, onEdit }) {
     };
 
     return (
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 hover:shadow-md dark:hover:shadow-lg transition-all group">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <div className={`px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 ${typeColors[transaction.type]}`}>
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 sm:p-4 hover:shadow-md dark:hover:shadow-lg transition-all group">
+            {/* Two columns that are allowed to shrink, so long amounts never
+                break mid-number the way a rigid four-across row does. */}
+            <div className="flex items-start justify-between gap-2">
+                <div className="flex items-start gap-2 min-w-0">
+                    <div className={`px-2 py-0.5 rounded-full text-xs font-medium flex items-center gap-1 shrink-0 ${typeColors[transaction.type]}`}>
                         {typeIcons[transaction.type]}
                         {transaction.type}
                     </div>
 
-                    <div>
-                        <div className="font-semibold text-gray-900 dark:text-white">{transaction.symbol}</div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
+                    <div className="min-w-0">
+                        <div className="font-semibold text-gray-900 dark:text-white truncate">{transaction.symbol}</div>
+                        <div className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                            <Calendar className="w-3 h-3 shrink-0" />
                             {new Date(transaction.executedAt).toLocaleDateString()}
                         </div>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-4">
-                    <div className="text-right">
-                        {(['BUY', 'SELL'].includes(transaction.type)) && (
-                            <>
-                                <div className="text-sm text-gray-600 dark:text-gray-400">
-                                    {formatShares(transaction.quantity)} shares @ {formatCurrency(transaction.price, currency)}
-                                </div>
-                                <div className="font-semibold text-gray-900 dark:text-white">
-                                    {formatCurrency(transaction.quantity * transaction.price, currency)}
-                                </div>
-                                {transaction.fees > 0 && (
-                                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                                        Fees: {formatCurrency(transaction.fees, currency)}
-                                    </div>
-                                )}
-                            </>
-                        )}
-
-                        {transaction.type === 'DIV' && (
-                            <div className="font-semibold text-green-600 dark:text-green-400">
-                                {formatCurrency(transaction.dividendCash, currency, { signed: true })}
+                <div className="text-right shrink-0 whitespace-nowrap">
+                    {(['BUY', 'SELL'].includes(transaction.type)) && (
+                        <>
+                            <div className="font-semibold text-gray-900 dark:text-white">
+                                {formatCurrency(transaction.quantity * transaction.price, currency)}
                             </div>
-                        )}
-
-                        {(['DEPOSIT', 'WITHDRAW'].includes(transaction.type)) && (
-                            <div className={`font-semibold ${transaction.type === 'DEPOSIT' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                {transaction.type === 'DEPOSIT' ? '+' : '-'}{formatCurrency(transaction.amount, currency)}
+                            <div className="text-xs text-gray-600 dark:text-gray-400">
+                                {formatShares(transaction.quantity)} @ {formatCurrency(transaction.price, currency)}
                             </div>
-                        )}
-                    </div>
+                            {transaction.fees > 0 && (
+                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                    Fees {formatCurrency(transaction.fees, currency)}
+                                </div>
+                            )}
+                        </>
+                    )}
 
-                    {/* Action Buttons */}
-                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                            onClick={() => onEdit(transaction)}
-                            className="p-2 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-900/20 rounded-lg transition-colors"
-                            title="Edit transaction"
-                        >
-                            <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                            onClick={() => onDelete(transaction._id)}
-                            className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                            title="Delete transaction"
-                        >
-                            <Trash2 className="w-4 h-4" />
-                        </button>
-                    </div>
+                    {transaction.type === 'DIV' && (
+                        <div className="font-semibold text-green-600 dark:text-green-400">
+                            {formatCurrency(transaction.dividendCash, currency, { signed: true })}
+                        </div>
+                    )}
+
+                    {(['DEPOSIT', 'WITHDRAW'].includes(transaction.type)) && (
+                        <div className={`font-semibold ${transaction.type === 'DEPOSIT' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                            {transaction.type === 'DEPOSIT' ? '+' : '-'}{formatCurrency(transaction.amount, currency)}
+                        </div>
+                    )}
                 </div>
+            </div>
+
+            {/* Always visible on touch - there is no hover to reveal them. */}
+            <div className="flex justify-end gap-1 mt-2 sm:mt-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                <button
+                    onClick={() => onEdit(transaction)}
+                    className="p-2 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-900/20 rounded-lg transition-colors"
+                    title="Edit transaction"
+                >
+                    <Edit2 className="w-4 h-4" />
+                </button>
+                <button
+                    onClick={() => onDelete(transaction._id)}
+                    className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                    title="Delete transaction"
+                >
+                    <Trash2 className="w-4 h-4" />
+                </button>
             </div>
 
             {transaction.notes && (

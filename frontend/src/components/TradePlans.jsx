@@ -419,7 +419,7 @@ export default function TradePlans() {
             <div className="flex items-center gap-3">
               <Target className="w-8 h-8 text-cyan-500 dark:text-cyan-400" />
               <div>
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Trade Signals</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Trade Signals</h1>
                 <p className="text-gray-600 dark:text-gray-400">Monitor and manage trading calls</p>
               </div>
             </div>

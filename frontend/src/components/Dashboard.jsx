@@ -57,7 +57,7 @@ export default function Dashboard() {
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
               Dashboard
             </h1>
             <button

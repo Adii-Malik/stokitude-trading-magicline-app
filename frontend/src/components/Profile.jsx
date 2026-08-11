@@ -121,7 +121,7 @@ export default function Profile() {
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
             <User className="w-8 h-8 text-cyan-500" />
             Profile Settings
           </h1>

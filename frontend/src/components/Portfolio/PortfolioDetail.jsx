@@ -121,22 +121,24 @@ export default function PortfolioDetail() {
             <div className="container mx-auto px-4 py-8">
                 <div className="space-y-6">
                     {/* Header */}
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
+                    {/* Stacked on phones: a title and four buttons cannot share
+                        one row at 390px without colliding. */}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div className="flex items-center gap-2 sm:gap-4 min-w-0">
                             <button
                                 onClick={() => navigate('/portfolios')}
-                                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                                className="p-2 shrink-0 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                             >
                                 <ArrowLeft className="w-5 h-5 text-gray-900 dark:text-white" />
                             </button>
-                            <div>
-                                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{portfolio.name}</h1>
+                            <div className="min-w-0">
+                                <h1 className="text-xl sm:text-3xl font-bold text-gray-900 dark:text-white truncate">{portfolio.name}</h1>
                                 {portfolio.description && (
-                                    <p className="text-gray-600 dark:text-gray-400 mt-1">{portfolio.description}</p>
+                                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 truncate">{portfolio.description}</p>
                                 )}
                             </div>
                         </div>
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex gap-2 shrink-0">
                             <button
                                 onClick={handleRebuild}
                                 title="Recalculate positions from the transaction ledger"
@@ -170,7 +172,7 @@ export default function PortfolioDetail() {
                     </div>
 
                     {/* Stats Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-6">
                         <StatCard
                             title="Total Value"
                             value={formatCurrency(totalValue, portfolio.currency)}
@@ -360,18 +362,20 @@ export default function PortfolioDetail() {
 
 function StatCard({ title, value, subtitle, icon: Icon, iconColor, iconBg, valueColor }) {
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
-            <div className="flex items-center justify-between mb-4">
-                <div className={`p-3 rounded-lg ${iconBg}`}>
-                    <Icon className={`w-6 h-6 ${iconColor}`} />
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+            {/* Icon sits beside the label on phones; stacking it wastes a third
+                of the card's height for decoration. */}
+            <div className="flex items-center gap-2 mb-1 sm:mb-4 sm:block">
+                <div className={`p-1.5 sm:p-3 rounded-lg shrink-0 sm:inline-block ${iconBg}`}>
+                    <Icon className={`w-4 h-4 sm:w-6 sm:h-6 ${iconColor}`} />
                 </div>
+                <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 sm:mt-4 sm:mb-1 truncate">{title}</div>
             </div>
-            <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">{title}</div>
-            <div className={`text-2xl font-bold ${valueColor || 'text-gray-900 dark:text-white'}`}>
+            <div className={`text-lg sm:text-2xl font-bold truncate ${valueColor || 'text-gray-900 dark:text-white'}`}>
                 {value}
             </div>
             {subtitle && (
-                <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">{subtitle}</div>
+                <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1 truncate">{subtitle}</div>
             )}
         </div>
     );

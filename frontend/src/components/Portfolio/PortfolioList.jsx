@@ -67,9 +67,9 @@ export default function PortfolioList() {
                         </div>
                         <button
                             onClick={() => setShowCreateModal(true)}
-                            className="flex items-center gap-2 bg-cyan-500 hover:bg-cyan-600 text-white font-medium px-4 py-2 rounded-lg transition-colors shadow-lg"
+                            className="flex items-center gap-2 shrink-0 whitespace-nowrap bg-cyan-500 hover:bg-cyan-600 text-white font-medium px-4 py-2 rounded-lg transition-colors shadow-lg"
                         >
-                            <Plus className="w-5 h-5" />
+                            <Plus className="w-5 h-5 shrink-0" />
                             New Portfolio
                         </button>
                     </div>
