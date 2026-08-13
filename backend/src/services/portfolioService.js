@@ -453,6 +453,10 @@ class PortfolioService {
                 totalValue: marketValue,
                 costBasis: position.costBasis,
                 unrealizedPnL: unrealizedPnL,
+                // Gain on the shares still held, which is what a holdings row
+                // is comparable on. totalPnLPct mixes in profit from shares
+                // already sold and so cannot be read against costBasis.
+                unrealizedPnLPct: position.costBasis > 0 ? (unrealizedPnL / position.costBasis) * 100 : 0,
                 realizedPnL: position.realizedPnL,
                 totalPnL,
                 totalPnLPct,

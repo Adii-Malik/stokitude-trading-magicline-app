@@ -120,15 +120,15 @@ export default function HoldingsTable({ portfolioId, currency }) {
                                 onSort={handleSort}
                             />
                             <SortableHeader
-                                label="Total P/L"
-                                field="totalPnL"
+                                label="Unrealized P/L"
+                                field="unrealizedPnL"
                                 currentField={sortField}
                                 direction={sortDirection}
                                 onSort={handleSort}
                             />
                             <SortableHeader
                                 label="P/L %"
-                                field="totalPnLPct"
+                                field="unrealizedPnLPct"
                                 currentField={sortField}
                                 direction={sortDirection}
                                 onSort={handleSort}
@@ -154,7 +154,7 @@ export default function HoldingsTable({ portfolioId, currency }) {
                                 {formatCurrency(filteredAndSorted.reduce((sum, h) => sum + h.totalValue, 0), currency)}
                             </td>
                             <td className="pt-4">
-                                {formatCurrency(filteredAndSorted.reduce((sum, h) => sum + h.totalPnL, 0), currency)}
+                                {formatCurrency(filteredAndSorted.reduce((sum, h) => sum + h.unrealizedPnL, 0), currency)}
                             </td>
                             <td className="pt-4" colSpan="2"></td>
                         </tr>
@@ -186,10 +186,15 @@ function HoldingCard({ holding, currency }) {
                     <div className="font-semibold text-gray-900 dark:text-white">
                         {formatCurrency(holding.totalValue, currency)}
                     </div>
-                    <div className={`text-xs font-medium ${getPnLColorClass(holding.totalPnL)}`}>
-                        {formatCurrency(holding.totalPnL, currency, { signed: true })}
-                        {' · '}{formatPercent(holding.totalPnLPct, 1, { signed: true })}
+                    <div className={`text-xs font-medium ${getPnLColorClass(holding.unrealizedPnL)}`}>
+                        {formatCurrency(holding.unrealizedPnL, currency, { signed: true })}
+                        {!holding.closed && <>{' · '}{formatPercent(holding.unrealizedPnLPct, 1, { signed: true })}</>}
                     </div>
+                    {holding.realizedPnL !== 0 && (
+                        <div className={`text-xs ${getPnLColorClass(holding.realizedPnL)}`}>
+                            {formatCurrency(holding.realizedPnL, currency, { signed: true })} realized
+                        </div>
+                    )}
                 </div>
             </div>
             <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
@@ -217,7 +222,7 @@ function SortableHeader({ label, field, currentField, direction, onSort }) {
 }
 
 function HoldingRow({ holding, currency }) {
-    const isProfit = holding.totalPnL >= 0;
+    const isProfit = holding.unrealizedPnL >= 0;
 
     return (
         <tr className={`border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 ${holding.closed ? 'opacity-60' : ''}`}>
@@ -244,14 +249,19 @@ function HoldingRow({ holding, currency }) {
             <td className="py-3 text-gray-900 dark:text-white">
                 {formatCurrency(holding.totalValue, currency)}
             </td>
-            <td className={`py-3 font-semibold ${getPnLColorClass(holding.totalPnL)}`}>
+            <td className={`py-3 font-semibold ${getPnLColorClass(holding.unrealizedPnL)}`}>
                 <div className="flex items-center gap-1">
                     {isProfit ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-                    {formatCurrency(holding.totalPnL, currency, { signed: true })}
+                    {formatCurrency(holding.unrealizedPnL, currency, { signed: true })}
                 </div>
+                {holding.realizedPnL !== 0 && (
+                    <div className={`text-xs font-normal ${getPnLColorClass(holding.realizedPnL)}`}>
+                        {formatCurrency(holding.realizedPnL, currency, { signed: true })} realized
+                    </div>
+                )}
             </td>
-            <td className={`py-3 font-semibold ${getPnLColorClass(holding.totalPnL)}`}>
-                {formatPercent(holding.totalPnLPct, 2, { signed: true })}
+            <td className={`py-3 font-semibold ${getPnLColorClass(holding.unrealizedPnL)}`}>
+                {holding.closed ? '—' : formatPercent(holding.unrealizedPnLPct, 2, { signed: true })}
             </td>
             <td className="py-3 text-gray-600 dark:text-gray-400">
                 {formatPercent(holding.weightPct, 1)}
