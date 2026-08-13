@@ -1,10 +1,5 @@
-# Builds the deployable image so the server never has to.
-# A 1 GB VM cannot run a Vite build without being OOM-killed, and an ARM
-# build on a free-tier instance takes minutes. Building here fixes both:
-# the server only pulls.
-#
-# Publishes to ghcr.io for both architectures, so the same tag works on
-# Google's x86 e2-micro and Oracle's ARM Ampere.
+# Builds the image so the 1 GB VM never has to; it only pulls.
+# amd64 only - the Google e2-micro is x86.
 
 name: Build image
 
@@ -38,7 +33,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
 
       - uses: docker/login-action@v3
@@ -58,7 +52,7 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
