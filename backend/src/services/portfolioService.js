@@ -169,8 +169,9 @@ class PortfolioService {
 
         await transaction.save();
 
-        // Update position
-        if (['BUY', 'SELL', 'DIV', 'SPLIT', 'BONUS'].includes(transaction.type)) {
+        // Update position. A bulk import skips this and rebuilds once at the
+        // end, since rebuilding per row costs a round trip per transaction.
+        if (!options.skipPositionUpdate && ['BUY', 'SELL', 'DIV', 'SPLIT', 'BONUS'].includes(transaction.type)) {
             await this.updatePosition(portfolioId, transaction.symbol);
         }
 

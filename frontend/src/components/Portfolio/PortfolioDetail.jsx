@@ -84,7 +84,10 @@ export default function PortfolioDetail() {
             const response = await api.post(`/portfolios/${id}/transactions/upload/csv`, formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data'
-                }
+                },
+                // Each row is a few round trips to Atlas; a long file outlasts
+                // the default timeout.
+                timeout: 180000
             });
 
             setUploadResult(response.data.data);

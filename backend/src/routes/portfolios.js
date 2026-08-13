@@ -525,7 +525,8 @@ router.post('/:id/transactions/upload/csv', upload.single('file'), async (req, r
                 await portfolioService.addTransaction(
                     req.params.id,
                     req.user._id,
-                    { ...transactionData, source: 'import', importBatchId }
+                    { ...transactionData, source: 'import', importBatchId },
+                    { skipPositionUpdate: true }
                 );
                 inserted++;
             } catch (err) {
@@ -538,6 +539,11 @@ router.post('/:id/transactions/upload/csv', upload.single('file'), async (req, r
                     });
                 }
             }
+        }
+
+        // One rebuild per symbol, rather than one per row.
+        if (inserted > 0) {
+            await portfolioService.rebuildPositions(req.params.id, req.user._id);
         }
 
         res.json({
