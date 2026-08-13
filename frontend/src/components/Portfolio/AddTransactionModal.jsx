@@ -14,6 +14,8 @@ export default function AddTransactionModal({ portfolioId, currency, commissionS
         price: '',
         fees: '',
         otherCharges: '',
+        // Cash movements and dividends share one Amount input.
+        amount: '',
         executedAt: new Date().toISOString().slice(0, 10),
         notes: ''
     });
@@ -32,6 +34,7 @@ export default function AddTransactionModal({ portfolioId, currency, commissionS
     const isTrade = ['BUY', 'SELL'].includes(formData.type);
     const isRatio = ['SPLIT', 'BONUS'].includes(formData.type);
     const isCash = ['DEPOSIT', 'WITHDRAW'].includes(formData.type);
+    const isDividend = formData.type === 'DIV';
     const pickFromHoldings = isSell || isRatio;
     const owned = holdings.find(h => h.symbol === formData.symbol);
     const ownedQty = owned?.quantity ?? 0;
@@ -105,7 +108,9 @@ export default function AddTransactionModal({ portfolioId, currency, commissionS
 
         try {
             const payload = isCash
-                ? { type: formData.type, cashAmount: parseFloat(formData.cashAmount), executedAt: formData.executedAt, notes: formData.notes }
+                ? { type: formData.type, cashAmount: parseFloat(formData.amount), executedAt: formData.executedAt, notes: formData.notes }
+                : isDividend
+                ? { type: formData.type, symbol: formData.symbol, dividendCash: parseFloat(formData.amount), dividendType: 'CASH', executedAt: formData.executedAt, notes: formData.notes }
                 : isRatio
                 ? { type: formData.type, symbol: formData.symbol, ratio: formData.ratio, executedAt: formData.executedAt, notes: formData.notes }
                 : {
@@ -337,7 +342,7 @@ export default function AddTransactionModal({ portfolioId, currency, commissionS
                         </>
                     )}
 
-                    {(formData.type === 'DIV' || isCash) && (
+                    {(isDividend || isCash) && (
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                 Amount *
@@ -345,8 +350,8 @@ export default function AddTransactionModal({ portfolioId, currency, commissionS
                             <input
                                 type="number"
                                 step="0.01"
-                                value={formData.price}
-                                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                                value={formData.amount}
+                                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500"
                                 required
                             />
