@@ -384,9 +384,11 @@ router.delete('/:portfolioId/transactions/:transactionId', async (req, res) => {
  */
 export function parseTransactionRow(row) {
     // Header lookup is case-insensitive so Symbol and symbol both resolve.
+    // Spreadsheets prefix the file with a BOM, which would otherwise leave the
+    // first column named "\uFEFFsymbol" and fail every row invisibly.
     const lower = {};
     for (const [key, value] of Object.entries(row)) {
-        lower[key.trim().toLowerCase()] = value;
+        lower[key.replace(/^\uFEFF/, '').trim().toLowerCase()] = value;
     }
     const field = (...names) => {
         for (const name of names) {

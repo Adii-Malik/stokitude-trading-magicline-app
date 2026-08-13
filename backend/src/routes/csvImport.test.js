@@ -7,7 +7,19 @@
  */
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
+import csv from 'csv-parser';
+import { Readable } from 'stream';
 import { parseTransactionRow } from './portfolios.js';
+
+// Parse text the way the route does, so header quirks are covered too.
+const rowsOf = async (text) => {
+    const rows = [];
+    await new Promise((resolve, reject) => {
+        Readable.from(text).pipe(csv())
+            .on('data', r => rows.push(r)).on('end', resolve).on('error', reject);
+    });
+    return rows.map(parseTransactionRow);
+};
 
 const ok = (row) => {
     const { transaction, error } = parseTransactionRow(row);
@@ -73,6 +85,26 @@ describe('cash and corporate actions', () => {
     test('a SPLIT without a ratio is rejected, not silently dropped', () => {
         const { error } = parseTransactionRow({ symbol: 'OGDC', type: 'SPLIT', executedAt: '2025-05-01' });
         assert.match(error, /ratio is required/);
+    });
+});
+
+describe('files as spreadsheets actually save them', () => {
+    const header = 'symbol,exchange,type,quantity,price,fees,otherCharges,dividendCash,cashAmount,ratio,executedAt,notes';
+    const line = 'MEBL,PSX,BUY,150,212.54,22.5,0,,,,2025-01-01,';
+
+    test('a UTF-8 BOM does not blank out the first column', async () => {
+        // Excel and Sheets both write one. Without stripping it the first
+        // header arrives as "\uFEFFsymbol" and every row fails.
+        const [{ transaction, error }] = await rowsOf(`\uFEFF${header}\n${line}`);
+        assert.equal(error, undefined);
+        assert.equal(transaction.symbol, 'MEBL');
+        assert.equal(transaction.type, 'BUY');
+    });
+
+    test('CRLF endings leave no carriage return on the last column', async () => {
+        const [{ transaction, error }] = await rowsOf(`${header}\r\n${line}note\r\n`);
+        assert.equal(error, undefined);
+        assert.equal(transaction.notes, 'note');
     });
 });
 
