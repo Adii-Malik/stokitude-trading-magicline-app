@@ -373,19 +373,9 @@ router.delete('/:portfolioId/transactions/:transactionId', async (req, res) => {
     }
 });
 
-/**
- * Read one CSV row into a transaction.
- *
- * Column names match the export (lowercase, model field names). Older files
- * used capitalised headers with Date/Amount, so both spellings are accepted
- * and a file exported from here re-imports unchanged.
- *
- * Returns { transaction } or { error }.
- */
+/** Read one CSV row into a transaction. Returns { transaction } or { error }. */
 export function parseTransactionRow(row) {
-    // Header lookup is case-insensitive so Symbol and symbol both resolve.
-    // Spreadsheets prefix the file with a BOM, which would otherwise leave the
-    // first column named "\uFEFFsymbol" and fail every row invisibly.
+    // Case-insensitive, and strips the BOM spreadsheets prepend.
     const lower = {};
     for (const [key, value] of Object.entries(row)) {
         lower[key.replace(/^\uFEFF/, '').trim().toLowerCase()] = value;
@@ -399,7 +389,6 @@ export function parseTransactionRow(row) {
     };
     const number = (...names) => {
         const raw = field(...names);
-        // Thousands separators survive a round trip through spreadsheets.
         return raw === '' ? NaN : parseFloat(raw.replace(/,/g, ''));
     };
 

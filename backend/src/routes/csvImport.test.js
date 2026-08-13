@@ -1,17 +1,11 @@
-/**
- * CSV import tests.
- *
- * The importer used to read capitalised headers while the exporter wrote
- * lowercase ones, so an exported file could not be re-imported. These lock
- * the two formats together.
- */
+/** CSV import tests: the export format must re-import unchanged. */
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import csv from 'csv-parser';
 import { Readable } from 'stream';
 import { parseTransactionRow } from './portfolios.js';
 
-// Parse text the way the route does, so header quirks are covered too.
+// Parse text the way the route does, so header quirks are covered.
 const rowsOf = async (text) => {
     const rows = [];
     await new Promise((resolve, reject) => {
@@ -93,8 +87,6 @@ describe('files as spreadsheets actually save them', () => {
     const line = 'MEBL,PSX,BUY,150,212.54,22.5,0,,,,2025-01-01,';
 
     test('a UTF-8 BOM does not blank out the first column', async () => {
-        // Excel and Sheets both write one. Without stripping it the first
-        // header arrives as "\uFEFFsymbol" and every row fails.
         const [{ transaction, error }] = await rowsOf(`\uFEFF${header}\n${line}`);
         assert.equal(error, undefined);
         assert.equal(transaction.symbol, 'MEBL');

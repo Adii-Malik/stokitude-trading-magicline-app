@@ -169,8 +169,7 @@ class PortfolioService {
 
         await transaction.save();
 
-        // Update position. A bulk import skips this and rebuilds once at the
-        // end, since rebuilding per row costs a round trip per transaction.
+        // Bulk imports skip this and rebuild once at the end.
         if (!options.skipPositionUpdate && ['BUY', 'SELL', 'DIV', 'SPLIT', 'BONUS'].includes(transaction.type)) {
             await this.updatePosition(portfolioId, transaction.symbol);
         }
@@ -453,9 +452,7 @@ class PortfolioService {
                 totalValue: marketValue,
                 costBasis: position.costBasis,
                 unrealizedPnL: unrealizedPnL,
-                // Gain on the shares still held, which is what a holdings row
-                // is comparable on. totalPnLPct mixes in profit from shares
-                // already sold and so cannot be read against costBasis.
+                // Gain on shares still held; totalPnLPct mixes in sold ones.
                 unrealizedPnLPct: position.costBasis > 0 ? (unrealizedPnL / position.costBasis) * 100 : 0,
                 realizedPnL: position.realizedPnL,
                 totalPnL,
