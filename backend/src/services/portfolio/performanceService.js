@@ -241,6 +241,10 @@ export async function performance(portfolioId, { from, benchmark = 'KSE100' } = 
         if (symbols.includes(bar.symbol)) (prices[bar.symbol] ||= []).push(bar);
     }
 
+    // A held symbol with no bars is valued at zero, which sinks the series and
+    // wrecks the rebased comparison. Name them rather than hide it.
+    const missingPrices = symbols.filter(s => !prices[s]?.length);
+
     const series = buildSeries(transactions, prices);
     const flows = flowsFrom(transactions, series);
     const last = series[series.length - 1] || null;
@@ -259,6 +263,7 @@ export async function performance(portfolioId, { from, benchmark = 'KSE100' } = 
         series,
         comparison: rebase(series, index),
         benchmark: { symbol: benchmark, available: index.length > 0 },
+        missingPrices,
         summary: {
             start: series[0]?.date || null,
             end: last?.date || null,
@@ -282,6 +287,7 @@ function empty(benchmark) {
         series: [],
         comparison: [],
         benchmark: { symbol: benchmark, available: false },
+        missingPrices: [],
         summary: {
             start: null, end: null, value: 0, cash: 0, total: 0, invested: 0,
             xirrPct: null, capitalTracked: false, lateCapital: false,

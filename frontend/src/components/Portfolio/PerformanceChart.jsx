@@ -82,6 +82,13 @@ export default function PerformanceChart({ portfolioId, currency = 'PKR' }) {
                 />
             )}
 
+            {!loading && data?.missingPrices?.length > 0 && (
+                <p className="mt-3 text-xs text-amber-600 dark:text-amber-400">
+                    No price history for {data.missingPrices.join(', ')} — those holdings count
+                    as zero on days you held them, so the line and the comparison are understated.
+                </p>
+            )}
+
             {!loading && summary?.lateCapital && (
                 <p className="mt-3 text-xs text-amber-600 dark:text-amber-400">
                     Your first deposit is dated after your first trade, so XIRR and drawdown
