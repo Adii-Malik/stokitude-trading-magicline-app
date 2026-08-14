@@ -26,7 +26,7 @@ Console → Compute → Instances → **Create instance**.
 |---|---|
 | Image | Canonical Ubuntu 22.04 or 24.04 |
 | Shape | **VM.Standard.A1.Flex** (Ampere, ARM) |
-| OCPUs / memory | 2 OCPU / 12 GB is plenty; 4/24 is the free ceiling |
+| OCPUs / memory | 2 OCPU / 12 GB — the whole Always Free A1 allowance |
 | Boot volume | 50 GB is ample (200 GB free across all instances) |
 | SSH keys | Upload your public key — you cannot add it later without a rescue |
 

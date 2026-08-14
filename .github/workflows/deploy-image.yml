@@ -1,5 +1,6 @@
-# Builds the image so the 1 GB VM never has to; it only pulls.
-# amd64 only - the Google e2-micro is x86.
+# Builds the image so the VM never has to; it only pulls.
+# Both arches during the Google (x86) to Oracle Ampere (ARM) move.
+# Drop amd64 once Google is retired - it halves build time.
 
 name: Build image
 
@@ -33,6 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
 
       - uses: docker/login-action@v3
@@ -52,7 +54,7 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
