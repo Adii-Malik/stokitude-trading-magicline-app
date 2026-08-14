@@ -314,10 +314,45 @@ Hetzner, DigitalOcean or similar — more machine than either free tier, with a
 signup that works. Nothing above changes except the provider; the compose file,
 Caddyfile and runbook are identical.
 
+## Backups
+
+Atlas M0 has no automated backup, so this is the only copy. `deploy/backup.sh`
+dumps the whole database nightly and keeps 14 days.
+
+```bash
+cd ~/site
+chmod +x deploy/backup.sh deploy/restore.sh
+./deploy/backup.sh                      # run once to check it works
+```
+
+It reads `MONGO_URI` from `.env.production`, so rotating the password needs no
+change here. Dumps land in `~/backups`. Schedule it:
+
+```bash
+crontab -e
+# 02:30 daily, appending to a log
+30 2 * * * $HOME/site/deploy/backup.sh >> $HOME/backups/backup.log 2>&1
+```
+
+Check it is running with `tail ~/backups/backup.log`. Every line is `OK` or
+`FAIL` with a reason. A dump under 1 KB is treated as a failure and discarded,
+so an unreachable database cannot quietly replace good backups with empty ones.
+
+To restore — this drops the collections in the archive and replaces them:
+
+```bash
+./deploy/restore.sh ~/backups/psx-20260815-023000.archive.gz --yes
+```
+
+Copy a dump off the VM occasionally. A backup on the same disk as the database
+does not survive losing the disk:
+
+```bash
+scp user@your-vm:'~/backups/psx-*.archive.gz' ~/psx-backups/
+```
+
 ## What this does not cover
 
-- **Backups.** Atlas M0 has no automated backup. `mongodump` on a cron is
-  worth adding before this holds data you care about.
 - **The Python strategy engine.** Separate repo, separate service. Leave
   `PYTHON_SERVICE_URL` blank until it is deployed.
 - **Monitoring.** An uptime check against `/health` will tell you it died
