@@ -16,7 +16,8 @@ export default function EditTransactionModal({ portfolioId, transaction, currenc
         executedAt: transaction.executedAt ? new Date(transaction.executedAt).toISOString().split('T')[0] : '',
         notes: transaction.notes || '',
         dividendCash: transaction.dividendCash || '',
-        dividendType: transaction.dividendType || 'CASH'
+        dividendType: transaction.dividendType || 'CASH',
+        cashAmount: transaction.cashAmount || ''
     });
     const [stockSuggestions, setStockSuggestions] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
@@ -54,7 +55,12 @@ export default function EditTransactionModal({ portfolioId, transaction, currenc
         e.preventDefault();
 
         try {
-            await api.put(`/portfolios/${portfolioId}/transactions/${transaction._id}`, formData);
+            // Blank fields belong to other types; sending them makes Mongoose
+            // cast '' to a number.
+            const payload = Object.fromEntries(
+                Object.entries(formData).filter(([, v]) => v !== '')
+            );
+            await api.put(`/portfolios/${portfolioId}/transactions/${transaction._id}`, payload);
             toast.success('Transaction updated');
             onUpdated();
             onClose();
@@ -206,6 +212,22 @@ export default function EditTransactionModal({ portfolioId, transaction, currenc
                                 </p>
                             </div>
                         </>
+                    )}
+
+                    {['DEPOSIT', 'WITHDRAW'].includes(formData.type) && (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Amount ({currencySymbol(currency)}) *
+                            </label>
+                            <input
+                                type="number"
+                                step="0.01"
+                                value={formData.cashAmount}
+                                onChange={(e) => setFormData({ ...formData, cashAmount: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500"
+                                required
+                            />
+                        </div>
                     )}
 
                     {/* Dividend Amount */}

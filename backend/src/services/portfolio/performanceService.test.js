@@ -120,6 +120,18 @@ describe('drawdown', () => {
     test('a series that only rises has none', () => {
         assert.equal(maxDrawdown(at([100, 110, 120])).amount, 0);
     });
+
+    test('a sale is not a drawdown', () => {
+        // Selling moves value into cash; total is unchanged, so the equity
+        // curve must not dip. Measuring on `value` alone would report 50%.
+        const rows = [
+            { date: '2025-05-01', value: 1000, total: 1000 },
+            { date: '2025-05-02', value: 500, total: 1000 },
+            { date: '2025-05-05', value: 500, total: 1000 }
+        ];
+        assert.equal(maxDrawdown(rows).amount, 0);
+        assert.equal(maxDrawdown(rows, 'value').amount, 500, 'the wrong field would see a fall');
+    });
 });
 
 describe('xirr', () => {

@@ -82,6 +82,13 @@ export default function PerformanceChart({ portfolioId, currency = 'PKR' }) {
                 />
             )}
 
+            {!loading && summary?.lateCapital && (
+                <p className="mt-3 text-xs text-amber-600 dark:text-amber-400">
+                    Your first deposit is dated after your first trade, so XIRR and drawdown
+                    are overstated. Date the deposit on or before the first buy to correct them.
+                </p>
+            )}
+
             {!loading && !comparable && data?.series?.length > 0 && (
                 <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
                     Add a KSE100 stock with daily history to compare against the index.
@@ -114,15 +121,30 @@ function Stats({ summary, currency }) {
                 icon={Percent}
                 label="Annualised (XIRR)"
                 value={summary.xirrPct != null ? formatPercent(summary.xirrPct, 1, { signed: true }) : '—'}
-                hint={summary.xirrPct != null ? 'money-weighted' : 'needs a cash deposit'}
-                color={summary.xirrPct != null ? getPnLColorClass(summary.xirrPct) : ''}
+                hint={
+                    summary.lateCapital ? 'overstated: deposit predates no trades'
+                        : summary.xirrPct != null ? 'money-weighted'
+                            : 'needs a cash deposit'
+                }
+                color={summary.lateCapital ? 'text-amber-600 dark:text-amber-400'
+                    : summary.xirrPct != null ? getPnLColorClass(summary.xirrPct) : ''}
             />
             <Stat
                 icon={TrendingDown}
                 label="Max Drawdown"
-                value={summary.drawdown.pct ? `-${summary.drawdown.pct.toFixed(1)}%` : '—'}
-                hint={summary.drawdown.from ? `${summary.drawdown.from} → ${summary.drawdown.to}` : 'no fall recorded'}
-                color={summary.drawdown.pct ? 'text-red-600 dark:text-red-400' : ''}
+                value={
+                    summary.drawdown.pct != null
+                        ? `-${summary.drawdown.pct.toFixed(1)}%`
+                        : summary.drawdown.amount
+                            ? formatCurrency(-summary.drawdown.amount, currency, { signed: true })
+                            : '—'
+                }
+                hint={
+                    summary.drawdown.from
+                        ? `${summary.drawdown.from} → ${summary.drawdown.to}`
+                        : 'no fall recorded'
+                }
+                color={summary.drawdown.amount ? 'text-red-600 dark:text-red-400' : ''}
             />
         </div>
     );

@@ -109,7 +109,14 @@ export function buildSeries(transactions, prices = {}) {
     return series;
 }
 
-/** Largest peak-to-trough fall in the series, as amount and percent. */
+/**
+ * Largest peak-to-trough fall on the equity curve.
+ *
+ * With deposits recorded, `total` is real equity and the percentage means
+ * something. Without them it is only cumulative P/L - there is no capital base
+ * to divide by - so the caller drops the percentage rather than inventing one.
+ * Measuring on `value` instead is wrong: it counts every sale as a fall.
+ */
 export function maxDrawdown(series, field = 'total') {
     let peak = -Infinity, worst = 0, worstPct = 0, from = null, to = null, peakDate = null;
 
@@ -239,6 +246,15 @@ export async function performance(portfolioId, { from, benchmark = 'KSE100' } = 
     const last = series[series.length - 1] || null;
     const capital = transactions.some(t => ['DEPOSIT', 'WITHDRAW'].includes(t.type));
 
+    // A deposit dated after the first trade makes XIRR wildly overstate the
+    // return, because the money looks like it was only present for part of it.
+    const firstOf = (types) => transactions
+        .filter(t => types.includes(t.type) && t.executedAt)
+        .reduce((min, t) => !min || t.executedAt < min ? t.executedAt : min, null);
+    const firstCapital = firstOf(['DEPOSIT']);
+    const firstTrade = firstOf(['BUY', 'SELL']);
+    const lateCapital = Boolean(firstCapital && firstTrade && firstCapital > firstTrade);
+
     return {
         series,
         comparison: rebase(series, index),
@@ -250,9 +266,13 @@ export async function performance(portfolioId, { from, benchmark = 'KSE100' } = 
             cash: last?.cash ?? 0,
             total: last?.total ?? 0,
             invested: last?.invested ?? 0,
-            // Only meaningful once deposits are recorded.
+            // Both need recorded capital before they mean anything.
             xirrPct: capital ? xirr(flows) : null,
-            drawdown: maxDrawdown(series)
+            capitalTracked: capital,
+            lateCapital,
+            drawdown: capital
+                ? maxDrawdown(series)
+                : { ...maxDrawdown(series), pct: null }
         }
     };
 }
@@ -264,7 +284,8 @@ function empty(benchmark) {
         benchmark: { symbol: benchmark, available: false },
         summary: {
             start: null, end: null, value: 0, cash: 0, total: 0, invested: 0,
-            xirrPct: null, drawdown: { amount: 0, pct: 0, from: null, to: null }
+            xirrPct: null, capitalTracked: false, lateCapital: false,
+            drawdown: { amount: 0, pct: 0, from: null, to: null }
         }
     };
 }

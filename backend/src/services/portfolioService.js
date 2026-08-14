@@ -339,6 +339,8 @@ class PortfolioService {
      * Update position for a symbol (recalculate from transactions)
      */
     async updatePosition(portfolioId, symbol) {
+        // Cash movements have no instrument, so there is no position to rebuild.
+        if (!symbol) return null;
         symbol = symbol.toUpperCase();
 
         // Get portfolio to determine calculation method
