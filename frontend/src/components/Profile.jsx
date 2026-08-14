@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useTheme } from '../contexts/ThemeContext';
-import { User, Mail, Shield, Lock, Save, AlertCircle, CheckCircle, ArrowLeft, Bell } from 'lucide-react';
+import { User, Mail, Shield, Lock, Save, AlertCircle, CheckCircle, Bell } from 'lucide-react';
 import * as authService from '../services/auth';
 import NotificationPreferences from './NotificationPreferences';
 

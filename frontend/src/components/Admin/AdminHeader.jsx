@@ -1,11 +1,8 @@
-import { useState } from 'react';
 import { Shield, Home, Sun, Moon, Users, Database, Briefcase, Bot, Settings } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { UserProfileDropdown } from '../common';
 
 export default function AdminHeader({ activeTab, onTabChange, onBackToMain }) {
-  const { user } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
   const tabs = [

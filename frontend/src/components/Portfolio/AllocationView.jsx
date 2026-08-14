@@ -69,18 +69,6 @@ export default function AllocationView({ portfolioId, currency }) {
         }
     };
 
-    const deleteSIPPlan = async () => {
-        if (!confirm('Delete SIP plan? Monthly allocations will stop.')) return;
-
-        try {
-            await api.delete(`/portfolios/${portfolioId}/sip-plan`);
-            toast.success('SIP plan deleted');
-            loadAllocationData();
-        } catch (error) {
-            toast.error(error.response?.data?.message || 'Failed to delete SIP plan');
-        }
-    };
-
     if (loading) {
         return (
             <div className="flex justify-center py-12">

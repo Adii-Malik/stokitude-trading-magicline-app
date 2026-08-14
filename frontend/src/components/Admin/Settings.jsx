@@ -6,7 +6,7 @@ import { ContentLoader } from '../common';
 
 const Settings = () => {
   const [activeMenu, setActiveMenu] = useState('market-hours');
-  const [settings, setSettings] = useState(null);
+  const [, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 

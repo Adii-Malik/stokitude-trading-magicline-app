@@ -44,12 +44,12 @@ export function applyLinearScaling(value, neutral, excellent) {
  * Score a component using its configuration
  */
 export function scoreComponent(componentConfig, stockData, options = {}) {
-    const { field, weight, tiers, neutral, excellent, scale, components } = componentConfig;
+    const { field, tiers, neutral, excellent, scale, components } = componentConfig;
 
     // Handle nested components (composite scores)
     if (components) {
         let compositeScore = 0;
-        for (const [key, subConfig] of Object.entries(components)) {
+        for (const subConfig of Object.values(components)) {
             const subScore = scoreComponent(subConfig, stockData, options);
             compositeScore += subScore * (subConfig.weight || 0);
         }
@@ -123,7 +123,7 @@ export function scorePayoutSafety(stockData) {
     let totalScore = 0;
 
     // Score each component
-    for (const [key, componentConfig] of Object.entries(config)) {
+    for (const componentConfig of Object.values(config)) {
         const options = {
             hasYield: stockData.dividendYield > 0
         };
@@ -141,7 +141,7 @@ export function scoreQuality(stockData) {
     const config = SCORING_CONFIG.quality.components;
     let totalScore = 0;
 
-    for (const [key, componentConfig] of Object.entries(config)) {
+    for (const componentConfig of Object.values(config)) {
         const componentScore = scoreComponent(componentConfig, stockData);
         totalScore += componentScore * componentConfig.weight;
     }
@@ -156,7 +156,7 @@ export function scoreGrowth(stockData) {
     const config = SCORING_CONFIG.growth.components;
     let totalScore = 0;
 
-    for (const [key, componentConfig] of Object.entries(config)) {
+    for (const componentConfig of Object.values(config)) {
         const componentScore = scoreComponent(componentConfig, stockData);
         totalScore += componentScore * componentConfig.weight;
     }

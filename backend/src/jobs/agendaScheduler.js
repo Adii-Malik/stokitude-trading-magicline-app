@@ -173,10 +173,6 @@ class AgendaScheduler {
       return null;
     }
 
-    const cronExpression = this.buildCronExpression(schedule);
-
-    // Use Agenda's internal logic to calculate next run
-    // For display purposes, we'll use a simple calculation
     const { amount, interval, time } = schedule.recurring;
     const now = new Date();
     const next = new Date(now);
@@ -330,7 +326,6 @@ class AgendaScheduler {
       // This is needed because Agenda might set it during save
       if (!updatedData.enabled || !updatedData.schedule.recurring.enabled) {
         const mongoose = await import('mongoose');
-        const ObjectId = mongoose.default.Types.ObjectId;
 
         await mongoose.default.connection.db.collection('agendaJobs').updateOne(
           { 'data.jobId': jobId },  // Use jobId instead of _id to avoid BSON issues

@@ -43,18 +43,6 @@ export default function StockManagement() {
 
   // Scrape modal state
   const [showScrapeModal, setShowScrapeModal] = useState(false);
-  const [scrapeStartDate, setScrapeStartDate] = useState('2023-01-02'); // Monday
-  const [scrapeEndDate, setScrapeEndDate] = useState(() => {
-    const today = new Date();
-    const day = today.getDay();
-    // If today is Sunday (0), go back 2 days; if Saturday (6), go back 1 day
-    if (day === 0) {
-      today.setDate(today.getDate() - 2);
-    } else if (day === 6) {
-      today.setDate(today.getDate() - 1);
-    }
-    return today.toISOString().split('T')[0];
-  });
   const [isScraping, setIsScraping] = useState(false);
   const [selectedSymbols, setSelectedSymbols] = useState([]);
   const [selectedSymbolsData, setSelectedSymbolsData] = useState([]);
@@ -271,7 +259,7 @@ export default function StockManagement() {
         return;
       }
 
-      const data = await startScraping(symbolStrings);
+      await startScraping(symbolStrings);
 
       showMessage(`Historical data scraping started for ${selectedSymbols.length} symbol(s)`, 'success');
       setShowScrapeModal(false);

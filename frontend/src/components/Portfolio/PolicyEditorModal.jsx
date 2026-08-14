@@ -141,14 +141,6 @@ export default function PolicyEditorModal({ portfolioId, existingPolicy, onClose
         }
     };
 
-    const toggleStock = (symbol) => {
-        setSelectedStocks(prev =>
-            prev.includes(symbol)
-                ? prev.filter(s => s !== symbol)
-                : [...prev, symbol]
-        );
-    };
-
     const handleSave = async () => {
         try {
             const goal = INVESTMENT_GOALS[investmentGoal];

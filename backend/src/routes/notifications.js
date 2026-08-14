@@ -1,9 +1,8 @@
 import express from 'express';
 import Notification from '../models/Notification.js';
 import NotificationPreference from '../models/NotificationPreference.js';
-import { authenticate, adminOnly } from '../middleware/auth.js';
-import { getFeaturesForUser, getUserControllableFeatures } from '../config/notificationConfig.js';
-import { requireFeature } from '../config/featureFlags.js';
+import { authenticate } from '../middleware/auth.js';
+import { getUserControllableFeatures } from '../config/notificationConfig.js';
 
 const router = express.Router();
 

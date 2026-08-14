@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
-  TrendingUp, Shield, Target, Sun, Moon, Menu, X, Home, ChevronDown, Briefcase, BookOpen
+  TrendingUp, Shield, Target, Sun, Moon, Menu, X, Home, Briefcase, BookOpen
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -24,9 +23,8 @@ export default function Header({
   onNavigateToLogin,
   onNavigateToSignup
 }) {
-  const { user, logout, isAdmin } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const isMarketOpen = marketStatus === 'open';
@@ -34,12 +32,6 @@ export default function Header({
   const handleNavigation = (navFunction) => {
     navFunction();
     setMobileMenuOpen(false); // Close mobile menu after navigation
-  };
-
-  const handleLogout = async () => {
-    if (window.confirm('Are you sure you want to logout?')) {
-      await logout();
-    }
   };
 
   return (

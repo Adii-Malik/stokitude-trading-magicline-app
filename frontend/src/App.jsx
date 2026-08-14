@@ -50,7 +50,7 @@ function ProtectedRoute({ children, adminOnly = false }) {
 }
 
 function AppContent() {
-  const { user, loading, isAdmin } = useAuth();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
 
   // No-op in a browser; wires the status bar and Android back button in the app.

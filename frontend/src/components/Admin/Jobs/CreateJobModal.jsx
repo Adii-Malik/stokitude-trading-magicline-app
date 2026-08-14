@@ -71,13 +71,6 @@ export default function CreateJobModal({ onClose, onCreated }) {
     }));
   };
 
-  const handleScheduleChange = (field, value) => {
-    setSchedule(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
   const validateConfig = () => {
     if (!selectedType) return false;
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Bell, Check, Trash2, Filter, AlertCircle, CheckCircle, Info,
-  ChevronLeft, ChevronRight, RefreshCw, Trash, Search, X
+  ChevronLeft, ChevronRight, RefreshCw, Trash
 } from 'lucide-react';
 import {
   getNotifications,
@@ -26,7 +26,6 @@ export default function Notifications() {
     type: 'all'
   });
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedNotifications, setSelectedNotifications] = useState([]);
   const navigate = useNavigate();
 
   useEffect(() => {

@@ -4,7 +4,6 @@
  */
 import FundamentalsAggregator from '../../services/portfolio/fundamentalsSources/FundamentalsAggregator.js';
 import Stock from '../../models/Stock.js';
-import StockFundamental from '../../models/StockFundamental.js';
 
 export default async function fundamentalsRefreshJob(context) {
     const { config, logger } = context;

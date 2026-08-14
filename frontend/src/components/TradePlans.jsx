@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { 
-  TrendingUp, 
   Plus, 
   Edit2, 
   Trash2, 
@@ -12,8 +11,6 @@ import {
   FileText,
   Target,
   ArrowUp,
-  ArrowDown,
-  Minus,
   Filter,
   Activity,
   History,
@@ -43,7 +40,7 @@ export default function TradePlans() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('active'); // 'active' or 'historical'
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter] = useState('');
   const [outcomeFilter, setOutcomeFilter] = useState(''); // 'success', 'failed', ''
   const [timeFilter, setTimeFilter] = useState(''); // 'week', 'month', '3months', 'year', ''
   const [sortOrder, setSortOrder] = useState('newest'); // 'newest', 'oldest'
@@ -1024,12 +1021,6 @@ export default function TradePlans() {
 }
 
 // Helper functions for date formatting
-function formatDate(dateString) {
-  if (!dateString) return null;
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
 function getDaysAgo(dateString) {
   if (!dateString) return null;
   const now = new Date();
@@ -1071,7 +1062,6 @@ function TradePlanCard({ plan, onEdit, onDelete, onClose, getStatusBadge, isAdmi
   const hasLongAnalysis = plan.analysis && plan.analysis.length > 100;
   
   // Date context
-  const createdDate = formatDate(plan.createdAt);
   const daysAgo = getDaysAgo(plan.createdAt);
 
   return (

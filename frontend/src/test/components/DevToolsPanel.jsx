@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings, Info, CheckCircle, XCircle, AlertTriangle, TestTube } from 'lucide-react';
+import { Settings, CheckCircle, AlertTriangle, TestTube } from 'lucide-react';
 import { getFeatureFlagsSummary } from '../../config/featureFlags';
 
 export default function DevToolsPanel() {
@@ -91,28 +91,6 @@ export default function DevToolsPanel() {
             )}
         </div>
     );
-}
-
-function FeatureStatus({ name, enabled, nested = false }) {
-    return (
-        <div className={`flex items-center gap-2 ${nested ? 'ml-4' : ''}`}>
-            {enabled ? (
-                <CheckCircle className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
-            ) : (
-                <XCircle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
-            )}
-            <span className={`text-xs ${enabled ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-600'}`}>
-                {name}
-            </span>
-        </div>
-    );
-}
-
-function formatFeatureName(name) {
-    return name
-        .replace(/([A-Z])/g, ' $1')
-        .replace(/^./, str => str.toUpperCase())
-        .trim();
 }
 
 // Add slow spin animation to tailwind.config.js if not exists
