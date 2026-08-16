@@ -1,6 +1,6 @@
 {
   "appId": "tech.stokitude.app",
-  "appName": "Stokitude",
+  "appName": "Financial Reading",
   "webDir": "dist",
   "server": {
     "androidScheme": "https"

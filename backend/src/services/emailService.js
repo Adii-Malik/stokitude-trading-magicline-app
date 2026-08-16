@@ -51,7 +51,7 @@ class EmailService {
     const mailOptions = {
       from: `"${config.email.fromName}" <${config.email.fromEmail}>`,
       to: email,
-      subject: 'Password Reset Request - PSX SmartDesk',
+      subject: 'Password Reset Request - Financial Reading',
       html: `
         <!DOCTYPE html>
         <html>
@@ -75,7 +75,7 @@ class EmailService {
             <div class="content">
               <p>Hi <strong>${username}</strong>,</p>
               
-              <p>We received a request to reset your password for your PSX SmartDesk account.</p>
+              <p>We received a request to reset your password for your Financial Reading account.</p>
               
               <p>Click the button below to reset your password:</p>
               
@@ -97,11 +97,11 @@ class EmailService {
               
               <p>If you have any questions, please contact support.</p>
               
-              <p>Best regards,<br><strong>PSX SmartDesk Team</strong></p>
+              <p>Best regards,<br><strong>Financial Reading Team</strong></p>
             </div>
             <div class="footer">
               <p>This is an automated email. Please do not reply to this message.</p>
-              <p>&copy; ${new Date().getFullYear()} PSX SmartDesk. All rights reserved.</p>
+              <p>&copy; ${new Date().getFullYear()} Financial Reading. All rights reserved.</p>
             </div>
           </div>
         </body>
@@ -110,7 +110,7 @@ class EmailService {
       text: `
 Hi ${username},
 
-We received a request to reset your password for your PSX SmartDesk account.
+We received a request to reset your password for your Financial Reading account.
 
 Reset your password by visiting this link:
 ${resetUrl}
@@ -120,7 +120,7 @@ This link expires in 1 hour.
 If you didn't request this reset, please ignore this email. Your password won't change until you create a new one.
 
 Best regards,
-PSX SmartDesk Team
+Financial Reading Team
       `
     };
 
@@ -136,7 +136,7 @@ PSX SmartDesk Team
     const mailOptions = {
       from: `"${config.email.fromName}" <${config.email.fromEmail}>`,
       to: email,
-      subject: 'Welcome to PSX SmartDesk! 🎉',
+      subject: 'Welcome to Financial Reading! 🎉',
       html: `
         <!DOCTYPE html>
         <html>
@@ -153,12 +153,12 @@ PSX SmartDesk Team
         <body>
           <div class="container">
             <div class="header">
-              <h1>🎉 Welcome to PSX SmartDesk!</h1>
+              <h1>🎉 Welcome to Financial Reading!</h1>
             </div>
             <div class="content">
               <p>Hi <strong>${username}</strong>,</p>
               
-              <p>Your account has been activated! You can now access all features of PSX SmartDesk.</p>
+              <p>Your account has been activated! You can now access all features of Financial Reading.</p>
               
               <div style="text-align: center;">
                 <a href="${loginUrl}" class="button">Login Now</a>
@@ -166,10 +166,10 @@ PSX SmartDesk Team
               
               <p>Start monitoring your stocks, managing trade plans, and more!</p>
               
-              <p>Best regards,<br><strong>PSX SmartDesk Team</strong></p>
+              <p>Best regards,<br><strong>Financial Reading Team</strong></p>
             </div>
             <div class="footer">
-              <p>&copy; ${new Date().getFullYear()} PSX SmartDesk. All rights reserved.</p>
+              <p>&copy; ${new Date().getFullYear()} Financial Reading. All rights reserved.</p>
             </div>
           </div>
         </body>
@@ -204,7 +204,7 @@ PSX SmartDesk Team
     const mailOptions = {
       from: `"${config.email.fromName}" <${config.email.fromEmail}>`,
       to: email,
-      subject: `${title} - PSX SmartDesk`,
+      subject: `${title} - Financial Reading`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -239,7 +239,7 @@ PSX SmartDesk Team
               
               <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
                 <p style="color: #6b7280; font-size: 13px; margin: 5px 0;">
-                  This notification was sent from PSX SmartDesk
+                  This notification was sent from Financial Reading
                 </p>
                 <p style="color: #6b7280; font-size: 13px; margin: 5px 0;">
                   <a href="${config.email.frontendUrl}/profile" style="color: #0891b2; text-decoration: none;">

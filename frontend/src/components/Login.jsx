@@ -71,7 +71,7 @@ export default function Login({ onSwitchToSignup, onSwitchToForgotPassword, onBa
               <LogIn className="w-8 h-8 text-cyan-600" />
             </div>
             <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Welcome Back</h2>
-            <p className="text-gray-600 dark:text-gray-400">Sign in to access PSX SmartDesk</p>
+            <p className="text-gray-600 dark:text-gray-400">Sign in to access Financial Reading</p>
           </div>
 
           {/* Error Alert */}

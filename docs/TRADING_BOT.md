@@ -1,4 +1,4 @@
-# PSX SmartDesk - Trading Bot System
+# Financial Reading - Trading Bot System
 
 Complete guide for Python-based trading bot integration, backtesting, and signal generation.
 

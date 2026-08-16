@@ -238,7 +238,7 @@ export default function Dashboard() {
               <TrendingUp className="w-8 h-8" />
             </div>
             <div>
-              <h3 className="text-xl font-bold mb-2">PSX SmartDesk Analytics</h3>
+              <h3 className="text-xl font-bold mb-2">Financial Reading Analytics</h3>
               <p className="text-cyan-100">
                 Track your trading performance with real-time KPIs. Analyze trade plan success rates
                 and make data-driven decisions with comprehensive insights. Historical data shows your complete trading journey!

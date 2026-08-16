@@ -1,7 +1,7 @@
 # Progressive Web App (PWA) Guide
 
 ## Overview
-Transform PSX SmartDesk into an installable Progressive Web App that works offline, sends push notifications, and provides a native-like experience.
+Transform Financial Reading into an installable Progressive Web App that works offline, sends push notifications, and provides a native-like experience.
 
 ## What is a PWA?
 
@@ -39,8 +39,8 @@ Create `frontend/public/manifest.json`:
 
 ```json
 {
-  "name": "PSX SmartDesk - Pakistan Stock Exchange",
-  "short_name": "PSX SmartDesk",
+  "name": "Financial Reading - Pakistan Stock Exchange",
+  "short_name": "Financial Reading",
   "description": "Real-time trading platform for Pakistan Stock Exchange",
   "start_url": "/",
   "scope": "/",

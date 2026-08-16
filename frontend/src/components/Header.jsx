@@ -44,7 +44,7 @@ export default function Header({
             className="flex items-center gap-2 hover:opacity-90 transition-opacity min-w-0"
           >
             <TrendingUp className="w-6 h-6 text-cyan-500 shrink-0" />
-            <h1 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap">PSX SmartDesk</h1>
+            <h1 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap">Financial Reading</h1>
           </button>
 
           {/* Desktop Navigation */}

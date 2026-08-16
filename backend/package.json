@@ -1,7 +1,7 @@
 {
-  "name": "psx-smartdesk-backend",
+  "name": "financial-reading-backend",
   "version": "1.0.0",
-  "description": "PSX SmartDesk - Backend API",
+  "description": "Financial Reading - Backend API",
   "main": "src/index.js",
   "type": "module",
   "scripts": {

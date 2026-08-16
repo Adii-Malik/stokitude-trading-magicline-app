@@ -184,7 +184,7 @@ router.post('/test-email', authenticate, requireFeature('test'), async (req, res
         const result = await emailService.sendNotificationEmail(
             user.email,
             user.username,
-            '🧪 Email Test - PSX SmartDesk',
+            '🧪 Email Test - Financial Reading',
             'This is a test email to verify your email notification settings are working correctly. If you received this email, your email notifications are configured properly!',
             '/notifications',
             'medium'

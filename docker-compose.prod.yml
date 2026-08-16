@@ -12,7 +12,7 @@
 services:
   app:
     image: ${IMAGE:-ghcr.io/adii-malik/stokitude-trading-magicline-app:latest}
-    container_name: stokitude
+    container_name: financial-reading
     restart: unless-stopped
     env_file: .env.production
     environment:

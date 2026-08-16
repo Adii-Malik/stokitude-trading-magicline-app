@@ -1,8 +1,8 @@
 services:
   app:
     build: .
-    image: stokitude:latest
-    container_name: stokitude
+    image: financial-reading:latest
+    container_name: financial-reading
     restart: unless-stopped
     env_file: .env.production
     environment:

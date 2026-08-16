@@ -58,7 +58,7 @@ export default {
     password: process.env.EMAIL_PASSWORD || '',
 
     // Common settings
-    fromName: process.env.EMAIL_FROM_NAME || 'PSX SmartDesk',
+    fromName: process.env.EMAIL_FROM_NAME || 'Financial Reading',
     fromEmail: process.env.EMAIL_FROM_EMAIL || 'noreply@psxsmartdesk.com',
     frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173'
   },
