@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import {
-    ArrowLeft, TrendingUp, TrendingDown, DollarSign,
-    PieChart, Plus, Download, RefreshCw, Target, Upload, FileText, Wallet, X
-} from 'lucide-react';
+import { ArrowLeft, Plus, Download, RefreshCw, Upload, FileText, X } from 'lucide-react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { formatCurrency, formatPercent } from '../../utils/portfolioUtils';
@@ -127,10 +124,6 @@ export default function PortfolioDetail() {
         );
     }
 
-    const { totalValue, totalCost, totalPnL, totalPnLPct, realizedPnL, unrealizedPnL, cashBalance, cashTracked,
-        taxRatePct, capitalGainsTax, netRealizedPnL, totalDividends, totalFees } = dashboard;
-    const isProfit = (totalPnL || 0) >= 0;
-
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
             <div className="container mx-auto px-4 py-8">
@@ -186,62 +179,7 @@ export default function PortfolioDetail() {
                         </div>
                     </div>
 
-                    {/* Stats Cards */}
-                    {/* Cash first, then what you hold, then the totals it rolls
-                        up into - so Total P/L reads as the conclusion. */}
-                    <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-6">
-                        {cashTracked && (
-                            <StatCard
-                                title="Cash Balance"
-                                value={formatCurrency(cashBalance, portfolio.currency)}
-                                subtitle={cashBalance < 0 ? 'Overdrawn - check deposits' : 'Available to invest'}
-                                icon={Wallet}
-                                iconColor={cashBalance < 0 ? 'text-red-600' : 'text-emerald-600'}
-                                iconBg={cashBalance < 0 ? 'bg-red-50' : 'bg-emerald-50'}
-                            />
-                        )}
-                        <StatCard
-                            title="Total Value"
-                            value={formatCurrency(totalValue, portfolio.currency)}
-                            icon={DollarSign}
-                            iconColor="text-blue-600"
-                            iconBg="bg-blue-50"
-                        />
-                        <StatCard
-                            title="Total Cost"
-                            value={formatCurrency(totalCost, portfolio.currency)}
-                            icon={PieChart}
-                            iconColor="text-purple-600"
-                            iconBg="bg-purple-50"
-                        />
-                        <StatCard
-                            title="Realized P/L"
-                            value={formatCurrency(realizedPnL, portfolio.currency, { signed: true })}
-                            subtitle={`Stocks sold. Unrealized: ${formatCurrency(unrealizedPnL, portfolio.currency)}`}
-                            icon={Target}
-                            iconColor={(realizedPnL || 0) >= 0 ? 'text-green-600' : 'text-red-600'}
-                            iconBg={(realizedPnL || 0) >= 0 ? 'bg-green-50' : 'bg-red-50'}
-                        />
-                        <StatCard
-                            title="Total P/L"
-                            value={formatCurrency(totalPnL, portfolio.currency, { signed: true })}
-                            subtitle={`${formatPercent(totalPnLPct)} · incl. dividends`}
-                            icon={isProfit ? TrendingUp : TrendingDown}
-                            iconColor={isProfit ? 'text-green-600' : 'text-red-600'}
-                            iconBg={isProfit ? 'bg-green-50' : 'bg-red-50'}
-                            valueColor={isProfit ? 'text-green-600' : 'text-red-600'}
-                        />
-                    </div>
-
-                    <TakeHome
-                        realized={realizedPnL}
-                        tax={capitalGainsTax}
-                        net={netRealizedPnL}
-                        ratePct={taxRatePct}
-                        dividends={totalDividends}
-                        fees={totalFees}
-                        currency={portfolio.currency}
-                    />
+                    <Summary dashboard={dashboard} currency={portfolio.currency} />
 
                     <PerformanceChart portfolioId={id} currency={portfolio.currency} />
 
@@ -409,72 +347,7 @@ export default function PortfolioDetail() {
  * sit apart because PSX withholds on them at source, so the recorded amount is
  * already net - taxing it again here would double-count.
  */
-function TakeHome({ realized, tax, net, ratePct, dividends, fees, currency }) {
-    if (!realized && !dividends) return null;
-    const money = (v, opts) => formatCurrency(v, currency, opts);
-    // What the trading cost you, against what it made. Above 100% means the
-    // broker took more than you did.
-    const bite = fees > 0 && realized > 0 ? (fees / realized) * 100 : null;
 
-    const Item = ({ label, value, hint, tone = 'text-gray-900 dark:text-white' }) => (
-        <div className="px-4 py-2.5">
-            <div className="text-xs text-gray-500 dark:text-gray-400">{label}</div>
-            <div className={`text-base font-bold ${tone}`}>{value}</div>
-            {hint && <div className="text-xs text-gray-500 dark:text-gray-500">{hint}</div>}
-        </div>
-    );
-
-    return (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm grid grid-cols-2 lg:grid-cols-4
-                        divide-x divide-y lg:divide-y-0 divide-gray-200 dark:divide-gray-700">
-            <Item label="Realised gains" value={money(realized, { signed: true })} hint="from shares sold" />
-            <Item
-                label={`Capital gains tax ${ratePct}%`}
-                value={`− ${money(tax)}`}
-                tone="text-red-600 dark:text-red-400"
-                hint="on realised gains"
-            />
-            <Item
-                label="In hand"
-                value={money(net, { signed: true })}
-                tone={net >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}
-                hint="after tax"
-            />
-            <Item
-                label="Commission paid"
-                value={money(fees)}
-                tone="text-amber-600 dark:text-amber-400"
-                hint={bite !== null ? `${bite.toFixed(0)}% of your gains` : 'brokerage, tax and CDC'}
-            />
-            {dividends > 0 && (
-                <div className="col-span-2 lg:col-span-4 px-4 py-2 text-xs text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
-                    Dividends {money(dividends)} are separate — PSX withholds tax on those at source.
-                </div>
-            )}
-        </div>
-    );
-}
-
-function StatCard({ title, value, subtitle, icon: Icon, iconColor, iconBg, valueColor }) {
-    return (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
-            {/* Icon sits beside the label on phones; stacking it wastes a third
-                of the card's height for decoration. */}
-            <div className="flex items-center gap-2 mb-1 sm:mb-4 sm:block">
-                <div className={`p-1.5 sm:p-3 rounded-lg shrink-0 sm:inline-block ${iconBg}`}>
-                    <Icon className={`w-4 h-4 sm:w-6 sm:h-6 ${iconColor}`} />
-                </div>
-                <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 sm:mt-4 sm:mb-1 truncate">{title}</div>
-            </div>
-            <div className={`text-lg sm:text-2xl font-bold truncate ${valueColor || 'text-gray-900 dark:text-white'}`}>
-                {value}
-            </div>
-            {subtitle && (
-                <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1 truncate">{subtitle}</div>
-            )}
-        </div>
-    );
-}
 
 function TabButton({ active, onClick, label }) {
     return (
@@ -487,5 +360,86 @@ function TabButton({ active, onClick, label }) {
         >
             {label}
         </button>
+    );
+}
+
+
+/**
+ * The account as a statement rather than a scoreboard: what it is worth, what
+ * it has made, what that cost. Grouped so each heading is the sum of the rows
+ * under it, which is the question that kept getting lost among equal-weight
+ * cards - and it reads the same on a phone as on a desktop.
+ */
+function Summary({ dashboard, currency }) {
+    const {
+        totalValue = 0, totalCost = 0, cashBalance = 0, cashTracked,
+        unrealizedPnL = 0, realizedPnL = 0, totalDividends = 0,
+        totalPnL = 0, totalPnLPct = 0, totalFees = 0,
+        capitalGainsTax = 0, netRealizedPnL = 0, taxRatePct = 15
+    } = dashboard;
+
+    const money = (v, opts) => formatCurrency(v, currency, opts);
+    const accountValue = totalValue + (cashTracked ? cashBalance : 0);
+    const bite = totalFees > 0 && realizedPnL > 0 ? (totalFees / realizedPnL) * 100 : null;
+    const gain = totalPnL >= 0;
+
+    return (
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm
+                        grid lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x
+                        divide-gray-200 dark:divide-gray-700">
+            <Section title="Account value" value={money(accountValue)}>
+                <Line label="Holdings" value={money(totalValue)} />
+                {cashTracked && <Line label="Cash" value={money(cashBalance)} />}
+                <Line label="Cost of holdings" value={money(totalCost)} muted />
+            </Section>
+
+            <Section
+                title="Total P/L"
+                value={money(totalPnL, { signed: true })}
+                note={formatPercent(totalPnLPct)}
+                tone={gain ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}
+            >
+                <Line label="Unrealised on holdings" value={money(unrealizedPnL, { signed: true })} />
+                <Line label="Realised from sales" value={money(realizedPnL, { signed: true })} />
+                <Line label="Dividends received" value={money(totalDividends)} />
+            </Section>
+
+            <Section title="What it cost" value={money(totalFees + capitalGainsTax)}
+                tone="text-amber-600 dark:text-amber-400">
+                <Line label="Commission" value={money(totalFees)}
+                    note={bite !== null ? `${bite.toFixed(0)}% of realised gains` : null} />
+                <Line label={`Capital gains tax ${taxRatePct}%`} value={money(capitalGainsTax)} />
+                <Line label="In hand from sales" value={money(netRealizedPnL, { signed: true })} strong />
+            </Section>
+        </div>
+    );
+}
+
+function Section({ title, value, note, tone = 'text-gray-900 dark:text-white', children }) {
+    return (
+        <div className="px-5 py-4">
+            <div className="flex items-baseline justify-between gap-3">
+                <span className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{title}</span>
+                {note && <span className={`text-xs ${tone}`}>{note}</span>}
+            </div>
+            <div className={`text-2xl font-bold mt-0.5 ${tone}`}>{value}</div>
+            <div className="mt-3 space-y-1.5">{children}</div>
+        </div>
+    );
+}
+
+function Line({ label, value, note, muted, strong }) {
+    return (
+        <div className={`flex items-baseline justify-between gap-3 text-sm
+                        ${strong ? 'pt-1.5 border-t border-gray-200 dark:border-gray-700' : ''}`}>
+            <span className={muted ? 'text-gray-400 dark:text-gray-500' : 'text-gray-600 dark:text-gray-400'}>
+                {label}
+                {note && <span className="block text-xs text-gray-400 dark:text-gray-500">{note}</span>}
+            </span>
+            <span className={`shrink-0 tabular-nums ${strong ? 'font-semibold' : ''}
+                            ${muted ? 'text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>
+                {value}
+            </span>
+        </div>
     );
 }
