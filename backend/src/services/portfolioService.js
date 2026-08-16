@@ -183,7 +183,8 @@ class PortfolioService {
      * records cash movements, so `tracked` says whether any exist.
      */
     async getCashBalance(portfolioId) {
-        const transactions = await Transaction.find({ portfolioId }).lean();
+        const transactions = await Transaction.find({ portfolioId })
+            .select('type cashAmount quantity price fees dividendCash').lean();
 
         let balance = 0;
         let tracked = false;
@@ -405,8 +406,8 @@ class PortfolioService {
             throw new Error('Edit permission required');
         }
 
-        // Get all symbols with transactions
-        const symbols = await Transaction.find({ portfolioId }).distinct('symbol');
+        // Cash movements have no symbol, so distinct() yields a null to skip.
+        const symbols = (await Transaction.find({ portfolioId }).distinct('symbol')).filter(Boolean);
 
         const results = [];
         for (const symbol of symbols) {
@@ -425,17 +426,21 @@ class PortfolioService {
     /**
      * Get holdings (positions with current prices)
      */
-    async getHoldings(portfolioId, userId, { includeClosed = false } = {}) {
-        await this.getPortfolio(portfolioId, userId); // Access check
+    async getHoldings(portfolioId, userId, { includeClosed = false, authorized = false } = {}) {
+        if (!authorized) await this.getPortfolio(portfolioId, userId);
 
         const query = { portfolioId };
         if (!includeClosed) query.netShares = { $gt: 0 };
-        const positions = await Position.find(query).sort({ marketValue: -1 });
+        const positions = await Position.find(query).sort({ marketValue: -1 }).lean();
 
-        // Enrich with current stock data
+        // One lookup for every symbol; per-position findOne was a round trip each.
+        const stocks = await Stock.find({ symbol: { $in: positions.map(p => p.symbol) } })
+            .select('symbol companyName currentPrice').lean();
+        const bySymbol = new Map(stocks.map(s => [s.symbol, s]));
+
         const holdings = [];
         for (const position of positions) {
-            const stock = await Stock.findOne({ symbol: position.symbol });
+            const stock = bySymbol.get(position.symbol);
             const currentPrice = stock?.currentPrice || 0;
 
             // Recalculate market value and unrealized P/L with current price
@@ -485,7 +490,7 @@ class PortfolioService {
     async getDashboard(portfolioId, userId) {
         await this.getPortfolio(portfolioId, userId); // Access check
 
-        const holdings = await this.getHoldings(portfolioId, userId);
+        const holdings = await this.getHoldings(portfolioId, userId, { authorized: true });
 
         let totalValue = 0;
         let totalCost = 0;

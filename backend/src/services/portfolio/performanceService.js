@@ -289,6 +289,9 @@ export async function performance(portfolioId, { from, benchmark = 'KSE100' } = 
             cash: last?.cash ?? 0,
             total: last?.total ?? 0,
             invested: last?.invested ?? 0,
+            // Most capital ever at work. `invested` is net of withdrawals, so it
+            // understates what the return was actually earned on.
+            peakInvested: series.reduce((max, r) => Math.max(max, r.invested), 0),
             // Both need recorded capital before they mean anything.
             xirrPct: capital ? xirr(flows) : null,
             capitalTracked: capital,
@@ -306,7 +309,7 @@ function empty(benchmark) {
         missingPrices: [],
         summary: {
             start: null, end: null, value: 0, cash: 0, total: 0, invested: 0,
-            xirrPct: null, capitalTracked: false, lateCapital: false,
+            peakInvested: 0, xirrPct: null, capitalTracked: false, lateCapital: false,
             drawdown: { amount: 0, pct: 0, from: null, to: null }
         }
     };

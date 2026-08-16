@@ -121,7 +121,7 @@ function Stats({ summary, comparison, currency }) {
                 value={summary.xirrPct != null ? formatPercent(summary.xirrPct, 1, { signed: true }) : '—'}
                 hint={
                     summary.lateCapital ? 'overstated: deposit dated after first trade'
-                        : summary.xirrPct != null ? `on ${formatCurrency(summary.invested, currency)} invested`
+                        : summary.xirrPct != null ? `on ${formatCurrency(summary.peakInvested, currency)} at peak`
                             : 'record a cash deposit'
                 }
                 color={summary.lateCapital ? 'text-amber-600 dark:text-amber-400'
