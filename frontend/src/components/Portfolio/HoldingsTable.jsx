@@ -241,7 +241,12 @@ function HoldingRow({ holding, currency, onSelectSymbol }) {
         <tr className={`border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 ${holding.closed ? 'opacity-60' : ''}`}>
             <td className="py-3">
                 <div className="flex items-center gap-2">
-                    <span className="font-semibold text-gray-900 dark:text-white">{holding.symbol}</span>
+                    <button
+                        onClick={() => onSelectSymbol?.(holding.symbol)}
+                        className="font-semibold text-gray-900 dark:text-white hover:text-cyan-600 dark:hover:text-cyan-400 hover:underline"
+                    >
+                        {holding.symbol}
+                    </button>
                     {holding.closed && (
                         <span className="px-1.5 py-0.5 text-xs rounded bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
                             Closed
