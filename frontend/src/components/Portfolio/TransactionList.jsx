@@ -10,15 +10,18 @@ export default function TransactionList({ portfolioId, currency, onTransactionCh
     const [loading, setLoading] = useState(true);
     const [typeFilter, setTypeFilter] = useState('ALL');
     const [editingTransaction, setEditingTransaction] = useState(null);
+    const [total, setTotal] = useState(0);
+    const [limit, setLimit] = useState(200);
 
     useEffect(() => {
         loadTransactions();
-    }, [portfolioId]);
+    }, [portfolioId, limit]);
 
     const loadTransactions = async () => {
         try {
-            const response = await api.get(`/portfolios/${portfolioId}/transactions`);
+            const response = await api.get(`/portfolios/${portfolioId}/transactions`, { params: { limit } });
             setTransactions(response.data.data);
+            setTotal(response.data.total ?? response.data.data.length);
         } catch (error) {
             toast.error('Failed to load transactions');
             console.error(error);
@@ -100,6 +103,15 @@ export default function TransactionList({ portfolioId, currency, onTransactionCh
                     />
                 ))}
             </div>
+
+            {total > transactions.length && (
+                <button
+                    onClick={() => setLimit(total)}
+                    className="w-full py-2 text-sm text-cyan-600 dark:text-cyan-400 hover:underline"
+                >
+                    Showing {transactions.length} of {total} — show all
+                </button>
+            )}
 
             {filteredTransactions.length === 0 && (
                 <div className="text-center py-8 text-gray-600 dark:text-gray-400">

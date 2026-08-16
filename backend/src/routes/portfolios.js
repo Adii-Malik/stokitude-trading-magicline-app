@@ -284,12 +284,17 @@ router.get('/:id/transactions', async (req, res) => {
         const transactions = await portfolioService.getTransactions(
             req.params.id,
             req.user._id,
-            { symbol, type, from, to, limit: parseInt(limit) || 100 }
+            { symbol, type, from, to, limit: parseInt(limit) || 200 }
         );
+
+        // `total` tells the client whether it is looking at everything - a
+        // capped list with no indication silently hides the rest of the ledger.
+        const total = await Transaction.countDocuments({ portfolioId: req.params.id });
 
         res.json({
             success: true,
             count: transactions.length,
+            total,
             data: transactions
         });
     } catch (error) {
