@@ -55,11 +55,19 @@ export default function AddTransactionModal({ portfolioId, currency, commissionS
     const matchedSlab = slabFor(formData.price, commissionSlabs);
     const feeUntouched = formData.fees === '' || formData.fees === undefined;
 
+    // Brokerage and the statutory charges go in separate fields, as they do on
+    // a contract note - rolling them together hides what the broker took.
+    const statutory = suggestedFee - charges.brokerage;
+
     useEffect(() => {
         if (isTrade && feeUntouched && suggestedFee > 0) {
-            setFormData(f => ({ ...f, fees: suggestedFee.toFixed(2) }));
+            setFormData(f => ({
+                ...f,
+                fees: charges.brokerage.toFixed(2),
+                otherCharges: statutory > 0 ? statutory.toFixed(2) : ''
+            }));
         }
-    }, [suggestedFee, isTrade, feeUntouched]);
+    }, [suggestedFee, charges.brokerage, statutory, isTrade, feeUntouched]);
 
     // A symbol picked for BUY may not be held, so clear it when switching to SELL.
     const changeType = (type) => {
