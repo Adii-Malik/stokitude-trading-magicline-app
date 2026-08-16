@@ -234,9 +234,13 @@ class PortfolioService {
             t.quantity ?? '', t.price ?? '', t.dividendCash ?? '', t.cashAmount ?? ''
         ].join('|');
 
+        // Counted, not a Set: two identical fills on the same day at the same
+        // price are two real trades. Only skip as many as the portfolio already
+        // holds, so a re-import tops up rather than collapsing them.
         const existing = await Transaction.find({ portfolioId })
             .select('type symbol executedAt quantity price dividendCash cashAmount').lean();
-        const seen = new Set(existing.map(keyOf));
+        const already = new Map();
+        for (const tx of existing) already.set(keyOf(tx), (already.get(keyOf(tx)) || 0) + 1);
 
         // Opening share counts, so a SELL in the file is checked against what
         // the portfolio already holds plus whatever this file has bought.
@@ -254,7 +258,8 @@ class PortfolioService {
 
         for (const row of rows) {
             const key = keyOf(row);
-            if (seen.has(key)) { skipped++; continue; }
+            const have = already.get(key) || 0;
+            if (have > 0) { already.set(key, have - 1); skipped++; continue; }
 
             const symbol = row.symbol ? String(row.symbol).toUpperCase() : null;
             if (row.type === 'SELL') {
@@ -273,7 +278,6 @@ class PortfolioService {
                 else if (row.type === 'SELL') held[symbol] = (held[symbol] || 0) - (row.quantity || 0);
             }
 
-            seen.add(key);
             docs.push({ ...row, portfolioId, createdBy: userId, source: 'import', importBatchId });
         }
 

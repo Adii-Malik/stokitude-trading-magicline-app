@@ -158,3 +158,38 @@ describe('replay order', () => {
         }
     });
 });
+
+describe('repeated fills', () => {
+    // Two identical fills on the same day at the same price are two real
+    // trades. Collapsing them loses shares and the later SELL then fails.
+    const key = (t) => [t.type, t.symbol, t.executedAt, t.quantity, t.price].join('|');
+
+    test('identical rows in one file are counted, not deduped', async () => {
+        const parsed = await rowsOf([
+            'symbol,exchange,type,quantity,price,fees,executedAt',
+            'NCPL,PSX,BUY,500,34.19,25.64,2025-12-09',
+            'NCPL,PSX,BUY,500,34.19,25.64,2025-12-09',
+            'NCPL,PSX,SELL,500,40.77,30.58,2025-12-10',
+            'NCPL,PSX,SELL,500,37.63,28.22,2025-12-10'
+        ].join('\n'));
+
+        const txs = parsed.map(p => p.transaction);
+        assert.equal(txs.length, 4);
+        assert.equal(key(txs[0]), key(txs[1]), 'the two buys really are identical');
+
+        // Replay: dedupe by count against what is already held, not by identity.
+        const already = new Map();
+        let held = 0;
+        for (const tx of txs) {
+            const k = key(tx);
+            const have = already.get(k) || 0;
+            if (have > 0) { already.set(k, have - 1); continue; }
+            if (tx.type === 'BUY') held += tx.quantity;
+            else {
+                assert.ok(tx.quantity <= held, `sold ${tx.quantity} with ${held} held`);
+                held -= tx.quantity;
+            }
+        }
+        assert.equal(held, 0, 'both buys counted, both sells covered');
+    });
+});
