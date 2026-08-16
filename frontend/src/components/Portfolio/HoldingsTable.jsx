@@ -4,7 +4,7 @@ import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { formatCurrency, formatPercent, formatShares, getPnLColorClass } from '../../utils/portfolioUtils';
 
-export default function HoldingsTable({ portfolioId, currency }) {
+export default function HoldingsTable({ portfolioId, currency, onSelectSymbol }) {
     const [holdings, setHoldings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -167,7 +167,7 @@ export default function HoldingsTable({ portfolioId, currency }) {
                     </tfoot>
                 </table>
             </div>
-            <ClosedPositions rows={closed} currency={currency} />
+            <ClosedPositions rows={closed} currency={currency} onSelectSymbol={onSelectSymbol} />
 
         </div>
     );
@@ -285,7 +285,7 @@ function HoldingRow({ holding, currency }) {
  * position, and its unrealised P/L of zero rendered as a green gain beside a
  * loss it had actually taken.
  */
-function ClosedPositions({ rows, currency }) {
+function ClosedPositions({ rows, currency, onSelectSymbol }) {
     const [open, setOpen] = useState(false);
     if (!rows.length) return null;
 
@@ -308,14 +308,29 @@ function ClosedPositions({ rows, currency }) {
 
             {open && (
                 <div className="mt-3 grid gap-x-6 gap-y-1.5 sm:grid-cols-2 lg:grid-cols-3">
-                    {rows.map((r) => (
-                        <div key={r.symbol} className="flex items-baseline justify-between gap-3 text-sm">
-                            <span className="text-gray-700 dark:text-gray-300 truncate">{r.symbol}</span>
-                            <span className={`shrink-0 tabular-nums ${getPnLColorClass(r.realizedPnL)}`}>
-                                {formatCurrency(r.realizedPnL, currency, { signed: true })}
-                            </span>
-                        </div>
-                    ))}
+                    {rows.map((r) => {
+                        const div = r.dividendsReceived || 0;
+                        const took = (r.realizedPnL || 0) + div;
+                        // A symbol can appear here on dividends alone, never
+                        // having been traded - showing only realised P/L made
+                        // those read as a flat zero.
+                        const only = div > 0 && !r.realizedPnL;
+                        return (
+                            <button
+                                key={r.symbol}
+                                onClick={() => onSelectSymbol?.(r.symbol)}
+                                className="flex items-baseline justify-between gap-3 text-sm text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded px-1 -mx-1"
+                            >
+                                <span className="text-gray-700 dark:text-gray-300 truncate">
+                                    {r.symbol}
+                                    {only && <span className="text-xs text-gray-400"> dividend only</span>}
+                                </span>
+                                <span className={`shrink-0 tabular-nums ${getPnLColorClass(took)}`}>
+                                    {formatCurrency(took, currency, { signed: true })}
+                                </span>
+                            </button>
+                        );
+                    })}
                 </div>
             )}
         </div>

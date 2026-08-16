@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Calendar, TrendingUp, TrendingDown, Filter, Edit2, Trash2 } from 'lucide-react';
+import { Calendar, TrendingUp, TrendingDown, Filter, Edit2, Trash2, X } from 'lucide-react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { formatCurrency, formatShares } from '../../utils/portfolioUtils';
 import EditTransactionModal from './EditTransactionModal';
 
-export default function TransactionList({ portfolioId, currency, onTransactionChange }) {
+export default function TransactionList({ portfolioId, currency, symbol, onClearSymbol, onTransactionChange }) {
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [typeFilter, setTypeFilter] = useState('ALL');
@@ -15,11 +15,11 @@ export default function TransactionList({ portfolioId, currency, onTransactionCh
 
     useEffect(() => {
         loadTransactions();
-    }, [portfolioId, limit]);
+    }, [portfolioId, limit, symbol]);
 
     const loadTransactions = async () => {
         try {
-            const response = await api.get(`/portfolios/${portfolioId}/transactions`, { params: { limit } });
+            const response = await api.get(`/portfolios/${portfolioId}/transactions`, { params: { limit, symbol } });
             setTransactions(response.data.data);
             setTotal(response.data.total ?? response.data.data.length);
         } catch (error) {
@@ -72,6 +72,17 @@ export default function TransactionList({ portfolioId, currency, onTransactionCh
 
     return (
         <div className="space-y-4">
+            {symbol && (
+                <div className="flex items-center gap-2 text-sm">
+                    <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-50 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300">
+                        {symbol} only
+                        <button onClick={onClearSymbol} className="hover:text-cyan-900 dark:hover:text-cyan-100" aria-label="Show all symbols">
+                            <X className="w-3.5 h-3.5" />
+                        </button>
+                    </span>
+                </div>
+            )}
+
             {/* Filters */}
             <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
