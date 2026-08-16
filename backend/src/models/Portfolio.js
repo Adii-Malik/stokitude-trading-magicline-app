@@ -37,11 +37,24 @@ const portfolioSchema = new mongoose.Schema({
         }
     }],
 
-    // P/L calculation method (pluggable)
+    // P/L calculation method. Only the two with a registered calculator:
+    // selecting one without an implementation throws on every position rebuild.
     calculationMethod: {
         type: String,
-        enum: ['AVERAGE_COST', 'FIFO', 'LIFO', 'SPECIFIC_LOT'],
+        enum: ['AVERAGE_COST', 'FIFO'],
         default: 'AVERAGE_COST'
+    },
+
+    /**
+     * Capital gains tax on realised gains, as a percent. Dividends are not
+     * taxed here - PSX withholds those at source, so what the ledger records
+     * has already had tax taken off.
+     */
+    taxRatePct: {
+        type: Number,
+        default: 15,
+        min: 0,
+        max: 100
     },
 
     // Portfolio configuration

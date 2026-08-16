@@ -604,7 +604,7 @@ class PortfolioService {
      * Get portfolio dashboard summary
      */
     async getDashboard(portfolioId, userId) {
-        await this.getPortfolio(portfolioId, userId); // Access check
+        const portfolio = await this.getPortfolio(portfolioId, userId); // Access check
 
         const holdings = await this.getHoldings(portfolioId, userId, { authorized: true });
 
@@ -644,6 +644,12 @@ class PortfolioService {
         const base = cash.tracked && cash.peakInvested > 0 ? cash.peakInvested : totalCost;
         const totalPnLPct = base > 0 ? (totalPnL / base) * 100 : 0;
 
+        // Tax falls on realised gains only, and only when there are gains.
+        // Dividends arrive already withheld, so taxing them here double-counts.
+        const taxRatePct = portfolio.taxRatePct ?? 15;
+        const capitalGainsTax = realizedPnL > 0 ? (realizedPnL * taxRatePct) / 100 : 0;
+        const netRealizedPnL = realizedPnL - capitalGainsTax;
+
         // Top 5 holdings by market value
         const topHoldings = holdings
             .sort((a, b) => b.totalValue - a.totalValue)
@@ -662,6 +668,9 @@ class PortfolioService {
             unrealizedPnL,
             realizedPnL,
             totalDividends,
+            taxRatePct,
+            capitalGainsTax,
+            netRealizedPnL,
             cashBalance: cash.balance,
             cashTracked: cash.tracked,
             holdingsCount: holdings.length,

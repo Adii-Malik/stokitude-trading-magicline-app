@@ -127,7 +127,8 @@ export default function PortfolioDetail() {
         );
     }
 
-    const { totalValue, totalCost, totalPnL, totalPnLPct, realizedPnL, unrealizedPnL, cashBalance, cashTracked } = dashboard;
+    const { totalValue, totalCost, totalPnL, totalPnLPct, realizedPnL, unrealizedPnL, cashBalance, cashTracked,
+        taxRatePct, capitalGainsTax, netRealizedPnL, totalDividends } = dashboard;
     const isProfit = (totalPnL || 0) >= 0;
 
     return (
@@ -229,6 +230,15 @@ export default function PortfolioDetail() {
                             iconBg={(realizedPnL || 0) >= 0 ? 'bg-green-50' : 'bg-red-50'}
                         />
                     </div>
+
+                    <TakeHome
+                        realized={realizedPnL}
+                        tax={capitalGainsTax}
+                        net={netRealizedPnL}
+                        ratePct={taxRatePct}
+                        dividends={totalDividends}
+                        currency={portfolio.currency}
+                    />
 
                     <PerformanceChart portfolioId={id} currency={portfolio.currency} />
 
@@ -386,6 +396,44 @@ export default function PortfolioDetail() {
                     )}
                 </div>
             </div>
+        </div>
+    );
+}
+
+/**
+ * What actually reaches you: realised gains less capital gains tax. Dividends
+ * sit apart because PSX withholds on them at source, so the recorded amount is
+ * already net - taxing it again here would double-count.
+ */
+function TakeHome({ realized, tax, net, ratePct, dividends, currency }) {
+    if (!realized && !dividends) return null;
+    const money = (v, opts) => formatCurrency(v, currency, opts);
+
+    return (
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm px-4 py-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+            <span className="text-gray-600 dark:text-gray-400">Realised</span>
+            <span className="font-semibold text-gray-900 dark:text-white">{money(realized, { signed: true })}</span>
+
+            {tax > 0 && (
+                <>
+                    <span className="text-gray-400">−</span>
+                    <span className="text-gray-600 dark:text-gray-400">CGT {ratePct}%</span>
+                    <span className="font-semibold text-red-600 dark:text-red-400">{money(tax)}</span>
+                </>
+            )}
+
+            <span className="text-gray-400">=</span>
+            <span className={`font-bold ${net >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                {money(net, { signed: true })}
+            </span>
+            <span className="text-gray-500 dark:text-gray-400">in hand</span>
+
+            {dividends > 0 && (
+                <span className="text-gray-500 dark:text-gray-400 ml-auto">
+                    plus {money(dividends)} dividends
+                    <span className="text-xs"> (taxed at source)</span>
+                </span>
+            )}
         </div>
     );
 }
