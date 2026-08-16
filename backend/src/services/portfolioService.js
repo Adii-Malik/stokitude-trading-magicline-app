@@ -215,6 +215,72 @@ class PortfolioService {
         return { balance: round(balance), tracked, peakInvested: round(peak) };
     }
 
+    /**
+     * Insert a whole CSV in one pass. addTransaction re-reads the portfolio,
+     * the duplicate index and the share count for every row, which is fine for
+     * one entry and thousands of round trips for a file. Here the portfolio is
+     * fetched once, existing rows are indexed once, and share counts are
+     * tracked in memory as the ledger replays.
+     *
+     * @returns {Promise<{inserted, skipped, errors}>}
+     */
+    async importTransactions(portfolioId, userId, rows, importBatchId) {
+        const portfolio = await this.getPortfolio(portfolioId, userId);
+        if (!portfolio.canEdit(userId)) throw new Error('Edit permission required');
+
+        const day = (d) => new Date(d).toISOString().slice(0, 10);
+        const keyOf = (t) => [
+            t.type, t.symbol ? String(t.symbol).toUpperCase() : '', day(t.executedAt),
+            t.quantity ?? '', t.price ?? '', t.dividendCash ?? '', t.cashAmount ?? ''
+        ].join('|');
+
+        const existing = await Transaction.find({ portfolioId })
+            .select('type symbol executedAt quantity price dividendCash cashAmount').lean();
+        const seen = new Set(existing.map(keyOf));
+
+        // Opening share counts, so a SELL in the file is checked against what
+        // the portfolio already holds plus whatever this file has bought.
+        const held = {};
+        for (const tx of existing) {
+            if (!tx.symbol) continue;
+            const symbol = tx.symbol.toUpperCase();
+            if (tx.type === 'BUY') held[symbol] = (held[symbol] || 0) + (tx.quantity || 0);
+            else if (tx.type === 'SELL') held[symbol] = (held[symbol] || 0) - (tx.quantity || 0);
+        }
+
+        const docs = [];
+        const errors = [];
+        let skipped = 0;
+
+        for (const row of rows) {
+            const key = keyOf(row);
+            if (seen.has(key)) { skipped++; continue; }
+
+            const symbol = row.symbol ? String(row.symbol).toUpperCase() : null;
+            if (row.type === 'SELL') {
+                const have = held[symbol] || 0;
+                if (row.quantity > have) {
+                    errors.push({
+                        error: `Cannot sell ${row.quantity} ${symbol} - only ${have} held.`,
+                        data: row
+                    });
+                    continue;
+                }
+            }
+
+            if (symbol) {
+                if (row.type === 'BUY') held[symbol] = (held[symbol] || 0) + (row.quantity || 0);
+                else if (row.type === 'SELL') held[symbol] = (held[symbol] || 0) - (row.quantity || 0);
+            }
+
+            seen.add(key);
+            docs.push({ ...row, portfolioId, createdBy: userId, source: 'import', importBatchId });
+        }
+
+        if (docs.length) await Transaction.insertMany(docs, { ordered: false });
+        return { inserted: docs.length, skipped, errors };
+    }
+
     /** Shares held, derived from the ledger rather than the Position view. */
     async getSharesHeld(portfolioId, symbol) {
         const portfolio = await Portfolio.findById(portfolioId).lean();
@@ -420,13 +486,44 @@ class PortfolioService {
             throw new Error('Edit permission required');
         }
 
-        // Cash movements have no symbol, so distinct() yields a null to skip.
-        const symbols = (await Transaction.find({ portfolioId }).distinct('symbol')).filter(Boolean);
+        // Everything this needs, read once: updatePosition per symbol was six
+        // round trips each, which on a large portfolio outran the request.
+        const [transactions, positions] = await Promise.all([
+            Transaction.find({ portfolioId }).sort({ executedAt: 1 }),
+            Position.find({ portfolioId })
+        ]);
+
+        const bySymbol = new Map();
+        for (const tx of transactions) {
+            if (!tx.symbol) continue;   // cash movements have no instrument
+            const symbol = tx.symbol.toUpperCase();
+            if (!bySymbol.has(symbol)) bySymbol.set(symbol, []);
+            bySymbol.get(symbol).push(tx);
+        }
+
+        const stocks = await Stock.find({ symbol: { $in: [...bySymbol.keys()] } })
+            .select('symbol currentPrice').lean();
+        const priceOf = new Map(stocks.map(s => [s.symbol, s.currentPrice || 0]));
+        const existing = new Map(positions.map(p => [p.symbol, p]));
+        const calculator = CalculatorRegistry.get(portfolio.calculationMethod);
 
         const results = [];
-        for (const symbol of symbols) {
+        const saves = [];
+        for (const [symbol, txs] of bySymbol) {
             try {
-                const position = await this.updatePosition(portfolioId, symbol);
+                const currentPrice = priceOf.get(symbol) || 0;
+                const trades = txs.filter(t => ['BUY', 'SELL', 'SPLIT', 'BONUS'].includes(t.type));
+                const result = calculator.calculate(trades, currentPrice);
+
+                const position = existing.get(symbol) || new Position({ portfolioId, symbol });
+                position.updateFromCalculation(result, currentPrice);
+                position.dividendsReceived = txs
+                    .filter(t => t.type === 'DIV')
+                    .reduce((sum, t) => sum + (t.dividendCash || 0), 0);
+                position.firstPurchaseDate = trades.find(t => t.type === 'BUY')?.executedAt || null;
+                position.lastTransactionAt = trades[trades.length - 1]?.executedAt || new Date();
+
+                saves.push(position.save());
                 results.push({ symbol, status: 'success', netShares: position.netShares });
             } catch (error) {
                 results.push({ symbol, status: 'error', error: error.message });
@@ -434,6 +531,7 @@ class PortfolioService {
             }
         }
 
+        await Promise.all(saves);
         return results;
     }
 

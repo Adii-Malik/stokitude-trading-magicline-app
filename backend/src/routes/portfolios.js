@@ -506,34 +506,17 @@ router.post('/:id/transactions/upload/csv', upload.single('file'), async (req, r
         // Tag every row of this upload so a batch can be traced or rolled back
         const importBatchId = new mongoose.Types.ObjectId();
 
-        // Bulk insert transactions. Rows that already exist are skipped rather
-        // than duplicated, so re-uploading the same file is a no-op.
         // Oldest first: a SELL is validated against shares held at that moment,
         // so replaying a newest-first export would reject every one of them.
         results.sort((a, b) => new Date(a.executedAt) - new Date(b.executedAt));
 
-        let inserted = 0;
-        let skipped = 0;
-        for (const transactionData of results) {
-            try {
-                await portfolioService.addTransaction(
-                    req.params.id,
-                    req.user._id,
-                    { ...transactionData, source: 'import', importBatchId },
-                    { skipPositionUpdate: true }
-                );
-                inserted++;
-            } catch (err) {
-                if (err.code === 'DUPLICATE_TRANSACTION') {
-                    skipped++;
-                } else {
-                    errors.push({
-                        error: err.message,
-                        data: transactionData
-                    });
-                }
-            }
-        }
+        // Validated in memory rather than per row: a file of a few hundred rows
+        // was several thousand round trips, which outran the client timeout.
+        const bulk = await portfolioService.importTransactions(
+            req.params.id, req.user._id, results, importBatchId
+        );
+        const { inserted, skipped } = bulk;
+        errors.push(...bulk.errors);
 
         // One rebuild per symbol, rather than one per row.
         if (inserted > 0) {
