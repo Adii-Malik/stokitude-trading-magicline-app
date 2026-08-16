@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, ArrowUpDown, TrendingUp, TrendingDown } from 'lucide-react';
+import { Search, ArrowUpDown, TrendingUp, TrendingDown, ChevronDown, ChevronRight } from 'lucide-react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { formatCurrency, formatPercent, formatShares, getPnLColorClass } from '../../utils/portfolioUtils';
@@ -36,17 +36,23 @@ export default function HoldingsTable({ portfolioId, currency }) {
         }
     };
 
+    const matches = (h) =>
+        h.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        h.companyName?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    // A closed position has no shares, price, value or weight - every column
+    // here reads zero for it. Its one real number is what it realised, so it
+    // belongs in its own list rather than padding this one out.
     const filteredAndSorted = holdings
-        .filter(h =>
-            h.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            h.companyName?.toLowerCase().includes(searchTerm.toLowerCase())
-        )
+        .filter(h => !h.closed && matches(h))
         .sort((a, b) => {
-            // Closed positions always sink below open ones.
-            if (a.closed !== b.closed) return a.closed ? 1 : -1;
             const multiplier = sortDirection === 'asc' ? 1 : -1;
             return (a[sortField] - b[sortField]) * multiplier;
         });
+
+    const closed = holdings
+        .filter(h => h.closed && matches(h))
+        .sort((a, b) => b.realizedPnL - a.realizedPnL);
 
     if (loading) {
         return (
@@ -161,6 +167,8 @@ export default function HoldingsTable({ portfolioId, currency }) {
                     </tfoot>
                 </table>
             </div>
+            <ClosedPositions rows={closed} currency={currency} />
+
         </div>
     );
 }
@@ -267,5 +275,49 @@ function HoldingRow({ holding, currency }) {
                 {formatPercent(holding.weightPct, 1)}
             </td>
         </tr>
+    );
+}
+
+
+/**
+ * Positions with nothing left in them. Kept out of the holdings table because
+ * every column there - shares, price, value, weight - is zero for a closed
+ * position, and its unrealised P/L of zero rendered as a green gain beside a
+ * loss it had actually taken.
+ */
+function ClosedPositions({ rows, currency }) {
+    const [open, setOpen] = useState(false);
+    if (!rows.length) return null;
+
+    const total = rows.reduce((sum, r) => sum + (r.realizedPnL || 0) + (r.dividendsReceived || 0), 0);
+
+    return (
+        <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
+            <button
+                onClick={() => setOpen(!open)}
+                className="w-full flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+            >
+                <span className="flex items-center gap-1.5">
+                    {open ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                    {rows.length} closed {rows.length === 1 ? 'position' : 'positions'}
+                </span>
+                <span className={`font-semibold ${getPnLColorClass(total)}`}>
+                    {formatCurrency(total, currency, { signed: true })} realised
+                </span>
+            </button>
+
+            {open && (
+                <div className="mt-3 grid gap-x-6 gap-y-1.5 sm:grid-cols-2 lg:grid-cols-3">
+                    {rows.map((r) => (
+                        <div key={r.symbol} className="flex items-baseline justify-between gap-3 text-sm">
+                            <span className="text-gray-700 dark:text-gray-300 truncate">{r.symbol}</span>
+                            <span className={`shrink-0 tabular-nums ${getPnLColorClass(r.realizedPnL)}`}>
+                                {formatCurrency(r.realizedPnL, currency, { signed: true })}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
     );
 }
