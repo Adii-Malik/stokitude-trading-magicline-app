@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Calendar } from 'lucide-react';
+import { ArrowLeft, Calendar, Briefcase, TrendingUp, Activity, Coins } from 'lucide-react';
+import { Panel, Line } from './Panel';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { formatCurrency, formatPercent, formatShares, getPnLColorClass } from '../../utils/portfolioUtils';
@@ -41,6 +42,7 @@ export default function SymbolDetail() {
 
     const { position, result, counts, currency, transactions } = data;
     const open = position.quantity > 0;
+    const dividends = transactions.filter(tx => tx.type === 'DIV');
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -61,9 +63,9 @@ export default function SymbolDetail() {
                     </div>
                 </div>
 
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm grid lg:grid-cols-3
-                                divide-y lg:divide-y-0 lg:divide-x divide-gray-200 dark:divide-gray-700">
-                    <Section title={open ? 'Still held' : 'Position closed'}
+                <div className="grid gap-3 sm:gap-4 lg:grid-cols-3">
+                    <Panel icon={Briefcase} tint={open ? 'blue' : 'gray'}
+                        title={open ? 'Still held' : 'Position closed'}
                         value={open ? formatCurrency(position.marketValue, currency) : '—'}>
                         {open ? (
                             <>
@@ -80,9 +82,11 @@ export default function SymbolDetail() {
                         ) : (
                             <Line label="Shares" value="0 — nothing left in it" muted />
                         )}
-                    </Section>
+                    </Panel>
 
-                    <Section
+                    <Panel
+                        icon={TrendingUp}
+                        tint={result.net >= 0 ? 'green' : 'amber'}
                         title="What it returned"
                         value={formatCurrency(result.net, currency, { signed: true })}
                         tone={getPnLColorClass(result.net)}
@@ -91,9 +95,10 @@ export default function SymbolDetail() {
                         <Line label="Dividends" value={formatCurrency(result.dividends, currency)} />
                         <Line label="Commission and charges" value={formatCurrency(result.fees, currency)}
                             note="already inside realised" tone="text-amber-600 dark:text-amber-400" />
-                    </Section>
+                    </Panel>
 
-                    <Section title="Activity" value={`${transactions.length} transactions`}>
+                    <Panel icon={Activity} tint="purple" title="Activity"
+                        value={`${transactions.length} transactions`}>
                         <Line label="Buys" value={counts.buys} />
                         <Line label="Sells" value={counts.sells} />
                         <Line label="Dividends" value={counts.dividends} />
@@ -101,10 +106,40 @@ export default function SymbolDetail() {
                             <Line label="First bought"
                                 value={new Date(position.firstPurchaseDate).toLocaleDateString()} muted />
                         )}
-                    </Section>
+                    </Panel>
                 </div>
 
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 sm:p-6">
+                {dividends.length > 0 && (
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm ring-1 ring-gray-900/5 dark:ring-white/10 p-5">
+                        <div className="flex items-center justify-between gap-3 mb-4">
+                            <span className="flex items-center gap-2.5">
+                                <span className="grid place-items-center w-9 h-9 rounded-xl bg-green-50 dark:bg-green-500/10">
+                                    <Coins className="w-4 h-4 text-green-600 dark:text-green-400" />
+                                </span>
+                                <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                                    Dividend history · {dividends.length} {dividends.length === 1 ? 'payout' : 'payouts'}
+                                </span>
+                            </span>
+                            <span className="text-lg font-bold text-green-600 dark:text-green-400">
+                                {formatCurrency(result.dividends, currency)}
+                            </span>
+                        </div>
+                        <div className="grid gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
+                            {dividends.map(d => (
+                                <div key={d._id} className="flex items-baseline justify-between gap-3 text-sm">
+                                    <span className="text-gray-600 dark:text-gray-400">
+                                        {new Date(d.executedAt).toLocaleDateString()}
+                                    </span>
+                                    <span className="tabular-nums text-gray-900 dark:text-white">
+                                        {formatCurrency(d.dividendCash, currency)}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm ring-1 ring-gray-900/5 dark:ring-white/10 p-5">
                     <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                         Every transaction
                     </h2>
@@ -174,27 +209,4 @@ function TxRow({ tx, currency }) {
     );
 }
 
-function Section({ title, value, tone = 'text-gray-900 dark:text-white', children }) {
-    return (
-        <div className="px-5 py-4">
-            <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{title}</div>
-            <div className={`text-2xl font-bold mt-0.5 ${tone}`}>{value}</div>
-            <div className="mt-3 space-y-1.5">{children}</div>
-        </div>
-    );
-}
 
-function Line({ label, value, note, tone, muted, strong }) {
-    return (
-        <div className={`flex items-baseline justify-between gap-3 text-sm
-                        ${strong ? 'pt-1.5 border-t border-gray-200 dark:border-gray-700' : ''}`}>
-            <span className={muted ? 'text-gray-400 dark:text-gray-500' : 'text-gray-600 dark:text-gray-400'}>
-                {label}
-                {note && <span className="block text-xs text-gray-400 dark:text-gray-500">{note}</span>}
-            </span>
-            <span className={`shrink-0 tabular-nums ${strong ? 'font-semibold' : ''} ${tone || (muted ? 'text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white')}`}>
-                {value}
-            </span>
-        </div>
-    );
-}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Download, RefreshCw, Upload, FileText, X } from 'lucide-react';
+import { ArrowLeft, Plus, Download, RefreshCw, Upload, FileText, X, Wallet, TrendingUp, Receipt } from 'lucide-react';
+import { Panel, Line } from './Panel';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { formatCurrency, formatPercent } from '../../utils/portfolioUtils';
@@ -388,62 +389,36 @@ function Summary({ dashboard, currency }) {
     const gain = totalPnL >= 0;
 
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm
-                        grid lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x
-                        divide-gray-200 dark:divide-gray-700">
-            <Section title="Account value" value={money(accountValue)}>
+        <div className="grid gap-3 sm:gap-4 lg:grid-cols-3">
+            <Panel icon={Wallet} tint="blue" title="Account value" value={money(accountValue)}>
                 <Line label="Holdings" value={money(totalValue)} />
                 {cashTracked && <Line label="Cash" value={money(cashBalance)} />}
                 <Line label="Cost of holdings" value={money(totalCost)} muted />
-            </Section>
+            </Panel>
 
-            <Section
+            <Panel
+                icon={TrendingUp}
+                tint={gain ? 'green' : 'amber'}
                 title="Total P/L"
                 value={money(totalPnL, { signed: true })}
-                note={formatPercent(totalPnLPct)}
+                note={`${formatPercent(totalPnLPct)} on capital deployed`}
                 tone={gain ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}
             >
                 <Line label="Unrealised on holdings" value={money(unrealizedPnL, { signed: true })} />
                 <Line label="Realised from sales" value={money(realizedPnL, { signed: true })} />
                 <Line label="Dividends received" value={money(totalDividends)} />
-            </Section>
+            </Panel>
 
-            <Section title="What it cost" value={money(totalFees + capitalGainsTax)}
+            <Panel icon={Receipt} tint="amber" title="What it cost"
+                value={money(totalFees + capitalGainsTax)}
                 tone="text-amber-600 dark:text-amber-400">
                 <Line label="Commission" value={money(totalFees)}
                     note={bite !== null ? `${bite.toFixed(0)}% of realised gains` : null} />
                 <Line label={`Capital gains tax ${taxRatePct}%`} value={money(capitalGainsTax)} />
                 <Line label="In hand from sales" value={money(netRealizedPnL, { signed: true })} strong />
-            </Section>
+            </Panel>
         </div>
     );
 }
 
-function Section({ title, value, note, tone = 'text-gray-900 dark:text-white', children }) {
-    return (
-        <div className="px-5 py-4">
-            <div className="flex items-baseline justify-between gap-3">
-                <span className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{title}</span>
-                {note && <span className={`text-xs ${tone}`}>{note}</span>}
-            </div>
-            <div className={`text-2xl font-bold mt-0.5 ${tone}`}>{value}</div>
-            <div className="mt-3 space-y-1.5">{children}</div>
-        </div>
-    );
-}
 
-function Line({ label, value, note, muted, strong }) {
-    return (
-        <div className={`flex items-baseline justify-between gap-3 text-sm
-                        ${strong ? 'pt-1.5 border-t border-gray-200 dark:border-gray-700' : ''}`}>
-            <span className={muted ? 'text-gray-400 dark:text-gray-500' : 'text-gray-600 dark:text-gray-400'}>
-                {label}
-                {note && <span className="block text-xs text-gray-400 dark:text-gray-500">{note}</span>}
-            </span>
-            <span className={`shrink-0 tabular-nums ${strong ? 'font-semibold' : ''}
-                            ${muted ? 'text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>
-                {value}
-            </span>
-        </div>
-    );
-}
