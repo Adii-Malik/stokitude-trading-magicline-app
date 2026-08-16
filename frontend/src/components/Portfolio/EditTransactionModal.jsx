@@ -207,9 +207,6 @@ export default function EditTransactionModal({ portfolioId, transaction, currenc
                                         step="0.01"
                                     />
                                 </div>
-                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                    CDC, SECP and CVT, separate from commission.
-                                </p>
                             </div>
                         </>
                     )}

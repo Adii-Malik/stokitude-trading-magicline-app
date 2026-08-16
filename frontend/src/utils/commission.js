@@ -76,11 +76,15 @@ export function brokerageFor({ price, quantity, slabs = [] }) {
  *
  * @returns {{brokerage, salesTax, cdc, total}}
  */
-export function chargesFor({ price, quantity, slabs = [], charges = DEFAULT_PSX_CHARGES,
+export function chargesFor({ price, quantity, slabs = [], charges = [],
     side = 'BUY' } = {}) {
-    const brokerage = brokerageFor({ price, quantity, slabs });
-    if (!brokerage) return { brokerage: 0, lines: [], total: 0 };
+    const p = Number(price);
+    const q = Number(quantity);
+    if (!Number.isFinite(p) || !Number.isFinite(q) || p <= 0 || q <= 0) {
+        return { brokerage: 0, lines: [], total: 0 };
+    }
 
+    const brokerage = brokerageFor({ price, quantity, slabs });
     const context = { brokerage, value: Number(price) * Number(quantity), quantity: Number(quantity) };
     const lines = (charges || [])
         .filter(c => !c.appliesTo || c.appliesTo === 'BOTH' || c.appliesTo === side)

@@ -50,7 +50,7 @@ describe('the ETF position', () => {
 
     test('the fee actually charged adds sales tax and CDC', () => {
         // 30 brokerage + 4.50 tax + 5.00 CDC (1,000 shares at half a paisa).
-        assert.equal(commissionFor({ quantity: 1000, price: 16.11, slabs: SLABS }), 39.5);
+        assert.equal(commissionFor({ quantity: 1000, price: 16.11, slabs: SLABS, charges: DEFAULT_PSX_CHARGES }), 39.5);
     });
 
     test('correcting the fees moves cost basis toward the broker figure', () => {
@@ -82,7 +82,7 @@ describe('refusals', () => {
 describe('a real contract note', () => {
     // TRG, 2,500 @ 61.45: brokerage 230.50, S.S.T 34.58, CDC 12.50,
     // net 153,347.43 against a gross of 153,625.00.
-    const trade = { price: 61.45, quantity: 2500, slabs: SLABS };
+    const trade = { price: 61.45, quantity: 2500, slabs: SLABS, charges: DEFAULT_PSX_CHARGES };
 
     test('brokerage matches the 0.15% band', () => {
         assert.ok(Math.abs(brokerageFor(trade) - 230.50) < 0.1,
@@ -99,7 +99,7 @@ describe('a real contract note', () => {
     test('CDC is half a paisa a share, which is why it looks erratic', () => {
         // 12.50 on 2,500 shares here; 1.00 on a 200-share ENGROH trade.
         assert.equal(line(chargesFor(trade), 'CDC'), 12.50);
-        assert.equal(line(chargesFor({ price: 289.51, quantity: 200, slabs: SLABS }), 'CDC'), 1.00);
+        assert.equal(line(chargesFor({ price: 289.51, quantity: 200, slabs: SLABS, charges: DEFAULT_PSX_CHARGES }), 'CDC'), 1.00);
     });
 
     test('sales tax follows the brokerage, not the trade value', () => {

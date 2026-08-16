@@ -309,20 +309,16 @@ export default function AddTransactionModal({ portfolioId, currency, commissionS
                                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500"
                                     placeholder="0.00"
                                 />
+                                {isTrade && !commissionSlabs.length && (
+                                    <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                                        No commission slab on this portfolio — fees will not be filled in.
+                                    </p>
+                                )}
                                 {matchedSlab && suggestedFee > 0 && (
                                     <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                         {describeSlab(matchedSlab)} {formatCurrency(charges.brokerage, currency)}
                                         {charges.lines.map(l => ` + ${l.name} ${formatCurrency(l.amount, currency)}`).join('')}
                                         {' = '}<strong>{formatCurrency(suggestedFee, currency)}</strong>
-                                        {Math.abs((parseFloat(formData.fees) || 0) - suggestedFee) > 0.005 && (
-                                            <button
-                                                type="button"
-                                                onClick={() => setFormData({ ...formData, fees: suggestedFee.toFixed(2) })}
-                                                className="ml-2 text-cyan-600 dark:text-cyan-400 hover:underline"
-                                            >
-                                                use this
-                                            </button>
-                                        )}
                                     </p>
                                 )}
                             </div>
@@ -339,9 +335,6 @@ export default function AddTransactionModal({ portfolioId, currency, commissionS
                                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500"
                                     placeholder="0.00"
                                 />
-                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                    CDC, SECP and CVT, from your broker note.
-                                </p>
                             </div>
                             </div>
 
