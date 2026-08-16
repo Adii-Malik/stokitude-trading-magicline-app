@@ -53,6 +53,8 @@ export default function AddTransactionModal({ portfolioId, currency, commissionS
     });
     const suggestedFee = charges.total;
     const matchedSlab = slabFor(formData.price, commissionSlabs);
+    const gross = (parseFloat(formData.quantity) || 0) * (parseFloat(formData.price) || 0);
+    const entered = (parseFloat(formData.fees) || 0) + (parseFloat(formData.otherCharges) || 0);
     // Tracked explicitly rather than inferred from an empty field: the moment
     // the prefill wrote anything the field stopped being empty, so the fee
     // froze at whatever half-typed quantity produced it.
@@ -342,10 +344,21 @@ export default function AddTransactionModal({ portfolioId, currency, commissionS
                             </div>
 
                             {formData.quantity && formData.price && (
-                                <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
-                                    <div className="text-sm text-gray-600 dark:text-gray-400">Total Amount</div>
-                                    <div className="text-lg font-semibold text-gray-900 dark:text-white">
-                                        {formatCurrency(parseFloat(formData.quantity) * parseFloat(formData.price), currency)}
+                                <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg space-y-1">
+                                    <Row label="Gross" value={formatCurrency(gross, currency)} />
+                                    {entered > 0 && (
+                                        <Row
+                                            label={isSell ? 'Less charges' : 'Plus charges'}
+                                            value={`${isSell ? '−' : '+'} ${formatCurrency(entered, currency)}`}
+                                        />
+                                    )}
+                                    <div className="flex justify-between pt-1 border-t border-gray-200 dark:border-gray-600">
+                                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                                            {isSell ? 'Net proceeds' : 'Total cost'}
+                                        </span>
+                                        <span className="text-lg font-semibold text-gray-900 dark:text-white">
+                                            {formatCurrency(isSell ? gross - entered : gross + entered, currency)}
+                                        </span>
                                     </div>
                                 </div>
                             )}
@@ -412,6 +425,16 @@ export default function AddTransactionModal({ portfolioId, currency, commissionS
                     </div>
                 </form>
             </div>
+        </div>
+    );
+}
+
+
+function Row({ label, value }) {
+    return (
+        <div className="flex justify-between text-sm">
+            <span className="text-gray-600 dark:text-gray-400">{label}</span>
+            <span className="text-gray-900 dark:text-white">{value}</span>
         </div>
     );
 }
