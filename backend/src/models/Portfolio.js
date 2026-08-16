@@ -83,6 +83,14 @@ const portfolioSchema = new mongoose.Schema({
         value: { type: Number, required: true, min: 0 }
     }],
 
+    /**
+     * The two charges that ride on top of brokerage. Sales tax is a cut of the
+     * brokerage; the CDC bills per share, which is why it tracks share count
+     * rather than trade value. A Sahulat sub-account pays no CDC - set 0.
+     */
+    salesTaxPct: { type: Number, default: 15, min: 0, max: 100 },
+    cdcPerShare: { type: Number, default: 0.005, min: 0 },
+
     description: {
         type: String,
         maxlength: [500, 'Description cannot exceed 500 characters']

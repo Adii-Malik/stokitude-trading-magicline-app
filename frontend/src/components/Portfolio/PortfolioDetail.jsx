@@ -289,6 +289,8 @@ export default function PortfolioDetail() {
                             portfolioId={id}
                             currency={portfolio.currency}
                             commissionSlabs={portfolio.commissionSlabs}
+                            salesTaxPct={portfolio.salesTaxPct}
+                            cdcPerShare={portfolio.cdcPerShare}
                             onClose={() => setShowAddTransaction(false)}
                             onAdded={() => {
                                 setShowAddTransaction(false);
@@ -415,39 +417,41 @@ function TakeHome({ realized, tax, net, ratePct, dividends, fees, currency }) {
     // broker took more than you did.
     const bite = fees > 0 && realized > 0 ? (fees / realized) * 100 : null;
 
+    const Item = ({ label, value, hint, tone = 'text-gray-900 dark:text-white' }) => (
+        <div className="px-4 py-2.5">
+            <div className="text-xs text-gray-500 dark:text-gray-400">{label}</div>
+            <div className={`text-base font-bold ${tone}`}>{value}</div>
+            {hint && <div className="text-xs text-gray-500 dark:text-gray-500">{hint}</div>}
+        </div>
+    );
+
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm px-4 py-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-            <span className="text-gray-600 dark:text-gray-400">Realised</span>
-            <span className="font-semibold text-gray-900 dark:text-white">{money(realized, { signed: true })}</span>
-
-            {tax > 0 && (
-                <>
-                    <span className="text-gray-400">−</span>
-                    <span className="text-gray-600 dark:text-gray-400">CGT {ratePct}%</span>
-                    <span className="font-semibold text-red-600 dark:text-red-400">{money(tax)}</span>
-                </>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm grid grid-cols-2 lg:grid-cols-4
+                        divide-x divide-y lg:divide-y-0 divide-gray-200 dark:divide-gray-700">
+            <Item label="Realised gains" value={money(realized, { signed: true })} hint="from shares sold" />
+            <Item
+                label={`Capital gains tax ${ratePct}%`}
+                value={`− ${money(tax)}`}
+                tone="text-red-600 dark:text-red-400"
+                hint="on realised gains"
+            />
+            <Item
+                label="In hand"
+                value={money(net, { signed: true })}
+                tone={net >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}
+                hint="after tax"
+            />
+            <Item
+                label="Commission paid"
+                value={money(fees)}
+                tone="text-amber-600 dark:text-amber-400"
+                hint={bite !== null ? `${bite.toFixed(0)}% of your gains` : 'brokerage, tax and CDC'}
+            />
+            {dividends > 0 && (
+                <div className="col-span-2 lg:col-span-4 px-4 py-2 text-xs text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
+                    Dividends {money(dividends)} are separate — PSX withholds tax on those at source.
+                </div>
             )}
-
-            <span className="text-gray-400">=</span>
-            <span className={`font-bold ${net >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                {money(net, { signed: true })}
-            </span>
-            <span className="text-gray-500 dark:text-gray-400">in hand</span>
-
-            <span className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-1">
-                {fees > 0 && (
-                    <span className="text-gray-500 dark:text-gray-400">
-                        after <span className="font-semibold text-amber-600 dark:text-amber-400">{money(fees)}</span> commission
-                        {bite !== null && <span className="text-xs"> ({bite.toFixed(0)}% of gains)</span>}
-                    </span>
-                )}
-                {dividends > 0 && (
-                    <span className="text-gray-500 dark:text-gray-400">
-                        plus {money(dividends)} dividends
-                        <span className="text-xs"> (taxed at source)</span>
-                    </span>
-                )}
-            </span>
         </div>
     );
 }

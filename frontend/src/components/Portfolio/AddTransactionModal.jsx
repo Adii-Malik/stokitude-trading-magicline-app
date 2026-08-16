@@ -4,9 +4,10 @@ import api from '../../services/api';
 import { searchStocks } from '../../services/stocks';
 import toast from 'react-hot-toast';
 import { formatCurrency, formatShares } from '../../utils/portfolioUtils';
-import { commissionFor, slabFor, describeSlab } from '../../utils/commission';
+import { chargesFor, slabFor, describeSlab } from '../../utils/commission';
 
-export default function AddTransactionModal({ portfolioId, currency, commissionSlabs = [], onClose, onAdded }) {
+export default function AddTransactionModal({ portfolioId, currency, commissionSlabs = [],
+    salesTaxPct, cdcPerShare, onClose, onAdded }) {
     const [formData, setFormData] = useState({
         type: 'BUY',
         symbol: '',
@@ -43,11 +44,14 @@ export default function AddTransactionModal({ portfolioId, currency, commissionS
     // Brokerage follows the portfolio's slab, so it is derived rather than
     // typed. Entering a per-share rate as a flat fee understates cost basis
     // and inflates every gain the portfolio reports.
-    const suggestedFee = commissionFor({
+    const charges = chargesFor({
         price: formData.price,
         quantity: formData.quantity,
-        slabs: commissionSlabs
+        slabs: commissionSlabs,
+        salesTaxPct,
+        cdcPerShare
     });
+    const suggestedFee = charges.total;
     const matchedSlab = slabFor(formData.price, commissionSlabs);
     const feeUntouched = formData.fees === '' || formData.fees === undefined;
 
@@ -299,7 +303,10 @@ export default function AddTransactionModal({ portfolioId, currency, commissionS
                                 />
                                 {matchedSlab && suggestedFee > 0 && (
                                     <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                        Slab: {describeSlab(matchedSlab)} = {formatCurrency(suggestedFee, currency)}
+                                        {describeSlab(matchedSlab)} {formatCurrency(charges.brokerage, currency)}
+                                        {charges.salesTax > 0 && ` + tax ${formatCurrency(charges.salesTax, currency)}`}
+                                        {charges.cdc > 0 && ` + CDC ${formatCurrency(charges.cdc, currency)}`}
+                                        {' = '}<strong>{formatCurrency(suggestedFee, currency)}</strong>
                                         {Math.abs((parseFloat(formData.fees) || 0) - suggestedFee) > 0.005 && (
                                             <button
                                                 type="button"

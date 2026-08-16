@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { commissionFor, slabFor, DEFAULT_PSX_SLABS as SLABS } from './commission.js';
+import { commissionFor, brokerageFor, chargesFor, slabFor, DEFAULT_PSX_SLABS as SLABS } from './commission.js';
 
 describe('slab selection', () => {
     test('cheap shares fall in the per-share band', () => {
@@ -39,12 +39,17 @@ describe('the ETF position', () => {
     ];
 
     test('charges three paisa on every share', () => {
-        const total = trades.reduce((t, x) => t + commissionFor({ ...x, slabs: SLABS }), 0);
+        const total = trades.reduce((t, x) => t + brokerageFor({ ...x, slabs: SLABS }), 0);
         assert.equal(total, 150, '5,000 shares x 0.03');
     });
 
     test('a single trade is quantity times the rate', () => {
-        assert.equal(commissionFor({ quantity: 1000, price: 16.11, slabs: SLABS }), 30);
+        assert.equal(brokerageFor({ quantity: 1000, price: 16.11, slabs: SLABS }), 30);
+    });
+
+    test('the fee actually charged adds sales tax and CDC', () => {
+        // 30 brokerage + 4.50 tax + 5.00 CDC (1,000 shares at half a paisa).
+        assert.equal(commissionFor({ quantity: 1000, price: 16.11, slabs: SLABS }), 39.5);
     });
 
     test('correcting the fees moves cost basis toward the broker figure', () => {
@@ -57,7 +62,7 @@ describe('the ETF position', () => {
 
 describe('percent band', () => {
     test('applies to trade value, not share count', () => {
-        assert.equal(commissionFor({ quantity: 100, price: 200, slabs: SLABS }), 30, '0.15% of 20,000');
+        assert.equal(brokerageFor({ quantity: 100, price: 200, slabs: SLABS }), 30, '0.15% of 20,000');
     });
 });
 
@@ -70,5 +75,44 @@ describe('refusals', () => {
         assert.equal(commissionFor({ quantity: 0, price: 10, slabs: SLABS }), 0);
         assert.equal(commissionFor({ quantity: 100, price: 0, slabs: SLABS }), 0);
         assert.equal(commissionFor({ quantity: NaN, price: 10, slabs: SLABS }), 0);
+    });
+});
+
+describe('a real contract note', () => {
+    // TRG, 2,500 @ 61.45: brokerage 230.50, S.S.T 34.58, CDC 12.50,
+    // net 153,347.43 against a gross of 153,625.00.
+    const trade = { price: 61.45, quantity: 2500, slabs: SLABS };
+
+    test('brokerage matches the 0.15% band', () => {
+        assert.ok(Math.abs(brokerageFor(trade) - 230.50) < 0.1,
+            `expected ~230.50, got ${brokerageFor(trade)}`);
+    });
+
+    test('sales tax is 15% of the brokerage', () => {
+        const { salesTax } = chargesFor(trade);
+        assert.ok(Math.abs(salesTax - 34.58) < 0.1, `expected ~34.58, got ${salesTax}`);
+    });
+
+    test('CDC is half a paisa a share, which is why it looks erratic', () => {
+        // 12.50 on 2,500 shares here; 1.00 on a 200-share ENGROH trade.
+        assert.equal(chargesFor(trade).cdc, 12.50);
+        assert.equal(chargesFor({ price: 289.51, quantity: 200, slabs: SLABS }).cdc, 1.00);
+    });
+
+    test('the total reproduces the note to the rupee', () => {
+        const { total } = chargesFor(trade);
+        assert.ok(Math.abs(total - 277.58) < 0.2, `expected ~277.58, got ${total}`);
+        assert.ok(Math.abs((153625 - total) - 153347.43) < 0.2, 'net amount matches');
+    });
+
+    test('a Sahulat sub-account is billed no CDC', () => {
+        // PSO 200 @ 416.25: brokerage 124.88, SST 18.73, nothing else.
+        const { total } = chargesFor({ price: 416.25, quantity: 200, slabs: SLABS, cdcPerShare: 0 });
+        assert.ok(Math.abs(total - 143.61) < 0.1, `expected ~143.61, got ${total}`);
+    });
+
+    test('tax and CDC add about a fifth on top of brokerage', () => {
+        const { brokerage, total } = chargesFor(trade);
+        assert.ok(total / brokerage > 1.15 && total / brokerage < 1.25);
     });
 });
