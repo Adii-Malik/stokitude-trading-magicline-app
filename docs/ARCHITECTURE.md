@@ -1,4 +1,4 @@
-# PSX SmartDesk - System Architecture
+# Financial Reading - System Architecture
 
 Complete technical documentation for backend architecture and database schema.
 

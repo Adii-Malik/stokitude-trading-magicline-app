@@ -5,7 +5,7 @@
  * build produces new names. Everything else goes to the network first, which
  * keeps a deploy from being masked by a stale cached shell.
  */
-const CACHE = 'stokitude-v1';
+const CACHE = 'financial-reading-v1';
 
 self.addEventListener('install', (e) => {
     self.skipWaiting();

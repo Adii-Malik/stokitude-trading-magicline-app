@@ -1,7 +1,7 @@
 {
-  "name": "psx-smartdesk",
+  "name": "financial-reading",
   "version": "1.0.0",
-  "description": "PSX SmartDesk - Real-time Stock Price Monitoring & Trading Signals",
+  "description": "Financial Reading - Real-time Stock Price Monitoring & Trading Signals",
   "scripts": {
     "install:all": "npm install --prefix backend && npm install --prefix frontend",
     "dev:backend": "cd backend && npm run dev",

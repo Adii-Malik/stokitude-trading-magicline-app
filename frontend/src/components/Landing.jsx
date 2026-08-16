@@ -56,7 +56,7 @@ const Landing = ({ onSwitchToLogin, onSwitchToSignup }) => {
             <div className="flex items-center gap-2">
               <TrendingUp className="w-6 h-6 text-cyan-500" />
               <div>
-                <h1 className="text-lg font-bold text-gray-900 dark:text-white">PSX SmartDesk</h1>
+                <h1 className="text-lg font-bold text-gray-900 dark:text-white">Financial Reading</h1>
                 {/* Subtitle - Hidden on mobile, visible on larger screens */}
                 <p className="hidden sm:block text-xs text-gray-500 dark:text-gray-400">
                   Intelligent Trading Platform
@@ -111,7 +111,7 @@ const Landing = ({ onSwitchToLogin, onSwitchToSignup }) => {
           <h2 className="text-5xl md:text-6xl font-extrabold text-gray-900 dark:text-white mb-6">
             Trade Smarter with
             <span className="block mt-2 text-cyan-600 dark:text-cyan-400">
-              PSX SmartDesk
+              Financial Reading
             </span>
           </h2>
 
@@ -173,7 +173,7 @@ const Landing = ({ onSwitchToLogin, onSwitchToSignup }) => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div>
             <h3 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-6">
-              Why Choose PSX SmartDesk?
+              Why Choose Financial Reading?
             </h3>
             <p className="text-lg text-gray-600 dark:text-gray-300 mb-8">
               We're building the most comprehensive and user-friendly trading platform for Pakistani traders.
@@ -228,7 +228,7 @@ const Landing = ({ onSwitchToLogin, onSwitchToSignup }) => {
             Ready to Start Trading Smarter?
           </h3>
           <p className="text-xl text-cyan-100 mb-8 max-w-2xl mx-auto">
-            Join PSX SmartDesk today and get access to powerful trading tools.
+            Join Financial Reading today and get access to powerful trading tools.
             Sign up now and take control of your trading journey.
           </p>
           <button
@@ -251,7 +251,7 @@ const Landing = ({ onSwitchToLogin, onSwitchToSignup }) => {
               <div className="flex items-center space-x-3 mb-4">
                 <TrendingUp className="w-6 h-6 text-cyan-500" />
                 <h4 className="text-xl font-bold text-gray-900 dark:text-white">
-                  PSX SmartDesk
+                  Financial Reading
                 </h4>
               </div>
               <p className="text-gray-600 dark:text-gray-400 mb-4 max-w-md">
@@ -259,7 +259,7 @@ const Landing = ({ onSwitchToLogin, onSwitchToSignup }) => {
                 Professional tools for better control, privacy, and smarter trading decisions.
               </p>
               <p className="text-sm text-gray-500 dark:text-gray-500">
-                © {new Date().getFullYear()} PSX SmartDesk. All rights reserved.
+                © {new Date().getFullYear()} Financial Reading. All rights reserved.
               </p>
             </div>
 
@@ -310,7 +310,7 @@ const Landing = ({ onSwitchToLogin, onSwitchToSignup }) => {
 
           <div className="border-t border-gray-200 dark:border-gray-700 mt-8 pt-8 text-center">
             <p className="text-sm text-gray-500 dark:text-gray-500">
-              Disclaimer: Trading in stocks involves risk. PSX SmartDesk is a tool to assist in your trading decisions.
+              Disclaimer: Trading in stocks involves risk. Financial Reading is a tool to assist in your trading decisions.
               Always do your own research and consult with financial advisors before making investment decisions.
             </p>
           </div>

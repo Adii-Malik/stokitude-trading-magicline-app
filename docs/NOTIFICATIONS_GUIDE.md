@@ -1,7 +1,7 @@
 # Notification System Guide
 
 ## Overview
-Production-ready notification system for PSX SmartDesk with in-app, email, and real-time delivery.
+Production-ready notification system for Financial Reading with in-app, email, and real-time delivery.
 
 ## Features
 
@@ -120,7 +120,7 @@ Supports multiple email providers:
 ```env
 RESEND_API_KEY=re_your_key_here
 EMAIL_FROM_EMAIL=notifications@yourdomain.com
-EMAIL_FROM_NAME="PSX SmartDesk"
+EMAIL_FROM_NAME="Financial Reading"
 ```
 
 ### SMTP (Gmail, etc.)
@@ -130,7 +130,7 @@ EMAIL_PORT=587
 EMAIL_USER=your-email@gmail.com
 EMAIL_PASSWORD=your-app-password
 EMAIL_FROM_EMAIL=your-email@gmail.com
-EMAIL_FROM_NAME="PSX SmartDesk"
+EMAIL_FROM_NAME="Financial Reading"
 ```
 
 ## Testing

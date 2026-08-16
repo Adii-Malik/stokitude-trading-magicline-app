@@ -1,4 +1,4 @@
-# PSX SmartDesk - Getting Started
+# Financial Reading - Getting Started
 
 Installation guide, database setup, email configuration, and deployment instructions.
 
@@ -70,7 +70,7 @@ MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/psx-trading-prod
 
 ```env
 RESEND_API_KEY=re_xxxxxxxxxxxxx
-EMAIL_FROM_NAME=PSX SmartDesk
+EMAIL_FROM_NAME=Financial Reading
 EMAIL_FROM_EMAIL=onboarding@resend.dev
 FRONTEND_URL=http://localhost:5173
 ```
@@ -84,7 +84,7 @@ FRONTEND_URL=http://localhost:5173
 
 ```env
 SENDGRID_API_KEY=SG.xxxxxxxxxxxxx
-EMAIL_FROM_NAME=PSX SmartDesk
+EMAIL_FROM_NAME=Financial Reading
 EMAIL_FROM_EMAIL=noreply@yourdomain.com
 FRONTEND_URL=http://localhost:5173
 ```
@@ -100,7 +100,7 @@ EMAIL_PORT=587
 EMAIL_SECURE=false
 EMAIL_USER=your-email@gmail.com
 EMAIL_PASSWORD=your-16-char-app-password
-EMAIL_FROM_NAME=PSX SmartDesk
+EMAIL_FROM_NAME=Financial Reading
 EMAIL_FROM_EMAIL=your-email@gmail.com
 FRONTEND_URL=http://localhost:5173
 ```
@@ -152,7 +152,7 @@ EMAIL_USER=your-email@gmail.com
 EMAIL_PASSWORD=your-app-password
 
 # Email Settings
-EMAIL_FROM_NAME=PSX SmartDesk
+EMAIL_FROM_NAME=Financial Reading
 EMAIL_FROM_EMAIL=onboarding@resend.dev
 
 # Price Polling (Optional)
@@ -226,7 +226,7 @@ JWT_SECRET=your-production-secret-key
 NODE_ENV=production
 FRONTEND_URL=https://your-app.railway.app
 RESEND_API_KEY=re_xxxxxxxxxxxxx
-EMAIL_FROM_NAME=PSX SmartDesk
+EMAIL_FROM_NAME=Financial Reading
 EMAIL_FROM_EMAIL=onboarding@resend.dev
 ```
 

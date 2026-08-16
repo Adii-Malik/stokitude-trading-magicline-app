@@ -113,7 +113,7 @@ export default function Signup({ onSwitchToLogin, onBackToDashboard }) {
               <UserPlus className="w-8 h-8 text-cyan-600" />
             </div>
             <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Create Account</h2>
-            <p className="text-gray-600 dark:text-gray-400">Join PSX SmartDesk today</p>
+            <p className="text-gray-600 dark:text-gray-400">Join Financial Reading today</p>
           </div>
 
           {/* Info Notice */}

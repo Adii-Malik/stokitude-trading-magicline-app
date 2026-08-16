@@ -1,8 +1,8 @@
-# PSX SmartDesk - Design System
+# Financial Reading - Design System
 
 ## Brand Identity
 
-**Application Name:** PSX SmartDesk  
+**Application Name:** Financial Reading  
 **Tagline:** "Intelligent Trading Platform for Pakistan Stock Exchange"  
 **Purpose:** Professional-grade stock monitoring and trading tools
 

@@ -145,7 +145,7 @@ if (process.env.NODE_ENV === 'development') {
 // Root API endpoint
 app.get('/api', (req, res) => {
   res.json({
-    name: 'PSX SmartDesk API',
+    name: 'Financial Reading API',
     version: '3.0.0',
     endpoints: {
       health: '/health',
@@ -268,7 +268,7 @@ portfolioHandler.onUpdate(async (data) => {
 async function startServer() {
   try {
     console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('🚀 PSX SmartDesk Backend');
+    console.log('🚀 Financial Reading Backend');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
     // Connect to MongoDB
@@ -298,7 +298,7 @@ async function startServer() {
     httpServer.listen(config.port, host, () => {
       console.log(`\n✅ Server running on http://${host}:${config.port}`);
       console.log(`🌍 Environment: ${config.nodeEnv}`);
-      console.log(`🎯 PSX SmartDesk is ready!\n`);
+      console.log(`🎯 Financial Reading is ready!\n`);
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);

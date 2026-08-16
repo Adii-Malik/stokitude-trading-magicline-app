@@ -1,4 +1,4 @@
-# PSX SmartDesk - Frontend Technical Documentation
+# Financial Reading - Frontend Technical Documentation
 
 ## Technology Stack
 

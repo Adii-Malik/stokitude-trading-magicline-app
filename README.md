@@ -1,4 +1,4 @@
-# PSX SmartDesk
+# Financial Reading
 
 **Intelligent Trading Platform for Pakistan Stock Exchange (PSX)**
 
