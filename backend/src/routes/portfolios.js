@@ -10,6 +10,7 @@ import csv from 'csv-parser';
 import { Readable } from 'stream';
 import { authenticate } from '../middleware/auth.js';
 import portfolioService from '../services/portfolioService.js';
+import performanceService from '../services/portfolio/performanceService.js';
 import allocationEngineService from '../services/allocationEngineService.js';
 import FundamentalsAggregator from '../services/portfolio/fundamentalsSources/FundamentalsAggregator.js';
 import CalculatorRegistry from '../services/portfolio/calculators/CalculatorRegistry.js';
@@ -602,6 +603,26 @@ router.get('/:id/dashboard', async (req, res) => {
             success: false,
             message: error.message
         });
+    }
+});
+
+/**
+ * GET /api/portfolios/:id/performance
+ * Daily value series, benchmark comparison, XIRR and drawdown.
+ */
+router.get('/:id/performance', async (req, res) => {
+    try {
+        await portfolioService.getPortfolio(req.params.id, req.user._id);
+        const data = await performanceService.performance(req.params.id, {
+            from: req.query.from,
+            benchmark: req.query.benchmark || 'KSE100'
+        });
+
+        res.json({ success: true, data });
+    } catch (error) {
+        const status = error.message.includes('Access denied') ? 403 :
+            error.message.includes('not found') ? 404 : 500;
+        res.status(status).json({ success: false, message: error.message });
     }
 });
 

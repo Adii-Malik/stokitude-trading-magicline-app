@@ -186,7 +186,7 @@ function TransactionRow({ transaction, currency, onDelete, onEdit }) {
 
                     {(['DEPOSIT', 'WITHDRAW'].includes(transaction.type)) && (
                         <div className={`font-semibold ${transaction.type === 'DEPOSIT' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                            {transaction.type === 'DEPOSIT' ? '+' : '-'}{formatCurrency(transaction.amount, currency)}
+                            {transaction.type === 'DEPOSIT' ? '+' : '-'}{formatCurrency(transaction.cashAmount, currency)}
                         </div>
                     )}
                 </div>

@@ -181,18 +181,29 @@ class PortfolioService {
      * Cash held, from the full ledger: deposits and sale proceeds and dividends
      * in, withdrawals and purchase costs out. Only meaningful once the user
      * records cash movements, so `tracked` says whether any exist.
+     *
+     * `peakInvested` is the most capital ever at work - the base returns should
+     * be measured against, since the closing net is what is left after
+     * withdrawals rather than what was put in.
      */
     async getCashBalance(portfolioId) {
-        const transactions = await Transaction.find({ portfolioId }).lean();
+        const transactions = await Transaction.find({ portfolioId })
+            .select('type cashAmount quantity price fees dividendCash executedAt')
+            .sort({ executedAt: 1 }).lean();
 
         let balance = 0;
         let tracked = false;
+        let net = 0;
+        let peak = 0;
 
         for (const tx of transactions) {
             const fees = tx.fees || 0;
+            const cash = tx.cashAmount || 0;
             switch (tx.type) {
-                case 'DEPOSIT': balance += tx.cashAmount || 0; tracked = true; break;
-                case 'WITHDRAW': balance -= tx.cashAmount || 0; tracked = true; break;
+                case 'DEPOSIT':
+                    balance += cash; net += cash; peak = Math.max(peak, net); tracked = true; break;
+                case 'WITHDRAW':
+                    balance -= cash; net -= cash; tracked = true; break;
                 case 'BUY': balance -= (tx.quantity * tx.price) + fees; break;
                 case 'SELL': balance += (tx.quantity * tx.price) - fees; break;
                 case 'DIV': balance += tx.dividendCash || 0; break;
@@ -200,7 +211,8 @@ class PortfolioService {
             }
         }
 
-        return { balance: Math.round(balance * 100) / 100, tracked };
+        const round = (n) => Math.round(n * 100) / 100;
+        return { balance: round(balance), tracked, peakInvested: round(peak) };
     }
 
     /** Shares held, derived from the ledger rather than the Position view. */
@@ -339,6 +351,8 @@ class PortfolioService {
      * Update position for a symbol (recalculate from transactions)
      */
     async updatePosition(portfolioId, symbol) {
+        // Cash movements have no instrument, so there is no position to rebuild.
+        if (!symbol) return null;
         symbol = symbol.toUpperCase();
 
         // Get portfolio to determine calculation method
@@ -403,8 +417,8 @@ class PortfolioService {
             throw new Error('Edit permission required');
         }
 
-        // Get all symbols with transactions
-        const symbols = await Transaction.find({ portfolioId }).distinct('symbol');
+        // Cash movements have no symbol, so distinct() yields a null to skip.
+        const symbols = (await Transaction.find({ portfolioId }).distinct('symbol')).filter(Boolean);
 
         const results = [];
         for (const symbol of symbols) {
@@ -423,17 +437,21 @@ class PortfolioService {
     /**
      * Get holdings (positions with current prices)
      */
-    async getHoldings(portfolioId, userId, { includeClosed = false } = {}) {
-        await this.getPortfolio(portfolioId, userId); // Access check
+    async getHoldings(portfolioId, userId, { includeClosed = false, authorized = false } = {}) {
+        if (!authorized) await this.getPortfolio(portfolioId, userId);
 
         const query = { portfolioId };
         if (!includeClosed) query.netShares = { $gt: 0 };
-        const positions = await Position.find(query).sort({ marketValue: -1 });
+        const positions = await Position.find(query).sort({ marketValue: -1 }).lean();
 
-        // Enrich with current stock data
+        // One lookup for every symbol; per-position findOne was a round trip each.
+        const stocks = await Stock.find({ symbol: { $in: positions.map(p => p.symbol) } })
+            .select('symbol companyName currentPrice').lean();
+        const bySymbol = new Map(stocks.map(s => [s.symbol, s]));
+
         const holdings = [];
         for (const position of positions) {
-            const stock = await Stock.findOne({ symbol: position.symbol });
+            const stock = bySymbol.get(position.symbol);
             const currentPrice = stock?.currentPrice || 0;
 
             // Recalculate market value and unrealized P/L with current price
@@ -483,7 +501,7 @@ class PortfolioService {
     async getDashboard(portfolioId, userId) {
         await this.getPortfolio(portfolioId, userId); // Access check
 
-        const holdings = await this.getHoldings(portfolioId, userId);
+        const holdings = await this.getHoldings(portfolioId, userId, { authorized: true });
 
         let totalValue = 0;
         let totalCost = 0;
@@ -514,7 +532,12 @@ class PortfolioService {
 
         const cash = await this.getCashBalance(portfolioId);
         const totalPnL = unrealizedPnL + realizedPnL + totalDividends;
-        const totalPnLPct = totalCost > 0 ? (totalPnL / totalCost) * 100 : 0;
+
+        // Realized P/L comes from positions no longer held, whose cost is not in
+        // totalCost - dividing by it credits those gains to the open holdings.
+        // Capital deposited is the honest base; fall back when cash is untracked.
+        const base = cash.tracked && cash.peakInvested > 0 ? cash.peakInvested : totalCost;
+        const totalPnLPct = base > 0 ? (totalPnL / base) * 100 : 0;
 
         // Top 5 holdings by market value
         const topHoldings = holdings

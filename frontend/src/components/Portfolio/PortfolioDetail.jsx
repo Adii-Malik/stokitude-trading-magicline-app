@@ -8,6 +8,7 @@ import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { formatCurrency, formatPercent } from '../../utils/portfolioUtils';
 import HoldingsTable from './HoldingsTable';
+import PerformanceChart from './PerformanceChart';
 import TransactionList from './TransactionList';
 import AddTransactionModal from './AddTransactionModal';
 import AllocationView from './AllocationView';
@@ -216,6 +217,8 @@ export default function PortfolioDetail() {
                             iconBg={(realizedPnL || 0) >= 0 ? 'bg-green-50' : 'bg-red-50'}
                         />
                     </div>
+
+                    <PerformanceChart portfolioId={id} currency={portfolio.currency} />
 
                     {/* Tabs */}
                     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">

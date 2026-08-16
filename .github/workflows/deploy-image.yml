@@ -1,6 +1,5 @@
 # Builds the image so the VM never has to; it only pulls.
-# Both arches during the Google (x86) to Oracle Ampere (ARM) move.
-# Drop amd64 once Google is retired - it halves build time.
+# arm64 only: the Oracle Ampere box is the only target.
 
 name: Build image
 
@@ -54,7 +53,7 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
