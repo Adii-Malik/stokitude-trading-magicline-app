@@ -187,7 +187,19 @@ export default function PortfolioDetail() {
                     </div>
 
                     {/* Stats Cards */}
+                    {/* Cash first, then what you hold, then the totals it rolls
+                        up into - so Total P/L reads as the conclusion. */}
                     <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-6">
+                        {cashTracked && (
+                            <StatCard
+                                title="Cash Balance"
+                                value={formatCurrency(cashBalance, portfolio.currency)}
+                                subtitle={cashBalance < 0 ? 'Overdrawn - check deposits' : 'Available to invest'}
+                                icon={Wallet}
+                                iconColor={cashBalance < 0 ? 'text-red-600' : 'text-emerald-600'}
+                                iconBg={cashBalance < 0 ? 'bg-red-50' : 'bg-emerald-50'}
+                            />
+                        )}
                         <StatCard
                             title="Total Value"
                             value={formatCurrency(totalValue, portfolio.currency)}
@@ -203,31 +215,21 @@ export default function PortfolioDetail() {
                             iconBg="bg-purple-50"
                         />
                         <StatCard
+                            title="Realized P/L"
+                            value={formatCurrency(realizedPnL, portfolio.currency, { signed: true })}
+                            subtitle={`Stocks sold. Unrealized: ${formatCurrency(unrealizedPnL, portfolio.currency)}`}
+                            icon={Target}
+                            iconColor={(realizedPnL || 0) >= 0 ? 'text-green-600' : 'text-red-600'}
+                            iconBg={(realizedPnL || 0) >= 0 ? 'bg-green-50' : 'bg-red-50'}
+                        />
+                        <StatCard
                             title="Total P/L"
                             value={formatCurrency(totalPnL, portfolio.currency, { signed: true })}
-                            subtitle={formatPercent(totalPnLPct)}
+                            subtitle={`${formatPercent(totalPnLPct)} · incl. dividends`}
                             icon={isProfit ? TrendingUp : TrendingDown}
                             iconColor={isProfit ? 'text-green-600' : 'text-red-600'}
                             iconBg={isProfit ? 'bg-green-50' : 'bg-red-50'}
                             valueColor={isProfit ? 'text-green-600' : 'text-red-600'}
-                        />
-                        {cashTracked && (
-                            <StatCard
-                                title="Cash Balance"
-                                value={formatCurrency(cashBalance, portfolio.currency)}
-                                subtitle={cashBalance < 0 ? 'Overdrawn - check deposits' : 'Available to invest'}
-                                icon={Wallet}
-                                iconColor={cashBalance < 0 ? 'text-red-600' : 'text-emerald-600'}
-                                iconBg={cashBalance < 0 ? 'bg-red-50' : 'bg-emerald-50'}
-                            />
-                        )}
-                        <StatCard
-                            title="Realized P/L"
-                            value={formatCurrency(realizedPnL, portfolio.currency, { signed: true })}
-                            subtitle={`Unrealized: ${formatCurrency(unrealizedPnL, portfolio.currency)}`}
-                            icon={Target}
-                            iconColor={(realizedPnL || 0) >= 0 ? 'text-green-600' : 'text-red-600'}
-                            iconBg={(realizedPnL || 0) >= 0 ? 'bg-green-50' : 'bg-red-50'}
                         />
                     </div>
 
