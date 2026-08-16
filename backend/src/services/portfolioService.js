@@ -181,19 +181,29 @@ class PortfolioService {
      * Cash held, from the full ledger: deposits and sale proceeds and dividends
      * in, withdrawals and purchase costs out. Only meaningful once the user
      * records cash movements, so `tracked` says whether any exist.
+     *
+     * `peakInvested` is the most capital ever at work - the base returns should
+     * be measured against, since the closing net is what is left after
+     * withdrawals rather than what was put in.
      */
     async getCashBalance(portfolioId) {
         const transactions = await Transaction.find({ portfolioId })
-            .select('type cashAmount quantity price fees dividendCash').lean();
+            .select('type cashAmount quantity price fees dividendCash executedAt')
+            .sort({ executedAt: 1 }).lean();
 
         let balance = 0;
         let tracked = false;
+        let net = 0;
+        let peak = 0;
 
         for (const tx of transactions) {
             const fees = tx.fees || 0;
+            const cash = tx.cashAmount || 0;
             switch (tx.type) {
-                case 'DEPOSIT': balance += tx.cashAmount || 0; tracked = true; break;
-                case 'WITHDRAW': balance -= tx.cashAmount || 0; tracked = true; break;
+                case 'DEPOSIT':
+                    balance += cash; net += cash; peak = Math.max(peak, net); tracked = true; break;
+                case 'WITHDRAW':
+                    balance -= cash; net -= cash; tracked = true; break;
                 case 'BUY': balance -= (tx.quantity * tx.price) + fees; break;
                 case 'SELL': balance += (tx.quantity * tx.price) - fees; break;
                 case 'DIV': balance += tx.dividendCash || 0; break;
@@ -201,7 +211,8 @@ class PortfolioService {
             }
         }
 
-        return { balance: Math.round(balance * 100) / 100, tracked };
+        const round = (n) => Math.round(n * 100) / 100;
+        return { balance: round(balance), tracked, peakInvested: round(peak) };
     }
 
     /** Shares held, derived from the ledger rather than the Position view. */
@@ -521,7 +532,12 @@ class PortfolioService {
 
         const cash = await this.getCashBalance(portfolioId);
         const totalPnL = unrealizedPnL + realizedPnL + totalDividends;
-        const totalPnLPct = totalCost > 0 ? (totalPnL / totalCost) * 100 : 0;
+
+        // Realized P/L comes from positions no longer held, whose cost is not in
+        // totalCost - dividing by it credits those gains to the open holdings.
+        // Capital deposited is the honest base; fall back when cash is untracked.
+        const base = cash.tracked && cash.peakInvested > 0 ? cash.peakInvested : totalCost;
+        const totalPnLPct = base > 0 ? (totalPnL / base) * 100 : 0;
 
         // Top 5 holdings by market value
         const topHoldings = holdings
