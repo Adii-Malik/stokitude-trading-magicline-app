@@ -128,7 +128,7 @@ export default function PortfolioDetail() {
     }
 
     const { totalValue, totalCost, totalPnL, totalPnLPct, realizedPnL, unrealizedPnL, cashBalance, cashTracked,
-        taxRatePct, capitalGainsTax, netRealizedPnL, totalDividends } = dashboard;
+        taxRatePct, capitalGainsTax, netRealizedPnL, totalDividends, totalFees } = dashboard;
     const isProfit = (totalPnL || 0) >= 0;
 
     return (
@@ -239,6 +239,7 @@ export default function PortfolioDetail() {
                         net={netRealizedPnL}
                         ratePct={taxRatePct}
                         dividends={totalDividends}
+                        fees={totalFees}
                         currency={portfolio.currency}
                     />
 
@@ -407,9 +408,12 @@ export default function PortfolioDetail() {
  * sit apart because PSX withholds on them at source, so the recorded amount is
  * already net - taxing it again here would double-count.
  */
-function TakeHome({ realized, tax, net, ratePct, dividends, currency }) {
+function TakeHome({ realized, tax, net, ratePct, dividends, fees, currency }) {
     if (!realized && !dividends) return null;
     const money = (v, opts) => formatCurrency(v, currency, opts);
+    // What the trading cost you, against what it made. Above 100% means the
+    // broker took more than you did.
+    const bite = fees > 0 && realized > 0 ? (fees / realized) * 100 : null;
 
     return (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm px-4 py-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
@@ -430,12 +434,20 @@ function TakeHome({ realized, tax, net, ratePct, dividends, currency }) {
             </span>
             <span className="text-gray-500 dark:text-gray-400">in hand</span>
 
-            {dividends > 0 && (
-                <span className="text-gray-500 dark:text-gray-400 ml-auto">
-                    plus {money(dividends)} dividends
-                    <span className="text-xs"> (taxed at source)</span>
-                </span>
-            )}
+            <span className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-1">
+                {fees > 0 && (
+                    <span className="text-gray-500 dark:text-gray-400">
+                        after <span className="font-semibold text-amber-600 dark:text-amber-400">{money(fees)}</span> commission
+                        {bite !== null && <span className="text-xs"> ({bite.toFixed(0)}% of gains)</span>}
+                    </span>
+                )}
+                {dividends > 0 && (
+                    <span className="text-gray-500 dark:text-gray-400">
+                        plus {money(dividends)} dividends
+                        <span className="text-xs"> (taxed at source)</span>
+                    </span>
+                )}
+            </span>
         </div>
     );
 }

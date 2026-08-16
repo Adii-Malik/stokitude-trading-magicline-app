@@ -188,17 +188,19 @@ class PortfolioService {
      */
     async getCashBalance(portfolioId) {
         const transactions = await Transaction.find({ portfolioId })
-            .select('type cashAmount quantity price fees dividendCash executedAt')
+            .select('type cashAmount quantity price fees otherCharges dividendCash executedAt')
             .sort({ executedAt: 1 }).lean();
 
         let balance = 0;
         let tracked = false;
         let net = 0;
         let peak = 0;
+        let charges = 0;
 
         for (const tx of transactions) {
-            const fees = tx.fees || 0;
+            const fees = (tx.fees || 0) + (tx.otherCharges || 0);
             const cash = tx.cashAmount || 0;
+            charges += fees;
             switch (tx.type) {
                 case 'DEPOSIT':
                     balance += cash; net += cash; peak = Math.max(peak, net); tracked = true; break;
@@ -212,7 +214,7 @@ class PortfolioService {
         }
 
         const round = (n) => Math.round(n * 100) / 100;
-        return { balance: round(balance), tracked, peakInvested: round(peak) };
+        return { balance: round(balance), tracked, peakInvested: round(peak), fees: round(charges) };
     }
 
     /**
@@ -671,6 +673,9 @@ class PortfolioService {
             taxRatePct,
             capitalGainsTax,
             netRealizedPnL,
+            // Already inside realizedPnL via cost basis - shown so the drag is
+            // visible, not as a further deduction.
+            totalFees: cash.fees,
             cashBalance: cash.balance,
             cashTracked: cash.tracked,
             holdingsCount: holdings.length,
