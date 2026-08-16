@@ -53,21 +53,24 @@ export default function AddTransactionModal({ portfolioId, currency, commissionS
     });
     const suggestedFee = charges.total;
     const matchedSlab = slabFor(formData.price, commissionSlabs);
-    const feeUntouched = formData.fees === '' || formData.fees === undefined;
+    // Tracked explicitly rather than inferred from an empty field: the moment
+    // the prefill wrote anything the field stopped being empty, so the fee
+    // froze at whatever half-typed quantity produced it.
+    const [feeEdited, setFeeEdited] = useState(false);
 
     // Brokerage and the statutory charges go in separate fields, as they do on
     // a contract note - rolling them together hides what the broker took.
     const statutory = suggestedFee - charges.brokerage;
 
     useEffect(() => {
-        if (isTrade && feeUntouched && suggestedFee > 0) {
+        if (isTrade && !feeEdited && suggestedFee > 0) {
             setFormData(f => ({
                 ...f,
                 fees: charges.brokerage.toFixed(2),
                 otherCharges: statutory > 0 ? statutory.toFixed(2) : ''
             }));
         }
-    }, [suggestedFee, charges.brokerage, statutory, isTrade, feeUntouched]);
+    }, [suggestedFee, charges.brokerage, statutory, isTrade, feeEdited]);
 
     // A symbol picked for BUY may not be held, so clear it when switching to SELL.
     const changeType = (type) => {
@@ -305,7 +308,7 @@ export default function AddTransactionModal({ portfolioId, currency, commissionS
                                     type="number"
                                     step="0.01"
                                     value={formData.fees}
-                                    onChange={(e) => setFormData({ ...formData, fees: e.target.value })}
+                                    onChange={(e) => { setFeeEdited(true); setFormData({ ...formData, fees: e.target.value }); }}
                                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500"
                                     placeholder="0.00"
                                 />
@@ -331,7 +334,7 @@ export default function AddTransactionModal({ portfolioId, currency, commissionS
                                     type="number"
                                     step="0.01"
                                     value={formData.otherCharges}
-                                    onChange={(e) => setFormData({ ...formData, otherCharges: e.target.value })}
+                                    onChange={(e) => { setFeeEdited(true); setFormData({ ...formData, otherCharges: e.target.value }); }}
                                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500"
                                     placeholder="0.00"
                                 />
