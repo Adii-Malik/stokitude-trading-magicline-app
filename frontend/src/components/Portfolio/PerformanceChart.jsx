@@ -4,7 +4,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { createChart, LineSeries } from 'lightweight-charts';
-import { TrendingUp, TrendingDown, Activity, Percent } from 'lucide-react';
+import { TrendingDown, Activity, Percent } from 'lucide-react';
 import api from '../../services/api';
 import { formatCurrency, formatPercent, getPnLColorClass } from '../../utils/portfolioUtils';
 
@@ -65,7 +65,7 @@ export default function PerformanceChart({ portfolioId, currency = 'PKR' }) {
                 </div>
             </div>
 
-            {summary && <Stats summary={summary} currency={currency} />}
+            {summary && <Stats summary={summary} comparison={data?.comparison} currency={currency} />}
 
             {loading && <Placeholder>Loading…</Placeholder>}
             {!loading && error && <Placeholder>{error}</Placeholder>}
@@ -105,33 +105,24 @@ export default function PerformanceChart({ portfolioId, currency = 'PKR' }) {
     );
 }
 
-function Stats({ summary, currency }) {
-    const gain = summary.total - summary.invested;
-    const showReturn = summary.invested > 0;
+/**
+ * Only what the cards above do not already say. Value, cost and P/L live in
+ * the portfolio summary; these three are the time-based measures.
+ */
+function Stats({ summary, comparison, currency }) {
+    const last = comparison?.[comparison.length - 1];
+    const edge = last ? last.portfolio - last.benchmark : null;
 
     return (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-            <Stat
-                icon={Activity}
-                label="Portfolio Value"
-                value={formatCurrency(summary.total, currency)}
-                hint={`Equity ${formatCurrency(summary.value, currency)}`}
-            />
-            <Stat
-                icon={gain >= 0 ? TrendingUp : TrendingDown}
-                label="Gain"
-                value={showReturn ? formatCurrency(gain, currency, { signed: true }) : '—'}
-                hint={showReturn ? `on ${formatCurrency(summary.invested, currency)} invested` : 'record a deposit'}
-                color={showReturn ? getPnLColorClass(gain) : ''}
-            />
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
             <Stat
                 icon={Percent}
                 label="Annualised (XIRR)"
                 value={summary.xirrPct != null ? formatPercent(summary.xirrPct, 1, { signed: true }) : '—'}
                 hint={
-                    summary.lateCapital ? 'overstated: deposit predates no trades'
-                        : summary.xirrPct != null ? 'money-weighted'
-                            : 'needs a cash deposit'
+                    summary.lateCapital ? 'overstated: deposit dated after first trade'
+                        : summary.xirrPct != null ? `on ${formatCurrency(summary.invested, currency)} invested`
+                            : 'record a cash deposit'
                 }
                 color={summary.lateCapital ? 'text-amber-600 dark:text-amber-400'
                     : summary.xirrPct != null ? getPnLColorClass(summary.xirrPct) : ''}
@@ -139,19 +130,18 @@ function Stats({ summary, currency }) {
             <Stat
                 icon={TrendingDown}
                 label="Max Drawdown"
-                value={
-                    summary.drawdown.pct != null
-                        ? `-${summary.drawdown.pct.toFixed(1)}%`
-                        : summary.drawdown.amount
-                            ? formatCurrency(-summary.drawdown.amount, currency, { signed: true })
-                            : '—'
-                }
-                hint={
-                    summary.drawdown.from
-                        ? `${summary.drawdown.from} → ${summary.drawdown.to}`
-                        : 'no fall recorded'
-                }
-                color={summary.drawdown.amount ? 'text-red-600 dark:text-red-400' : ''}
+                value={summary.drawdown.pct != null ? `-${summary.drawdown.pct.toFixed(1)}%` : '—'}
+                hint={summary.drawdown.from ? `${summary.drawdown.from} → ${summary.drawdown.to}` : 'no fall recorded'}
+                color={summary.drawdown.pct ? 'text-red-600 dark:text-red-400' : ''}
+            />
+            <Stat
+                icon={Activity}
+                label="vs KSE100"
+                value={edge != null ? `${edge >= 0 ? '+' : ''}${edge.toFixed(1)} pts` : '—'}
+                hint={edge != null
+                    ? `you ${(last.portfolio - 100).toFixed(1)}%, index ${(last.benchmark - 100).toFixed(1)}%`
+                    : 'needs KSE100 history'}
+                color={edge != null ? getPnLColorClass(edge) : ''}
             />
         </div>
     );
@@ -159,15 +149,17 @@ function Stats({ summary, currency }) {
 
 function Stat({ icon: Icon, label, value, hint, color = '' }) {
     return (
-        <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3">
-            <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
-                <Icon className="w-3.5 h-3.5" />
-                {label}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+            <div className="flex items-center gap-2 mb-1 sm:mb-4 sm:block">
+                <div className="p-1.5 sm:p-3 rounded-lg shrink-0 sm:inline-block bg-gray-100 dark:bg-gray-700">
+                    <Icon className="w-4 h-4 sm:w-6 sm:h-6 text-gray-600 dark:text-gray-300" />
+                </div>
+                <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 sm:mt-4 sm:mb-1 truncate">{label}</div>
             </div>
-            <div className={`mt-1 text-lg font-semibold ${color || 'text-gray-900 dark:text-white'}`}>
+            <div className={`text-lg sm:text-2xl font-bold truncate ${color || 'text-gray-900 dark:text-white'}`}>
                 {value}
             </div>
-            <div className="text-xs text-gray-400 dark:text-gray-500 truncate">{hint}</div>
+            <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1 truncate">{hint}</div>
         </div>
     );
 }
