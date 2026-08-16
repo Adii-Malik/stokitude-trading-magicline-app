@@ -146,23 +146,6 @@ redirect and renewal all come up on their own.
 Leave `SITE_ADDRESS` unset and it serves plain HTTP on port 80, which is what
 you want for the first smoke test against an IP.
 
-<details>
-<summary>nginx + certbot instead</summary>
-
-`deploy/nginx.conf` (TLS) and `deploy/nginx-http.conf` (plain) remain for anyone
-who prefers nginx. They need certbot and a renewal timer; Caddy does not, which
-is why it is the default.
-
-```bash
-sudo cp deploy/nginx.conf /etc/nginx/sites-available/stokitude
-sudo sed -i 's/example.com/your-domain.com/g' /etc/nginx/sites-available/stokitude
-sudo ln -sf /etc/nginx/sites-available/stokitude /etc/nginx/sites-enabled/
-sudo rm -f /etc/nginx/sites-enabled/default
-sudo mkdir -p /var/www/certbot
-sudo certbot --nginx -d your-domain.com
-```
-</details>
-
 ## 8. Create the first admin
 
 ```bash
