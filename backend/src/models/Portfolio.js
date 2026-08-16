@@ -84,12 +84,25 @@ const portfolioSchema = new mongoose.Schema({
     }],
 
     /**
-     * The two charges that ride on top of brokerage. Sales tax is a cut of the
-     * brokerage; the CDC bills per share, which is why it tracks share count
-     * rather than trade value. A Sahulat sub-account pays no CDC - set 0.
+     * Everything a contract note charges beyond brokerage - sales tax, CDC,
+     * NCCPL, SECP, PSX LAGA, CVT, WHT. Each names its own basis because they
+     * genuinely differ: sales tax is a cut of the *brokerage*, CDC is per
+     * share, the rest are a percentage of traded value. Treating them all as a
+     * percentage of value fits one contract note and breaks on the next.
+     *
+     * `appliesTo` covers charges levied on one side only, as WHT usually is.
      */
-    salesTaxPct: { type: Number, default: 15, min: 0, max: 100 },
-    cdcPerShare: { type: Number, default: 0.005, min: 0 },
+    charges: [{
+        _id: false,
+        name: { type: String, required: true, trim: true },
+        basis: {
+            type: String,
+            enum: ['PERCENT_OF_BROKERAGE', 'PERCENT_OF_VALUE', 'PER_SHARE', 'FIXED'],
+            default: 'PERCENT_OF_VALUE'
+        },
+        value: { type: Number, required: true, min: 0 },
+        appliesTo: { type: String, enum: ['BOTH', 'BUY', 'SELL'], default: 'BOTH' }
+    }],
 
     description: {
         type: String,

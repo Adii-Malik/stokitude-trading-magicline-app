@@ -5,6 +5,7 @@ import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { formatCurrency, formatPercent, getPnLColorClass } from '../../utils/portfolioUtils';
 import CommissionSlabEditor from './CommissionSlabEditor';
+import OtherChargesEditor from './OtherChargesEditor';
 
 export default function PortfolioList() {
     const navigate = useNavigate();
@@ -236,7 +237,8 @@ function CreatePortfolioModal({ portfolio, onClose, onCreated }) {
         description: portfolio?.description || '',
         calculationMethod: portfolio?.calculationMethod || 'AVERAGE_COST',
         currency: portfolio?.currency || 'PKR',
-        commissionSlabs: portfolio?.commissionSlabs || []
+        commissionSlabs: portfolio?.commissionSlabs || [],
+        charges: portfolio?.charges || []
     });
     const [submitting, setSubmitting] = useState(false);
 
@@ -330,6 +332,11 @@ function CreatePortfolioModal({ portfolio, onClose, onCreated }) {
                     <CommissionSlabEditor
                         slabs={formData.commissionSlabs}
                         onChange={(commissionSlabs) => setFormData({ ...formData, commissionSlabs })}
+                    />
+
+                    <OtherChargesEditor
+                        charges={formData.charges}
+                        onChange={(charges) => setFormData({ ...formData, charges })}
                     />
 
                     <div className="flex gap-3 pt-4">

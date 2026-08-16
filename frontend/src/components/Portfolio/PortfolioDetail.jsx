@@ -289,8 +289,7 @@ export default function PortfolioDetail() {
                             portfolioId={id}
                             currency={portfolio.currency}
                             commissionSlabs={portfolio.commissionSlabs}
-                            salesTaxPct={portfolio.salesTaxPct}
-                            cdcPerShare={portfolio.cdcPerShare}
+                            charges={portfolio.charges}
                             onClose={() => setShowAddTransaction(false)}
                             onAdded={() => {
                                 setShowAddTransaction(false);

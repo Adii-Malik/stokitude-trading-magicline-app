@@ -20,13 +20,37 @@ export function slabFor(price, slabs = []) {
 }
 
 /**
- * Sales tax is a percentage of the brokerage; the CDC charge is per share,
- * which is why it looks erratic on a contract note - it tracks share count,
- * not trade value. A Sahulat sub-account is billed no CDC at all, so this is
- * set to 0 for such a portfolio, or cleared on the trade itself.
+ * Everything a contract note charges beyond brokerage. Each line names its
+ * own basis, because they genuinely differ:
+ *
+ *   PERCENT_OF_BROKERAGE  sales tax - 15% of the brokerage, not of the trade
+ *   PER_SHARE             CDC - tracks share count, which is why it looks
+ *                         erratic against trade value
+ *   PERCENT_OF_VALUE      NCCPL, SECP, PSX LAGA, CVT
+ *   FIXED                 a flat charge per contract note
+ *
+ * Treating sales tax as a percentage of traded value happens to fit one note
+ * and breaks the moment the brokerage rate changes, so the basis matters.
  */
-export const DEFAULT_SALES_TAX_PCT = 15;
-export const DEFAULT_CDC_PER_SHARE = 0.005;
+export const CHARGE_BASES = ['PERCENT_OF_BROKERAGE', 'PERCENT_OF_VALUE', 'PER_SHARE', 'FIXED'];
+
+/** Verified against PSX contract notes from two brokers, August 2026. */
+export const DEFAULT_PSX_CHARGES = [
+    { name: 'Sales Tax', basis: 'PERCENT_OF_BROKERAGE', value: 15, appliesTo: 'BOTH' },
+    { name: 'CDC', basis: 'PER_SHARE', value: 0.005, appliesTo: 'BOTH' }
+];
+
+/** One charge line, given the brokerage and trade it sits on. */
+export function amountOf(charge, { brokerage, value, quantity }) {
+    const v = Number(charge?.value) || 0;
+    switch (charge?.basis) {
+        case 'PERCENT_OF_BROKERAGE': return (brokerage * v) / 100;
+        case 'PERCENT_OF_VALUE': return (value * v) / 100;
+        case 'PER_SHARE': return quantity * v;
+        case 'FIXED': return v;
+        default: return 0;
+    }
+}
 
 /**
  * Brokerage alone, before tax and CDC.
@@ -52,14 +76,22 @@ export function brokerageFor({ price, quantity, slabs = [] }) {
  *
  * @returns {{brokerage, salesTax, cdc, total}}
  */
-export function chargesFor({ price, quantity, slabs = [],
-    salesTaxPct = DEFAULT_SALES_TAX_PCT, cdcPerShare = DEFAULT_CDC_PER_SHARE } = {}) {
+export function chargesFor({ price, quantity, slabs = [], charges = DEFAULT_PSX_CHARGES,
+    side = 'BUY' } = {}) {
     const brokerage = brokerageFor({ price, quantity, slabs });
-    if (!brokerage) return { brokerage: 0, salesTax: 0, cdc: 0, total: 0 };
+    if (!brokerage) return { brokerage: 0, lines: [], total: 0 };
 
-    const salesTax = (brokerage * Number(salesTaxPct)) / 100;
-    const cdc = Number(quantity) * (Number(cdcPerShare) || 0);
-    return { brokerage, salesTax, cdc, total: brokerage + salesTax + cdc };
+    const context = { brokerage, value: Number(price) * Number(quantity), quantity: Number(quantity) };
+    const lines = (charges || [])
+        .filter(c => !c.appliesTo || c.appliesTo === 'BOTH' || c.appliesTo === side)
+        .map(c => ({ name: c.name, amount: amountOf(c, context) }))
+        .filter(l => l.amount > 0);
+
+    return {
+        brokerage,
+        lines,
+        total: brokerage + lines.reduce((s, l) => s + l.amount, 0)
+    };
 }
 
 /**

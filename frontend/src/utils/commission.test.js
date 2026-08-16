@@ -1,6 +1,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { commissionFor, brokerageFor, chargesFor, slabFor, DEFAULT_PSX_SLABS as SLABS } from './commission.js';
+import { commissionFor, brokerageFor, chargesFor, slabFor,
+    DEFAULT_PSX_SLABS as SLABS, DEFAULT_PSX_CHARGES } from './commission.js';
 
 describe('slab selection', () => {
     test('cheap shares fall in the per-share band', () => {
@@ -89,14 +90,31 @@ describe('a real contract note', () => {
     });
 
     test('sales tax is 15% of the brokerage', () => {
-        const { salesTax } = chargesFor(trade);
+        const salesTax = chargesFor(trade).lines.find(l => l.name === 'Sales Tax')?.amount;
         assert.ok(Math.abs(salesTax - 34.58) < 0.1, `expected ~34.58, got ${salesTax}`);
     });
 
+    const line = (r, name) => r.lines.find(l => l.name === name)?.amount ?? 0;
+
     test('CDC is half a paisa a share, which is why it looks erratic', () => {
         // 12.50 on 2,500 shares here; 1.00 on a 200-share ENGROH trade.
-        assert.equal(chargesFor(trade).cdc, 12.50);
-        assert.equal(chargesFor({ price: 289.51, quantity: 200, slabs: SLABS }).cdc, 1.00);
+        assert.equal(line(chargesFor(trade), 'CDC'), 12.50);
+        assert.equal(line(chargesFor({ price: 289.51, quantity: 200, slabs: SLABS }), 'CDC'), 1.00);
+    });
+
+    test('sales tax follows the brokerage, not the trade value', () => {
+        // The distinction only shows when the brokerage rate moves: halve it
+        // and the tax must halve too, which a percent-of-value rule would miss.
+        const half = [{ from: 0.01, to: null, type: 'PERCENT', value: 0.075 }];
+        const full = chargesFor(trade);
+        const cheap = chargesFor({ ...trade, slabs: half });
+        assert.ok(Math.abs(line(cheap, 'Sales Tax') - line(full, 'Sales Tax') / 2) < 0.01);
+    });
+
+    test('a charge can be levied on one side only', () => {
+        const wht = [{ name: 'WHT', basis: 'PERCENT_OF_VALUE', value: 0.5, appliesTo: 'SELL' }];
+        assert.equal(chargesFor({ ...trade, charges: wht, side: 'BUY' }).lines.length, 0);
+        assert.equal(chargesFor({ ...trade, charges: wht, side: 'SELL' }).lines.length, 1);
     });
 
     test('the total reproduces the note to the rupee', () => {
@@ -107,7 +125,10 @@ describe('a real contract note', () => {
 
     test('a Sahulat sub-account is billed no CDC', () => {
         // PSO 200 @ 416.25: brokerage 124.88, SST 18.73, nothing else.
-        const { total } = chargesFor({ price: 416.25, quantity: 200, slabs: SLABS, cdcPerShare: 0 });
+        const { total } = chargesFor({
+            price: 416.25, quantity: 200, slabs: SLABS,
+            charges: DEFAULT_PSX_CHARGES.filter(c => c.name !== 'CDC')
+        });
         assert.ok(Math.abs(total - 143.61) < 0.1, `expected ~143.61, got ${total}`);
     });
 

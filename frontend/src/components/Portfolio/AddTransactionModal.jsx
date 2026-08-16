@@ -7,7 +7,7 @@ import { formatCurrency, formatShares } from '../../utils/portfolioUtils';
 import { chargesFor, slabFor, describeSlab } from '../../utils/commission';
 
 export default function AddTransactionModal({ portfolioId, currency, commissionSlabs = [],
-    salesTaxPct, cdcPerShare, onClose, onAdded }) {
+    charges: portfolioCharges, onClose, onAdded }) {
     const [formData, setFormData] = useState({
         type: 'BUY',
         symbol: '',
@@ -48,8 +48,8 @@ export default function AddTransactionModal({ portfolioId, currency, commissionS
         price: formData.price,
         quantity: formData.quantity,
         slabs: commissionSlabs,
-        salesTaxPct,
-        cdcPerShare
+        charges: portfolioCharges,
+        side: formData.type
     });
     const suggestedFee = charges.total;
     const matchedSlab = slabFor(formData.price, commissionSlabs);
@@ -304,8 +304,7 @@ export default function AddTransactionModal({ portfolioId, currency, commissionS
                                 {matchedSlab && suggestedFee > 0 && (
                                     <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                         {describeSlab(matchedSlab)} {formatCurrency(charges.brokerage, currency)}
-                                        {charges.salesTax > 0 && ` + tax ${formatCurrency(charges.salesTax, currency)}`}
-                                        {charges.cdc > 0 && ` + CDC ${formatCurrency(charges.cdc, currency)}`}
+                                        {charges.lines.map(l => ` + ${l.name} ${formatCurrency(l.amount, currency)}`).join('')}
                                         {' = '}<strong>{formatCurrency(suggestedFee, currency)}</strong>
                                         {Math.abs((parseFloat(formData.fees) || 0) - suggestedFee) > 0.005 && (
                                             <button
