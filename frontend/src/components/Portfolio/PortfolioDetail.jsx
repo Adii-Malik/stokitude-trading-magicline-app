@@ -23,6 +23,7 @@ export default function PortfolioDetail() {
     const [showUploadModal, setShowUploadModal] = useState(false);
     const [uploadFile, setUploadFile] = useState(null);
     const [uploadResult, setUploadResult] = useState(null);
+    const [uploading, setUploading] = useState(false);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -78,6 +79,7 @@ export default function PortfolioDetail() {
             return;
         }
 
+        setUploading(true);
         try {
             const formData = new FormData();
             formData.append('file', uploadFile);
@@ -89,13 +91,23 @@ export default function PortfolioDetail() {
                 timeout: 180000  // a long file outlasts the default
             });
 
-            setUploadResult(response.data.data);
-            toast.success(`Successfully uploaded ${response.data.data.inserted} transactions`);
+            const result = response.data.data;
+            setUploadResult(result);
+
+            // Say what actually happened; "uploaded 0" reads like success.
+            const parts = [`${result.inserted} imported`];
+            if (result.skipped) parts.push(`${result.skipped} already present`);
+            if (result.errors?.length) parts.push(`${result.errors.length} failed`);
+            const message = parts.join(', ');
+            if (result.errors?.length) toast.error(message); else toast.success(message);
+
             setUploadFile(null);
             loadPortfolio();
         } catch (error) {
             console.error('Error uploading CSV:', error);
             toast.error(error.response?.data?.message || 'Failed to upload CSV');
+        } finally {
+            setUploading(false);
         }
     };
 
@@ -323,13 +335,24 @@ export default function PortfolioDetail() {
                                     </div>
 
                                     {uploadResult && (
-                                        <div className="bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/50 rounded-lg p-4">
-                                            <h4 className="font-semibold text-green-900 dark:text-green-400 mb-2">Upload Result:</h4>
-                                            <div className="text-sm text-green-800 dark:text-green-300 space-y-1">
-                                                <p>Total: {uploadResult.total}</p>
-                                                <p>Imported: {uploadResult.inserted}</p>
-                                                {uploadResult.errors && uploadResult.errors.length > 0 && (
-                                                    <p className="text-red-600 dark:text-red-400">Errors: {uploadResult.errors.length}</p>
+                                        <div className="bg-gray-50 dark:bg-gray-700/40 border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+                                            <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Upload Result:</h4>
+                                            <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                                                <p>Rows read: {uploadResult.total}</p>
+                                                <p className="text-green-700 dark:text-green-400">Imported: {uploadResult.inserted}</p>
+                                                {uploadResult.skipped > 0 && (
+                                                    <p>Already present: {uploadResult.skipped}</p>
+                                                )}
+                                                {uploadResult.errors?.length > 0 && (
+                                                    <>
+                                                        <p className="text-red-600 dark:text-red-400">Failed: {uploadResult.errors.length}</p>
+                                                        {/* The reason matters more than the count. */}
+                                                        <ul className="mt-1 max-h-32 overflow-y-auto text-xs text-red-600 dark:text-red-400 space-y-0.5">
+                                                            {uploadResult.errors.slice(0, 10).map((e, i) => (
+                                                                <li key={i}>{e.data?.symbol || e.data?.type || `row ${e.line}`}: {e.error}</li>
+                                                            ))}
+                                                        </ul>
+                                                    </>
                                                 )}
                                             </div>
                                         </div>
@@ -338,19 +361,21 @@ export default function PortfolioDetail() {
                                     <div className="flex gap-2 pt-4">
                                         <button
                                             type="submit"
-                                            disabled={!uploadFile}
-                                            className="flex-1 px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                                            disabled={!uploadFile || uploading}
+                                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
                                         >
-                                            Upload CSV
+                                            {uploading && <RefreshCw className="w-4 h-4 animate-spin" />}
+                                            {uploading ? 'Importing…' : 'Upload CSV'}
                                         </button>
                                         <button
                                             type="button"
+                                            disabled={uploading}
                                             onClick={() => {
                                                 setShowUploadModal(false);
                                                 setUploadResult(null);
                                                 setUploadFile(null);
                                             }}
-                                            className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg transition-colors"
+                                            className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             Close
                                         </button>

@@ -126,3 +126,35 @@ describe('rejected rows', () => {
         assert.equal(tx.quantity, 1500);
     });
 });
+
+describe('replay order', () => {
+    // The export writes newest first. Inserting in that order validates every
+    // SELL before the BUY that supplies its shares, so all of them fail.
+    const exported = [
+        'symbol,exchange,type,quantity,price,fees,executedAt',
+        'SYS,PSX,SELL,250,115.92,43.47,2026-03-11',
+        'FABL,PSX,SELL,300,79,35.55,2025-07-09',
+        'FABL,PSX,BUY,350,47.04,24.7,2025-01-01',
+        'SYS,PSX,BUY,250,105.54,39.58,2025-01-01'
+    ].join('\n');
+
+    test('an export is newest first, so rows must be sorted before insert', async () => {
+        const parsed = await rowsOf(exported);
+        const dates = parsed.map(p => p.transaction.executedAt);
+        assert.ok(dates[0] > dates[dates.length - 1], 'fixture really is newest first');
+
+        const replay = [...parsed.map(p => p.transaction)]
+            .sort((a, b) => new Date(a.executedAt) - new Date(b.executedAt));
+
+        // Every SELL must now come after a BUY of the same symbol.
+        const held = {};
+        for (const tx of replay) {
+            if (tx.type === 'BUY') held[tx.symbol] = (held[tx.symbol] || 0) + tx.quantity;
+            if (tx.type === 'SELL') {
+                assert.ok((held[tx.symbol] || 0) >= tx.quantity,
+                    `${tx.symbol} sold before it was bought`);
+                held[tx.symbol] -= tx.quantity;
+            }
+        }
+    });
+});

@@ -236,7 +236,10 @@ class PortfolioService {
      * @returns {Promise<Object|null>} the existing transaction, or null
      */
     async findDuplicateTransaction(portfolioId, data) {
-        if (!data.executedAt || !data.symbol || !data.type) return null;
+        if (!data.executedAt || !data.type) return null;
+        // Cash movements carry no symbol; requiring one let re-imports double them.
+        const cash = ['DEPOSIT', 'WITHDRAW'].includes(data.type);
+        if (!cash && !data.symbol) return null;
 
         const day = new Date(data.executedAt);
         if (isNaN(day)) return null;
@@ -246,10 +249,10 @@ class PortfolioService {
 
         const query = {
             portfolioId,
-            symbol: String(data.symbol).toUpperCase(),
             type: data.type,
             executedAt: { $gte: start, $lte: end }
         };
+        if (!cash) query.symbol = String(data.symbol).toUpperCase();
 
         // Compare the value fields that are meaningful for this type
         for (const field of ['quantity', 'price', 'dividendCash', 'cashAmount']) {

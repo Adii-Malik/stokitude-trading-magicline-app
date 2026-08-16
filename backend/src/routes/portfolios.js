@@ -508,6 +508,10 @@ router.post('/:id/transactions/upload/csv', upload.single('file'), async (req, r
 
         // Bulk insert transactions. Rows that already exist are skipped rather
         // than duplicated, so re-uploading the same file is a no-op.
+        // Oldest first: a SELL is validated against shares held at that moment,
+        // so replaying a newest-first export would reject every one of them.
+        results.sort((a, b) => new Date(a.executedAt) - new Date(b.executedAt));
+
         let inserted = 0;
         let skipped = 0;
         for (const transactionData of results) {
