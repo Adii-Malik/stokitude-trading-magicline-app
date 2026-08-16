@@ -44,7 +44,15 @@ export default function OtherChargesEditor({ charges, onChange }) {
                     None set — only brokerage will be prefilled.
                 </p>
             ) : (
-                <div className="space-y-2">
+                <>
+                    <div className="hidden sm:grid grid-cols-12 gap-2 px-1 mb-1 text-xs text-gray-500 dark:text-gray-400">
+                <span className="col-span-3">Charge</span>
+                <span className="col-span-4">Based on</span>
+                <span className="col-span-2">Rate</span>
+                        <span className="col-span-2">Applies to</span>
+                    </div>
+
+                    <div className="space-y-2">
                     {rows.map((c, i) => (
                         <div key={i} className="grid grid-cols-12 gap-2 items-center">
                             <input
@@ -82,7 +90,8 @@ export default function OtherChargesEditor({ charges, onChange }) {
                             </button>
                         </div>
                     ))}
-                </div>
+                    </div>
+                </>
             )}
 
             <button

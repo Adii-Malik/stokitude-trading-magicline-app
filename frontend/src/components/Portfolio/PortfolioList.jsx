@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, FolderOpen, TrendingUp, TrendingDown, Users, MoreVertical, Edit2, Trash2 } from 'lucide-react';
+import { Plus, FolderOpen, TrendingUp, TrendingDown, Users, MoreVertical, Edit2, Trash2, X } from 'lucide-react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { formatCurrency, formatPercent, getPnLColorClass } from '../../utils/portfolioUtils';
@@ -264,14 +264,32 @@ function CreatePortfolioModal({ portfolio, onClose, onCreated }) {
         }
     };
 
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-                    {portfolio ? 'Edit Portfolio' : 'Create New Portfolio'}
-                </h2>
+    useEffect(() => {
+        const onKey = (e) => e.key === 'Escape' && onClose();
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [onClose]);
 
-                <form onSubmit={handleSubmit} className="space-y-4">
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-start sm:items-center justify-center p-4 overflow-y-auto" onClick={onClose}>
+            <div
+                className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col my-auto"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                        {portfolio ? 'Edit Portfolio' : 'Create New Portfolio'}
+                    </h2>
+                    <button
+                        type="button" onClick={onClose} aria-label="Close"
+                        className="p-1 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+
+                <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1">
+                    <div className="overflow-y-auto px-6 py-4 space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Portfolio Name *
@@ -339,7 +357,9 @@ function CreatePortfolioModal({ portfolio, onClose, onCreated }) {
                         onChange={(charges) => setFormData({ ...formData, charges })}
                     />
 
-                    <div className="flex gap-3 pt-4">
+                    </div>
+
+                    <div className="flex gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700 shrink-0">
                         <button
                             type="button"
                             onClick={onClose}

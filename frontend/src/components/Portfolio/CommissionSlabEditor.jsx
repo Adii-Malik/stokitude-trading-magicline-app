@@ -39,7 +39,15 @@ export default function CommissionSlabEditor({ slabs, onChange }) {
                     No bands set — fees will not be prefilled.
                 </p>
             ) : (
-                <div className="space-y-2">
+                <>
+                    <div className="hidden sm:grid grid-cols-12 gap-2 px-1 mb-1 text-xs text-gray-500 dark:text-gray-400">
+                <span className="col-span-3">From price</span>
+                <span className="col-span-3">To price</span>
+                <span className="col-span-3">Charged</span>
+                        <span className="col-span-2">Rate</span>
+                    </div>
+
+                    <div className="space-y-2">
                     {rows.map((s, i) => (
                         <div key={i} className="grid grid-cols-12 gap-2 items-center">
                             <input
@@ -74,7 +82,8 @@ export default function CommissionSlabEditor({ slabs, onChange }) {
                             </button>
                         </div>
                     ))}
-                </div>
+                    </div>
+                </>
             )}
 
             <button
