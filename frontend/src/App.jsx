@@ -18,6 +18,7 @@ import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
 import PortfolioList from './components/Portfolio/PortfolioList';
 import PortfolioDetail from './components/Portfolio/PortfolioDetail';
+import SymbolDetail from './components/Portfolio/SymbolDetail';
 import JournalPage from './components/Journal/JournalPage';
 import featureFlags from './config/featureFlags';
 
@@ -128,6 +129,14 @@ function AppContent() {
         <ProtectedRoute>
           <LayoutProvider currentPage="portfolios">
             <PortfolioDetail />
+          </LayoutProvider>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/portfolios/:id/:symbol" element={
+        <ProtectedRoute>
+          <LayoutProvider currentPage="portfolios">
+            <SymbolDetail />
           </LayoutProvider>
         </ProtectedRoute>
       } />

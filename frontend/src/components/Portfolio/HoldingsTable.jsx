@@ -87,7 +87,7 @@ export default function HoldingsTable({ portfolioId, currency, onSelectSymbol })
             {/* Phones get cards; eight columns of numbers do not survive a 390px screen. */}
             <div className="md:hidden space-y-3">
                 {filteredAndSorted.map((holding) => (
-                    <HoldingCard key={holding.symbol} holding={holding} currency={currency} />
+                    <HoldingCard key={holding.symbol} holding={holding} currency={currency} onSelectSymbol={onSelectSymbol} />
                 ))}
             </div>
 
@@ -150,7 +150,7 @@ export default function HoldingsTable({ portfolioId, currency, onSelectSymbol })
                     </thead>
                     <tbody>
                         {filteredAndSorted.map((holding) => (
-                            <HoldingRow key={holding.symbol} holding={holding} currency={currency} />
+                            <HoldingRow key={holding.symbol} holding={holding} currency={currency} onSelectSymbol={onSelectSymbol} />
                         ))}
                     </tbody>
                     <tfoot>
@@ -173,13 +173,18 @@ export default function HoldingsTable({ portfolioId, currency, onSelectSymbol })
     );
 }
 
-function HoldingCard({ holding, currency }) {
+function HoldingCard({ holding, currency, onSelectSymbol }) {
     return (
         <div className={`rounded-xl border border-gray-200 dark:border-gray-700 p-4 ${holding.closed ? 'opacity-60' : ''}`}>
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                        <span className="font-semibold text-gray-900 dark:text-white">{holding.symbol}</span>
+                        <button
+                            onClick={() => onSelectSymbol?.(holding.symbol)}
+                            className="font-semibold text-gray-900 dark:text-white hover:text-cyan-600 dark:hover:text-cyan-400"
+                        >
+                            {holding.symbol}
+                        </button>
                         {holding.closed && (
                             <span className="px-1.5 py-0.5 text-xs rounded bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
                                 Closed
@@ -229,7 +234,7 @@ function SortableHeader({ label, field, currentField, direction, onSort }) {
     );
 }
 
-function HoldingRow({ holding, currency }) {
+function HoldingRow({ holding, currency, onSelectSymbol }) {
     const isProfit = holding.unrealizedPnL >= 0;
 
     return (

@@ -16,7 +16,6 @@ export default function PortfolioDetail() {
     const [portfolio, setPortfolio] = useState(null);
     const [dashboard, setDashboard] = useState(null);
     const [activeTab, setActiveTab] = useState('holdings');
-    const [symbolFilter, setSymbolFilter] = useState(null);
     const [showAddTransaction, setShowAddTransaction] = useState(false);
     const [showUploadModal, setShowUploadModal] = useState(false);
     const [uploadFile, setUploadFile] = useState(null);
@@ -211,15 +210,13 @@ export default function PortfolioDetail() {
                                 <HoldingsTable
                                 portfolioId={id}
                                 currency={portfolio.currency}
-                                onSelectSymbol={(s) => { setSymbolFilter(s); setActiveTab('transactions'); }}
+                                onSelectSymbol={(s) => navigate(`/portfolios/${id}/${s}`)}
                             />
                             )}
                             {activeTab === 'transactions' && (
                                 <TransactionList
                                     portfolioId={id}
                                     currency={portfolio.currency}
-                                    symbol={symbolFilter}
-                                    onClearSymbol={() => setSymbolFilter(null)}
                                     onTransactionChange={loadPortfolio}
                                 />
                             )}

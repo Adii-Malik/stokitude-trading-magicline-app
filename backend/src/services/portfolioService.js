@@ -287,6 +287,68 @@ class PortfolioService {
         return { inserted: docs.length, skipped, errors };
     }
 
+    /**
+     * Everything about one symbol in one read: what is held, what was made,
+     * what it cost in fees, and the whole ledger behind it. Fees are the part
+     * no summary shows - on a name traded a dozen times they decide the result.
+     */
+    async symbolDetail(portfolioId, userId, symbol) {
+        const portfolio = await this.getPortfolio(portfolioId, userId);
+        symbol = String(symbol).toUpperCase();
+
+        const [transactions, position, stock] = await Promise.all([
+            Transaction.find({ portfolioId, symbol }).sort({ executedAt: 1 }).lean(),
+            Position.findOne({ portfolioId, symbol }).lean(),
+            Stock.findOne({ symbol }).select('symbol companyName currentPrice').lean()
+        ]);
+
+        if (!transactions.length) {
+            const err = new Error(`No transactions for ${symbol} in this portfolio`);
+            err.code = 'NOT_FOUND';
+            throw err;
+        }
+
+        const sum = (rows, f) => rows.reduce((s, r) => s + (f(r) || 0), 0);
+        const currentPrice = stock?.currentPrice || 0;
+        const quantity = position?.netShares || 0;
+        const costBasis = position?.costBasis || 0;
+        const marketValue = quantity * currentPrice;
+
+        const fees = sum(transactions, t => (t.fees || 0) + (t.otherCharges || 0));
+        const dividends = sum(transactions.filter(t => t.type === 'DIV'), t => t.dividendCash);
+        const realized = position?.realizedPnL || 0;
+
+        return {
+            symbol,
+            companyName: stock?.companyName || symbol,
+            currency: portfolio.currency,
+            currentPrice,
+            position: {
+                quantity,
+                avgCost: position?.avgCost || 0,
+                costBasis,
+                marketValue,
+                unrealizedPnL: marketValue - costBasis,
+                unrealizedPnLPct: costBasis > 0 ? ((marketValue - costBasis) / costBasis) * 100 : 0,
+                firstPurchaseDate: position?.firstPurchaseDate || null
+            },
+            result: {
+                realized,
+                dividends,
+                fees,
+                // Fees are already inside realized via cost basis; reported so
+                // the drag on a heavily traded name is visible.
+                net: realized + dividends
+            },
+            counts: {
+                buys: transactions.filter(t => t.type === 'BUY').length,
+                sells: transactions.filter(t => t.type === 'SELL').length,
+                dividends: transactions.filter(t => t.type === 'DIV').length
+            },
+            transactions
+        };
+    }
+
     /** Shares held, derived from the ledger rather than the Position view. */
     async getSharesHeld(portfolioId, symbol) {
         const portfolio = await Portfolio.findById(portfolioId).lean();

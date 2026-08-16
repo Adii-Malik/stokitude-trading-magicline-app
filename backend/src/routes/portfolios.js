@@ -314,6 +314,21 @@ router.get('/:id/transactions', async (req, res) => {
 });
 
 /**
+ * GET /api/portfolios/:id/symbols/:symbol
+ * One symbol's position, result and full ledger
+ */
+router.get('/:id/symbols/:symbol', async (req, res) => {
+    try {
+        const data = await portfolioService.symbolDetail(req.params.id, req.user._id, req.params.symbol);
+        res.json({ success: true, data });
+    } catch (error) {
+        const status = error.code === 'NOT_FOUND' ? 404
+            : error.message.includes('Access denied') ? 403 : 500;
+        res.status(status).json({ success: false, message: error.message });
+    }
+});
+
+/**
  * POST /api/portfolios/:id/transactions
  * Add transaction
  */
