@@ -57,13 +57,31 @@ describe('value series', () => {
         assert.equal(s[0].cash, s[1].cash);
     });
 
+    test('a cash movement after the last bar still lands in the series', () => {
+        // Otherwise it counts as a cash flow for XIRR while the closing total
+        // still contains the money, double-counting it.
+        const s = buildSeries([
+            tx('BUY', { quantity: 50, price: 209, executedAt: '2025-05-01' }),
+            { type: 'WITHDRAW', cashAmount: 1000, executedAt: '2025-06-30' }
+        ], prices);
+
+        const last = s[s.length - 1];
+        assert.equal(last.date, '2025-06-30', 'series reaches the withdrawal');
+        assert.equal(last.cash, -10450 - 1000);
+        assert.equal(last.value, 50 * 215, 'valued at the last known close');
+    });
+
     test('an empty ledger yields no series', () => {
         assert.deepEqual(buildSeries([], prices), []);
     });
 
-    test('no price data yields no series', () => {
-        const s = buildSeries([tx('BUY', { quantity: 1, price: 1, executedAt: '2025-05-01' })], {});
-        assert.deepEqual(s, []);
+    test('no price data still tracks cash, with holdings unvalued', () => {
+        // performance() reports these symbols in missingPrices so the zero
+        // valuation is visible rather than silently wrong.
+        const s = buildSeries([tx('BUY', { quantity: 1, price: 10, executedAt: '2025-05-01' })], {});
+        assert.equal(s.length, 1);
+        assert.equal(s[0].cash, -10);
+        assert.equal(s[0].value, 0);
     });
 });
 
@@ -106,8 +124,39 @@ describe('cash', () => {
     });
 });
 
+describe('nav', () => {
+    const flat = bars('OGDC', [['2025-05-01', 100], ['2025-05-02', 100], ['2025-05-05', 110]]);
+
+    test('a deposit does not move the unit price', () => {
+        const s = buildSeries([
+            { type: 'DEPOSIT', cashAmount: 10000, executedAt: '2025-05-01' },
+            { type: 'DEPOSIT', cashAmount: 90000, executedAt: '2025-05-02' }
+        ], flat);
+        assert.equal(s[0].nav, 100);
+        assert.equal(s[1].nav, 100, 'ten times the money, same unit price');
+    });
+
+    test('a withdrawal does not move it either', () => {
+        const s = buildSeries([
+            { type: 'DEPOSIT', cashAmount: 100000, executedAt: '2025-05-01' },
+            { type: 'WITHDRAW', cashAmount: 90000, executedAt: '2025-05-02' }
+        ], flat);
+        assert.equal(s[1].nav, 100);
+        assert.equal(s[1].total, 10000, 'equity fell, the unit price did not');
+    });
+
+    test('real gains do move it', () => {
+        const s = buildSeries([
+            { type: 'DEPOSIT', cashAmount: 10000, executedAt: '2025-05-01' },
+            tx('BUY', { quantity: 100, price: 100, executedAt: '2025-05-01' })
+        ], flat);
+        assert.equal(s[0].nav, 100);
+        assert.equal(s[2].nav, 110, 'shares rose 10%, so did the unit price');
+    });
+});
+
 describe('drawdown', () => {
-    const at = (vals) => vals.map((total, i) => ({ date: `2025-05-0${i + 1}`, total }));
+    const at = (vals) => vals.map((nav, i) => ({ date: `2025-05-0${i + 1}`, nav }));
 
     test('measures the largest peak-to-trough fall', () => {
         const d = maxDrawdown(at([100, 120, 90, 130]));
@@ -122,15 +171,25 @@ describe('drawdown', () => {
     });
 
     test('a sale is not a drawdown', () => {
-        // Selling moves value into cash; total is unchanged, so the equity
-        // curve must not dip. Measuring on `value` alone would report 50%.
+        // Selling moves value into cash, so NAV is flat. On `value` it looks
+        // like a 50% fall.
         const rows = [
-            { date: '2025-05-01', value: 1000, total: 1000 },
-            { date: '2025-05-02', value: 500, total: 1000 },
-            { date: '2025-05-05', value: 500, total: 1000 }
+            { date: '2025-05-01', value: 1000, nav: 100 },
+            { date: '2025-05-02', value: 500, nav: 100 },
+            { date: '2025-05-05', value: 500, nav: 100 }
         ];
         assert.equal(maxDrawdown(rows).amount, 0);
         assert.equal(maxDrawdown(rows, 'value').amount, 500, 'the wrong field would see a fall');
+    });
+
+    test('a withdrawal is not a drawdown', () => {
+        // Equity halves because money left, not because anything lost value.
+        const rows = [
+            { date: '2025-05-01', total: 400000, nav: 100 },
+            { date: '2025-05-02', total: 100000, nav: 100 }
+        ];
+        assert.equal(maxDrawdown(rows).amount, 0);
+        assert.equal(maxDrawdown(rows, 'total').pct, 75, 'the wrong field would see a crash');
     });
 });
 
@@ -197,8 +256,8 @@ describe('flows', () => {
 
 describe('benchmark', () => {
     const series = [
-        { date: '2025-05-01', total: 1000 },
-        { date: '2025-05-02', total: 1100 }
+        { date: '2025-05-01', nav: 100 },
+        { date: '2025-05-02', nav: 110 }
     ];
     const index = [
         { date: '2025-05-01', close: 50000 },

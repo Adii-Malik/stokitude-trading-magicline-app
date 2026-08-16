@@ -28,11 +28,14 @@ export function buildSeries(transactions, prices = {}) {
 
     if (!ledger.length) return [];
 
-    // Trading days come from the price data, bounded by the ledger's start.
+    // Days come from the price data, plus any ledger date beyond the last bar -
+    // otherwise a cash movement dated after it never lands in the series while
+    // still counting as a cash flow.
     const start = dayKey(ledger[0].executedAt);
-    const days = [...new Set(
-        Object.values(prices).flat().map(p => dayKey(p.date))
-    )].filter(d => d >= start).sort();
+    const days = [...new Set([
+        ...Object.values(prices).flat().map(p => dayKey(p.date)),
+        ...ledger.map(tx => dayKey(tx.executedAt))
+    ])].filter(d => d >= start).sort();
 
     if (!days.length) return [];
 
@@ -44,10 +47,12 @@ export function buildSeries(transactions, prices = {}) {
     }
 
     const shares = {};
-    let cash = 0, invested = 0, next = 0;
+    let cash = 0, invested = 0, next = 0, units = 0;
     const series = [];
 
     for (const day of days) {
+        let flow = 0;   // external money in or out today, for the NAV maths
+
         while (next < ledger.length && dayKey(ledger[next].executedAt) <= day) {
             const tx = ledger[next++];
             const qty = tx.quantity || 0;
@@ -72,10 +77,12 @@ export function buildSeries(transactions, prices = {}) {
                 case 'DEPOSIT':
                     cash += tx.cashAmount || 0;
                     invested += tx.cashAmount || 0;
+                    flow += tx.cashAmount || 0;
                     break;
                 case 'WITHDRAW':
                     cash -= tx.cashAmount || 0;
                     invested -= tx.cashAmount || 0;
+                    flow -= tx.cashAmount || 0;
                     break;
                 default:
                     break;
@@ -96,12 +103,26 @@ export function buildSeries(transactions, prices = {}) {
             held++;
         }
 
+        // NAV works like a fund unit price: money in buys units at the current
+        // price, money out redeems them, so deposits and withdrawals move the
+        // unit count and never the price. That makes it the only curve that can
+        // be compared with an index or measured for drawdown.
+        const total = value + cash;
+        if (units === 0) {
+            if (total > 0) units = total / 100;
+        } else if (flow !== 0) {
+            const before = (total - flow) / units;
+            if (before > 0) units += flow / before;
+        }
+        const nav = units > 0 ? total / units : 0;
+
         series.push({
             date: day,
             value: round(value),
             cash: round(cash),
             invested: round(invested),
-            total: round(value + cash),
+            total: round(total),
+            nav: round(nav),
             holdings: held
         });
     }
@@ -110,14 +131,11 @@ export function buildSeries(transactions, prices = {}) {
 }
 
 /**
- * Largest peak-to-trough fall on the equity curve.
- *
- * With deposits recorded, `total` is real equity and the percentage means
- * something. Without them it is only cumulative P/L - there is no capital base
- * to divide by - so the caller drops the percentage rather than inventing one.
- * Measuring on `value` instead is wrong: it counts every sale as a fall.
+ * Largest peak-to-trough fall, measured on NAV so that deposits and
+ * withdrawals do not register as gains and losses. On `total` a withdrawal
+ * looks like a crash; on `value` every sale does.
  */
-export function maxDrawdown(series, field = 'total') {
+export function maxDrawdown(series, field = 'nav') {
     let peak = -Infinity, worst = 0, worstPct = 0, from = null, to = null, peakDate = null;
 
     for (const row of series) {
@@ -199,8 +217,8 @@ export function flowsFrom(transactions, series) {
     return flows;
 }
 
-/** Both series rebased to 100 at the first common day. */
-export function rebase(series, benchmark, field = 'total') {
+/** Both rebased to 100 at the first common day. NAV, so flows do not count. */
+export function rebase(series, benchmark, field = 'nav') {
     if (!series.length || !benchmark.length) return [];
 
     const bench = new Map(benchmark.map(b => [dayKey(b.date), b.close]));
@@ -275,9 +293,7 @@ export async function performance(portfolioId, { from, benchmark = 'KSE100' } = 
             xirrPct: capital ? xirr(flows) : null,
             capitalTracked: capital,
             lateCapital,
-            drawdown: capital
-                ? maxDrawdown(series)
-                : { ...maxDrawdown(series), pct: null }
+            drawdown: maxDrawdown(series)
         }
     };
 }
