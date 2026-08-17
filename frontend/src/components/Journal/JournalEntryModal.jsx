@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, Trash2, CheckCircle, Lock } from 'lucide-react';
+import { Plus, Trash2, CheckCircle, Lock } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { Modal } from '../../ui/Modal';
 import { createEntry, updateEntry } from '../../services/journal';
 import { chargesFor } from '../../utils/commission';
 import { mistakeLabel } from './labels';
@@ -171,302 +172,302 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-                <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                        {editing
-                            ? (planning ? 'Edit Planned Trade' : 'Edit Trade')
-                            : (planning ? 'Plan a Trade' : 'Journal a Trade')}
-                    </h2>
-                    <button onClick={onClose} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
-                        <X className="w-5 h-5" />
+        <Modal
+            size="lg"
+            onClose={onClose}
+            title={editing
+                ? (planning ? 'Edit Planned Trade' : 'Edit Trade')
+                : (planning ? 'Plan a Trade' : 'Journal a Trade')}
+            footer={
+                <>
+                    <button type="button" onClick={onClose}
+                        className="flex-1 px-4 py-2 border border-hairline text-ink-muted rounded-control hover:bg-surface-muted">
+                        Cancel
                     </button>
-                </div>
+                    {/* Outside the form element, so bound to it by id. This is what
+                        keeps the actions visible while a long form scrolls. */}
+                    <button type="submit" form={FORM_ID} disabled={saving}
+                        className="flex-1 px-4 py-2 bg-cyan-500 text-white rounded-control hover:bg-cyan-600 disabled:opacity-50">
+                        {saving ? 'Saving...'
+                            : editing ? 'Save changes'
+                                : planning ? 'Watch this level' : 'Add to journal'}
+                    </button>
+                </>
+            }
+        >
+            <form id={FORM_ID} onSubmit={submit} className="space-y-5">
+                {/* A closed trade has a result already; offering to un-enter it
+                    would only invite an inconsistent record. */}
+                {form.state !== 'closed' && (
+                    <div className="flex gap-2 p-1 bg-surface-muted rounded-control">
+                        {[
+                            { key: 'planned', label: 'Watching a level', hint: 'Not in it yet' },
+                            { key: 'open', label: 'In the trade', hint: 'Filled' }
+                        ].map((m) => (
+                            <button key={m.key} type="button" onClick={() => set('state', m.key)}
+                                className={`flex-1 px-3 py-2 rounded-control text-sm transition-colors ${form.state === m.key
+                                    ? 'bg-surface text-ink shadow-card font-medium'
+                                    : 'text-ink-muted hover:text-ink'}`}>
+                                {m.label}
+                                <span className="block text-xs text-ink-faint">{m.hint}</span>
+                            </button>
+                        ))}
+                    </div>
+                )}
 
-                <form onSubmit={submit} className="space-y-5">
-                    {/* A closed trade has a result already; offering to un-enter it
-                        would only invite an inconsistent record. */}
-                    {form.state !== 'closed' && (
-                        <div className="flex gap-2 p-1 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
-                            {[
-                                { key: 'planned', label: 'Watching a level', hint: 'Not in it yet' },
-                                { key: 'open', label: 'In the trade', hint: 'Filled' }
-                            ].map((m) => (
-                                <button key={m.key} type="button" onClick={() => set('state', m.key)}
-                                    className={`flex-1 px-3 py-2 rounded-md text-sm transition-colors ${form.state === m.key
-                                        ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm font-medium'
-                                        : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'}`}>
-                                    {m.label}
-                                    <span className="block text-xs text-gray-500 dark:text-gray-400">{m.hint}</span>
-                                </button>
-                            ))}
-                        </div>
-                    )}
-
-                    <Section title="Trade">
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            <Field label="Symbol *">
-                                <input required value={form.symbol} className={input}
-                                    onChange={(e) => set('symbol', e.target.value.toUpperCase())} />
-                            </Field>
-                            <Field label="Market">
-                                <select value={form.exchange} className={input}
-                                    onChange={(e) => set('exchange', e.target.value)}>
-                                    {(options?.exchanges || ['PSX']).map((x) => <option key={x}>{x}</option>)}
-                                </select>
-                            </Field>
-                            <Field label="Direction">
-                                <select value={form.direction} className={input}
-                                    onChange={(e) => set('direction', e.target.value)}>
-                                    <option value="long">Long</option>
-                                    <option value="short">Short</option>
-                                </select>
-                            </Field>
-                            <Field label="Setup">
-                                <select value={form.setupType} className={input}
-                                    onChange={(e) => set('setupType', e.target.value)}>
-                                    {(options?.setupTypes || []).map((s) => <option key={s} value={s}>{s}</option>)}
-                                </select>
-                            </Field>
-                            <Field label="How it looks">
-                                <select value={form.setupQuality} className={input}
-                                    onChange={(e) => set('setupQuality', e.target.value)}>
-                                    {/* Blank by default: a grade should mean you gave one. */}
-                                    <option value="">not graded</option>
-                                    {(options?.setupQualities || []).map((s) => <option key={s} value={s}>{s}</option>)}
-                                </select>
-                            </Field>
-                        </div>
-                        {planning ? (
-                            <div className="mt-3">
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                    <Field label="Entry zone from *">
-                                        <input type="number" step="any" value={form.entryFrom} className={input}
-                                            onChange={(e) => set('entryFrom', e.target.value)} />
-                                    </Field>
-                                    <Field label="to">
-                                        <input type="number" step="any" value={form.entryTo} className={input}
-                                            onChange={(e) => set('entryTo', e.target.value)} />
-                                    </Field>
-                                    <Field label="Quantity">
-                                        <input type="number" step="any" value={form.quantity} className={input}
-                                            placeholder="optional"
-                                            onChange={(e) => set('quantity', e.target.value)} />
-                                    </Field>
-                                </div>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                    A level is a band, not a number. You&apos;ll be told when price trades into it.
-                                </p>
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
-                                <Field label="Entry date *" locked={entryBooked}>
-                                    <input type="date" required value={form.entryDate} className={input}
-                                        disabled={entryBooked}
-                                        onChange={(e) => set('entryDate', e.target.value)} />
+                <Section title="Trade">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <Field label="Symbol *">
+                            <input required value={form.symbol} className={input}
+                                onChange={(e) => set('symbol', e.target.value.toUpperCase())} />
+                        </Field>
+                        <Field label="Market">
+                            <select value={form.exchange} className={input}
+                                onChange={(e) => set('exchange', e.target.value)}>
+                                {(options?.exchanges || ['PSX']).map((x) => <option key={x}>{x}</option>)}
+                            </select>
+                        </Field>
+                        <Field label="Direction">
+                            <select value={form.direction} className={input}
+                                onChange={(e) => set('direction', e.target.value)}>
+                                <option value="long">Long</option>
+                                <option value="short">Short</option>
+                            </select>
+                        </Field>
+                        <Field label="Setup">
+                            <select value={form.setupType} className={input}
+                                onChange={(e) => set('setupType', e.target.value)}>
+                                {(options?.setupTypes || []).map((s) => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                        </Field>
+                        <Field label="How it looks">
+                            <select value={form.setupQuality} className={input}
+                                onChange={(e) => set('setupQuality', e.target.value)}>
+                                {/* Blank by default: a grade should mean you gave one. */}
+                                <option value="">not graded</option>
+                                {(options?.setupQualities || []).map((s) => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                        </Field>
+                    </div>
+                    {planning ? (
+                        <div className="mt-3">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                <Field label="Entry zone from *">
+                                    <input type="number" step="any" value={form.entryFrom} className={input}
+                                        onChange={(e) => set('entryFrom', e.target.value)} />
                                 </Field>
-                                <Field label="Entry price *" locked={entryBooked}>
-                                    <input type="number" step="any" required value={form.entryPrice} className={input}
-                                        disabled={entryBooked}
-                                        onChange={(e) => set('entryPrice', e.target.value)} />
+                                <Field label="to">
+                                    <input type="number" step="any" value={form.entryTo} className={input}
+                                        onChange={(e) => set('entryTo', e.target.value)} />
                                 </Field>
-                                <Field label="Quantity *" locked={entryBooked}>
-                                    <input type="number" step="any" required value={form.quantity} className={input}
-                                        disabled={entryBooked}
+                                <Field label="Quantity">
+                                    <input type="number" step="any" value={form.quantity} className={input}
+                                        placeholder="optional"
                                         onChange={(e) => set('quantity', e.target.value)} />
                                 </Field>
                             </div>
-                        )}
-
-                        <div className="mt-3">
-                            <Field label="Book it in a portfolio">
-                                <select value={form.portfolioId} className={input}
-                                    disabled={entryBooked}
-                                    onChange={(e) => set('portfolioId', e.target.value)}>
-                                    <option value="">Don&apos;t book it — journal only</option>
-                                    {bookable.map((p) => (
-                                        <option key={p._id} value={p._id}>{p.name}</option>
-                                    ))}
-                                </select>
-                            </Field>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                {entryBooked
-                                    ? 'Booked. The ledger owns the numbers above — edit the transaction in the portfolio to change them.'
-                                    : form.portfolioId
-                                        ? 'A buy is recorded when you save, and a sell when you close. The ledger then owns those numbers.'
-                                        : bookable.length === 0
-                                            ? `No ${currency} portfolio to book into. The journal will track this trade on its own.`
-                                            : 'Leave unset for a trade held somewhere this app has no ledger for.'}
+                            <p className="text-xs text-ink-faint mt-1">
+                                A level is a band, not a number. You&apos;ll be told when price trades into it.
                             </p>
                         </div>
-                    </Section>
-
-                    <Section title="The plan" hint="Filled in before the outcome is known.">
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                            <Field label="Stop level">
-                                <input type="number" step="any" value={form.plannedStop} className={input}
-                                    onChange={(e) => set('plannedStop', e.target.value)} />
-                            </Field>
-                            <Field label="Risk">
-                                <div className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">
-                                    {risk != null ? risk.toFixed(2) : '—'}
-                                </div>
-                            </Field>
-                            <Field label="Reward : risk">
-                                <div className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">
-                                    {rr != null ? `${rr.toFixed(2)} : 1` : '—'}
-                                </div>
-                            </Field>
-                        </div>
-
-                        <TargetsEditor targets={form.targets} onChange={(t) => set('targets', t)} />
-
-                        <div className="mt-2 space-y-2">
-                            <Check checked={form.stopPlaced} onChange={(v) => set('stopPlaced', v)}
-                                label="Stop was actually placed at the broker"
-                                hint="Not a mental stop — a resting order." />
-                            {stopWithoutLevel && (
-                                <p className="text-xs text-red-600 dark:text-red-400 pl-6">Enter the stop level too.</p>
-                            )}
-                            <Check checked={form.eventChecked} onChange={(v) => set('eventChecked', v)}
-                                label="Checked the earnings/event calendar before entering" />
-                        </div>
-                    </Section>
-
-                    {/* Nothing to exit from until the trade is entered. */}
-                    <Section title="Exit" hint="Leave blank while the trade is open." hidden={planning}>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                            <Field label="Exit date" locked={exitBooked}>
-                                <input type="date" value={form.exitDate} className={input}
-                                    disabled={exitBooked}
-                                    onChange={(e) => set('exitDate', e.target.value)} />
-                            </Field>
-                            <Field label="Exit price" locked={exitBooked}>
-                                <input type="number" step="any" value={form.exitPrice} className={input}
-                                    disabled={exitBooked}
-                                    onChange={(e) => set('exitPrice', e.target.value)} />
-                            </Field>
-                            <Field label="Fees" locked={entryBooked}>
-                                <input type="number" step="any" value={form.fees} className={input}
-                                    disabled={entryBooked}
-                                    onChange={(e) => { setFeeEdited(true); set('fees', e.target.value); }} />
-                            </Field>
-                        </div>
-                        {portfolio && !entryBooked && suggestedFee > 0 && (
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                {suggestedFee.toFixed(2)} from {portfolio.name}&apos;s commission rules. Override if the note says otherwise.
-                            </p>
-                        )}
-                        {form.exitPrice !== '' ? (
-                            <div className="mt-2">
-                                <Check checked={form.exitConfirmed} onChange={(v) => set('exitConfirmed', v)}
-                                    label="Confirmed from a broker fill or statement"
-                                    hint="Leave unchecked if this is from memory — the stats will flag it." />
-                            </div>
-                        ) : (
-                            <div className="mt-3 w-1/3">
-                                <Field label="Last price">
-                                    <input type="number" step="any" className={input} value={form.markPrice}
-                                        placeholder="optional"
-                                        onChange={(e) => set('markPrice', e.target.value)} />
-                                </Field>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                    Marks an open trade by hand. Kept out of realized P/L.
-                                </p>
-                            </div>
-                        )}
-                    </Section>
-
-                    {/* Judgment belongs after the fact. Asking what went wrong with a
-                        trade that has not been taken invites a fabricated answer. */}
-                    {planning ? (
-                        <Section title="Why this level" hint="The thesis, written while it is still a decision.">
-                            <Field label="Notes">
-                                <textarea rows="3" value={form.notes} className={input} maxLength={2000}
-                                    placeholder="What makes this level worth taking?"
-                                    onChange={(e) => set('notes', e.target.value)} />
-                            </Field>
-                        </Section>
                     ) : (
-                    <Section title="Review">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <Field label="How I felt">
-                                <select value={form.emotionalState} className={input}
-                                    onChange={(e) => set('emotionalState', e.target.value)}>
-                                    {(options?.emotions || []).map((x) => <option key={x} value={x}>{x}</option>)}
-                                </select>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
+                            <Field label="Entry date *" locked={entryBooked}>
+                                <input type="date" required value={form.entryDate} className={input}
+                                    disabled={entryBooked}
+                                    onChange={(e) => set('entryDate', e.target.value)} />
                             </Field>
-                            <Field label="Market">
-                                <select value={form.marketCondition} className={input}
-                                    onChange={(e) => set('marketCondition', e.target.value)}>
-                                    {(options?.marketConditions || []).map((x) => <option key={x} value={x}>{x}</option>)}
-                                </select>
+                            <Field label="Entry price *" locked={entryBooked}>
+                                <input type="number" step="any" required value={form.entryPrice} className={input}
+                                    disabled={entryBooked}
+                                    onChange={(e) => set('entryPrice', e.target.value)} />
                             </Field>
-                        </div>
-
-                        <div className="mt-3">
-                            <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                What went wrong
-                            </div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                                Leave empty if the plan was followed — a loss on a good decision is not a mistake.
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                                {(options?.mistakes || []).map((code) => (
-                                    <button key={code} type="button" onClick={() => toggleMistake(code)}
-                                        className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${form.mistakes.includes(code)
-                                            ? 'bg-red-500 border-red-500 text-white'
-                                            : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-red-400'}`}>
-                                        {mistakeLabel(code)}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="mt-3">
-                            <Field label="Notes">
-                                <textarea rows="3" value={form.notes} className={input} maxLength={2000}
-                                    placeholder="Why did I take this? How did I manage it?"
-                                    onChange={(e) => set('notes', e.target.value)} />
+                            <Field label="Quantity *" locked={entryBooked}>
+                                <input type="number" step="any" required value={form.quantity} className={input}
+                                    disabled={entryBooked}
+                                    onChange={(e) => set('quantity', e.target.value)} />
                             </Field>
                         </div>
-                        <div className="mt-3">
-                            <Field label="Lesson">
-                                <input value={form.lesson} className={input} maxLength={500}
-                                    placeholder="One sentence I want to remember"
-                                    onChange={(e) => set('lesson', e.target.value)} />
-                            </Field>
-                        </div>
-                    </Section>
                     )}
 
-                    <div className="flex gap-3 pt-2">
-                        <button type="button" onClick={onClose}
-                            className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
-                            Cancel
-                        </button>
-                        <button type="submit" disabled={saving}
-                            className="flex-1 px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 disabled:opacity-50">
-                            {saving ? 'Saving...'
-                                : editing ? 'Save changes'
-                                    : planning ? 'Watch this level' : 'Add to journal'}
-                        </button>
+                    <div className="mt-3">
+                        <Field label="Book it in a portfolio">
+                            <select value={form.portfolioId} className={input}
+                                disabled={entryBooked}
+                                onChange={(e) => set('portfolioId', e.target.value)}>
+                                <option value="">Don&apos;t book it — journal only</option>
+                                {bookable.map((p) => (
+                                    <option key={p._id} value={p._id}>{p.name}</option>
+                                ))}
+                            </select>
+                        </Field>
+                        <p className="text-xs text-ink-faint mt-1">
+                            {entryBooked
+                                ? 'Booked. The ledger owns the numbers above — edit the transaction in the portfolio to change them.'
+                                : form.portfolioId
+                                    ? 'A buy is recorded when you save, and a sell when you close. The ledger then owns those numbers.'
+                                    : bookable.length === 0
+                                        ? `No ${currency} portfolio to book into. The journal will track this trade on its own.`
+                                        : 'Leave unset for a trade held somewhere this app has no ledger for.'}
+                        </p>
                     </div>
-                </form>
-            </div>
-        </div>
+                </Section>
+
+                <Section title="The plan" hint="Filled in before the outcome is known.">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        <Field label="Stop level">
+                            <input type="number" step="any" value={form.plannedStop} className={input}
+                                onChange={(e) => set('plannedStop', e.target.value)} />
+                        </Field>
+                        <Field label="Risk">
+                            <div className="px-3 py-2 text-sm text-ink-muted">
+                                {risk != null ? risk.toFixed(2) : '—'}
+                            </div>
+                        </Field>
+                        <Field label="Reward : risk">
+                            <div className="px-3 py-2 text-sm text-ink-muted">
+                                {rr != null ? `${rr.toFixed(2)} : 1` : '—'}
+                            </div>
+                        </Field>
+                    </div>
+
+                    <TargetsEditor targets={form.targets} onChange={(t) => set('targets', t)} />
+
+                    <div className="mt-2 space-y-2">
+                        <Check checked={form.stopPlaced} onChange={(v) => set('stopPlaced', v)}
+                            label="Stop was actually placed at the broker"
+                            hint="Not a mental stop — a resting order." />
+                        {stopWithoutLevel && (
+                            <p className="text-xs text-red-600 dark:text-red-400 pl-6">Enter the stop level too.</p>
+                        )}
+                        <Check checked={form.eventChecked} onChange={(v) => set('eventChecked', v)}
+                            label="Checked the earnings/event calendar before entering" />
+                    </div>
+                </Section>
+
+                {/* Nothing to exit from until the trade is entered. */}
+                <Section title="Exit" hint="Leave blank while the trade is open." hidden={planning}>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        <Field label="Exit date" locked={exitBooked}>
+                            <input type="date" value={form.exitDate} className={input}
+                                disabled={exitBooked}
+                                onChange={(e) => set('exitDate', e.target.value)} />
+                        </Field>
+                        <Field label="Exit price" locked={exitBooked}>
+                            <input type="number" step="any" value={form.exitPrice} className={input}
+                                disabled={exitBooked}
+                                onChange={(e) => set('exitPrice', e.target.value)} />
+                        </Field>
+                        <Field label="Fees" locked={entryBooked}>
+                            <input type="number" step="any" value={form.fees} className={input}
+                                disabled={entryBooked}
+                                onChange={(e) => { setFeeEdited(true); set('fees', e.target.value); }} />
+                        </Field>
+                    </div>
+                    {portfolio && !entryBooked && suggestedFee > 0 && (
+                        <p className="text-xs text-ink-faint mt-1">
+                            {suggestedFee.toFixed(2)} from {portfolio.name}&apos;s commission rules. Override if the note says otherwise.
+                        </p>
+                    )}
+                    {form.exitPrice !== '' ? (
+                        <div className="mt-2">
+                            <Check checked={form.exitConfirmed} onChange={(v) => set('exitConfirmed', v)}
+                                label="Confirmed from a broker fill or statement"
+                                hint="Leave unchecked if this is from memory — the stats will flag it." />
+                        </div>
+                    ) : (
+                        <div className="mt-3 w-1/3">
+                            <Field label="Last price">
+                                <input type="number" step="any" className={input} value={form.markPrice}
+                                    placeholder="optional"
+                                    onChange={(e) => set('markPrice', e.target.value)} />
+                            </Field>
+                            <p className="text-xs text-ink-faint mt-1">
+                                Marks an open trade by hand. Kept out of realized P/L.
+                            </p>
+                        </div>
+                    )}
+                </Section>
+
+                {/* Judgment belongs after the fact. Asking what went wrong with a
+                    trade that has not been taken invites a fabricated answer. */}
+                {planning ? (
+                    <Section title="Why this level" hint="The thesis, written while it is still a decision.">
+                        <Field label="Notes">
+                            <textarea rows="3" value={form.notes} className={input} maxLength={2000}
+                                placeholder="What makes this level worth taking?"
+                                onChange={(e) => set('notes', e.target.value)} />
+                        </Field>
+                    </Section>
+                ) : (
+                <Section title="Review">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <Field label="How I felt">
+                            <select value={form.emotionalState} className={input}
+                                onChange={(e) => set('emotionalState', e.target.value)}>
+                                {(options?.emotions || []).map((x) => <option key={x} value={x}>{x}</option>)}
+                            </select>
+                        </Field>
+                        <Field label="Market">
+                            <select value={form.marketCondition} className={input}
+                                onChange={(e) => set('marketCondition', e.target.value)}>
+                                {(options?.marketConditions || []).map((x) => <option key={x} value={x}>{x}</option>)}
+                            </select>
+                        </Field>
+                    </div>
+
+                    <div className="mt-3">
+                        <div className="text-sm font-medium text-ink-muted mb-1">
+                            What went wrong
+                        </div>
+                        <p className="text-xs text-ink-faint mb-2">
+                            Leave empty if the plan was followed — a loss on a good decision is not a mistake.
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                            {(options?.mistakes || []).map((code) => (
+                                <button key={code} type="button" onClick={() => toggleMistake(code)}
+                                    className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${form.mistakes.includes(code)
+                                        ? 'bg-red-500 border-red-500 text-white'
+                                        : 'border-hairline text-ink-muted hover:border-red-400'}`}>
+                                    {mistakeLabel(code)}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="mt-3">
+                        <Field label="Notes">
+                            <textarea rows="3" value={form.notes} className={input} maxLength={2000}
+                                placeholder="Why did I take this? How did I manage it?"
+                                onChange={(e) => set('notes', e.target.value)} />
+                        </Field>
+                    </div>
+                    <div className="mt-3">
+                        <Field label="Lesson">
+                            <input value={form.lesson} className={input} maxLength={500}
+                                placeholder="One sentence I want to remember"
+                                onChange={(e) => set('lesson', e.target.value)} />
+                        </Field>
+                    </div>
+                </Section>
+                )}
+            </form>
+        </Modal>
     );
 }
 
-const input = 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500';
+// The form lives in the dialog body while its submit button lives in the sticky
+// footer, so the two are joined by id rather than by nesting.
+const FORM_ID = 'journal-entry-form';
+
+const input = 'w-full px-3 py-2 border border-hairline bg-surface text-ink rounded-control focus:ring-2 focus:ring-cyan-500 disabled:opacity-60 disabled:cursor-not-allowed';
 
 function Section({ title, hint, hidden, children }) {
     if (hidden) return null;
     return (
-        <div className="border-t border-gray-200 dark:border-gray-700 pt-4 first:border-t-0 first:pt-0">
-            <h3 className="font-semibold text-gray-900 dark:text-white">{title}</h3>
-            {hint && <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{hint}</p>}
+        <div className="border-t border-hairline pt-4 first:border-t-0 first:pt-0">
+            <h3 className="font-semibold text-ink">{title}</h3>
+            {hint && <p className="text-xs text-ink-faint mb-2">{hint}</p>}
             <div className={hint ? '' : 'mt-2'}>{children}</div>
         </div>
     );
@@ -482,16 +483,16 @@ function TargetsEditor({ targets, onChange }) {
 
     return (
         <div className="mt-3">
-            <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Targets</div>
+            <div className="text-sm font-medium text-ink-muted mb-1">Targets</div>
             {targets.length === 0 && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                <p className="text-xs text-ink-faint mb-2">
                     None set. Add one and you&apos;ll be told when price reaches it.
                 </p>
             )}
             <div className="space-y-2">
                 {targets.map((t, i) => (
                     <div key={i} className="flex items-center gap-2">
-                        <span className="text-xs text-gray-500 dark:text-gray-400 w-6 shrink-0">
+                        <span className="text-xs text-ink-faint w-6 shrink-0">
                             T{t.level || i + 1}
                         </span>
                         <input type="number" step="any" value={t.price ?? ''} className={input}
@@ -503,7 +504,7 @@ function TargetsEditor({ targets, onChange }) {
                         )}
                         <button type="button" title="Remove target"
                             onClick={() => onChange(targets.filter((_, n) => n !== i))}
-                            className="p-2 text-gray-500 hover:text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded shrink-0">
+                            className="p-2 text-ink-faint hover:text-red-600 hover:bg-surface-muted rounded-control shrink-0">
                             <Trash2 className="w-4 h-4" />
                         </button>
                     </div>
@@ -520,10 +521,10 @@ function TargetsEditor({ targets, onChange }) {
 function Field({ label, locked, children }) {
     return (
         <div>
-            <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="flex items-center gap-1.5 text-sm font-medium text-ink-muted mb-1">
                 {label}
                 {/* Says why it is disabled, rather than leaving it looking broken. */}
-                {locked && <Lock className="w-3 h-3 text-gray-400" title="Recorded in the portfolio ledger" />}
+                {locked && <Lock className="w-3 h-3 text-ink-faint" title="Recorded in the portfolio ledger" />}
             </label>
             {children}
         </div>
@@ -536,8 +537,8 @@ function Check({ checked, onChange, label, hint }) {
             <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)}
                 className="mt-1 w-4 h-4 rounded text-cyan-500 focus:ring-cyan-500" />
             <span>
-                <span className="text-sm text-gray-700 dark:text-gray-300">{label}</span>
-                {hint && <span className="block text-xs text-gray-500 dark:text-gray-400">{hint}</span>}
+                <span className="text-sm text-ink-muted">{label}</span>
+                {hint && <span className="block text-xs text-ink-faint">{hint}</span>}
             </span>
         </label>
     );

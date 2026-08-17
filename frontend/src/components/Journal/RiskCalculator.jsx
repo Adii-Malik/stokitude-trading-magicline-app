@@ -61,8 +61,8 @@ export default function RiskCalculator({ options }) {
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700 space-y-4">
-                <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+            <div className="bg-surface rounded-card p-5 shadow-card ring-1 ring-hairline space-y-4">
+                <h3 className="font-semibold text-ink flex items-center gap-2">
                     <Calculator className="w-5 h-5 text-cyan-500" /> Size a trade
                 </h3>
 
@@ -92,7 +92,7 @@ export default function RiskCalculator({ options }) {
                         <div className="relative">
                             <input type="number" step="any" className={input} value={profile.defaultRiskPct}
                                 onChange={(e) => setProfile({ defaultRiskPct: e.target.value })} />
-                            <span className="absolute right-3 top-2 text-gray-400 text-sm">%</span>
+                            <span className="absolute right-3 top-2 text-ink-faint text-sm">%</span>
                         </div>
                     </div>
                     <div>
@@ -100,7 +100,7 @@ export default function RiskCalculator({ options }) {
                         <div className="relative">
                             <input type="number" step="any" className={input} value={profile.maxPositionPct}
                                 onChange={(e) => setProfile({ maxPositionPct: e.target.value })} />
-                            <span className="absolute right-3 top-2 text-gray-400 text-sm">%</span>
+                            <span className="absolute right-3 top-2 text-ink-faint text-sm">%</span>
                         </div>
                     </div>
                     <p className="col-span-2 sm:col-span-3 text-xs text-gray-500 dark:text-gray-400">
@@ -135,9 +135,9 @@ export default function RiskCalculator({ options }) {
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
+            <div className="bg-surface rounded-card p-5 shadow-card ring-1 ring-hairline">
                 {!result ? (
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                    <p className="text-sm text-ink-faint">
                         Enter your capital, an entry and a stop. Size follows from the stop.
                     </p>
                 ) : result.error ? (

@@ -14,7 +14,7 @@ export default function JournalHeadline({ stats }) {
     const followed = stats.process?.followedPlanRate ?? 0;
 
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+        <div className="bg-surface rounded-card shadow-card ring-1 ring-hairline border border-gray-200 dark:border-gray-700 p-5">
             {headline && headline.cost < 0 ? (
                 <p className="text-gray-900 dark:text-white">
                     <span className="font-semibold">{mistakeLabel(headline.mistake)}</span>

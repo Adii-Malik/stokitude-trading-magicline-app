@@ -85,8 +85,8 @@ export default function JournalStats({ stats }) {
             {/* Costs stay inside a currency; totalling them across markets would be meaningless. */}
             {byCurrency.filter((c) => c.byMistake?.length).map((c) => (
                 <div key={`cost-${c.currency}`}
-                    className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
-                    <h3 className="font-semibold text-gray-900 dark:text-white mb-3">
+                    className="bg-surface rounded-card p-4 shadow-card ring-1 ring-hairline">
+                    <h3 className="font-semibold text-ink mb-3">
                         What it cost ({c.currency})
                     </h3>
                     <div className="space-y-2">
@@ -94,17 +94,17 @@ export default function JournalStats({ stats }) {
                             const worst = Math.abs(c.byMistake[0].cost) || 1;
                             return (
                                 <div key={m.code} className="flex items-center gap-3">
-                                    <div className="w-40 shrink-0 text-sm text-gray-700 dark:text-gray-300">
+                                    <div className="w-40 shrink-0 text-sm text-ink-muted">
                                         {mistakeLabel(m.code)}
                                     </div>
-                                    <div className="flex-1 bg-gray-100 dark:bg-gray-700 rounded h-5 overflow-hidden">
+                                    <div className="flex-1 bg-surface-muted rounded h-5 overflow-hidden">
                                         <div className="bg-red-400 dark:bg-red-500 h-full"
                                             style={{ width: `${Math.min(100, (Math.abs(m.cost) / worst) * 100)}%` }} />
                                     </div>
                                     <div className="w-28 text-right text-sm font-semibold text-red-600 dark:text-red-400">
                                         {formatCurrency(m.cost, c.currency)}
                                     </div>
-                                    <div className="w-10 text-right text-xs text-gray-500">×{m.count}</div>
+                                    <div className="w-10 text-right text-xs text-ink-faint">×{m.count}</div>
                                 </div>
                             );
                         })}
@@ -131,25 +131,25 @@ function Grouping({ title, rows = [], order, empty }) {
         : [...rows].sort((a, b) => b.count - a.count);
 
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
-            <h3 className="font-semibold text-gray-900 dark:text-white mb-3">{title}</h3>
+        <div className="bg-surface rounded-card p-4 shadow-card ring-1 ring-hairline">
+            <h3 className="font-semibold text-ink mb-3">{title}</h3>
             {sorted.length === 0 ? (
-                <p className="text-sm text-gray-500 dark:text-gray-400">{empty}</p>
+                <p className="text-sm text-ink-faint">{empty}</p>
             ) : (
                 <div className="space-y-2">
                     {sorted.map((r) => (
                         <div key={r.key} className="flex items-center gap-3">
-                            <div className="w-24 shrink-0 text-sm text-gray-700 dark:text-gray-300 capitalize">
+                            <div className="w-24 shrink-0 text-sm text-ink-muted capitalize">
                                 {LABELS[r.key] || r.key}
                             </div>
-                            <div className="flex-1 bg-gray-100 dark:bg-gray-700 rounded h-5 overflow-hidden">
+                            <div className="flex-1 bg-surface-muted rounded h-5 overflow-hidden">
                                 <div className={`h-full ${r.winRate >= 50 ? 'bg-green-400 dark:bg-green-500' : 'bg-red-400 dark:bg-red-500'}`}
                                     style={{ width: `${Math.max(2, r.winRate)}%` }} />
                             </div>
-                            <div className="w-16 text-right text-sm font-semibold text-gray-900 dark:text-white">
+                            <div className="w-16 text-right text-sm font-semibold text-ink">
                                 {formatPercent(r.winRate, 0)}
                             </div>
-                            <div className="w-10 text-right text-xs text-gray-500 dark:text-gray-400">×{r.count}</div>
+                            <div className="w-10 text-right text-xs text-ink-faint">×{r.count}</div>
                         </div>
                     ))}
                 </div>
@@ -160,10 +160,10 @@ function Grouping({ title, rows = [], order, empty }) {
 
 function Stat({ label, value, sub, color }) {
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
-            <div className="text-xs text-gray-500 dark:text-gray-400">{label}</div>
-            <div className={`text-xl font-bold ${color || 'text-gray-900 dark:text-white'}`}>{value}</div>
-            {sub && <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{sub}</div>}
+        <div className="bg-surface rounded-card p-4 shadow-card ring-1 ring-hairline">
+            <div className="text-xs text-ink-faint">{label}</div>
+            <div className={`text-xl font-bold ${color || 'text-ink'}`}>{value}</div>
+            {sub && <div className="text-xs text-ink-faint mt-0.5">{sub}</div>}
         </div>
     );
 }
@@ -171,14 +171,14 @@ function Stat({ label, value, sub, color }) {
 function Discipline({ label, rate = 0 }) {
     const good = rate >= 80;
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+        <div className="bg-surface rounded-card p-4 shadow-card ring-1 ring-hairline">
             <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-700 dark:text-gray-300">{label}</span>
+                <span className="text-sm text-ink-muted">{label}</span>
                 <span className={`text-sm font-bold ${good ? 'text-green-600' : 'text-red-600'}`}>
                     {formatPercent(rate, 0)}
                 </span>
             </div>
-            <div className="bg-gray-100 dark:bg-gray-700 rounded h-2 overflow-hidden">
+            <div className="bg-surface-muted rounded h-2 overflow-hidden">
                 <div className={`h-full ${good ? 'bg-green-500' : 'bg-red-500'}`} style={{ width: `${rate}%` }} />
             </div>
         </div>
@@ -191,7 +191,7 @@ function Callout({ icon: Icon, tone, title, body }) {
         amber: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400'
     };
     return (
-        <div className={`rounded-xl p-4 border flex gap-3 ${tones[tone]}`}>
+        <div className={`rounded-card p-4 border flex gap-3 ${tones[tone]}`}>
             <Icon className="w-5 h-5 shrink-0 mt-0.5" />
             <div>
                 <div className="font-semibold">{title}</div>
