@@ -69,6 +69,33 @@ describe('per-trade metrics', () => {
     });
 });
 
+describe('fees on both legs', () => {
+    // A round trip is charged twice, at different rates. One combined field meant
+    // closing a booked trade billed the sell the buy's commission.
+    test('net P/L subtracts the entry and the exit', () => {
+        const m = computeMetrics(trade({
+            entryPrice: 900, quantity: 10, exitPrice: 960, fees: 13.50, exitFees: 14.40
+        }));
+        assert.equal(m.grossPnL, 600);
+        assert.equal(Math.round(m.netPnL * 100) / 100, 572.10);
+    });
+
+    test('an absent exit fee costs nothing rather than NaN', () => {
+        const m = computeMetrics(trade({ exitPrice: 120, fees: 5 }));
+        assert.equal(m.netPnL, 195);
+    });
+
+    test('fees alone can turn a gross win into a net loss', () => {
+        // The reason the journal reports net rather than gross at all.
+        const m = computeMetrics(trade({
+            entryPrice: 100, quantity: 1, exitPrice: 101, fees: 1, exitFees: 1
+        }));
+        assert.equal(m.grossPnL, 1);
+        assert.equal(m.netPnL, -1);
+        assert.equal(m.outcome, 'loss');
+    });
+});
+
 describe('followedPlan', () => {
     const base = { exitPrice: 120, plannedStop: 95 };
 

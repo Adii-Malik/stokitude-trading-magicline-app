@@ -76,7 +76,9 @@ export function computeMetrics(entry) {
     }
 
     const grossPnL = (entry.exitPrice - entry.entryPrice) * entry.quantity * sign;
-    const netPnL = grossPnL - (entry.fees || 0);
+    // Both legs. Fees are charged on the way in and on the way out.
+    const totalFees = (entry.fees || 0) + (entry.exitFees || 0);
+    const netPnL = grossPnL - totalFees;
     const cost = entry.entryPrice * entry.quantity;
     const pnlPct = cost > 0 ? (netPnL / cost) * 100 : null;
     const rMultiple = riskAmount > 0 ? netPnL / riskAmount : null;

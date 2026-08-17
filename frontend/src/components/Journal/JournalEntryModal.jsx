@@ -28,6 +28,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
         exitConfirmed: entry?.exitConfirmed ?? false,
         markPrice: entry?.markPrice ?? '',
         fees: entry?.fees ?? '',
+        exitFees: entry?.exitFees ?? '',
         plannedStop: entry?.plannedStop ?? '',
         // Copied, not referenced: editing a price must not mutate the loaded
         // entry, and isHit has to survive a save it was not part of.
@@ -42,7 +43,18 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
     });
     const [saving, setSaving] = useState(false);
 
+    /**
+     * The form asks only what its stage can answer. Watching a level has no fill,
+     * being in a trade has no result, and only a finished trade can be reviewed —
+     * so exit prices and "what went wrong" stay out of sight until they mean
+     * something. Everything visible at once was the whole problem.
+     */
     const planning = form.state === 'planned';
+    const closing = form.state === 'closed';
+    const live = form.state === 'open';
+    // Arrived here from an open trade, so this visit is the act of closing it
+    // rather than revisiting one already finished.
+    const closingNow = entry?.state === 'open' && closing;
 
     const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
     const toggleMistake = (code) =>
@@ -89,23 +101,38 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
     const portfolio = bookable.find((p) => p._id === form.portfolioId);
 
     // Commission priced the same way the portfolio's own transaction form prices
-    // it, so a journalled fill and a hand-entered one cost the same.
-    const suggestedFee = portfolio && !planning
+    // it, so a journalled fill and a hand-entered one cost the same. Priced per
+    // leg, and on the correct side: a long pays the buy rate going in and the sell
+    // rate coming out.
+    const priceLeg = (price, side) => (portfolio && !planning
         ? chargesFor({
-            price: form.entryPrice, quantity: form.quantity,
-            slabs: portfolio.commissionSlabs, charges: portfolio.charges,
-            side: form.direction === 'short' ? 'SELL' : 'BUY'
+            price, quantity: form.quantity,
+            slabs: portfolio.commissionSlabs, charges: portfolio.charges, side
         }).total
+        : 0);
+
+    const entrySide = form.direction === 'short' ? 'SELL' : 'BUY';
+    const suggestedFee = priceLeg(form.entryPrice, entrySide);
+    const suggestedExitFee = closing
+        ? priceLeg(form.exitPrice, entrySide === 'BUY' ? 'SELL' : 'BUY')
         : 0;
 
+    // Explicit flags rather than checking for an empty value, which froze the
+    // prefill on the first keystroke last time.
     const [feeEdited, setFeeEdited] = useState(false);
+    const [exitFeeEdited, setExitFeeEdited] = useState(false);
+
     useEffect(() => {
-        // Prefill once, then leave it alone. An explicit flag rather than checking
-        // for an empty value, which froze on the first keystroke last time.
         if (!feeEdited && !entryBooked && suggestedFee > 0) {
             setForm((f) => ({ ...f, fees: suggestedFee.toFixed(2) }));
         }
     }, [suggestedFee, feeEdited, entryBooked]);
+
+    useEffect(() => {
+        if (!exitFeeEdited && !exitBooked && suggestedExitFee > 0) {
+            setForm((f) => ({ ...f, exitFees: suggestedExitFee.toFixed(2) }));
+        }
+    }, [suggestedExitFee, exitFeeEdited, exitBooked]);
 
     const submit = async (e) => {
         e.preventDefault();
@@ -115,6 +142,12 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
         }
         if (zoneMissing) {
             toast.error('Give the entry zone a level to watch for');
+            return;
+        }
+        // Without a price there is no exit. The model would quietly reopen the
+        // trade, which looks like the save silently failed.
+        if (closing && form.exitPrice === '') {
+            toast.error('Enter the price you exited at');
             return;
         }
         setSaving(true);
@@ -132,6 +165,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                 exitPrice: num(form.exitPrice),
                 markPrice: num(form.markPrice),
                 fees: num(form.fees) || 0,
+                exitFees: num(form.exitFees) || 0,
                 plannedStop: num(form.plannedStop),
                 // Blank rows are how a target gets removed. Ordering and level
                 // numbering are the model's job, not the form's.
@@ -158,7 +192,9 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                 delete payload.entryPrice; delete payload.quantity;
                 delete payload.entryDate; delete payload.fees; delete payload.portfolioId;
             }
-            if (exitBooked) { delete payload.exitPrice; delete payload.exitDate; }
+            if (exitBooked) {
+                delete payload.exitPrice; delete payload.exitDate; delete payload.exitFees;
+            }
 
             if (editing) await updateEntry(entry._id, payload);
             else await createEntry(payload);
@@ -175,9 +211,9 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
         <Modal
             size="lg"
             onClose={onClose}
-            title={editing
-                ? (planning ? 'Edit Planned Trade' : 'Edit Trade')
-                : (planning ? 'Plan a Trade' : 'Journal a Trade')}
+            title={closingNow ? `Close ${form.symbol || 'the trade'}`
+                : editing ? (planning ? 'Edit Planned Trade' : 'Edit Trade')
+                    : (planning ? 'Plan a Trade' : 'Journal a Trade')}
             footer={
                 <>
                     <button type="button" onClick={onClose}
@@ -189,8 +225,9 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                     <button type="submit" form={FORM_ID} disabled={saving}
                         className="flex-1 px-4 py-2 bg-cyan-500 text-white rounded-control hover:bg-cyan-600 disabled:opacity-50">
                         {saving ? 'Saving...'
-                            : editing ? 'Save changes'
-                                : planning ? 'Watch this level' : 'Add to journal'}
+                            : closingNow ? 'Close the trade'
+                                : editing ? 'Save changes'
+                                    : planning ? 'Watch this level' : 'Add to journal'}
                     </button>
                 </>
             }
@@ -216,7 +253,9 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                 )}
 
                 <Section title="Trade">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {/* Three across, twice, rather than five across a four-column
+                        grid leaving one orphaned on its own row. */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                         <Field label="Symbol *">
                             <input required value={form.symbol} className={input}
                                 onChange={(e) => set('symbol', e.target.value.toUpperCase())} />
@@ -234,13 +273,15 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                                 <option value="short">Short</option>
                             </select>
                         </Field>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 mt-3">
                         <Field label="Setup">
                             <select value={form.setupType} className={input}
                                 onChange={(e) => set('setupType', e.target.value)}>
                                 {(options?.setupTypes || []).map((s) => <option key={s} value={s}>{s}</option>)}
                             </select>
                         </Field>
-                        <Field label="How it looks">
+                        <Field label="Setup quality">
                             <select value={form.setupQuality} className={input}
                                 onChange={(e) => set('setupQuality', e.target.value)}>
                                 {/* Blank by default: a grade should mean you gave one. */}
@@ -271,22 +312,35 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                             </p>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
-                            <Field label="Entry date *" locked={entryBooked}>
-                                <input type="date" required value={form.entryDate} className={input}
-                                    disabled={entryBooked}
-                                    onChange={(e) => set('entryDate', e.target.value)} />
-                            </Field>
-                            <Field label="Entry price *" locked={entryBooked}>
-                                <input type="number" step="any" required value={form.entryPrice} className={input}
-                                    disabled={entryBooked}
-                                    onChange={(e) => set('entryPrice', e.target.value)} />
-                            </Field>
-                            <Field label="Quantity *" locked={entryBooked}>
-                                <input type="number" step="any" required value={form.quantity} className={input}
-                                    disabled={entryBooked}
-                                    onChange={(e) => set('quantity', e.target.value)} />
-                            </Field>
+                        <div className="mt-3">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                <Field label="Entry date *" locked={entryBooked}>
+                                    <input type="date" required value={form.entryDate} className={input}
+                                        disabled={entryBooked}
+                                        onChange={(e) => set('entryDate', e.target.value)} />
+                                </Field>
+                                <Field label="Entry price *" locked={entryBooked}>
+                                    <input type="number" step="any" required value={form.entryPrice} className={input}
+                                        disabled={entryBooked}
+                                        onChange={(e) => set('entryPrice', e.target.value)} />
+                                </Field>
+                                <Field label="Quantity *" locked={entryBooked}>
+                                    <input type="number" step="any" required value={form.quantity} className={input}
+                                        disabled={entryBooked}
+                                        onChange={(e) => set('quantity', e.target.value)} />
+                                </Field>
+                                {/* Beside the entry it pays for, not down in the exit. */}
+                                <Field label="Entry fees" locked={entryBooked}>
+                                    <input type="number" step="any" value={form.fees} className={input}
+                                        disabled={entryBooked}
+                                        onChange={(e) => { setFeeEdited(true); set('fees', e.target.value); }} />
+                                </Field>
+                            </div>
+                            {portfolio && !entryBooked && suggestedFee > 0 && (
+                                <p className="text-xs text-ink-faint mt-1">
+                                    {suggestedFee.toFixed(2)} from {portfolio.name}&apos;s commission rules. Override if the note says otherwise.
+                                </p>
+                            )}
                         </div>
                     )}
 
@@ -314,24 +368,34 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                 </Section>
 
                 <Section title="The plan" hint="Filled in before the outcome is known.">
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div className="sm:w-1/3">
                         <Field label="Stop level">
                             <input type="number" step="any" value={form.plannedStop} className={input}
                                 onChange={(e) => set('plannedStop', e.target.value)} />
                         </Field>
-                        <Field label="Risk">
-                            <div className="px-3 py-2 text-sm text-ink-muted">
-                                {risk != null ? risk.toFixed(2) : '—'}
-                            </div>
-                        </Field>
-                        <Field label="Reward : risk">
-                            <div className="px-3 py-2 text-sm text-ink-muted">
-                                {rr != null ? `${rr.toFixed(2)} : 1` : '—'}
-                            </div>
-                        </Field>
                     </div>
 
                     <TargetsEditor targets={form.targets} onChange={(t) => set('targets', t)} />
+
+                    {/* Derived, so it reads as a readout rather than two empty-looking
+                        inputs you might try to type into. */}
+                    {(risk != null || rr != null) && (
+                        <div className="flex flex-wrap gap-x-6 gap-y-1 mt-3 px-3 py-2 bg-surface-muted rounded-control text-sm">
+                            {risk != null && (
+                                <span className="text-ink-muted">
+                                    Risk <span className="font-semibold text-ink tabular-nums">{risk.toFixed(2)}</span>
+                                </span>
+                            )}
+                            {rr != null && (
+                                <span className="text-ink-muted">
+                                    Reward : risk{' '}
+                                    <span className={`font-semibold tabular-nums ${rr >= 2 ? 'text-green-600 dark:text-green-400' : 'text-ink'}`}>
+                                        {rr.toFixed(2)} : 1
+                                    </span>
+                                </span>
+                            )}
+                        </div>
+                    )}
 
                     <div className="mt-2 space-y-2">
                         <Check checked={form.stopPlaced} onChange={(v) => set('stopPlaced', v)}
@@ -345,57 +409,65 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                     </div>
                 </Section>
 
-                {/* Nothing to exit from until the trade is entered. */}
-                <Section title="Exit" hint="Leave blank while the trade is open." hidden={planning}>
+                {/* Only a trade being closed has an exit. While it is live the one
+                    useful number is where it stands, so that is all it asks for. */}
+                <Section title="Where it stands" hidden={!live}>
+                    <div className="sm:w-1/3">
+                        <Field label="Last price">
+                            <input type="number" step="any" className={input} value={form.markPrice}
+                                placeholder="optional"
+                                onChange={(e) => set('markPrice', e.target.value)} />
+                        </Field>
+                        <p className="text-xs text-ink-faint mt-1">
+                            Marks the trade by hand. Kept out of realized P/L.
+                        </p>
+                    </div>
+                </Section>
+
+                <Section title="Exit" hidden={!closing}>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                         <Field label="Exit date" locked={exitBooked}>
                             <input type="date" value={form.exitDate} className={input}
                                 disabled={exitBooked}
                                 onChange={(e) => set('exitDate', e.target.value)} />
                         </Field>
-                        <Field label="Exit price" locked={exitBooked}>
+                        <Field label="Exit price *" locked={exitBooked}>
                             <input type="number" step="any" value={form.exitPrice} className={input}
                                 disabled={exitBooked}
                                 onChange={(e) => set('exitPrice', e.target.value)} />
                         </Field>
-                        <Field label="Fees" locked={entryBooked}>
-                            <input type="number" step="any" value={form.fees} className={input}
-                                disabled={entryBooked}
-                                onChange={(e) => { setFeeEdited(true); set('fees', e.target.value); }} />
+                        {/* The sell's own commission. Sharing one field with the
+                            entry meant the exit was billed the entry's rate. */}
+                        <Field label="Exit fees" locked={exitBooked}>
+                            <input type="number" step="any" value={form.exitFees} className={input}
+                                disabled={exitBooked}
+                                onChange={(e) => { setExitFeeEdited(true); set('exitFees', e.target.value); }} />
                         </Field>
                     </div>
-                    {portfolio && !entryBooked && suggestedFee > 0 && (
+                    {portfolio && !exitBooked && suggestedExitFee > 0 && (
                         <p className="text-xs text-ink-faint mt-1">
-                            {suggestedFee.toFixed(2)} from {portfolio.name}&apos;s commission rules. Override if the note says otherwise.
+                            {suggestedExitFee.toFixed(2)} from {portfolio.name}&apos;s commission rules for the sell side.
                         </p>
                     )}
-                    {form.exitPrice !== '' ? (
-                        <div className="mt-2">
-                            <Check checked={form.exitConfirmed} onChange={(v) => set('exitConfirmed', v)}
-                                label="Confirmed from a broker fill or statement"
-                                hint="Leave unchecked if this is from memory — the stats will flag it." />
-                        </div>
-                    ) : (
-                        <div className="mt-3 w-1/3">
-                            <Field label="Last price">
-                                <input type="number" step="any" className={input} value={form.markPrice}
-                                    placeholder="optional"
-                                    onChange={(e) => set('markPrice', e.target.value)} />
-                            </Field>
-                            <p className="text-xs text-ink-faint mt-1">
-                                Marks an open trade by hand. Kept out of realized P/L.
-                            </p>
-                        </div>
-                    )}
+                    <div className="mt-2">
+                        <Check checked={form.exitConfirmed} onChange={(v) => set('exitConfirmed', v)}
+                            label="Confirmed from a broker fill or statement"
+                            hint="Leave unchecked if this is from memory — the stats will flag it." />
+                    </div>
                 </Section>
 
                 {/* Judgment belongs after the fact. Asking what went wrong with a
-                    trade that has not been taken invites a fabricated answer. */}
-                {planning ? (
-                    <Section title="Why this level" hint="The thesis, written while it is still a decision.">
+                    trade still running invites a fabricated answer, so until it is
+                    closed the only prompt is the thesis. */}
+                {!closing ? (
+                    <Section
+                        title={planning ? 'Why this level' : 'Why this trade'}
+                        hint="The thesis, written while the outcome is still unknown.">
                         <Field label="Notes">
                             <textarea rows="3" value={form.notes} className={input} maxLength={2000}
-                                placeholder="What makes this level worth taking?"
+                                placeholder={planning
+                                    ? 'What makes this level worth taking?'
+                                    : 'Why did I take this? How will I manage it?'}
                                 onChange={(e) => set('notes', e.target.value)} />
                         </Field>
                     </Section>

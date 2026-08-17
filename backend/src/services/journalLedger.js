@@ -22,8 +22,8 @@ const ENTERED = new Set(['open', 'closed']);
  * stored value is a Date with a time on it, so comparing them as strings would
  * report a change on every save and lock out edits to the lesson.
  */
-export const ENTRY_FIELDS = { numbers: ['entryPrice', 'quantity'], dates: ['entryDate'] };
-export const EXIT_FIELDS = { numbers: ['exitPrice'], dates: ['exitDate'] };
+export const ENTRY_FIELDS = { numbers: ['entryPrice', 'quantity', 'fees'], dates: ['entryDate'] };
+export const EXIT_FIELDS = { numbers: ['exitPrice', 'exitFees'], dates: ['exitDate'] };
 
 const sameDay = (a, b) => {
     if (a == null || b == null) return a == null && b == null;
@@ -95,7 +95,8 @@ export async function mintMissing(entry, userId) {
             type: entry.direction === 'short' ? 'SELL' : 'BUY',
             quantity: entry.quantity,
             price: entry.entryPrice,
-            executedAt: entry.entryDate
+            executedAt: entry.entryDate,
+            fees: entry.fees || 0
         });
         booked.push('entry');
     }
@@ -107,7 +108,9 @@ export async function mintMissing(entry, userId) {
             type: entry.direction === 'short' ? 'BUY' : 'SELL',
             quantity: entry.quantity,
             price: entry.exitPrice,
-            executedAt: entry.exitDate || entry.entryDate
+            executedAt: entry.exitDate || entry.entryDate,
+            // The exit's own commission, not the entry's copied across.
+            fees: entry.exitFees || 0
         });
         booked.push('exit');
     }
@@ -126,7 +129,6 @@ export async function mintMissing(entry, userId) {
 async function book(entry, userId, leg) {
     const payload = {
         symbol: entry.symbol,
-        fees: entry.fees || 0,
         notes: `Journalled trade${entry.setupType ? ` (${entry.setupType})` : ''}`,
         ...leg
     };
@@ -202,24 +204,22 @@ export async function hydrate(entries) {
         const close = byId.get(String(entry.exitTransactionId));
         if (!open && !close) continue;
 
-        // Fees are the sum of both legs, since the journal reports one figure for
-        // the whole trade while the ledger charges each side separately.
-        let fees = 0;
+        // Kept per leg, matching how the ledger charges them. computeMetrics adds
+        // the two; collapsing them here would lose which side cost what.
+        const cost = (tx) => Math.round(((tx.fees || 0) + (tx.otherCharges || 0)) * 100) / 100;
 
         if (open) {
             entry.entryPrice = open.price;
             entry.quantity = open.quantity;
             entry.entryDate = open.executedAt;
-            fees += (open.fees || 0) + (open.otherCharges || 0);
+            entry.fees = cost(open);
         }
 
         if (close) {
             entry.exitPrice = close.price;
             entry.exitDate = close.executedAt;
-            fees += (close.fees || 0) + (close.otherCharges || 0);
+            entry.exitFees = cost(close);
         }
-
-        entry.fees = Math.round(fees * 100) / 100;
     }
 
     return entries;

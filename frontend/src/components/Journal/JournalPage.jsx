@@ -95,6 +95,13 @@ export default function JournalPage() {
         setShowModal(true);
     };
 
+    // Closing is an action, not a mode to discover. The form then asks for the
+    // exit and the review, which are the only things it does not already know.
+    const close = (entry) => {
+        setEditing({ ...entry, state: 'closed', exitDate: new Date().toISOString() });
+        setShowModal(true);
+    };
+
     // A level that never triggered is kept, not deleted. How often your setups
     // fail to trigger is only answerable if the record survives.
     const cancel = async (entry) => {
@@ -224,6 +231,7 @@ export default function JournalPage() {
                                                 : undefined}
                                 onEdit={(e) => { setEditing(e); setShowModal(true); }}
                                 onTake={take}
+                                onClose={close}
                                 onCancel={cancel}
                                 onDelete={remove} />
 

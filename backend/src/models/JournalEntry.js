@@ -217,7 +217,16 @@ const journalEntrySchema = new mongoose.Schema({
         default: false
     },
 
+    // Charged per leg, because they are. One combined figure meant closing a
+    // booked trade billed the sell the buy's commission, and there was nowhere to
+    // put the real number. Total cost is the sum of the two.
     fees: {
+        type: Number,
+        default: 0,
+        min: [0, 'Fees cannot be negative']
+    },
+
+    exitFees: {
         type: Number,
         default: 0,
         min: [0, 'Fees cannot be negative']

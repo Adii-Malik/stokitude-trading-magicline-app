@@ -5,7 +5,7 @@ import { mistakeLabel } from './labels';
 
 const shortDate = (d) => (d ? new Date(d).toLocaleDateString() : '—');
 
-export default function JournalList({ entries, onEdit, onDelete, onTake, onCancel, emptyHint }) {
+export default function JournalList({ entries, onEdit, onDelete, onTake, onClose, onCancel, emptyHint }) {
     if (!entries.length) {
         return (
             <div className="text-center py-12 text-ink-muted">
@@ -105,17 +105,22 @@ export default function JournalList({ entries, onEdit, onDelete, onTake, onCance
                                 </div>
                             )}
                             <div className="flex gap-1">
+                                {/* The one action each stage actually needs next. */}
                                 {e.status === 'planned' && (
                                     <>
-                                        <button onClick={() => onTake(e)}
-                                            className="px-2.5 py-1 text-xs font-medium text-cyan-700 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-700 rounded-lg hover:bg-cyan-50 dark:hover:bg-cyan-900/30 whitespace-nowrap">
+                                        <button onClick={() => onTake(e)} className={actionPrimary}>
                                             I took it
                                         </button>
                                         <button onClick={() => onCancel(e)} title="Never triggered — keep the record"
-                                            className="px-2.5 py-1 text-xs text-ink-muted border border-hairline rounded-control hover:bg-surface-muted whitespace-nowrap">
+                                            className={actionQuiet}>
                                             Didn&apos;t trigger
                                         </button>
                                     </>
+                                )}
+                                {e.status === 'open' && (
+                                    <button onClick={() => onClose(e)} className={actionPrimary}>
+                                        Close it
+                                    </button>
                                 )}
                                 <button onClick={() => onEdit(e)} title="Edit"
                                     className="p-2 text-ink-faint hover:text-cyan-600 hover:bg-surface-muted rounded-control">
@@ -152,6 +157,11 @@ export default function JournalList({ entries, onEdit, onDelete, onTake, onCance
         </div>
     );
 }
+
+const actionPrimary = 'px-2.5 py-1 text-xs font-medium text-cyan-700 dark:text-cyan-300 border ' +
+    'border-cyan-300 dark:border-cyan-700 rounded-control hover:bg-cyan-50 dark:hover:bg-cyan-900/30 whitespace-nowrap';
+const actionQuiet = 'px-2.5 py-1 text-xs text-ink-muted border border-hairline rounded-control ' +
+    'hover:bg-surface-muted whitespace-nowrap';
 
 const num = (n) => (typeof n === 'number' ? n.toLocaleString(undefined, { maximumFractionDigits: 2 }) : n);
 
