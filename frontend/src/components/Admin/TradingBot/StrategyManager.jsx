@@ -1,13 +1,6 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
-import {
-  PlusIcon,
-  TrashIcon,
-  PlayIcon,
-  PauseIcon,
-  ChartBarIcon,
-  CogIcon
-} from '@heroicons/react/24/outline';
+import { Plus, Trash2, Play, Pause, BarChart3, Settings } from 'lucide-react';
 import * as strategyService from '../../../services/strategies';
 
 export default function StrategyManager() {
@@ -238,7 +231,7 @@ export default function StrategyManager() {
           onClick={openCreateModal}
           className="flex items-center gap-2 px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors"
         >
-          <PlusIcon className="w-5 h-5" />
+          <Plus className="w-5 h-5" />
           Create Strategy
         </button>
       </div>
@@ -246,7 +239,7 @@ export default function StrategyManager() {
       {/* Strategies Grid */}
       {strategies.length === 0 ? (
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-12 text-center">
-          <ChartBarIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <BarChart3 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
             No Strategies Yet
           </h3>
@@ -372,12 +365,12 @@ export default function StrategyManager() {
                 >
                   {strategy.isActive ? (
                     <>
-                      <PauseIcon className="w-4 h-4" />
+                      <Pause className="w-4 h-4" />
                       Pause
                     </>
                   ) : (
                     <>
-                      <PlayIcon className="w-4 h-4" />
+                      <Play className="w-4 h-4" />
                       Activate
                     </>
                   )}
@@ -386,7 +379,7 @@ export default function StrategyManager() {
                   onClick={() => handleDelete(strategy._id)}
                   className="px-4 py-2 flex items-center gap-2 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                 >
-                  <TrashIcon className="w-5 h-5" />
+                  <Trash2 className="w-5 h-5" />
                   Delete
                 </button>
               </div>
@@ -561,7 +554,7 @@ export default function StrategyManager() {
                 <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg border border-yellow-200 dark:border-yellow-800">
                   <div className="flex items-center justify-between mb-3">
                     <label className="text-sm font-semibold text-yellow-900 dark:text-yellow-100 flex items-center gap-2">
-                      <CogIcon className="w-5 h-5" />
+                      <Settings className="w-5 h-5" />
                       Stop Loss Configuration (Customizable)
                     </label>
                     <button
@@ -634,7 +627,7 @@ export default function StrategyManager() {
                     className="flex items-center justify-between w-full text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors"
                   >
                     <span className="flex items-center gap-2">
-                      <CogIcon className="w-4 h-4" />
+                      <Settings className="w-4 h-4" />
                       Advanced Parameters (Optional - {Object.keys(getSelectedStrategyMetadata().metadata.parameters).length} params)
                     </span>
                     <span className="text-xs text-gray-500">

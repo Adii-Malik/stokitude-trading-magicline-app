@@ -1,9 +1,5 @@
 import { useState } from 'react';
-import { 
-  CogIcon, 
-  BellIcon,
-  SparklesIcon 
-} from '@heroicons/react/24/outline';
+import { Settings, Bell, Sparkles } from 'lucide-react';
 import StrategyManager from './StrategyManager';
 import SignalDashboard from './SignalDashboard';
 
@@ -11,8 +7,8 @@ export default function TradingBot() {
   const [activeTab, setActiveTab] = useState('strategies');
 
   const tabs = [
-    { id: 'strategies', name: 'Strategies', icon: CogIcon },
-    { id: 'signals', name: 'Signals', icon: BellIcon },
+    { id: 'strategies', name: 'Strategies', icon: Settings },
+    { id: 'signals', name: 'Signals', icon: Bell },
   ];
 
   return (
@@ -20,7 +16,7 @@ export default function TradingBot() {
       {/* Hero Section */}
       <div className="mb-8 text-center">
         <div className="flex items-center justify-center gap-3 mb-4">
-          <SparklesIcon className="w-12 h-12 text-cyan-600" />
+          <Sparkles className="w-12 h-12 text-cyan-600" />
           <h1 className="text-4xl font-bold text-gray-900 dark:text-white">
             Trading Bot
           </h1>
