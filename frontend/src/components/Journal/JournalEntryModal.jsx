@@ -14,6 +14,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
         exchange: entry?.exchange || 'PSX',
         direction: entry?.direction || 'long',
         setupType: entry?.setupType || 'other',
+        setupQuality: entry?.setupQuality || '',
         entryFrom: entry?.entryFrom ?? '',
         entryTo: entry?.entryTo ?? '',
         entryDate: dateValue(entry?.entryDate) || new Date().toISOString().slice(0, 10),
@@ -88,6 +89,8 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
             const num = (v) => (v === '' || v == null ? null : parseFloat(v));
             const payload = {
                 ...form,
+                // Ungraded is absent, not an empty string the enum would reject.
+                setupQuality: form.setupQuality || null,
                 entryFrom: num(form.entryFrom),
                 entryTo: num(form.entryTo),
                 exitPrice: num(form.exitPrice),
@@ -181,6 +184,14 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                                 <select value={form.setupType} className={input}
                                     onChange={(e) => set('setupType', e.target.value)}>
                                     {(options?.setupTypes || []).map((s) => <option key={s} value={s}>{s}</option>)}
+                                </select>
+                            </Field>
+                            <Field label="How it looks">
+                                <select value={form.setupQuality} className={input}
+                                    onChange={(e) => set('setupQuality', e.target.value)}>
+                                    {/* Blank by default: a grade should mean you gave one. */}
+                                    <option value="">not graded</option>
+                                    {(options?.setupQualities || []).map((s) => <option key={s} value={s}>{s}</option>)}
                                 </select>
                             </Field>
                         </div>

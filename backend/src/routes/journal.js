@@ -6,7 +6,7 @@ import express from 'express';
 import { authenticate } from '../middleware/auth.js';
 import journalService from '../services/journalService.js';
 import RiskProfile from '../models/RiskProfile.js';
-import { SETUP_TYPES, EMOTIONS, MARKET_CONDITIONS, MISTAKES } from '../models/JournalEntry.js';
+import { SETUP_TYPES, SETUP_QUALITIES, EMOTIONS, MARKET_CONDITIONS, MISTAKES } from '../models/JournalEntry.js';
 import { EXCHANGE_CODES, EXCHANGES } from '../config/exchanges.js';
 
 const router = express.Router();
@@ -24,6 +24,7 @@ router.get('/options', (req, res) => {
         success: true,
         data: {
             setupTypes: SETUP_TYPES,
+            setupQualities: SETUP_QUALITIES,
             emotions: EMOTIONS,
             marketConditions: MARKET_CONDITIONS,
             mistakes: MISTAKES,

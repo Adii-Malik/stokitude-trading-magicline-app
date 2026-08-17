@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { TestTube, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import NotificationTester from '../components/NotificationTester';
-import TradePlanTester from '../components/TradePlanTester';
 
 export default function TestingPage() {
     const navigate = useNavigate();
@@ -63,15 +62,6 @@ export default function TestingPage() {
                         >
                             Notification Testing
                         </button>
-                        <button
-                            onClick={() => setActiveSection('tradePlan')}
-                            className={`px-6 py-4 font-medium text-sm transition ${activeSection === 'tradePlan'
-                                ? 'border-b-2 border-cyan-500 text-cyan-600 dark:text-cyan-400'
-                                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                                }`}
-                        >
-                            Trade Plan Testing
-                        </button>
                     </div>
                 </div>
 
@@ -83,11 +73,6 @@ export default function TestingPage() {
                         </div>
                     )}
 
-                    {activeSection === 'tradePlan' && (
-                        <div className="p-6">
-                            <TradePlanTester />
-                        </div>
-                    )}
                 </div>
 
                 {/* Footer Info */}

@@ -9,14 +9,12 @@ import { fileURLToPath } from 'url';
 import config from './config/config.js';
 import { connectDB } from './config/mongodb.js';
 import centralizedPriceService from './services/centralizedPriceService.js';
-import tradePlanHandler from './handlers/tradePlanHandler.js';
 import journalLevelHandler from './handlers/journalLevelHandler.js';
 import portfolioHandler from './handlers/portfolioHandler.js';
 import marketHoursService from './services/marketHoursService.js';
 import authRoutes from './routes/auth.js';
 import adminRoutes from './routes/admin.js';
 import stocksRoutes from './routes/stocks.js';
-import tradePlansRoutes from './routes/tradePlans.js';
 import settingsRoutes from './routes/settings.js';
 import historicalRoutes from './routes/historical.js';
 import strategiesRoutes from './routes/strategies.js';
@@ -127,7 +125,6 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/historical', historicalRoutes);
 app.use('/api/stocks', stocksRoutes);
-app.use('/api/trade-plans', tradePlansRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/strategies', strategiesRoutes);
 app.use('/api/signals', signalsRoutes);
@@ -153,7 +150,6 @@ app.get('/api', (req, res) => {
       auth: '/api/auth',
       admin: '/api/admin  [Admin]',
       portfolios: '/api/portfolios',
-      tradePlans: '/api/trade-plans',
       stocks: '/api/stocks',
       historical: '/api/historical',
       strategies: '/api/strategies',
@@ -227,30 +223,12 @@ centralizedPriceService.onUpdate(async (data) => {
     });
 
     // Trigger feature handlers to check their logic
-    await tradePlanHandler.checkTradePlans();
     await journalLevelHandler.checkLevels();
 
     // Update portfolio positions with new prices
     if (data.data.updatedSymbols && data.data.updatedSymbols.length > 0) {
       await portfolioHandler.handlePriceUpdate(data.data.updatedSymbols);
     }
-  }
-});
-
-// Setup Trade Plan handler - Broadcasts when trade plan updates
-tradePlanHandler.onUpdate(async (data) => {
-  if (data.type === 'tradePlanUpdate') {
-    io.emit('tradePlanUpdate', {
-      planId: data.data.planId,
-      symbol: data.data.symbol,
-      currentPrice: data.data.currentPrice,
-      updates: data.data.updates,
-      buyLevels: data.data.buyLevels,
-      targetPrices: data.data.targetPrices,
-      stopLoss: data.data.stopLoss,
-      isActive: data.data.isActive,
-      timestamp: data.data.timestamp
-    });
   }
 });
 

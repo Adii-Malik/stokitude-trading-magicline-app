@@ -34,11 +34,6 @@ export const NOTIFICATION_CATEGORIES = {
                 id: 'stop_loss_hit',
                 label: 'Stop Reached',
                 description: 'Price traded through the stop on an open trade'
-            },
-            {
-                id: 'plan_created',
-                label: 'Plan Created',
-                description: 'New trade plan created (admin only)'
             }
         ]
     },

@@ -28,8 +28,28 @@ describe('what a trade must have', () => {
         assert.deepEqual(errors(doc), []);
     });
 
-    test('state is limited to the three real stages', () => {
+    test('a cancelled level needs none of them either', () => {
+        // Cancelling a watched level must not demand a fill it never had. This
+        // failed on the real path: state moved off 'planned' and validation
+        // immediately asked for an entry price.
+        const doc = new JournalEntry({ user, symbol: 'OGDC', state: 'cancelled', entryFrom: 95, entryTo: 105 });
+        assert.deepEqual(errors(doc), []);
+    });
+
+    test('a closed trade still needs its entry details', () => {
+        const missing = errors(new JournalEntry({ user, symbol: 'X', state: 'closed', exitPrice: 10 }));
+        assert.ok(missing.includes('entryPrice'));
+    });
+
+    test('state is limited to the four real stages', () => {
         assert.ok(errors(new JournalEntry({ user, symbol: 'X', state: 'pending' })).includes('state'));
+    });
+
+    test('a grade is optional, but must be one of the real ones', () => {
+        // No default: grading every ungraded trade would fabricate a judgement.
+        assert.equal(new JournalEntry({ user, symbol: 'X', state: 'planned' }).setupQuality, undefined);
+        assert.ok(errors(new JournalEntry({ user, symbol: 'X', state: 'planned', setupQuality: 'amazing' }))
+            .includes('setupQuality'));
     });
 
     test('a trade defaults to open, so existing callers keep working', () => {

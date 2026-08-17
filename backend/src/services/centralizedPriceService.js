@@ -8,7 +8,6 @@
 
 import Stock from '../models/Stock.js';
 import Position from '../models/Position.js';
-import TradePlan from '../models/TradePlan.js';
 import JournalEntry from '../models/JournalEntry.js';
 import Settings from '../models/Settings.js';
 import psxScraper from './psxScraper.js';
@@ -97,15 +96,14 @@ class CentralizedPriceService {
       const isManual = skipMarketCheck;
       console.log(`\n💰 [${currentTime} PKT] ${isManual ? 'Manual' : 'Automatic'} price fetch initiated`);
 
-      // Get symbols worth a price: active trade plans, held positions, and the
-      // levels the journal is watching. Journal symbols matter because a planned
-      // trade is usually on something not yet owned, and without a fresh price
-      // its entry zone and stop would never be checked.
-      const tradePlanSymbols = await TradePlan.find({ isActive: true }).distinct('symbol');
+      // Get symbols worth a price: held positions, and the levels the journal is
+      // watching. Journal symbols matter because a planned trade is usually on
+      // something not yet owned, and without a fresh price its entry zone and
+      // stop would never be checked.
       const positionSymbols = await Position.find({ netShares: { $gt: 0 } }).distinct('symbol');
       const journalSymbols = await JournalEntry.find({ state: { $in: ['planned', 'open'] } }).distinct('symbol');
       // Filter out null/undefined/empty symbols and ensure they're strings
-      const activeSymbols = [...new Set([...tradePlanSymbols, ...positionSymbols, ...journalSymbols])]
+      const activeSymbols = [...new Set([...positionSymbols, ...journalSymbols])]
         .filter(symbol => symbol && typeof symbol === 'string' && symbol.trim().length > 0);
 
       if (activeSymbols.length === 0) {

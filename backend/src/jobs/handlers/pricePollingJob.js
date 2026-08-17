@@ -7,7 +7,6 @@
 import Stock from '../../models/Stock.js';
 import psxScraper from '../../services/psxScraper.js';
 import marketHoursService from '../../services/marketHoursService.js';
-import tradePlanHandler from '../../handlers/tradePlanHandler.js';
 import journalLevelHandler from '../../handlers/journalLevelHandler.js';
 
 export default async function pricePollingJob(context) {
@@ -133,13 +132,6 @@ export default async function pricePollingJob(context) {
       logger.info('Journal levels checked', { checked, updated });
     } catch (error) {
       logger.warn('Failed to check journal levels', { error: error.message });
-    }
-
-    // TODO: remove with the TradePlan model once its row count is confirmed zero.
-    try {
-      await tradePlanHandler.checkTradePlans();
-    } catch (error) {
-      logger.warn('Failed to check trade plans', { error: error.message });
     }
 
     const duration = Date.now() - startTime;

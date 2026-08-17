@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, BookOpen, Search, XCircle, Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { getEntries, getStats, getOptions, deleteEntry } from '../../services/journal';
+import { getEntries, getStats, getOptions, deleteEntry, updateEntry } from '../../services/journal';
 import JournalHeadline from './JournalHeadline';
 import JournalStats from './JournalStats';
 import JournalList from './JournalList';
@@ -21,6 +21,7 @@ const STATUS_FILTERS = [
     { key: 'open', label: 'Open' },
     { key: 'planned', label: 'Watching' },
     { key: 'closed', label: 'Closed' },
+    { key: 'cancelled', label: 'Never triggered' },
     { key: 'all', label: 'All' }
 ];
 
@@ -92,6 +93,18 @@ export default function JournalPage() {
             entryDate: new Date().toISOString()
         });
         setShowModal(true);
+    };
+
+    // A level that never triggered is kept, not deleted. How often your setups
+    // fail to trigger is only answerable if the record survives.
+    const cancel = async (entry) => {
+        try {
+            await updateEntry(entry._id, { state: 'cancelled' });
+            toast.success('Marked as never triggered');
+            load();
+        } catch (error) {
+            toast.error(error.response?.data?.message || 'Failed to update entry');
+        }
     };
 
     const remove = async (entry) => {
@@ -207,9 +220,11 @@ export default function JournalPage() {
                                 emptyHint={filtered ? 'Nothing matches those filters.'
                                     : status === 'open' ? 'No open trades. Switch to Closed or All to see your history.'
                                         : status === 'planned' ? 'No levels being watched. Add one and you\'ll be told when price reaches it.'
-                                            : undefined}
+                                            : status === 'cancelled' ? 'No abandoned levels yet.'
+                                                : undefined}
                                 onEdit={(e) => { setEditing(e); setShowModal(true); }}
                                 onTake={take}
+                                onCancel={cancel}
                                 onDelete={remove} />
 
                             {entries.length < total && (

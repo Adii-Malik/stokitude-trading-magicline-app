@@ -38,7 +38,9 @@ export function levelsReached(entry, price) {
         return out;
     }
 
-    if (entry.state === 'closed') return out;
+    // Only an open trade has levels worth watching. The query in checkLevels
+    // already excludes the rest; this keeps the rule true on its own.
+    if (entry.state !== 'open') return out;
 
     // The stop sits the far side of entry, so its comparison inverts.
     out.stop = !entry.stopHit
@@ -54,11 +56,10 @@ export function levelsReached(entry, price) {
 }
 
 /**
- * No socket broadcast here, unlike tradePlanHandler. Trade calls were public by
- * design; a journal is one person's record, and this app's sockets are neither
- * authenticated nor divided into per-user rooms, so io.emit would hand every
- * connected client someone else's levels. Notifications already go to the owner
- * alone. Live updates need authenticated sockets first.
+ * No socket broadcast, deliberately. A journal is one person's record, and this
+ * app's sockets are neither authenticated nor divided into per-user rooms, so
+ * io.emit would hand every connected client someone else's levels. Notifications
+ * already go to the owner alone. Live updates need authenticated sockets first.
  */
 class JournalLevelHandler {
     async checkLevels() {

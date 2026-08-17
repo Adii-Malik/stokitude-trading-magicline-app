@@ -12,19 +12,20 @@ export function computeMetrics(entry) {
     // the lifecycle existed get 'open' from the schema default on hydration, so
     // trusting state alone would reopen every historical trade.
     const state = entry.exitPrice != null ? 'closed'
-        : entry.state === 'planned' ? 'planned'
+        : entry.state === 'planned' || entry.state === 'cancelled' ? entry.state
             : 'open';
     const closed = state === 'closed';
 
     // targets[] is the store; plannedTarget is its single-value virtual.
     const target = entry.targets?.length ? entry.targets[0].price : entry.plannedTarget ?? null;
 
-    // A planned trade has no fill, so risk is measured against the zone it is
-    // waiting for. Midpoint, because that is the honest expectation of a band.
+    // A trade never entered has no fill, so risk is measured against the zone it
+    // was waiting for. Midpoint, because that is the honest expectation of a band.
+    // Cancelled included: the R:R it was planned at says what you passed up.
     const zone = entry.entryFrom != null && entry.entryTo != null
         ? (entry.entryFrom + entry.entryTo) / 2
         : entry.entryFrom ?? entry.entryTo ?? null;
-    const reference = state === 'planned' ? zone : entry.entryPrice;
+    const reference = state === 'planned' || state === 'cancelled' ? zone : entry.entryPrice;
 
     const riskPerShare = entry.plannedStop != null && reference != null
         ? Math.abs(reference - entry.plannedStop)
@@ -41,13 +42,14 @@ export function computeMetrics(entry) {
 
     // Process is judged on what was controllable, independent of the result.
     // Premature on a trade that has not been entered yet.
-    const followedPlan = state === 'planned'
+    const untaken = state === 'planned' || state === 'cancelled';
+    const followedPlan = untaken
         ? null
         : entry.stopPlaced && entry.eventChecked && (entry.mistakes || []).length === 0;
 
-    if (state === 'planned') {
+    if (untaken) {
         return {
-            status: 'planned', grossPnL: null, netPnL: null, pnlPct: null,
+            status: state, grossPnL: null, netPnL: null, pnlPct: null,
             rMultiple: null, outcome: null, riskAmount, plannedRR, followedPlan,
             unrealizedPnL: null, unrealizedPct: null
         };
@@ -97,9 +99,10 @@ const pct = (n, d) => (d > 0 ? (n / d) * 100 : 0);
 
 /** Stats for one currency's trades. Mixing PKR and USD into one figure is meaningless. */
 export function statsFor(entries) {
-    // A planned trade is a level being watched, not a trade taken. Counting it
-    // would dilute every rate below with decisions that were never made.
-    const taken = entries.filter(e => e.status !== 'planned');
+    // A watched or cancelled level is not a trade taken. Counting either would
+    // dilute every rate below with decisions that were never made.
+    const untaken = (e) => e.status === 'planned' || e.status === 'cancelled';
+    const taken = entries.filter(e => !untaken(e));
     const closed = taken.filter(e => e.status === 'closed');
     const wins = closed.filter(e => e.outcome === 'win');
     const losses = closed.filter(e => e.outcome === 'loss');
@@ -158,7 +161,9 @@ export function statsFor(entries) {
     return {
         totalTrades: taken.length,
         openTrades: taken.length - closed.length,
-        plannedTrades: entries.length - taken.length,
+        plannedTrades: entries.filter(e => e.status === 'planned').length,
+        // How often a level never triggered. Only a kept record can answer that.
+        cancelledTrades: entries.filter(e => e.status === 'cancelled').length,
         headline,
         closedTrades: closed.length,
         wins: wins.length,
@@ -192,6 +197,8 @@ export function statsFor(entries) {
 
         byMistake,
         bySetup: group('setupType'),
+        // Grades recorded before the outcome, so this reads as a calibration check.
+        byQuality: group('setupQuality'),
         byEmotion: group('emotionalState')
     };
 }
@@ -297,6 +304,7 @@ class JournalService {
                 totalTrades: all.totalTrades,
                 closedTrades: all.closedTrades,
                 plannedTrades: all.plannedTrades,
+                cancelledTrades: all.cancelledTrades,
                 stopPlacedRate: all.stopPlacedRate,
                 eventCheckedRate: all.eventCheckedRate,
                 followedPlanRate: all.followedPlanRate,
@@ -306,6 +314,7 @@ class JournalService {
                 // Counts only. A cost here would sum currencies, so it lives in byCurrency.
                 byMistake: all.byMistake.map(({ code, count }) => ({ code, count })),
                 bySetup: all.bySetup.map(({ key, count, winRate }) => ({ key, count, winRate })),
+                byQuality: all.byQuality.map(({ key, count, winRate }) => ({ key, count, winRate })),
                 byEmotion: all.byEmotion.map(({ key, count, winRate }) => ({ key, count, winRate }))
             }
         };

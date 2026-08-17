@@ -211,93 +211,6 @@ class NotificationService {
   }
 
   /**
-   * Trade Plan Buy Level Hit
-   */
-  async notifyTradePlanBuyLevel(tradePlan, level, userId = null) {
-    const title = `💰 Buy Level Hit: ${tradePlan.symbol}`;
-    const message = `Buy Level ${level.level} (${level.priceFrom.toFixed(2)} - ${level.priceTo.toFixed(2)}) has been hit for ${tradePlan.symbol}`;
-
-    const params = {
-      category: 'trade_plans',
-      event: 'buy_level_hit',
-      title,
-      message,
-      data: {
-        tradePlanId: tradePlan._id,
-        symbol: tradePlan.symbol,
-        level: level.level,
-        priceFrom: level.priceFrom,
-        priceTo: level.priceTo
-      },
-      priority: 'high',
-      actionUrl: '/trade-signals'
-    };
-
-    if (userId) {
-      return this.send({ ...params, userId });
-    } else {
-      return this.notifyAll(params);
-    }
-  }
-
-  /**
-   * Trade Plan Target Hit
-   */
-  async notifyTradePlanTarget(tradePlan, target, userId = null) {
-    const title = `🎉 Target Hit: ${tradePlan.symbol}`;
-    const message = `Target ${target.level} (${target.price.toFixed(2)}) has been hit for ${tradePlan.symbol}!`;
-
-    const params = {
-      category: 'trade_plans',
-      event: 'target_hit',
-      title,
-      message,
-      data: {
-        tradePlanId: tradePlan._id,
-        symbol: tradePlan.symbol,
-        level: target.level,
-        price: target.price
-      },
-      priority: 'high',
-      actionUrl: '/trade-signals'
-    };
-
-    if (userId) {
-      return this.send({ ...params, userId });
-    } else {
-      return this.notifyAll(params);
-    }
-  }
-
-  /**
-   * Trade Plan Stop Loss Hit
-   */
-  async notifyTradePlanStopLoss(tradePlan, stopLoss, userId = null) {
-    const title = `⚠️ Stop Loss Hit: ${tradePlan.symbol}`;
-    const message = `Stop Loss (${stopLoss.price.toFixed(2)}) has been hit for ${tradePlan.symbol}`;
-
-    const params = {
-      category: 'trade_plans',
-      event: 'stop_loss_hit',
-      title,
-      message,
-      data: {
-        tradePlanId: tradePlan._id,
-        symbol: tradePlan.symbol,
-        price: stopLoss.price
-      },
-      priority: 'urgent',
-      actionUrl: '/trade-signals'
-    };
-
-    if (userId) {
-      return this.send({ ...params, userId });
-    } else {
-      return this.notifyAll(params);
-    }
-  }
-
-  /**
    * Journal levels. These reuse the trade_plans category because its events are
    * the same three concepts, and its id is stored on every NotificationPreference
    * row - renaming it would silently reset everyone's settings.
@@ -346,32 +259,6 @@ class NotificationService {
       priority: 'urgent',
       actionUrl: '/journal'
     });
-  }
-
-  /**
-   * New Trade Plan Created (Admin notification)
-   */
-  async notifyTradePlanCreated(tradePlan, userId = null) {
-    const title = `📋 New Trade Plan: ${tradePlan.symbol}`;
-    const message = `A new ${tradePlan.tradeType} trade plan has been created for ${tradePlan.symbol}`;
-
-    const params = {
-      category: 'trade_plans',
-      event: 'plan_created',
-      title,
-      message,
-      data: {
-        tradePlanId: tradePlan._id,
-        symbol: tradePlan.symbol,
-        tradeType: tradePlan.tradeType,
-        setupQuality: tradePlan.setupQuality
-      },
-      priority: 'medium',
-      actionUrl: '/trade-signals'
-    };
-
-    // Only notify admins for new trade plan creation
-    return this.notifyAdmins(params);
   }
 
   /**

@@ -12,7 +12,7 @@ const serviceLogSchema = new mongoose.Schema({
             'signalGenerationScheduler',
             'historicalDataDaily',
             'marketHoursCheck',
-            'tradePlanHandler',
+            'journalLevelHandler',
             'system'
         ]
     },

@@ -220,6 +220,67 @@ describe('planned trades', () => {
     });
 });
 
+describe('levels that never triggered', () => {
+    const cancelled = (o = {}) => ({
+        symbol: 'X', currency: 'PKR', direction: 'long', state: 'cancelled',
+        entryFrom: 95, entryTo: 105, plannedStop: 90,
+        targets: [{ level: 1, price: 120, isHit: false }], mistakes: [], ...o
+    });
+
+    test('report as cancelled rather than quietly reading open', () => {
+        // The schema default is 'open', so anything that forgets cancelled here
+        // turns an abandoned level into a position you think you hold.
+        assert.equal(computeMetrics(cancelled()).status, 'cancelled');
+    });
+
+    test('claim no P/L', () => {
+        const m = computeMetrics(cancelled());
+        assert.equal(m.netPnL, null);
+        assert.equal(m.unrealizedPnL, null);
+        assert.equal(m.outcome, null);
+    });
+
+    test('are not judged on discipline', () => {
+        assert.equal(computeMetrics(cancelled()).followedPlan, null);
+    });
+
+    test('keep the R:R they were planned at', () => {
+        // Worth keeping: it says what you passed up.
+        assert.equal(computeMetrics(cancelled()).plannedRR, 2);
+    });
+
+    test('are counted separately from watched and taken trades', () => {
+        const s = statsFor([
+            decorate(cancelled()),
+            decorate(cancelled({ state: 'planned' })),
+            decorate({
+                symbol: 'A', currency: 'PKR', direction: 'long', quantity: 10,
+                entryPrice: 100, exitPrice: 110, mistakes: [], state: 'closed'
+            })
+        ]);
+        assert.equal(s.totalTrades, 1, 'only the trade actually taken');
+        assert.equal(s.plannedTrades, 1);
+        assert.equal(s.cancelledTrades, 1);
+        assert.equal(s.openTrades, 0);
+    });
+});
+
+describe('setup quality', () => {
+    test('groups closed trades by the grade given before the outcome', () => {
+        const trade = (quality, exitPrice) => decorate({
+            symbol: 'X', currency: 'PKR', direction: 'long', quantity: 10,
+            entryPrice: 100, exitPrice, setupQuality: quality, mistakes: [], state: 'closed'
+        });
+        const s = statsFor([trade('excellent', 120), trade('poor', 90), trade('poor', 95)]);
+
+        const poor = s.byQuality.find(q => q.key === 'poor');
+        const excellent = s.byQuality.find(q => q.key === 'excellent');
+        assert.equal(poor.count, 2);
+        assert.equal(poor.winRate, 0);
+        assert.equal(excellent.winRate, 100);
+    });
+});
+
 describe('planned trades in the stats', () => {
     const taken = decorate({
         symbol: 'A', currency: 'PKR', direction: 'long', quantity: 10, entryPrice: 100,

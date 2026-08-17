@@ -5,7 +5,7 @@ import { mistakeLabel } from './labels';
 
 const shortDate = (d) => (d ? new Date(d).toLocaleDateString() : '—');
 
-export default function JournalList({ entries, onEdit, onDelete, onTake, emptyHint }) {
+export default function JournalList({ entries, onEdit, onDelete, onTake, onCancel, emptyHint }) {
     if (!entries.length) {
         return (
             <div className="text-center py-12 text-gray-600 dark:text-gray-400">
@@ -27,11 +27,13 @@ export default function JournalList({ entries, onEdit, onDelete, onTake, emptyHi
                                 <Tag>{e.direction}</Tag>
                                 {e.status === 'planned'
                                     ? <Tag tone="amber">Watching</Tag>
-                                    : e.status === 'open'
-                                        ? <Tag tone="blue">Open</Tag>
-                                        : <Tag tone={e.outcome === 'win' ? 'green' : e.outcome === 'loss' ? 'red' : 'gray'}>
-                                            {e.outcome}
-                                        </Tag>}
+                                    : e.status === 'cancelled'
+                                        ? <Tag tone="gray">Never triggered</Tag>
+                                        : e.status === 'open'
+                                            ? <Tag tone="blue">Open</Tag>
+                                            : <Tag tone={e.outcome === 'win' ? 'green' : e.outcome === 'loss' ? 'red' : 'gray'}>
+                                                {e.outcome}
+                                            </Tag>}
                                 {e.status === 'planned' && e.entryZoneHit && (
                                     <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
                                         <Bell className="w-3.5 h-3.5" /> zone reached
@@ -54,7 +56,9 @@ export default function JournalList({ entries, onEdit, onDelete, onTake, emptyHi
                                 )}
                             </div>
                             <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                                {e.status === 'planned' ? (
+                                {e.status === 'cancelled' ? (
+                                    <>Watched {zoneLabel(e)} · never entered</>
+                                ) : e.status === 'planned' ? (
                                     <>
                                         Waiting for {zoneLabel(e)}
                                         {e.quantity ? ` · ${e.quantity} planned` : ''}
@@ -95,10 +99,16 @@ export default function JournalList({ entries, onEdit, onDelete, onTake, emptyHi
                             )}
                             <div className="flex gap-1">
                                 {e.status === 'planned' && (
-                                    <button onClick={() => onTake(e)}
-                                        className="px-2.5 py-1 text-xs font-medium text-cyan-700 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-700 rounded-lg hover:bg-cyan-50 dark:hover:bg-cyan-900/30 whitespace-nowrap">
-                                        I took it
-                                    </button>
+                                    <>
+                                        <button onClick={() => onTake(e)}
+                                            className="px-2.5 py-1 text-xs font-medium text-cyan-700 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-700 rounded-lg hover:bg-cyan-50 dark:hover:bg-cyan-900/30 whitespace-nowrap">
+                                            I took it
+                                        </button>
+                                        <button onClick={() => onCancel(e)} title="Never triggered — keep the record"
+                                            className="px-2.5 py-1 text-xs text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap">
+                                            Didn&apos;t trigger
+                                        </button>
+                                    </>
                                 )}
                                 <button onClick={() => onEdit(e)} title="Edit"
                                     className="p-2 text-gray-500 hover:text-cyan-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
@@ -112,7 +122,7 @@ export default function JournalList({ entries, onEdit, onDelete, onTake, emptyHi
                         </div>
                     </div>
 
-                    {e.status !== 'closed' && <Levels entry={e} />}
+                    {(e.status === 'planned' || e.status === 'open') && <Levels entry={e} />}
 
                     {e.mistakes?.length > 0 && (
                         <div className="flex flex-wrap gap-1.5 mt-3">

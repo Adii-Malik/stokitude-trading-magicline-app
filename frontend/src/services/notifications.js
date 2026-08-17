@@ -61,11 +61,6 @@ export const sendTestNotification = async () => {
 };
 
 // Test trade plan notification
-export const testTradePlanNotification = async (type = 'buy') => {
-  const response = await api.post('/notifications/test-trade-plan', { type });
-  return response.data;
-};
-
 // Test admin notification
 export const testAdminNotification = async () => {
   const response = await api.post('/notifications/test-admin');
@@ -85,23 +80,8 @@ export const sendTestEmail = async () => {
 };
 
 // Trigger manual trade plan check
-export const triggerTradePlanCheck = async () => {
-  const response = await api.post('/notifications/test-trade-plan-trigger');
-  return response.data;
-};
-
 // Mock trade plan scenario
-export const mockTradePlanScenario = async (planId, scenario) => {
-  const response = await api.post('/notifications/test-trade-plan-mock', { planId, scenario });
-  return response.data;
-};
-
 // Reset trade plan state
-export const resetTradePlan = async (planId) => {
-  const response = await api.post('/notifications/test-trade-plan-reset', { planId });
-  return response.data;
-};
-
 export default {
   getNotifications,
   getUnreadCount,

@@ -7,6 +7,12 @@ import mongoose from 'mongoose';
 import { EXCHANGE_CODES, DEFAULT_EXCHANGE, currencyOf } from '../config/exchanges.js';
 
 export const SETUP_TYPES = ['breakout', 'reversal', 'pullback', 'trend', 'range', 'earnings', 'other'];
+export const SETUP_QUALITIES = ['excellent', 'good', 'fair', 'poor'];
+
+// The states that mean a fill actually happened, and so require entry details.
+// Planned and cancelled both describe a level that was never entered - demanding
+// an entry price for either makes the state impossible to record.
+const ENTERED = new Set(['open', 'closed']);
 export const EMOTIONS = ['disciplined', 'confident', 'fearful', 'fomo', 'neutral', 'revenge'];
 export const MARKET_CONDITIONS = ['bullish', 'bearish', 'sideways', 'volatile'];
 
@@ -49,7 +55,7 @@ export function targetOnWrongSide({ state, direction, entryPrice, entryFrom, ent
     if (state === 'closed' || !targets?.length) return null;
 
     const bounds = [entryFrom, entryTo].filter(n => n != null);
-    const reference = state !== 'planned' ? entryPrice
+    const reference = ENTERED.has(state) ? entryPrice
         : !bounds.length ? null
             : direction === 'short' ? Math.min(...bounds) : Math.max(...bounds);
 
@@ -108,12 +114,28 @@ const journalEntrySchema = new mongoose.Schema({
         default: 'other'
     },
 
+    // How good the setup looked at the time, graded before the outcome is known.
+    // A separate axis from setupType: this is quality, that is kind. Worth having
+    // because "do my best-looking setups actually pay better" is answerable only
+    // if the grade was recorded before you knew.
+    //
+    // No default on purpose. A default would grade every trade you never graded,
+    // including the whole history, and the statistic would then claim a judgement
+    // you never made.
+    setupQuality: {
+        type: String,
+        enum: SETUP_QUALITIES
+    },
+
     // Where the trade is in its life. A planned trade is a level being watched,
     // not a position: it has no fill yet, so the entry fields below are not
     // required until it opens.
+    // Cancelled is a level that never triggered, or one you thought better of.
+    // Worth keeping rather than deleting: how often a setup fails to trigger is
+    // the kind of thing only a record can tell you.
     state: {
         type: String,
-        enum: ['planned', 'open', 'closed'],
+        enum: ['planned', 'open', 'closed', 'cancelled'],
         default: 'open',
         index: true
     },
@@ -142,19 +164,19 @@ const journalEntrySchema = new mongoose.Schema({
 
     entryDate: {
         type: Date,
-        required: [function () { return this.state !== 'planned'; }, 'Entry date is required'],
+        required: [function () { return ENTERED.has(this.state); }, 'Entry date is required'],
         index: true
     },
 
     entryPrice: {
         type: Number,
-        required: [function () { return this.state !== 'planned'; }, 'Entry price is required'],
+        required: [function () { return ENTERED.has(this.state); }, 'Entry price is required'],
         min: [0, 'Entry price cannot be negative']
     },
 
     quantity: {
         type: Number,
-        required: [function () { return this.state !== 'planned'; }, 'Quantity is required'],
+        required: [function () { return ENTERED.has(this.state); }, 'Quantity is required'],
         min: [0, 'Quantity cannot be negative']
     },
 
