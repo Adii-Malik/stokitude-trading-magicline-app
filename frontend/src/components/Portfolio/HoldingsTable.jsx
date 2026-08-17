@@ -71,7 +71,7 @@ export default function HoldingsTable({ portfolioId, currency, onSelectSymbol })
     if (holdings.length === 0) {
         return (
             <div className="text-center py-12">
-                <p className="text-gray-600">No holdings yet. Add your first transaction to get started.</p>
+                <p className="text-ink-muted">No holdings yet. Add your first transaction to get started.</p>
             </div>
         );
     }
@@ -80,7 +80,7 @@ export default function HoldingsTable({ portfolioId, currency, onSelectSymbol })
         <div className="space-y-4">
             {/* Search */}
             <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-ink-faint w-5 h-5" />
                 <input
                     type="text"
                     placeholder="Search by symbol or company name..."
@@ -240,7 +240,7 @@ function SortableHeader({ label, field, currentField, direction, onSort }) {
         >
             <div className="flex items-center gap-1">
                 {label}
-                <ArrowUpDown className={`w-4 h-4 ${isActive ? 'text-cyan-600 dark:text-cyan-400' : 'text-gray-400'}`} />
+                <ArrowUpDown className={`w-4 h-4 ${isActive ? 'text-cyan-600 dark:text-cyan-400' : 'text-ink-faint'}`} />
             </div>
         </th>
     );
@@ -345,7 +345,7 @@ function ClosedPositions({ rows, currency, onSelectSymbol }) {
                             >
                                 <span className="text-gray-700 dark:text-gray-300 truncate">
                                     {r.symbol}
-                                    {only && <span className="text-xs text-gray-400"> dividend only</span>}
+                                    {only && <span className="text-xs text-ink-faint"> dividend only</span>}
                                 </span>
                                 <span className={`shrink-0 tabular-nums ${getPnLColorClass(took)}`}>
                                     {formatCurrency(took, currency, { signed: true })}

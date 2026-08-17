@@ -78,7 +78,7 @@ export default function PortfolioList() {
 
                     {portfolios.length === 0 ? (
                         <div className="text-center py-12 bg-surface rounded-card border-2 border-dashed border-gray-300 dark:border-gray-700">
-                            <FolderOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                            <FolderOpen className="w-16 h-16 text-ink-faint mx-auto mb-4" />
                             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No portfolios yet</h3>
                             <p className="text-gray-600 dark:text-gray-400 mb-4">Create your first portfolio to start tracking</p>
                             <button
@@ -185,7 +185,7 @@ function PortfolioCard({ portfolio, onClick, onDelete, onEdit }) {
                         )}
                     </div>
                     {portfolio.sharedWith?.length > 0 && (
-                        <Users className="w-5 h-5 text-gray-400" />
+                        <Users className="w-5 h-5 text-ink-faint" />
                     )}
                 </div>
 

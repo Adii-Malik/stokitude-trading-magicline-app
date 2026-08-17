@@ -184,7 +184,7 @@ function TxRow({ tx, currency }) {
         <tr className="border-b border-hairline/50">
             <td className="py-2.5 text-gray-900 dark:text-white whitespace-nowrap">
                 <span className="inline-flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                    <Calendar className="w-3.5 h-3.5 text-ink-faint shrink-0" />
                     {new Date(tx.executedAt).toLocaleDateString()}
                 </span>
             </td>

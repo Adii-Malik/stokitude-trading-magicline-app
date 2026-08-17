@@ -153,7 +153,7 @@ export default function AddTransactionModal({ portfolioId, currency, commissionS
             <div className="bg-surface rounded-card p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
                 <div className="flex items-center justify-between mb-4">
                     <h2 className="text-xl font-bold text-gray-900 dark:text-white">Add Transaction</h2>
-                    <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
+                    <button onClick={onClose} className="p-1 hover:bg-surface-muted rounded-control">
                         <X className="w-5 h-5" />
                     </button>
                 </div>

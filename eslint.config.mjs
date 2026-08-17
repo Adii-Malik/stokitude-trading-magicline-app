@@ -82,11 +82,23 @@ export default [
      */
     files: ['frontend/src/components/Portfolio/**/*.jsx'],
     rules: {
-      'no-restricted-syntax': ['error', {
-        // A hover: prefix is an interaction state, not a surface, so it is exempt.
-        selector: 'Literal[value=/(?<!hover:)\\b(bg-white|bg-gray-800|rounded-xl|rounded-2xl|shadow-sm|shadow-md|shadow-lg|shadow-xl)\\b/]',
-        message: 'Use a design token or a primitive from src/ui - bg-surface, rounded-card, shadow-card. Raw surface classes drift.'
-      }]
+      'no-restricted-syntax': ['error',
+        {
+          // A hover: prefix is an interaction state, not a surface, so it is exempt.
+          selector: 'Literal[value=/(?<!hover:)\\b(bg-white|bg-gray-800|rounded-xl|rounded-2xl|shadow-sm|shadow-md|shadow-lg|shadow-xl)\\b/]',
+          message: 'Use a design token or a primitive from src/ui - bg-surface, rounded-card, shadow-card. Raw surface classes drift.'
+        },
+        {
+          /**
+           * A palette colour with no dark counterpart in the same class string.
+           * This is how the totals row went near-invisible: border-gray-300 and
+           * no text colour at all, so it inherited its way to unreadable. The
+           * surface rule above did not look at borders or ink.
+           */
+          selector: 'Literal[value=/^(?!.*dark:).*\\b(text|border|bg)-gray-[0-9]/]',
+          message: 'This colour has no dark counterpart. Use a token - text-ink, text-ink-muted, text-ink-faint, border-hairline, bg-surface-muted.'
+        }
+      ]
     }
   }
 ];

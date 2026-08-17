@@ -270,7 +270,7 @@ export default function PolicyEditorModal({ portfolioId, existingPolicy, onClose
                             Quick setup - just 2 questions
                         </p>
                     </div>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+                    <button onClick={onClose} className="text-ink-faint hover:text-ink">
                         <X className="w-6 h-6" />
                     </button>
                 </div>
@@ -404,9 +404,9 @@ export default function PolicyEditorModal({ portfolioId, existingPolicy, onClose
                                 <span className="font-medium text-gray-900 dark:text-white">Advanced Settings</span>
                             </div>
                             {showAdvanced ? (
-                                <ChevronUp className="w-5 h-5 text-gray-500" />
+                                <ChevronUp className="w-5 h-5 text-ink-faint" />
                             ) : (
-                                <ChevronDown className="w-5 h-5 text-gray-500" />
+                                <ChevronDown className="w-5 h-5 text-ink-faint" />
                             )}
                         </button>
 
@@ -432,7 +432,7 @@ export default function PolicyEditorModal({ portfolioId, existingPolicy, onClose
                                                 max="20"
                                                 step="0.5"
                                             />
-                                            <p className="text-xs text-gray-500 mt-1">Only buy stocks yielding above this</p>
+                                            <p className="text-xs text-ink-faint mt-1">Only buy stocks yielding above this</p>
                                         </div>
 
                                         <div>
@@ -448,7 +448,7 @@ export default function PolicyEditorModal({ portfolioId, existingPolicy, onClose
                                                 max="100"
                                                 step="5"
                                             />
-                                            <p className="text-xs text-gray-500 mt-1">Minimum payout ratio - stocks must pay at least this % of earnings as dividends</p>
+                                            <p className="text-xs text-ink-faint mt-1">Minimum payout ratio - stocks must pay at least this % of earnings as dividends</p>
                                         </div>
                                     </>
                                 )}
@@ -468,7 +468,7 @@ export default function PolicyEditorModal({ portfolioId, existingPolicy, onClose
                                             max="20"
                                             step="0.5"
                                         />
-                                        <p className="text-xs text-gray-500 mt-1">Only buy stocks yielding above this</p>
+                                        <p className="text-xs text-ink-faint mt-1">Only buy stocks yielding above this</p>
                                     </div>
                                 )}
 
@@ -488,7 +488,7 @@ export default function PolicyEditorModal({ portfolioId, existingPolicy, onClose
                                                 max="100"
                                                 step="5"
                                             />
-                                            <p className="text-xs text-gray-500 mt-1">Target high-growth companies (higher = more aggressive)</p>
+                                            <p className="text-xs text-ink-faint mt-1">Target high-growth companies (higher = more aggressive)</p>
                                         </div>
 
                                         <div>
@@ -504,7 +504,7 @@ export default function PolicyEditorModal({ portfolioId, existingPolicy, onClose
                                                 max="50"
                                                 step="1"
                                             />
-                                            <p className="text-xs text-gray-500 mt-1">Return on Equity - quality of earnings (higher = better)</p>
+                                            <p className="text-xs text-ink-faint mt-1">Return on Equity - quality of earnings (higher = better)</p>
                                         </div>
                                     </>
                                 )}
@@ -519,13 +519,13 @@ export default function PolicyEditorModal({ portfolioId, existingPolicy, onClose
                                                 type="checkbox"
                                                 checked={settings.shariahOnly || false}
                                                 onChange={(e) => setSettings({ ...settings, shariahOnly: e.target.checked })}
-                                                className="w-4 h-4 text-cyan-600 border-gray-300 rounded focus:ring-cyan-500"
+                                                className="w-4 h-4 text-cyan-600 border-hairline rounded focus:ring-cyan-500"
                                             />
                                             <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                                                 Shariah Compliant Only
                                             </span>
                                         </label>
-                                        <p className="text-xs text-gray-500 mt-1 ml-6">Only invest in Shariah-compliant stocks</p>
+                                        <p className="text-xs text-ink-faint mt-1 ml-6">Only invest in Shariah-compliant stocks</p>
                                     </div>
 
                                     <div>
@@ -541,7 +541,7 @@ export default function PolicyEditorModal({ portfolioId, existingPolicy, onClose
                                             max="50"
                                             step="5"
                                         />
-                                        <p className="text-xs text-gray-500 mt-1">Maximum % of portfolio in one stock (lower = more diversified)</p>
+                                        <p className="text-xs text-ink-faint mt-1">Maximum % of portfolio in one stock (lower = more diversified)</p>
                                     </div>
                                 </div>
                             </div>
