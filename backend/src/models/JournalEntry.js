@@ -23,6 +23,18 @@ export const MISTAKES = [
     'exited_early'
 ];
 
+/**
+ * Orders targets nearest-first and renumbers their levels, so targets[0] is
+ * always the one R:R is quoted against. A short's targets sit below its entry,
+ * so for those nearest means the highest price. Mutates in place.
+ */
+export function orderTargets(targets, direction) {
+    if (!targets?.length) return targets;
+    targets.sort((a, b) => direction === 'short' ? b.price - a.price : a.price - b.price);
+    targets.forEach((t, i) => { t.level = i + 1; });
+    return targets;
+}
+
 const journalEntrySchema = new mongoose.Schema({
     user: {
         type: mongoose.Schema.Types.ObjectId,
@@ -71,22 +83,53 @@ const journalEntrySchema = new mongoose.Schema({
         default: 'other'
     },
 
+    // Where the trade is in its life. A planned trade is a level being watched,
+    // not a position: it has no fill yet, so the entry fields below are not
+    // required until it opens.
+    state: {
+        type: String,
+        enum: ['planned', 'open', 'closed'],
+        default: 'open',
+        index: true
+    },
+
     // ----- Entry -----
+    // A price-action level is a band, not a number. Used while planned; the
+    // actual fill lands in entryPrice once the trade opens.
+    entryFrom: {
+        type: Number,
+        min: [0, 'Entry zone cannot be negative']
+    },
+
+    entryTo: {
+        type: Number,
+        min: [0, 'Entry zone cannot be negative']
+    },
+
+    // Set by the price poll when price trades into the zone. A flag, not an
+    // action: whether to actually take the trade stays a decision.
+    entryZoneHit: {
+        type: Boolean,
+        default: false
+    },
+
+    entryZoneHitDate: Date,
+
     entryDate: {
         type: Date,
-        required: [true, 'Entry date is required'],
+        required: [function () { return this.state !== 'planned'; }, 'Entry date is required'],
         index: true
     },
 
     entryPrice: {
         type: Number,
-        required: [true, 'Entry price is required'],
+        required: [function () { return this.state !== 'planned'; }, 'Entry price is required'],
         min: [0, 'Entry price cannot be negative']
     },
 
     quantity: {
         type: Number,
-        required: [true, 'Quantity is required'],
+        required: [function () { return this.state !== 'planned'; }, 'Quantity is required'],
         min: [0, 'Quantity cannot be negative']
     },
 
@@ -130,10 +173,23 @@ const journalEntrySchema = new mongoose.Schema({
         min: [0, 'Stop cannot be negative']
     },
 
-    plannedTarget: {
-        type: Number,
-        min: [0, 'Target cannot be negative']
+    // Set by the price poll when the stop level trades through.
+    stopHit: {
+        type: Boolean,
+        default: false
     },
+
+    stopHitDate: Date,
+
+    // Staged take-profits. The single store for targets: a plannedTarget on the
+    // way in is normalised into targets[0] below, so the two can never disagree.
+    targets: [{
+        _id: false,
+        level: { type: Number, default: 1 },
+        price: { type: Number, required: true, min: [0, 'Target cannot be negative'] },
+        isHit: { type: Boolean, default: false },
+        hitDate: Date
+    }],
 
     // The distinction that matters: a stop you intended vs one resting at the broker.
     stopPlaced: {
@@ -183,23 +239,57 @@ const journalEntrySchema = new mongoose.Schema({
     reviewedAt: Date
 
 }, {
-    timestamps: true
+    timestamps: true,
+    // plannedTarget and status are virtuals that callers already read, so they
+    // have to survive serialisation.
+    toObject: { virtuals: true },
+    toJSON: { virtuals: true }
 });
 
 journalEntrySchema.index({ user: 1, entryDate: -1 });
 journalEntrySchema.index({ user: 1, symbol: 1 });
+// The price poll scans by state, ignoring everything already closed.
+journalEntrySchema.index({ state: 1, symbol: 1 });
 
-// An exit price closes the trade. The date may be unknown for older trades
-// reconstructed from statements, which must not block recording the result.
+// The lifecycle is stored, not inferred, because a planned trade looks exactly
+// like an open one from the outside: neither has an exit.
 journalEntrySchema.virtual('status').get(function () {
-    return this.exitPrice != null ? 'closed' : 'open';
+    return this.state;
 });
+
+// The single-target shorthand the entry form has always sent. Reading and
+// writing it maps onto targets[0] so there is only ever one store.
+journalEntrySchema.virtual('plannedTarget')
+    .get(function () {
+        return this.targets?.length ? this.targets[0].price : undefined;
+    })
+    .set(function (price) {
+        if (price == null) {
+            this.targets = [];
+        } else if (this.targets?.length) {
+            this.targets[0].price = price;
+        } else {
+            this.targets = [{ level: 1, price }];
+        }
+    });
 
 journalEntrySchema.pre('save', function (next) {
     // A stop can't be recorded as placed if there was no stop level.
     if (this.stopPlaced && this.plannedStop == null) {
         return next(new Error('stopPlaced requires a plannedStop level'));
     }
+
+    // An exit price closes the trade, and clearing it reopens one — the
+    // behaviour update() has always relied on to correct a mistaken exit.
+    // Planned is the one state an exit cannot coexist with.
+    if (this.exitPrice != null) {
+        this.state = 'closed';
+    } else if (this.state === 'closed') {
+        this.state = 'open';
+    }
+
+    orderTargets(this.targets, this.direction);
+
     next();
 });
 

@@ -8,20 +8,50 @@ import JournalEntry, { MISTAKES } from '../models/JournalEntry.js';
 /** Per-entry metrics. Returns nulls rather than guesses when inputs are missing. */
 export function computeMetrics(entry) {
     const sign = entry.direction === 'short' ? -1 : 1;
-    const closed = entry.exitPrice != null;
+    // An exit price closes the trade, whatever state says. Entries written before
+    // the lifecycle existed get 'open' from the schema default on hydration, so
+    // trusting state alone would reopen every historical trade.
+    const state = entry.exitPrice != null ? 'closed'
+        : entry.state === 'planned' ? 'planned'
+            : 'open';
+    const closed = state === 'closed';
 
-    const riskPerShare = entry.plannedStop != null
-        ? Math.abs(entry.entryPrice - entry.plannedStop)
-        : null;
-    const riskAmount = riskPerShare != null ? riskPerShare * entry.quantity : null;
+    // targets[] is the store; plannedTarget is its single-value virtual.
+    const target = entry.targets?.length ? entry.targets[0].price : entry.plannedTarget ?? null;
 
-    const plannedReward = entry.plannedTarget != null
-        ? Math.abs(entry.plannedTarget - entry.entryPrice) * entry.quantity
+    // A planned trade has no fill, so risk is measured against the zone it is
+    // waiting for. Midpoint, because that is the honest expectation of a band.
+    const zone = entry.entryFrom != null && entry.entryTo != null
+        ? (entry.entryFrom + entry.entryTo) / 2
+        : entry.entryFrom ?? entry.entryTo ?? null;
+    const reference = state === 'planned' ? zone : entry.entryPrice;
+
+    const riskPerShare = entry.plannedStop != null && reference != null
+        ? Math.abs(reference - entry.plannedStop)
         : null;
-    const plannedRR = riskAmount > 0 && plannedReward != null ? plannedReward / riskAmount : null;
+    const riskAmount = riskPerShare != null && entry.quantity != null
+        ? riskPerShare * entry.quantity
+        : null;
+
+    // Per-share, so a planned trade with no size still has a meaningful ratio.
+    const rewardPerShare = target != null && reference != null
+        ? Math.abs(target - reference)
+        : null;
+    const plannedRR = riskPerShare > 0 && rewardPerShare != null ? rewardPerShare / riskPerShare : null;
 
     // Process is judged on what was controllable, independent of the result.
-    const followedPlan = entry.stopPlaced && entry.eventChecked && (entry.mistakes || []).length === 0;
+    // Premature on a trade that has not been entered yet.
+    const followedPlan = state === 'planned'
+        ? null
+        : entry.stopPlaced && entry.eventChecked && (entry.mistakes || []).length === 0;
+
+    if (state === 'planned') {
+        return {
+            status: 'planned', grossPnL: null, netPnL: null, pnlPct: null,
+            rMultiple: null, outcome: null, riskAmount, plannedRR, followedPlan,
+            unrealizedPnL: null, unrealizedPct: null
+        };
+    }
 
     if (!closed) {
         // Marked to a hand-entered price, kept out of realized totals.
@@ -67,7 +97,10 @@ const pct = (n, d) => (d > 0 ? (n / d) * 100 : 0);
 
 /** Stats for one currency's trades. Mixing PKR and USD into one figure is meaningless. */
 export function statsFor(entries) {
-    const closed = entries.filter(e => e.status === 'closed');
+    // A planned trade is a level being watched, not a trade taken. Counting it
+    // would dilute every rate below with decisions that were never made.
+    const taken = entries.filter(e => e.status !== 'planned');
+    const closed = taken.filter(e => e.status === 'closed');
     const wins = closed.filter(e => e.outcome === 'win');
     const losses = closed.filter(e => e.outcome === 'loss');
 
@@ -123,8 +156,9 @@ export function statsFor(entries) {
     } : null;
 
     return {
-        totalTrades: entries.length,
-        openTrades: entries.length - closed.length,
+        totalTrades: taken.length,
+        openTrades: taken.length - closed.length,
+        plannedTrades: entries.length - taken.length,
         headline,
         closedTrades: closed.length,
         wins: wins.length,
@@ -145,9 +179,9 @@ export function statsFor(entries) {
         worstStreak: Math.abs(worstStreak),
 
         // Process, tracked apart from outcome.
-        stopPlacedRate: pct(entries.filter(e => e.stopPlaced).length, entries.length),
-        eventCheckedRate: pct(entries.filter(e => e.eventChecked).length, entries.length),
-        followedPlanRate: pct(entries.filter(e => e.followedPlan).length, entries.length),
+        stopPlacedRate: pct(taken.filter(e => e.stopPlaced).length, taken.length),
+        eventCheckedRate: pct(taken.filter(e => e.eventChecked).length, taken.length),
+        followedPlanRate: pct(taken.filter(e => e.followedPlan).length, taken.length),
 
         // A loss that obeyed the plan is not a mistake; a win that broke it is luck.
         goodProcessBadOutcome: closed.filter(e => e.followedPlan && e.outcome === 'loss').length,
@@ -164,9 +198,12 @@ export function statsFor(entries) {
 
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+// A planned trade has no entry date yet, so fall back to when it was written down.
+const dateOf = (e) => new Date(e.entryDate || e.createdAt || 0);
+
 const SORTS = {
-    recent: (a, b) => new Date(b.entryDate) - new Date(a.entryDate),
-    oldest: (a, b) => new Date(a.entryDate) - new Date(b.entryDate),
+    recent: (a, b) => dateOf(b) - dateOf(a),
+    oldest: (a, b) => dateOf(a) - dateOf(b),
     best: (a, b) => (b.netPnL ?? -Infinity) - (a.netPnL ?? -Infinity),
     worst: (a, b) => (a.netPnL ?? Infinity) - (b.netPnL ?? Infinity),
     symbol: (a, b) => a.symbol.localeCompare(b.symbol)
@@ -259,6 +296,7 @@ class JournalService {
             process: {
                 totalTrades: all.totalTrades,
                 closedTrades: all.closedTrades,
+                plannedTrades: all.plannedTrades,
                 stopPlacedRate: all.stopPlacedRate,
                 eventCheckedRate: all.eventCheckedRate,
                 followedPlanRate: all.followedPlanRate,

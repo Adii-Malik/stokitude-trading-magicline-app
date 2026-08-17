@@ -8,6 +8,7 @@
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "create-admin": "node src/scripts/createSuperAdmin.js",
+    "migrate-journal": "node src/scripts/migrateJournalLifecycle.js",
     "test": "node --test src"
   },
   "keywords": [

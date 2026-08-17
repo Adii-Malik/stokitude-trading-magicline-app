@@ -166,3 +166,81 @@ describe('aggregate stats', () => {
         assert.equal(empty.headline, null);
     });
 });
+
+describe('planned trades', () => {
+    // A level being watched, with no fill and therefore no size or entry price.
+    const plan = (o = {}) => ({
+        symbol: 'OGDC', currency: 'PKR', direction: 'long', state: 'planned',
+        entryFrom: 95, entryTo: 105, plannedStop: 90,
+        targets: [{ level: 1, price: 120, isHit: false }],
+        mistakes: [], ...o
+    });
+
+    test('claims no P/L of any kind', () => {
+        const m = computeMetrics(plan());
+        assert.equal(m.status, 'planned');
+        assert.equal(m.netPnL, null);
+        assert.equal(m.unrealizedPnL, null);
+        assert.equal(m.outcome, null);
+    });
+
+    test('risk is measured from the midpoint of the zone it waits for', () => {
+        // Midpoint 100, stop 90, target 120: one unit of risk for two of reward.
+        assert.equal(computeMetrics(plan()).plannedRR, 2);
+    });
+
+    test('R:R survives having no quantity yet', () => {
+        const m = computeMetrics(plan());
+        assert.equal(m.riskAmount, null, 'no size means no rupee risk');
+        assert.equal(m.plannedRR, 2, 'but the ratio still holds');
+    });
+
+    test('a single bound is treated as the whole zone', () => {
+        const m = computeMetrics(plan({ entryFrom: 100, entryTo: undefined }));
+        assert.equal(m.plannedRR, 2);
+    });
+
+    test('discipline is not judged before the trade is taken', () => {
+        assert.equal(computeMetrics(plan()).followedPlan, null);
+    });
+
+    test('no numeric field comes back NaN', () => {
+        // The entry price fields are absent, so every derived number has to
+        // either compute from the zone or return null.
+        const m = computeMetrics(plan());
+        for (const [key, value] of Object.entries(m)) {
+            assert.ok(!Number.isNaN(value), `${key} is NaN`);
+        }
+    });
+
+    test('an exit price beats a stale planned state', () => {
+        // Guards the reverse of the migration hazard: state must never keep a
+        // trade planned once it has a result.
+        assert.equal(computeMetrics(plan({ exitPrice: 120, entryPrice: 100, quantity: 10 })).status, 'closed');
+    });
+});
+
+describe('planned trades in the stats', () => {
+    const taken = decorate({
+        symbol: 'A', currency: 'PKR', direction: 'long', quantity: 10, entryPrice: 100,
+        exitPrice: 110, stopPlaced: true, eventChecked: true, mistakes: [], state: 'closed'
+    });
+    const watching = decorate({
+        symbol: 'B', currency: 'PKR', direction: 'long', state: 'planned',
+        entryFrom: 95, entryTo: 105, mistakes: []
+    });
+    const s = statsFor([taken, watching]);
+
+    test('are counted apart from trades actually taken', () => {
+        assert.equal(s.totalTrades, 1);
+        assert.equal(s.plannedTrades, 1);
+        assert.equal(s.openTrades, 0, 'watching a level is not holding a position');
+    });
+
+    test('do not dilute the discipline rates', () => {
+        // The one real trade placed its stop. A watchlist entry must not drag
+        // that to 50%.
+        assert.equal(s.stopPlacedRate, 100);
+        assert.equal(s.followedPlanRate, 100);
+    });
+});

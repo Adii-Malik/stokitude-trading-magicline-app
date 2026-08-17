@@ -10,6 +10,7 @@ import config from './config/config.js';
 import { connectDB } from './config/mongodb.js';
 import centralizedPriceService from './services/centralizedPriceService.js';
 import tradePlanHandler from './handlers/tradePlanHandler.js';
+import journalLevelHandler from './handlers/journalLevelHandler.js';
 import portfolioHandler from './handlers/portfolioHandler.js';
 import marketHoursService from './services/marketHoursService.js';
 import authRoutes from './routes/auth.js';
@@ -227,6 +228,7 @@ centralizedPriceService.onUpdate(async (data) => {
 
     // Trigger feature handlers to check their logic
     await tradePlanHandler.checkTradePlans();
+    await journalLevelHandler.checkLevels();
 
     // Update portfolio positions with new prices
     if (data.data.updatedSymbols && data.data.updatedSymbols.length > 0) {
