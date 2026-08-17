@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Download, RefreshCw, Upload, FileText, X, Wallet, TrendingUp, Receipt } from 'lucide-react';
-import { Panel, Line } from './Panel';
+import { Panel, Line } from '../../ui/Panel';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { formatCurrency, formatPercent } from '../../utils/portfolioUtils';
@@ -111,7 +111,7 @@ export default function PortfolioDetail() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+            <div className="min-h-screen bg-surface-muted flex items-center justify-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500"></div>
             </div>
         );
@@ -119,14 +119,14 @@ export default function PortfolioDetail() {
 
     if (!portfolio || !dashboard) {
         return (
-            <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+            <div className="min-h-screen bg-surface-muted flex items-center justify-center">
                 <p className="text-gray-600 dark:text-gray-400">Portfolio not found</p>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="min-h-screen bg-surface-muted">
             <div className="container mx-auto px-4 py-8">
                 <div className="space-y-6">
                     {/* Header */}
@@ -172,7 +172,7 @@ export default function PortfolioDetail() {
                             </button>
                             <button
                                 onClick={() => setShowAddTransaction(true)}
-                                className="flex items-center gap-2 bg-cyan-500 hover:bg-cyan-600 text-white font-medium px-4 py-2 rounded-lg transition-colors shadow-lg"
+                                className="flex items-center gap-2 bg-cyan-500 hover:bg-cyan-600 text-white font-medium px-4 py-2 rounded-lg transition-colors shadow-card"
                             >
                                 <Plus className="w-5 h-5" />
                                 Add Transaction
@@ -185,8 +185,8 @@ export default function PortfolioDetail() {
                     <PerformanceChart portfolioId={id} currency={portfolio.currency} />
 
                     {/* Tabs */}
-                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
-                        <div className="border-b border-gray-200 dark:border-gray-700">
+                    <div className="bg-surface rounded-card shadow-card border border-hairline">
+                        <div className="border-b border-hairline">
                             <nav className="flex space-x-8 px-6">
                                 <TabButton
                                     active={activeTab === 'holdings'}
@@ -244,8 +244,8 @@ export default function PortfolioDetail() {
                     {/* Upload CSV Modal */}
                     {showUploadModal && (
                         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-lg w-full border border-gray-200 dark:border-gray-700">
-                                <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                            <div className="bg-surface rounded-card shadow-dialog max-w-lg w-full border border-hairline">
+                                <div className="p-6 border-b border-hairline flex items-center justify-between">
                                     <h2 className="text-xl font-bold text-gray-900 dark:text-white">Import Transactions CSV</h2>
                                     <button
                                         onClick={() => {
@@ -292,7 +292,7 @@ export default function PortfolioDetail() {
                                     </div>
 
                                     {uploadResult && (
-                                        <div className="bg-gray-50 dark:bg-gray-700/40 border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+                                        <div className="bg-surface-muted/40 border border-gray-200 dark:border-gray-600 rounded-lg p-4">
                                             <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Upload Result:</h4>
                                             <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
                                                 <p>Rows read: {uploadResult.total}</p>
@@ -319,7 +319,7 @@ export default function PortfolioDetail() {
                                         <button
                                             type="submit"
                                             disabled={!uploadFile || uploading}
-                                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-card"
                                         >
                                             {uploading && <RefreshCw className="w-4 h-4 animate-spin" />}
                                             {uploading ? 'Importing…' : 'Upload CSV'}

@@ -248,7 +248,7 @@ export default function PolicyEditorModal({ portfolioId, existingPolicy, onClose
     if (loading) {
         return (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                <div className="bg-white dark:bg-gray-800 rounded-xl p-8">
+                <div className="bg-surface rounded-card p-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-500 mx-auto"></div>
                 </div>
             </div>
@@ -259,9 +259,9 @@ export default function PolicyEditorModal({ portfolioId, existingPolicy, onClose
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col">
+            <div className="bg-surface rounded-card shadow-dialog max-w-2xl w-full max-h-[90vh] flex flex-col">
                 {/* Header */}
-                <div className="flex-shrink-0 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
+                <div className="flex-shrink-0 border-b border-hairline px-6 py-4 flex items-center justify-between">
                     <div>
                         <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
                             Setup SIP Allocation
@@ -289,7 +289,7 @@ export default function PolicyEditorModal({ portfolioId, existingPolicy, onClose
                                     onClick={() => setInvestmentGoal(key)}
                                     className={`w-full text-left p-4 rounded-lg border-2 transition-all ${investmentGoal === key
                                         ? 'border-cyan-500 bg-cyan-50 dark:bg-cyan-900/20'
-                                        : 'border-gray-200 dark:border-gray-700 hover:border-cyan-300'
+                                        : 'border-hairline hover:border-cyan-300'
                                         }`}
                                 >
                                     <div className="flex items-start gap-3">
@@ -307,7 +307,7 @@ export default function PolicyEditorModal({ portfolioId, existingPolicy, onClose
                                                 {goal.description}
                                             </p>
                                             {investmentGoal === key && (
-                                                <div className="mt-3 p-3 bg-white dark:bg-gray-700 rounded-lg border border-cyan-200 dark:border-cyan-800">
+                                                <div className="mt-3 p-3 bg-surface rounded-control border border-cyan-200 dark:border-cyan-800">
                                                     <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">📊 Scoring Weights:</p>
                                                     <p className="text-xs text-gray-600 dark:text-gray-400">{goal.weights}</p>
                                                     <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mt-2 mb-1">🎯 Selection Criteria:</p>
@@ -342,7 +342,7 @@ export default function PolicyEditorModal({ portfolioId, existingPolicy, onClose
                                     onClick={() => setUniverseMode('MANUAL_LIST')}
                                     className={`w-full text-left p-4 rounded-lg border-2 transition-all ${universeMode === 'MANUAL_LIST'
                                         ? 'border-cyan-500 bg-cyan-50 dark:bg-cyan-900/20'
-                                        : 'border-gray-200 dark:border-gray-700 hover:border-cyan-300'
+                                        : 'border-hairline hover:border-cyan-300'
                                         }`}
                                 >
                                     <div className="flex items-start gap-3">
@@ -368,7 +368,7 @@ export default function PolicyEditorModal({ portfolioId, existingPolicy, onClose
                                 onClick={() => setUniverseMode('MARKET')}
                                 className={`w-full text-left p-4 rounded-lg border-2 transition-all ${universeMode === 'MARKET'
                                     ? 'border-cyan-500 bg-cyan-50 dark:bg-cyan-900/20'
-                                    : 'border-gray-200 dark:border-gray-700 hover:border-cyan-300'
+                                    : 'border-hairline hover:border-cyan-300'
                                     }`}
                             >
                                 <div className="flex items-start gap-3">
@@ -397,7 +397,7 @@ export default function PolicyEditorModal({ portfolioId, existingPolicy, onClose
                     <div className="space-y-4">
                         <button
                             onClick={() => setShowAdvanced(!showAdvanced)}
-                            className="w-full flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                            className="w-full flex items-center justify-between p-4 bg-surface-muted rounded-control hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                         >
                             <div className="flex items-center gap-2">
                                 <span className="text-lg">⚙️</span>
@@ -411,7 +411,7 @@ export default function PolicyEditorModal({ portfolioId, existingPolicy, onClose
                         </button>
 
                         {showAdvanced && (
-                            <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg space-y-4 bg-blue-50 dark:bg-blue-900/20">
+                            <div className="p-4 border border-hairline rounded-lg space-y-4 bg-blue-50 dark:bg-blue-900/20">
                                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                                     Fine-tune the AI scoring algorithm to match your risk profile
                                 </p>
@@ -550,7 +550,7 @@ export default function PolicyEditorModal({ portfolioId, existingPolicy, onClose
                 </div>
 
                 {/* Footer */}
-                <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex justify-end gap-3">
+                <div className="flex-shrink-0 border-t border-hairline px-6 py-4 flex justify-end gap-3">
                     <button
                         onClick={onClose}
                         className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg"

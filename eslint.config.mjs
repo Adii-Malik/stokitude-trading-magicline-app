@@ -66,5 +66,27 @@ export default [
       'no-empty': ['warn', { allowEmptyCatch: true }],
       'no-constant-condition': ['warn', { checkLoops: false }]
     }
+  },
+
+  {
+    /**
+     * The design system, enforced rather than remembered.
+     *
+     * Surfaces, radii, shadows and text colours belong to tokens in
+     * tailwind.config.js and to the primitives in src/ui. Writing them by hand
+     * is how the same card ended up hand-styled in 42 files across 7 corner
+     * radii - the drift that showed up every time anything was touched.
+     *
+     * Scoped to the portfolio components, which are migrated. Widen the files
+     * list as other areas move over; src/ui is exempt because it defines them.
+     */
+    files: ['frontend/src/components/Portfolio/**/*.jsx'],
+    rules: {
+      'no-restricted-syntax': ['error', {
+        // A hover: prefix is an interaction state, not a surface, so it is exempt.
+        selector: 'Literal[value=/(?<!hover:)\\b(bg-white|bg-gray-800|rounded-xl|rounded-2xl|shadow-sm|shadow-md|shadow-lg|shadow-xl)\\b/]',
+        message: 'Use a design token or a primitive from src/ui - bg-surface, rounded-card, shadow-card. Raw surface classes drift.'
+      }]
+    }
   }
 ];

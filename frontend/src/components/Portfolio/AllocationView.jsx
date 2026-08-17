@@ -307,9 +307,9 @@ function RecommendationCard({ recommendation, currency, portfolioId, onUpdate })
     };
 
     return (
-        <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm hover:shadow-md transition-shadow p-6">
+        <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 border border-hairline rounded-card shadow-card hover:shadow-card-hover transition-shadow p-6">
             {/* Header */}
-            <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between mb-6 pb-4 border-b border-hairline">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-cyan-100 dark:bg-cyan-900/30 rounded-lg">
                         <Calendar className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
@@ -327,13 +327,13 @@ function RecommendationCard({ recommendation, currency, portfolioId, onUpdate })
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
-                    <span className={`px-4 py-1.5 rounded-full text-sm font-semibold shadow-sm ${statusColors[recommendation.status]}`}>
+                    <span className={`px-4 py-1.5 rounded-full text-sm font-semibold shadow-card ${statusColors[recommendation.status]}`}>
                         {recommendation.status}
                     </span>
                     {recommendation.status === 'DRAFT' && (
                         <button
                             onClick={approveRecommendation}
-                            className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
+                            className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-medium rounded-lg transition-colors shadow-card"
                         >
                             Approve
                         </button>
@@ -341,7 +341,7 @@ function RecommendationCard({ recommendation, currency, portfolioId, onUpdate })
                     {recommendation.status === 'APPROVED' && (
                         <button
                             onClick={markExecuted}
-                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
+                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-card"
                         >
                             Mark Executed
                         </button>
@@ -354,12 +354,12 @@ function RecommendationCard({ recommendation, currency, portfolioId, onUpdate })
                     {recommendation.allocations.map((alloc, index) => (
                         <div
                             key={alloc.symbol}
-                            className="group bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 hover:border-cyan-400 dark:hover:border-cyan-500 hover:shadow-md transition-all"
+                            className="group bg-surface rounded-lg p-4 border border-hairline hover:border-cyan-400 dark:hover:border-cyan-500 hover:shadow-card-hover transition-all"
                         >
                             {/* Stock Header */}
                             <div className="flex items-center justify-between mb-3">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center shadow-sm">
+                                    <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center shadow-card">
                                         <span className="text-white font-bold text-sm">{alloc.symbol.substring(0, 2)}</span>
                                     </div>
                                     <div>
@@ -387,7 +387,7 @@ function RecommendationCard({ recommendation, currency, portfolioId, onUpdate })
                             </div>
 
                             {/* Research Links */}
-                            <div className="flex items-center gap-2 pt-3 border-t border-gray-100 dark:border-gray-700">
+                            <div className="flex items-center gap-2 pt-3 border-t border-hairline">
                                 <span className="text-xs font-medium text-gray-500 dark:text-gray-400 flex items-center gap-1">
                                     <Target className="w-3 h-3" />
                                     Research:
@@ -423,7 +423,7 @@ function RecommendationCard({ recommendation, currency, portfolioId, onUpdate })
                     ))}
                 </div>
             ) : (
-                <div className="text-center py-12 bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 border-2 border-dashed border-yellow-300 dark:border-yellow-700 rounded-xl">
+                <div className="text-center py-12 bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 border-2 border-dashed border-yellow-300 dark:border-yellow-700 rounded-card">
                     <div className="text-5xl mb-3">⚠️</div>
                     <p className="text-yellow-800 dark:text-yellow-200 font-bold text-lg mb-2">No Allocations Generated</p>
                     <p className="text-sm text-yellow-700 dark:text-yellow-300 mb-1">

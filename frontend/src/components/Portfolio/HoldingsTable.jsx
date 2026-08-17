@@ -95,7 +95,7 @@ export default function HoldingsTable({ portfolioId, currency, onSelectSymbol })
             <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
                     <thead>
-                        <tr className="border-b border-gray-200 dark:border-gray-700 text-left">
+                        <tr className="border-b border-hairline text-left">
                             <th className="pb-3 font-semibold text-gray-700 dark:text-gray-300">Symbol</th>
                             <SortableHeader
                                 label="Shares"
@@ -175,7 +175,7 @@ export default function HoldingsTable({ portfolioId, currency, onSelectSymbol })
 
 function HoldingCard({ holding, currency, onSelectSymbol }) {
     return (
-        <div className={`rounded-xl border border-gray-200 dark:border-gray-700 p-4 ${holding.closed ? 'opacity-60' : ''}`}>
+        <div className={`rounded-card border border-hairline p-4 ${holding.closed ? 'opacity-60' : ''}`}>
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                     <div className="flex items-center gap-2">
@@ -210,7 +210,7 @@ function HoldingCard({ holding, currency, onSelectSymbol }) {
                     )}
                 </div>
             </div>
-            <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+            <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-3 pt-3 border-t border-hairline">
                 <span>Now {formatCurrency(holding.currentPrice, currency)}</span>
                 <span>{formatPercent(holding.weightPct, 1)} of book</span>
             </div>
@@ -238,7 +238,7 @@ function HoldingRow({ holding, currency, onSelectSymbol }) {
     const isProfit = holding.unrealizedPnL >= 0;
 
     return (
-        <tr className={`border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 ${holding.closed ? 'opacity-60' : ''}`}>
+        <tr className={`border-b border-hairline hover:bg-gray-50 dark:hover:bg-gray-700/50 ${holding.closed ? 'opacity-60' : ''}`}>
             <td className="py-3">
                 <div className="flex items-center gap-2">
                     <button
@@ -302,7 +302,7 @@ function ClosedPositions({ rows, currency, onSelectSymbol }) {
     const total = rows.reduce((sum, r) => sum + (r.realizedPnL || 0) + (r.dividendsReceived || 0), 0);
 
     return (
-        <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
+        <div className="border-t border-hairline pt-3">
             <button
                 onClick={() => setOpen(!open)}
                 className="w-full flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"

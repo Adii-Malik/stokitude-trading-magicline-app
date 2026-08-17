@@ -3,6 +3,28 @@
 @tailwind utilities;
 
 @layer base {
+    /* Token values. Components use the semantic names from tailwind.config;
+       only this block knows the actual colours. */
+    :root {
+        --surface: 255 255 255;
+        --surface-muted: 249 250 251;
+        --hairline: 229 231 235;
+        --ink: 17 24 39;
+        --ink-muted: 75 85 99;
+        --ink-faint: 156 163 175;
+    }
+
+    .dark {
+        --surface: 31 41 55;
+        --surface-muted: 17 24 39;
+        --hairline: 55 65 81;
+        --ink: 255 255 255;
+        --ink-muted: 156 163 175;
+        --ink-faint: 107 114 128;
+    }
+}
+
+@layer base {
   body {
     @apply bg-gray-50 text-gray-900;
   }

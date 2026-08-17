@@ -40,8 +40,8 @@ export default function SIPPlanModal({ portfolioId, currency, existingPlan, onCl
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full mx-4">
-                <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between rounded-t-xl">
+            <div className="bg-surface rounded-card shadow-dialog max-w-md w-full mx-4">
+                <div className="bg-surface border-b border-hairline px-6 py-4 flex items-center justify-between rounded-t-xl">
                     <h2 className="text-xl font-semibold text-gray-900 dark:text-white">SIP Plan Setup</h2>
                     <button
                         onClick={onClose}
@@ -96,7 +96,7 @@ export default function SIPPlanModal({ portfolioId, currency, existingPlan, onCl
                     </div>
 
                     {/* Active Toggle */}
-                    <div className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <div className="flex items-center gap-3 p-4 bg-surface-muted rounded-lg">
                         <input
                             type="checkbox"
                             id="isActive"
@@ -111,7 +111,7 @@ export default function SIPPlanModal({ portfolioId, currency, existingPlan, onCl
                     </div>
                 </div>
 
-                <div className="bg-gray-50 dark:bg-gray-700 px-6 py-4 flex justify-end gap-3 border-t border-gray-200 dark:border-gray-600 rounded-b-xl">
+                <div className="bg-surface-muted px-6 py-4 flex justify-end gap-3 border-t border-gray-200 dark:border-gray-600 rounded-b-xl">
                     <button
                         onClick={onClose}
                         className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"

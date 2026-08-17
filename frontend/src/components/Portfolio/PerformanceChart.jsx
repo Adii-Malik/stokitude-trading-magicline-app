@@ -44,7 +44,7 @@ export default function PerformanceChart({ portfolioId, currency = 'PKR' }) {
     const comparable = (data?.comparison?.length || 0) > 1;
 
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 sm:p-6">
+        <div className="bg-surface rounded-card shadow-card p-4 sm:p-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Performance</h3>
 
@@ -150,7 +150,7 @@ function Stats({ summary, comparison, currency }) {
 /** Compact by design: these are secondary to the summary cards above. */
 function Stat({ icon: Icon, label, value, hint, color = '' }) {
     return (
-        <div className="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2.5">
+        <div className="rounded-lg border border-hairline px-3 py-2.5">
             <div className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
                 <Icon className="w-3.5 h-3.5 shrink-0" />
                 <span className="truncate">{label}</span>
@@ -217,7 +217,7 @@ function ModeButton({ active, onClick, children }) {
         <button
             onClick={onClick}
             className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${active
-                ? 'bg-white dark:bg-gray-900 text-cyan-600 dark:text-cyan-400 shadow-sm'
+                ? 'bg-surface text-cyan-600 dark:text-cyan-400 shadow-card'
                 : 'text-gray-600 dark:text-gray-400'
                 }`}
         >

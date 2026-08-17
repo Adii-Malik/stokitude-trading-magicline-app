@@ -7,25 +7,24 @@ export function Panel({ icon: Icon, tint = 'cyan', title, value, note, tone, chi
     const t = TINTS[tint] || TINTS.cyan;
 
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-2xl p-5
-                        shadow-sm hover:shadow-md transition-shadow
-                        ring-1 ring-gray-900/5 dark:ring-white/10">
+        <div className="bg-surface rounded-card p-5 shadow-card hover:shadow-card-hover
+                        transition-shadow ring-1 ring-hairline">
             <div className="flex items-center gap-2.5">
                 {Icon && (
                     <span className={`grid place-items-center w-9 h-9 rounded-xl ${t.bg}`}>
                         <Icon className={`w-4 h-4 ${t.fg}`} />
                     </span>
                 )}
-                <span className="text-sm font-medium text-gray-600 dark:text-gray-400">{title}</span>
+                <span className="text-sm font-medium text-ink-muted">{title}</span>
             </div>
 
-            <div className={`mt-3 text-2xl font-bold tracking-tight ${tone || 'text-gray-900 dark:text-white'}`}>
+            <div className={`mt-3 text-2xl font-bold tracking-tight ${tone || 'text-ink'}`}>
                 {value}
             </div>
-            {note && <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{note}</div>}
+            {note && <div className="text-xs text-ink-muted mt-0.5">{note}</div>}
 
             {children && (
-                <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700 space-y-2">
+                <div className="mt-4 pt-3 border-t border-hairline space-y-2">
                     {children}
                 </div>
             )}
@@ -36,13 +35,13 @@ export function Panel({ icon: Icon, tint = 'cyan', title, value, note, tone, chi
 export function Line({ label, value, note, tone, muted, strong }) {
     return (
         <div className={`flex items-baseline justify-between gap-3 text-sm
-                        ${strong ? 'pt-2 border-t border-gray-100 dark:border-gray-700' : ''}`}>
-            <span className={muted ? 'text-gray-400 dark:text-gray-500' : 'text-gray-600 dark:text-gray-400'}>
+                        ${strong ? 'pt-2 border-t border-hairline' : ''}`}>
+            <span className={muted ? 'text-ink-faint' : 'text-ink-muted'}>
                 {label}
-                {note && <span className="block text-xs text-gray-400 dark:text-gray-500">{note}</span>}
+                {note && <span className="block text-xs text-ink-faint">{note}</span>}
             </span>
             <span className={`shrink-0 tabular-nums ${strong ? 'font-semibold' : ''}
-                             ${tone || (muted ? 'text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white')}`}>
+                             ${tone || (muted ? 'text-ink-faint' : 'text-ink')}`}>
                 {value}
             </span>
         </div>

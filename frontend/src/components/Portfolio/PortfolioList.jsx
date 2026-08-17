@@ -59,7 +59,7 @@ export default function PortfolioList() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="min-h-screen bg-surface-muted">
             <div className="container mx-auto px-4 py-8">
                 <div className="space-y-6">
                     <div className="flex justify-between items-center">
@@ -69,7 +69,7 @@ export default function PortfolioList() {
                         </div>
                         <button
                             onClick={() => setShowCreateModal(true)}
-                            className="flex items-center gap-2 shrink-0 whitespace-nowrap bg-cyan-500 hover:bg-cyan-600 text-white font-medium px-4 py-2 rounded-lg transition-colors shadow-lg"
+                            className="flex items-center gap-2 shrink-0 whitespace-nowrap bg-cyan-500 hover:bg-cyan-600 text-white font-medium px-4 py-2 rounded-lg transition-colors shadow-card"
                         >
                             <Plus className="w-5 h-5 shrink-0" />
                             New Portfolio
@@ -77,13 +77,13 @@ export default function PortfolioList() {
                     </div>
 
                     {portfolios.length === 0 ? (
-                        <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-700">
+                        <div className="text-center py-12 bg-surface rounded-card border-2 border-dashed border-gray-300 dark:border-gray-700">
                             <FolderOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No portfolios yet</h3>
                             <p className="text-gray-600 dark:text-gray-400 mb-4">Create your first portfolio to start tracking</p>
                             <button
                                 onClick={() => setShowCreateModal(true)}
-                                className="bg-cyan-500 hover:bg-cyan-600 text-white font-medium px-6 py-2 rounded-lg transition-colors shadow-lg"
+                                className="bg-cyan-500 hover:bg-cyan-600 text-white font-medium px-6 py-2 rounded-lg transition-colors shadow-card"
                             >
                                 Create Portfolio
                             </button>
@@ -136,7 +136,7 @@ function PortfolioCard({ portfolio, onClick, onDelete, onEdit }) {
 
     return (
         <div
-            className="bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-2xl border border-gray-200 dark:border-gray-700 p-6 transition-all hover:-translate-y-1 cursor-pointer relative group"
+            className="bg-surface rounded-card shadow-card hover:shadow-dialog border border-hairline p-6 transition-all hover:-translate-y-1 cursor-pointer relative group"
         >
             {/* Three-dot menu */}
             <div className="absolute top-4 right-4">
@@ -151,7 +151,7 @@ function PortfolioCard({ portfolio, onClick, onDelete, onEdit }) {
                 </button>
 
                 {showMenu && (
-                    <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10">
+                    <div className="absolute right-0 mt-2 w-48 bg-surface rounded-lg shadow-card border border-hairline py-1 z-10">
                         <button
                             onClick={(e) => {
                                 setShowMenu(false);
@@ -197,7 +197,7 @@ function PortfolioCard({ portfolio, onClick, onDelete, onEdit }) {
                         </div>
                     </div>
 
-                    <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center justify-between pt-3 border-t border-hairline">
                         <div>
                             <div className="text-sm text-gray-600 dark:text-gray-400">P/L</div>
                             <div className={`text-lg font-semibold ${getPnLColorClass(totalPnL)}`}>
@@ -273,10 +273,10 @@ function CreatePortfolioModal({ portfolio, onClose, onCreated }) {
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-start sm:items-center justify-center p-4 overflow-y-auto" onClick={onClose}>
             <div
-                className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col my-auto"
+                className="bg-surface rounded-card shadow-dialog w-full max-w-2xl max-h-[90vh] flex flex-col my-auto"
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-hairline shrink-0">
                     <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                         {portfolio ? 'Edit Portfolio' : 'Create New Portfolio'}
                     </h2>
@@ -359,7 +359,7 @@ function CreatePortfolioModal({ portfolio, onClose, onCreated }) {
 
                     </div>
 
-                    <div className="flex gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700 shrink-0">
+                    <div className="flex gap-3 px-6 py-4 border-t border-hairline shrink-0">
                         <button
                             type="button"
                             onClick={onClose}
@@ -370,7 +370,7 @@ function CreatePortfolioModal({ portfolio, onClose, onCreated }) {
                         <button
                             type="submit"
                             disabled={submitting}
-                            className="flex-1 px-4 py-2 bg-cyan-500 text-white font-medium rounded-lg hover:bg-cyan-600 disabled:opacity-50 transition-colors shadow-lg"
+                            className="flex-1 px-4 py-2 bg-cyan-500 text-white font-medium rounded-lg hover:bg-cyan-600 disabled:opacity-50 transition-colors shadow-card"
                         >
                             {submitting ? 'Saving...' : portfolio ? 'Update' : 'Create'}
                         </button>

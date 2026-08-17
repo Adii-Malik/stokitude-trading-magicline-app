@@ -155,7 +155,7 @@ function TransactionRow({ transaction, currency, onDelete, onEdit }) {
     };
 
     return (
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 sm:p-4 hover:shadow-md dark:hover:shadow-lg transition-all group">
+        <div className="bg-surface border border-hairline rounded-card p-3 sm:p-4 hover:shadow-card-hover dark:hover:shadow-card transition-all group">
             {/* Two columns that are allowed to shrink, so long amounts never
                 break mid-number the way a rigid four-across row does. */}
             <div className="flex items-start justify-between gap-2">
@@ -224,7 +224,7 @@ function TransactionRow({ transaction, currency, onDelete, onEdit }) {
             </div>
 
             {transaction.notes && (
-                <div className="mt-2 text-sm text-gray-600 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 pt-2">
+                <div className="mt-2 text-sm text-gray-600 dark:text-gray-400 border-t border-hairline pt-2">
                     {transaction.notes}
                 </div>
             )}

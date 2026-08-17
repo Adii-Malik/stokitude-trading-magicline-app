@@ -150,7 +150,7 @@ export default function AddTransactionModal({ portfolioId, currency, commissionS
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="bg-surface rounded-card p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
                 <div className="flex items-center justify-between mb-4">
                     <h2 className="text-xl font-bold text-gray-900 dark:text-white">Add Transaction</h2>
                     <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
@@ -216,7 +216,7 @@ export default function AddTransactionModal({ portfolioId, currency, commissionS
                             />
                         )}
                         {!pickFromHoldings && showSuggestions && stockSuggestions.length > 0 && (
-                            <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                            <div className="absolute z-10 w-full mt-1 bg-surface border border-gray-300 dark:border-gray-600 rounded-lg shadow-card max-h-60 overflow-y-auto">
                                 {stockSuggestions.map((stock) => (
                                     <button
                                         key={stock._id}
@@ -344,7 +344,7 @@ export default function AddTransactionModal({ portfolioId, currency, commissionS
                             </div>
 
                             {formData.quantity && formData.price && (
-                                <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg space-y-1">
+                                <div className="bg-surface-muted p-3 rounded-lg space-y-1">
                                     <Row label="Gross" value={formatCurrency(gross, currency)} />
                                     {entered > 0 && (
                                         <Row

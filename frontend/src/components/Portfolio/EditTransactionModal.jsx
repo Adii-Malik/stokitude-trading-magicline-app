@@ -72,8 +72,8 @@ export default function EditTransactionModal({ portfolioId, transaction, currenc
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
-                <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
+            <div className="bg-surface rounded-card shadow-dialog max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+                <div className="sticky top-0 bg-surface border-b border-hairline px-6 py-4 flex items-center justify-between">
                     <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Edit Transaction</h2>
                     <button
                         onClick={onClose}
@@ -118,7 +118,7 @@ export default function EditTransactionModal({ portfolioId, transaction, currenc
                                 required
                             />
                             {showSuggestions && stockSuggestions.length > 0 && (
-                                <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                                <div className="absolute z-10 w-full mt-1 bg-surface border border-gray-300 dark:border-gray-600 rounded-lg shadow-card max-h-60 overflow-y-auto">
                                     {stockSuggestions.map((stock) => (
                                         <button
                                             key={stock._id}

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Calendar, Briefcase, TrendingUp, Activity, Coins } from 'lucide-react';
-import { Panel, Line } from './Panel';
+import { Panel, Line } from '../../ui/Panel';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { formatCurrency, formatPercent, formatShares, getPnLColorClass } from '../../utils/portfolioUtils';
@@ -26,7 +26,7 @@ export default function SymbolDetail() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+            <div className="min-h-screen bg-surface-muted flex items-center justify-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500"></div>
             </div>
         );
@@ -34,7 +34,7 @@ export default function SymbolDetail() {
 
     if (!data) {
         return (
-            <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+            <div className="min-h-screen bg-surface-muted flex items-center justify-center">
                 <p className="text-gray-600 dark:text-gray-400">No transactions for {symbol}</p>
             </div>
         );
@@ -45,7 +45,7 @@ export default function SymbolDetail() {
     const dividends = transactions.filter(tx => tx.type === 'DIV');
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="min-h-screen bg-surface-muted">
             <div className="container mx-auto px-4 py-8 space-y-6">
                 <div className="flex items-center gap-3">
                     <button
@@ -110,10 +110,10 @@ export default function SymbolDetail() {
                 </div>
 
                 {dividends.length > 0 && (
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm ring-1 ring-gray-900/5 dark:ring-white/10 p-5">
+                    <div className="bg-surface rounded-card shadow-card ring-1 ring-hairline p-5">
                         <div className="flex items-center justify-between gap-3 mb-4">
                             <span className="flex items-center gap-2.5">
-                                <span className="grid place-items-center w-9 h-9 rounded-xl bg-green-50 dark:bg-green-500/10">
+                                <span className="grid place-items-center w-9 h-9 rounded-card bg-green-50 dark:bg-green-500/10">
                                     <Coins className="w-4 h-4 text-green-600 dark:text-green-400" />
                                 </span>
                                 <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
@@ -139,14 +139,14 @@ export default function SymbolDetail() {
                     </div>
                 )}
 
-                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm ring-1 ring-gray-900/5 dark:ring-white/10 p-5">
+                <div className="bg-surface rounded-card shadow-card ring-1 ring-hairline p-5">
                     <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                         Every transaction
                     </h2>
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead>
-                                <tr className="border-b border-gray-200 dark:border-gray-700 text-left text-gray-600 dark:text-gray-400">
+                                <tr className="border-b border-hairline text-left text-gray-600 dark:text-gray-400">
                                     <th className="pb-2 font-medium">Date</th>
                                     <th className="pb-2 font-medium">Type</th>
                                     <th className="pb-2 font-medium text-right">Shares</th>
@@ -181,7 +181,7 @@ function TxRow({ tx, currency }) {
             : tx.dividendCash || 0;
 
     return (
-        <tr className="border-b border-gray-100 dark:border-gray-700/50">
+        <tr className="border-b border-hairline/50">
             <td className="py-2.5 text-gray-900 dark:text-white whitespace-nowrap">
                 <span className="inline-flex items-center gap-1.5">
                     <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
