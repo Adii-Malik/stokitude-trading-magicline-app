@@ -35,6 +35,31 @@ export function orderTargets(targets, direction) {
     return targets;
 }
 
+/**
+ * The first target sitting on the wrong side of entry, or null.
+ *
+ * A target is a profit objective: above entry on a long, below it on a short.
+ * One on the wrong side would be flagged reached by the very next price poll,
+ * and a false alert costs more than a rejected typo. Measured against the far
+ * edge of a planned zone, since a target inside the band you are still waiting
+ * to buy in is not a target either. Closed trades are left alone - history is
+ * history, and re-validating it would block editing an old lesson.
+ */
+export function targetOnWrongSide({ state, direction, entryPrice, entryFrom, entryTo, targets }) {
+    if (state === 'closed' || !targets?.length) return null;
+
+    const bounds = [entryFrom, entryTo].filter(n => n != null);
+    const reference = state !== 'planned' ? entryPrice
+        : !bounds.length ? null
+            : direction === 'short' ? Math.min(...bounds) : Math.max(...bounds);
+
+    if (reference == null) return null;
+
+    return targets.find(t => direction === 'short'
+        ? t.price >= reference
+        : t.price <= reference) || null;
+}
+
 const journalEntrySchema = new mongoose.Schema({
     user: {
         type: mongoose.Schema.Types.ObjectId,
@@ -289,6 +314,13 @@ journalEntrySchema.pre('save', function (next) {
     }
 
     orderTargets(this.targets, this.direction);
+
+    const wrongSide = targetOnWrongSide(this);
+    if (wrongSide) {
+        return next(new Error(
+            `Target ${wrongSide.price} is on the wrong side of entry for a ${this.direction} trade`
+        ));
+    }
 
     next();
 });

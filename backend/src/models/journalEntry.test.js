@@ -8,7 +8,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import mongoose from 'mongoose';
-import JournalEntry, { orderTargets } from './JournalEntry.js';
+import JournalEntry, { orderTargets, targetOnWrongSide } from './JournalEntry.js';
 
 const user = new mongoose.Types.ObjectId();
 const errors = (doc) => Object.keys(doc.validateSync()?.errors || {});
@@ -83,6 +83,70 @@ describe('the plannedTarget virtual', () => {
 
     test('status is exposed the same way', () => {
         assert.equal(doc().toObject().status, 'planned');
+    });
+});
+
+describe('targets on the wrong side of entry', () => {
+    const open = (o) => ({ state: 'open', entryPrice: 1000, ...o });
+
+    test('a long target below entry is refused', () => {
+        const bad = targetOnWrongSide(open({ direction: 'long', targets: [{ price: 900 }] }));
+        assert.equal(bad.price, 900);
+    });
+
+    test('a short target above entry is refused', () => {
+        const bad = targetOnWrongSide(open({ direction: 'short', targets: [{ price: 1100 }] }));
+        assert.equal(bad.price, 1100);
+    });
+
+    test('entry itself is not a target', () => {
+        assert.ok(targetOnWrongSide(open({ direction: 'long', targets: [{ price: 1000 }] })));
+    });
+
+    test('targets on the right side pass', () => {
+        assert.equal(targetOnWrongSide(open({ direction: 'long', targets: [{ price: 1100 }] })), null);
+        assert.equal(targetOnWrongSide(open({ direction: 'short', targets: [{ price: 900 }] })), null);
+    });
+
+    test('it reports the first offender out of several', () => {
+        const bad = targetOnWrongSide(open({
+            direction: 'long', targets: [{ price: 1100 }, { price: 800 }]
+        }));
+        assert.equal(bad.price, 800);
+    });
+
+    test('a planned long target must clear the top of the zone', () => {
+        // Inside the band you are still waiting to buy in is not a target.
+        const bad = targetOnWrongSide({
+            state: 'planned', direction: 'long', entryFrom: 95, entryTo: 105, targets: [{ price: 100 }]
+        });
+        assert.equal(bad.price, 100);
+        assert.equal(targetOnWrongSide({
+            state: 'planned', direction: 'long', entryFrom: 95, entryTo: 105, targets: [{ price: 120 }]
+        }), null);
+    });
+
+    test('a planned short target must clear the bottom of the zone', () => {
+        assert.ok(targetOnWrongSide({
+            state: 'planned', direction: 'short', entryFrom: 95, entryTo: 105, targets: [{ price: 100 }]
+        }));
+        assert.equal(targetOnWrongSide({
+            state: 'planned', direction: 'short', entryFrom: 95, entryTo: 105, targets: [{ price: 80 }]
+        }), null);
+    });
+
+    test('a closed trade is left alone, whatever its targets say', () => {
+        // History is history. Re-validating it would block editing an old lesson.
+        assert.equal(targetOnWrongSide({
+            state: 'closed', direction: 'long', entryPrice: 1000, targets: [{ price: 900 }]
+        }), null);
+    });
+
+    test('no reference price means nothing to check against', () => {
+        assert.equal(targetOnWrongSide({
+            state: 'planned', direction: 'long', targets: [{ price: 100 }]
+        }), null);
+        assert.equal(targetOnWrongSide({ state: 'open', direction: 'long', targets: [] }), null);
     });
 });
 

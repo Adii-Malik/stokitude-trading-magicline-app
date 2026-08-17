@@ -81,7 +81,8 @@ class JournalLevelHandler {
                 if (!price) continue;
                 checked++;
 
-                if (this.apply(entry, price).length) dirty.push(entry);
+                const updates = await this.apply(entry, price);
+                if (updates.length) dirty.push(entry);
             }
 
             await Promise.all(dirty.map(e => e.save()));
@@ -93,35 +94,58 @@ class JournalLevelHandler {
         }
     }
 
-    /** Flags what price reached and tells the owner. Returns a label per hit. */
-    apply(entry, price) {
+    /**
+     * Flags what price reached and tells the owner. Returns a label per hit.
+     *
+     * The flag is only set once the notification has been sent, not before. A
+     * flag written on a failed send is the worst outcome available: the alert is
+     * lost and every later poll sees the flag and stays quiet, so you are never
+     * told. Leaving it unset lets the next poll retry.
+     *
+     * A notification deliberately skipped - preferences off, user inactive -
+     * counts as sent, because retrying that forever would never succeed.
+     */
+    async apply(entry, price) {
         const reached = levelsReached(entry, price);
         const hitAt = new Date();
         const updates = [];
-        const warn = (what) => (err) => console.error(`Failed to send ${what} notification:`, err);
 
-        if (reached.entryZone) {
+        const told = async (send, label) => {
+            try {
+                const { failed } = await send();
+                if (failed) throw new Error(`${failed} recipient(s) failed`);
+                updates.push(label);
+                return true;
+            } catch (error) {
+                console.error(`Could not notify "${label}" for ${entry.symbol}, will retry:`, error.message);
+                return false;
+            }
+        };
+
+        if (reached.entryZone
+            && await told(() => notificationService.notifyJournalEntryZone(entry, price), 'Entry zone reached')) {
             entry.entryZoneHit = true;
             entry.entryZoneHitDate = hitAt;
-            updates.push('Entry zone reached');
-            notificationService.notifyJournalEntryZone(entry, price).catch(warn('entry zone'));
         }
 
-        if (reached.stop) {
-            // Flagged, never acted on: closing the entry here would invent an
-            // exit price the broker never gave.
+        // Flagged, never acted on: closing the entry here would invent an exit
+        // price the broker never gave.
+        if (reached.stop
+            && await told(() => notificationService.notifyJournalStop(entry, price), 'Stop level reached')) {
             entry.stopHit = true;
             entry.stopHitDate = hitAt;
-            updates.push('Stop level reached');
-            notificationService.notifyJournalStop(entry, price).catch(warn('stop'));
         }
 
         for (const i of reached.targets) {
             const target = entry.targets[i];
-            target.isHit = true;
-            target.hitDate = hitAt;
-            updates.push(`Target ${target.level} reached`);
-            notificationService.notifyJournalTarget(entry, target, price).catch(warn('target'));
+            const sent = await told(
+                () => notificationService.notifyJournalTarget(entry, target, price),
+                `Target ${target.level} reached`
+            );
+            if (sent) {
+                target.isHit = true;
+                target.hitDate = hitAt;
+            }
         }
 
         return updates;

@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Pencil, Trash2, ShieldCheck, HelpCircle } from 'lucide-react';
+import { Pencil, Trash2, ShieldCheck, HelpCircle, Bell, AlertTriangle } from 'lucide-react';
 import { formatCurrency, formatPercent, getPnLColorClass } from '../../utils/portfolioUtils';
 import { mistakeLabel } from './labels';
 
 const shortDate = (d) => (d ? new Date(d).toLocaleDateString() : '—');
 
-export default function JournalList({ entries, onEdit, onDelete, emptyHint }) {
+export default function JournalList({ entries, onEdit, onDelete, onTake, emptyHint }) {
     if (!entries.length) {
         return (
             <div className="text-center py-12 text-gray-600 dark:text-gray-400">
@@ -25,11 +25,23 @@ export default function JournalList({ entries, onEdit, onDelete, emptyHint }) {
                                 <span className="font-bold text-gray-900 dark:text-white">{e.symbol}</span>
                                 <Tag>{e.exchange}</Tag>
                                 <Tag>{e.direction}</Tag>
-                                {e.status === 'open'
-                                    ? <Tag tone="blue">Open</Tag>
-                                    : <Tag tone={e.outcome === 'win' ? 'green' : e.outcome === 'loss' ? 'red' : 'gray'}>
-                                        {e.outcome}
-                                    </Tag>}
+                                {e.status === 'planned'
+                                    ? <Tag tone="amber">Watching</Tag>
+                                    : e.status === 'open'
+                                        ? <Tag tone="blue">Open</Tag>
+                                        : <Tag tone={e.outcome === 'win' ? 'green' : e.outcome === 'loss' ? 'red' : 'gray'}>
+                                            {e.outcome}
+                                        </Tag>}
+                                {e.status === 'planned' && e.entryZoneHit && (
+                                    <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+                                        <Bell className="w-3.5 h-3.5" /> zone reached
+                                    </span>
+                                )}
+                                {e.status === 'open' && e.stopHit && (
+                                    <span className="inline-flex items-center gap-1 text-xs text-red-600 dark:text-red-400">
+                                        <AlertTriangle className="w-3.5 h-3.5" /> stop reached
+                                    </span>
+                                )}
                                 {e.followedPlan && (
                                     <span className="inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
                                         <ShieldCheck className="w-3.5 h-3.5" /> followed plan
@@ -42,11 +54,21 @@ export default function JournalList({ entries, onEdit, onDelete, emptyHint }) {
                                 )}
                             </div>
                             <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                                {e.quantity} @ {e.entryPrice} · {shortDate(e.entryDate)}
-                                {e.status === 'closed'
-                                    ? ` → ${e.exitPrice} · ${shortDate(e.exitDate)}`
-                                    : e.markPrice != null && ` · marked ${e.markPrice}`}
-                                {e.datesEstimated && <span className="text-amber-600 dark:text-amber-400"> · dates estimated</span>}
+                                {e.status === 'planned' ? (
+                                    <>
+                                        Waiting for {zoneLabel(e)}
+                                        {e.quantity ? ` · ${e.quantity} planned` : ''}
+                                        {e.plannedRR != null && ` · ${e.plannedRR.toFixed(1)}:1`}
+                                    </>
+                                ) : (
+                                    <>
+                                        {e.quantity} @ {e.entryPrice} · {shortDate(e.entryDate)}
+                                        {e.status === 'closed'
+                                            ? ` → ${e.exitPrice} · ${shortDate(e.exitDate)}`
+                                            : e.markPrice != null && ` · marked ${e.markPrice}`}
+                                        {e.datesEstimated && <span className="text-amber-600 dark:text-amber-400"> · dates estimated</span>}
+                                    </>
+                                )}
                             </div>
                         </div>
 
@@ -72,6 +94,12 @@ export default function JournalList({ entries, onEdit, onDelete, emptyHint }) {
                                 </div>
                             )}
                             <div className="flex gap-1">
+                                {e.status === 'planned' && (
+                                    <button onClick={() => onTake(e)}
+                                        className="px-2.5 py-1 text-xs font-medium text-cyan-700 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-700 rounded-lg hover:bg-cyan-50 dark:hover:bg-cyan-900/30 whitespace-nowrap">
+                                        I took it
+                                    </button>
+                                )}
                                 <button onClick={() => onEdit(e)} title="Edit"
                                     className="p-2 text-gray-500 hover:text-cyan-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
                                     <Pencil className="w-4 h-4" />
@@ -83,6 +111,8 @@ export default function JournalList({ entries, onEdit, onDelete, emptyHint }) {
                             </div>
                         </div>
                     </div>
+
+                    {e.status !== 'closed' && <Levels entry={e} />}
 
                     {e.mistakes?.length > 0 && (
                         <div className="flex flex-wrap gap-1.5 mt-3">
@@ -101,6 +131,46 @@ export default function JournalList({ entries, onEdit, onDelete, emptyHint }) {
                         </p>
                     )}
                 </div>
+            ))}
+        </div>
+    );
+}
+
+const num = (n) => (typeof n === 'number' ? n.toLocaleString(undefined, { maximumFractionDigits: 2 }) : n);
+
+/** The zone a planned trade waits for. One bound means an exact level. */
+function zoneLabel(e) {
+    const bounds = [e.entryFrom, e.entryTo].filter((n) => n != null);
+    if (!bounds.length) return 'no level set';
+    const [lo, hi] = [Math.min(...bounds), Math.max(...bounds)];
+    return lo === hi ? num(lo) : `${num(lo)} – ${num(hi)}`;
+}
+
+/**
+ * The stop and targets, and which of them price has already reached. This is the
+ * whole reason the poll watches these entries, so it belongs on the card rather
+ * than behind an edit click.
+ */
+function Levels({ entry }) {
+    const { plannedStop, stopHit, targets = [] } = entry;
+    if (plannedStop == null && !targets.length) return null;
+
+    return (
+        <div className="flex flex-wrap items-center gap-1.5 mt-3">
+            {plannedStop != null && (
+                <span className={`px-2 py-0.5 rounded text-xs ${stopHit
+                    ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}`}>
+                    SL {num(plannedStop)}{stopHit && ' ✓'}
+                </span>
+            )}
+            {targets.map((t) => (
+                <span key={t.level}
+                    className={`px-2 py-0.5 rounded text-xs ${t.isHit
+                        ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}`}>
+                    T{t.level} {num(t.price)}{t.isHit && ' ✓'}
+                </span>
             ))}
         </div>
     );
@@ -129,7 +199,8 @@ function Tag({ children, tone = 'gray' }) {
         gray: 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300',
         green: 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400',
         red: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400',
-        blue: 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400'
+        blue: 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400',
+        amber: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400'
     };
     return <span className={`px-2 py-0.5 rounded text-xs ${tones[tone]}`}>{children}</span>;
 }

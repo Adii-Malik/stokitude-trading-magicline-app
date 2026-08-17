@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X } from 'lucide-react';
+import { X, Plus, Trash2, CheckCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { createEntry, updateEntry } from '../../services/journal';
 import { mistakeLabel } from './labels';
@@ -9,10 +9,13 @@ const dateValue = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '');
 export default function JournalEntryModal({ entry, options, onClose, onSaved }) {
     const editing = Boolean(entry?._id);
     const [form, setForm] = useState({
+        state: entry?.state || 'open',
         symbol: entry?.symbol || '',
         exchange: entry?.exchange || 'PSX',
         direction: entry?.direction || 'long',
         setupType: entry?.setupType || 'other',
+        entryFrom: entry?.entryFrom ?? '',
+        entryTo: entry?.entryTo ?? '',
         entryDate: dateValue(entry?.entryDate) || new Date().toISOString().slice(0, 10),
         entryPrice: entry?.entryPrice ?? '',
         quantity: entry?.quantity ?? '',
@@ -22,7 +25,9 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
         markPrice: entry?.markPrice ?? '',
         fees: entry?.fees ?? '',
         plannedStop: entry?.plannedStop ?? '',
-        plannedTarget: entry?.plannedTarget ?? '',
+        // Copied, not referenced: editing a price must not mutate the loaded
+        // entry, and isHit has to survive a save it was not part of.
+        targets: (entry?.targets || []).map((t) => ({ ...t })),
         stopPlaced: entry?.stopPlaced ?? false,
         eventChecked: entry?.eventChecked ?? false,
         emotionalState: entry?.emotionalState || 'neutral',
@@ -33,23 +38,48 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
     });
     const [saving, setSaving] = useState(false);
 
+    const planning = form.state === 'planned';
+
     const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
     const toggleMistake = (code) =>
         set('mistakes', form.mistakes.includes(code)
             ? form.mistakes.filter((m) => m !== code)
             : [...form.mistakes, code]);
 
-    // Risk is only meaningful once a stop level exists.
-    const risk = form.plannedStop !== '' && form.entryPrice !== '' && form.quantity !== ''
-        ? Math.abs(form.entryPrice - form.plannedStop) * form.quantity
+    // A planned trade has no fill, so risk is measured against the zone midpoint
+    // - the same reference the backend uses.
+    const bounds = [form.entryFrom, form.entryTo].filter((v) => v !== '').map(Number);
+    const reference = planning
+        ? (bounds.length ? bounds.reduce((a, b) => a + b, 0) / bounds.length : null)
+        : (form.entryPrice === '' ? null : Number(form.entryPrice));
+
+    const riskPerShare = form.plannedStop !== '' && reference != null
+        ? Math.abs(reference - Number(form.plannedStop))
+        : null;
+    const risk = riskPerShare != null && form.quantity !== ''
+        ? riskPerShare * Number(form.quantity)
+        : null;
+
+    // Quoted against the nearest target, which is what the model stores first.
+    const nearest = form.targets.length
+        ? form.targets.map((t) => Number(t.price)).filter((p) => !Number.isNaN(p))
+            .sort((a, b) => (form.direction === 'short' ? b - a : a - b))[0]
+        : null;
+    const rr = riskPerShare > 0 && nearest != null && reference != null
+        ? Math.abs(nearest - reference) / riskPerShare
         : null;
 
     const stopWithoutLevel = form.stopPlaced && form.plannedStop === '';
+    const zoneMissing = planning && bounds.length === 0;
 
     const submit = async (e) => {
         e.preventDefault();
         if (stopWithoutLevel) {
             toast.error('Enter the stop level you placed');
+            return;
+        }
+        if (zoneMissing) {
+            toast.error('Give the entry zone a level to watch for');
             return;
         }
         setSaving(true);
@@ -58,15 +88,31 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
             const num = (v) => (v === '' || v == null ? null : parseFloat(v));
             const payload = {
                 ...form,
-                entryPrice: num(form.entryPrice),
-                quantity: num(form.quantity),
+                entryFrom: num(form.entryFrom),
+                entryTo: num(form.entryTo),
                 exitPrice: num(form.exitPrice),
                 markPrice: num(form.markPrice),
                 fees: num(form.fees) || 0,
                 plannedStop: num(form.plannedStop),
-                plannedTarget: num(form.plannedTarget),
+                // Blank rows are how a target gets removed. Ordering and level
+                // numbering are the model's job, not the form's.
+                targets: form.targets
+                    .filter((t) => t.price !== '' && t.price != null)
+                    .map((t) => ({ ...t, price: num(t.price) })),
                 exitDate: form.exitDate || null
             };
+
+            if (planning) {
+                // A planned trade has no fill and no outcome. Sending blanks would
+                // trip the conditional validators the moment it opens.
+                Object.assign(payload, {
+                    entryPrice: null, quantity: null, entryDate: null,
+                    exitPrice: null, exitDate: null, markPrice: null
+                });
+            } else {
+                payload.entryPrice = num(form.entryPrice);
+                payload.quantity = num(form.quantity);
+            }
             if (editing) await updateEntry(entry._id, payload);
             else await createEntry(payload);
             toast.success(editing ? 'Entry updated' : 'Trade journaled');
@@ -83,7 +129,9 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
                 <div className="flex items-center justify-between mb-4">
                     <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                        {editing ? 'Edit Trade' : 'Journal a Trade'}
+                        {editing
+                            ? (planning ? 'Edit Planned Trade' : 'Edit Trade')
+                            : (planning ? 'Plan a Trade' : 'Journal a Trade')}
                     </h2>
                     <button onClick={onClose} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
                         <X className="w-5 h-5" />
@@ -91,6 +139,25 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                 </div>
 
                 <form onSubmit={submit} className="space-y-5">
+                    {/* A closed trade has a result already; offering to un-enter it
+                        would only invite an inconsistent record. */}
+                    {form.state !== 'closed' && (
+                        <div className="flex gap-2 p-1 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
+                            {[
+                                { key: 'planned', label: 'Watching a level', hint: 'Not in it yet' },
+                                { key: 'open', label: 'In the trade', hint: 'Filled' }
+                            ].map((m) => (
+                                <button key={m.key} type="button" onClick={() => set('state', m.key)}
+                                    className={`flex-1 px-3 py-2 rounded-md text-sm transition-colors ${form.state === m.key
+                                        ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm font-medium'
+                                        : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'}`}>
+                                    {m.label}
+                                    <span className="block text-xs text-gray-500 dark:text-gray-400">{m.hint}</span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
                     <Section title="Trade">
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                             <Field label="Symbol *">
@@ -117,20 +184,43 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                                 </select>
                             </Field>
                         </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
-                            <Field label="Entry date *">
-                                <input type="date" required value={form.entryDate} className={input}
-                                    onChange={(e) => set('entryDate', e.target.value)} />
-                            </Field>
-                            <Field label="Entry price *">
-                                <input type="number" step="any" required value={form.entryPrice} className={input}
-                                    onChange={(e) => set('entryPrice', e.target.value)} />
-                            </Field>
-                            <Field label="Quantity *">
-                                <input type="number" step="any" required value={form.quantity} className={input}
-                                    onChange={(e) => set('quantity', e.target.value)} />
-                            </Field>
-                        </div>
+                        {planning ? (
+                            <div className="mt-3">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                    <Field label="Entry zone from *">
+                                        <input type="number" step="any" value={form.entryFrom} className={input}
+                                            onChange={(e) => set('entryFrom', e.target.value)} />
+                                    </Field>
+                                    <Field label="to">
+                                        <input type="number" step="any" value={form.entryTo} className={input}
+                                            onChange={(e) => set('entryTo', e.target.value)} />
+                                    </Field>
+                                    <Field label="Quantity">
+                                        <input type="number" step="any" value={form.quantity} className={input}
+                                            placeholder="optional"
+                                            onChange={(e) => set('quantity', e.target.value)} />
+                                    </Field>
+                                </div>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    A level is a band, not a number. You&apos;ll be told when price trades into it.
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
+                                <Field label="Entry date *">
+                                    <input type="date" required value={form.entryDate} className={input}
+                                        onChange={(e) => set('entryDate', e.target.value)} />
+                                </Field>
+                                <Field label="Entry price *">
+                                    <input type="number" step="any" required value={form.entryPrice} className={input}
+                                        onChange={(e) => set('entryPrice', e.target.value)} />
+                                </Field>
+                                <Field label="Quantity *">
+                                    <input type="number" step="any" required value={form.quantity} className={input}
+                                        onChange={(e) => set('quantity', e.target.value)} />
+                                </Field>
+                            </div>
+                        )}
                     </Section>
 
                     <Section title="The plan" hint="Filled in before the outcome is known.">
@@ -139,16 +229,20 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                                 <input type="number" step="any" value={form.plannedStop} className={input}
                                     onChange={(e) => set('plannedStop', e.target.value)} />
                             </Field>
-                            <Field label="Target">
-                                <input type="number" step="any" value={form.plannedTarget} className={input}
-                                    onChange={(e) => set('plannedTarget', e.target.value)} />
-                            </Field>
                             <Field label="Risk">
                                 <div className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">
                                     {risk != null ? risk.toFixed(2) : '—'}
                                 </div>
                             </Field>
+                            <Field label="Reward : risk">
+                                <div className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">
+                                    {rr != null ? `${rr.toFixed(2)} : 1` : '—'}
+                                </div>
+                            </Field>
                         </div>
+
+                        <TargetsEditor targets={form.targets} onChange={(t) => set('targets', t)} />
+
                         <div className="mt-2 space-y-2">
                             <Check checked={form.stopPlaced} onChange={(v) => set('stopPlaced', v)}
                                 label="Stop was actually placed at the broker"
@@ -161,7 +255,8 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                         </div>
                     </Section>
 
-                    <Section title="Exit" hint="Leave blank while the trade is open.">
+                    {/* Nothing to exit from until the trade is entered. */}
+                    <Section title="Exit" hint="Leave blank while the trade is open." hidden={planning}>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                             <Field label="Exit date">
                                 <input type="date" value={form.exitDate} className={input}
@@ -196,6 +291,17 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                         )}
                     </Section>
 
+                    {/* Judgment belongs after the fact. Asking what went wrong with a
+                        trade that has not been taken invites a fabricated answer. */}
+                    {planning ? (
+                        <Section title="Why this level" hint="The thesis, written while it is still a decision.">
+                            <Field label="Notes">
+                                <textarea rows="3" value={form.notes} className={input} maxLength={2000}
+                                    placeholder="What makes this level worth taking?"
+                                    onChange={(e) => set('notes', e.target.value)} />
+                            </Field>
+                        </Section>
+                    ) : (
                     <Section title="Review">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <Field label="How I felt">
@@ -246,6 +352,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                             </Field>
                         </div>
                     </Section>
+                    )}
 
                     <div className="flex gap-3 pt-2">
                         <button type="button" onClick={onClose}
@@ -254,7 +361,9 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                         </button>
                         <button type="submit" disabled={saving}
                             className="flex-1 px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 disabled:opacity-50">
-                            {saving ? 'Saving...' : editing ? 'Save changes' : 'Add to journal'}
+                            {saving ? 'Saving...'
+                                : editing ? 'Save changes'
+                                    : planning ? 'Watch this level' : 'Add to journal'}
                         </button>
                     </div>
                 </form>
@@ -265,12 +374,58 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
 
 const input = 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500';
 
-function Section({ title, hint, children }) {
+function Section({ title, hint, hidden, children }) {
+    if (hidden) return null;
     return (
         <div className="border-t border-gray-200 dark:border-gray-700 pt-4 first:border-t-0 first:pt-0">
             <h3 className="font-semibold text-gray-900 dark:text-white">{title}</h3>
             {hint && <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{hint}</p>}
             <div className={hint ? '' : 'mt-2'}>{children}</div>
+        </div>
+    );
+}
+
+/**
+ * Staged take-profits. Rows carry isHit through unchanged so editing a price
+ * cannot un-hit a target the price poll already flagged.
+ */
+function TargetsEditor({ targets, onChange }) {
+    const update = (i, price) =>
+        onChange(targets.map((t, n) => (n === i ? { ...t, price } : t)));
+
+    return (
+        <div className="mt-3">
+            <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Targets</div>
+            {targets.length === 0 && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                    None set. Add one and you&apos;ll be told when price reaches it.
+                </p>
+            )}
+            <div className="space-y-2">
+                {targets.map((t, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500 dark:text-gray-400 w-6 shrink-0">
+                            T{t.level || i + 1}
+                        </span>
+                        <input type="number" step="any" value={t.price ?? ''} className={input}
+                            onChange={(e) => update(i, e.target.value)} />
+                        {t.isHit && (
+                            <span className="inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400 shrink-0">
+                                <CheckCircle className="w-3.5 h-3.5" /> hit
+                            </span>
+                        )}
+                        <button type="button" title="Remove target"
+                            onClick={() => onChange(targets.filter((_, n) => n !== i))}
+                            className="p-2 text-gray-500 hover:text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded shrink-0">
+                            <Trash2 className="w-4 h-4" />
+                        </button>
+                    </div>
+                ))}
+            </div>
+            <button type="button" onClick={() => onChange([...targets, { price: '', isHit: false }])}
+                className="mt-2 inline-flex items-center gap-1 text-sm text-cyan-600 dark:text-cyan-400 hover:underline">
+                <Plus className="w-3.5 h-3.5" /> Add target
+            </button>
         </div>
     );
 }

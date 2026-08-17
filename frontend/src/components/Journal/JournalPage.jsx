@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, BookOpen, Search, XCircle } from 'lucide-react';
+import { Plus, BookOpen, Search, XCircle, Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getEntries, getStats, getOptions, deleteEntry } from '../../services/journal';
 import JournalHeadline from './JournalHeadline';
@@ -15,9 +15,11 @@ const TABS = [
     { key: 'risk', label: 'Size a trade' }
 ];
 
-// Open trades are the ones you can still act on, so they lead.
+// Open trades are the ones you can still act on, so they lead. Planned sits
+// beside them because a level about to print needs a decision just as much.
 const STATUS_FILTERS = [
     { key: 'open', label: 'Open' },
+    { key: 'planned', label: 'Watching' },
     { key: 'closed', label: 'Closed' },
     { key: 'all', label: 'All' }
 ];
@@ -79,6 +81,19 @@ export default function JournalPage() {
 
     const reset = (fn) => { fn(); setLimit(PAGE); };
 
+    // Promoting a plan to a position. Prefilled from the zone it was waiting for,
+    // but left editable: a fill is rarely exactly the level you drew.
+    const take = (entry) => {
+        const bounds = [entry.entryFrom, entry.entryTo].filter((n) => n != null);
+        setEditing({
+            ...entry,
+            state: 'open',
+            entryPrice: bounds.length ? bounds.reduce((a, b) => a + b, 0) / bounds.length : '',
+            entryDate: new Date().toISOString()
+        });
+        setShowModal(true);
+    };
+
     const remove = async (entry) => {
         if (!window.confirm(`Delete the ${entry.symbol} entry? This cannot be undone.`)) return;
         try {
@@ -109,10 +124,16 @@ export default function JournalPage() {
                     <BookOpen className="w-6 h-6 text-cyan-500" />
                     Journal
                 </h1>
-                <button onClick={() => { setEditing(null); setShowModal(true); }}
-                    className="px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 flex items-center gap-2 shrink-0">
-                    <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Journal a trade</span>
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                    <button onClick={() => { setEditing({ state: 'planned' }); setShowModal(true); }}
+                        className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2">
+                        <Eye className="w-4 h-4" /> <span className="hidden sm:inline">Watch a level</span>
+                    </button>
+                    <button onClick={() => { setEditing(null); setShowModal(true); }}
+                        className="px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 flex items-center gap-2">
+                        <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Journal a trade</span>
+                    </button>
+                </div>
             </div>
 
             {loading ? (
@@ -183,10 +204,12 @@ export default function JournalPage() {
                             </div>
 
                             <JournalList entries={entries}
-                                emptyHint={status === 'open' && !filtered
-                                    ? 'No open trades. Switch to Closed or All to see your history.'
-                                    : filtered ? 'Nothing matches those filters.' : undefined}
+                                emptyHint={filtered ? 'Nothing matches those filters.'
+                                    : status === 'open' ? 'No open trades. Switch to Closed or All to see your history.'
+                                        : status === 'planned' ? 'No levels being watched. Add one and you\'ll be told when price reaches it.'
+                                            : undefined}
                                 onEdit={(e) => { setEditing(e); setShowModal(true); }}
+                                onTake={take}
                                 onDelete={remove} />
 
                             {entries.length < total && (
