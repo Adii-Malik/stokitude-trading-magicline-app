@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Plus, Trash2, CheckCircle, Lock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Modal } from '../../ui/Modal';
+import { SymbolInput } from '../../ui/SymbolInput';
 import { createEntry, updateEntry } from '../../services/journal';
 import { chargesFor } from '../../utils/commission';
 import { mistakeLabel } from './labels';
@@ -257,8 +258,19 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                         grid leaving one orphaned on its own row. */}
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                         <Field label="Symbol *">
-                            <input required value={form.symbol} className={input}
-                                onChange={(e) => set('symbol', e.target.value.toUpperCase())} />
+                            <SymbolInput
+                                required
+                                value={form.symbol}
+                                onChange={(v) => set('symbol', v)}
+                                // Picking a known stock fills the entry price for a
+                                // trade being logged now; a plan is waiting for a
+                                // level, so leave its zone alone.
+                                onSelect={(stock) => {
+                                    if (live && !entryBooked && stock.currentPrice > 0 && form.entryPrice === '') {
+                                        set('entryPrice', String(stock.currentPrice));
+                                    }
+                                }}
+                            />
                         </Field>
                         <Field label="Market">
                             <select value={form.exchange} className={input}

@@ -4,6 +4,7 @@ import csv from 'csv-parser';
 import { Readable } from 'stream';
 import Stock from '../models/Stock.js';
 import { adminOnly } from '../middleware/auth.js';
+import { escapeRegex } from '../utils/escapeRegex.js';
 
 const router = express.Router();
 
@@ -111,10 +112,14 @@ router.get('/search/autocomplete', async (req, res) => {
       });
     }
 
+    // Escaped, because the raw query went straight into a regex: typing '[' or
+    // '*' built an invalid pattern and returned a 500.
+    const safe = escapeRegex(q.trim());
+
     const stocks = await Stock.find({
       $or: [
-        { symbol: { $regex: `^${q}`, $options: 'i' } },
-        { companyName: { $regex: q, $options: 'i' } }
+        { symbol: { $regex: `^${safe}`, $options: 'i' } },
+        { companyName: { $regex: safe, $options: 'i' } }
       ]
     })
       .select('symbol companyName sector shariahCompliant currentPrice')

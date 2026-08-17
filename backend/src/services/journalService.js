@@ -5,6 +5,7 @@
  */
 import JournalEntry, { MISTAKES } from '../models/JournalEntry.js';
 import { mintMissing, assertEditable, hydrate } from './journalLedger.js';
+import { escapeRegex } from '../utils/escapeRegex.js';
 
 // Never writable from a request body. The transaction ids are set by the ledger
 // link alone: accepting them from a client would let one journal entry claim
@@ -225,8 +226,6 @@ export function statsFor(entries) {
         byEmotion: group('emotionalState')
     };
 }
-
-const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // A planned trade has no entry date yet, so fall back to when it was written down.
 const dateOf = (e) => new Date(e.entryDate || e.createdAt || 0);
