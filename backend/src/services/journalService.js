@@ -153,6 +153,16 @@ export function statsFor(entries) {
         })).sort((a, b) => a.netPnL - b.netPnL);
     };
 
+    // Follow-through on levels written down in advance. A planned trade keeps its
+    // zone after it opens, so a recorded zone is what marks an entry as one that
+    // started as a plan rather than an impulse. This is the number that keeping
+    // cancelled levels buys: how selective you actually are, versus how selective
+    // it feels.
+    const fromPlan = entries.filter(e => e.entryFrom != null || e.entryTo != null);
+    const levelsTaken = fromPlan.filter(e => e.status === 'open' || e.status === 'closed').length;
+    const levelsAbandoned = fromPlan.filter(e => e.status === 'cancelled').length;
+    const settled = levelsTaken + levelsAbandoned;
+
     // The single most expensive habit, and what the account looks like without it.
     const worst = byMistake[0];
     const headline = worst ? {
@@ -170,6 +180,11 @@ export function statsFor(entries) {
         plannedTrades: entries.filter(e => e.status === 'planned').length,
         // How often a level never triggered. Only a kept record can answer that.
         cancelledTrades: entries.filter(e => e.status === 'cancelled').length,
+        levelsTaken,
+        levelsAbandoned,
+        // Null rather than 0 when nothing has settled, so the UI can stay quiet
+        // instead of claiming a 0% follow-through on no evidence.
+        triggerRate: settled ? pct(levelsTaken, settled) : null,
         headline,
         closedTrades: closed.length,
         wins: wins.length,
@@ -329,6 +344,9 @@ class JournalService {
                 closedTrades: all.closedTrades,
                 plannedTrades: all.plannedTrades,
                 cancelledTrades: all.cancelledTrades,
+                levelsTaken: all.levelsTaken,
+                levelsAbandoned: all.levelsAbandoned,
+                triggerRate: all.triggerRate,
                 stopPlacedRate: all.stopPlacedRate,
                 eventCheckedRate: all.eventCheckedRate,
                 followedPlanRate: all.followedPlanRate,

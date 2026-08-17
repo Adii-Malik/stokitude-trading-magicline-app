@@ -34,6 +34,22 @@ export default function JournalStats({ stats }) {
                 <Discipline label="Followed the plan" rate={process.followedPlanRate} />
             </div>
 
+            {/* The levels you wrote down in advance, and what became of them. Only
+                appears once there is something to say. */}
+            {(process.plannedTrades > 0 || process.triggerRate != null) && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <Stat label="Watching now" value={process.plannedTrades || 0}
+                        sub="levels waiting to print" />
+                    <Stat label="Taken" value={process.levelsTaken || 0}
+                        sub="planned, then entered" />
+                    <Stat label="Never triggered" value={process.levelsAbandoned || 0}
+                        sub="watched, then let go" />
+                    <Stat label="Follow-through"
+                        value={process.triggerRate != null ? formatPercent(process.triggerRate, 0) : '—'}
+                        sub={process.triggerRate != null ? 'of settled levels' : 'nothing settled yet'} />
+                </div>
+            )}
+
             {(process.goodProcessBadOutcome > 0 || process.badProcessGoodOutcome > 0) && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {process.goodProcessBadOutcome > 0 && (
@@ -54,6 +70,17 @@ export default function JournalStats({ stats }) {
                     title={`${process.unconfirmedExits} unconfirmed exit${process.unconfirmedExits > 1 ? 's' : ''}`}
                     body="These prices came from memory, not a broker fill. Every figure above inherits that uncertainty until confirmed." />
             )}
+
+            {/* Both graded before the outcome was known, which is what makes them a
+                calibration check rather than hindsight. Counts and win rates only —
+                money would sum across currencies. */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <Grouping title="Did the grade predict it?" rows={process.byQuality}
+                    order={QUALITY_ORDER}
+                    empty="No trades graded yet. Grade a setup when you log it and this compares your judgement against the result." />
+                <Grouping title="By setup" rows={process.bySetup}
+                    empty="No closed trades to group yet." />
+            </div>
 
             {/* Costs stay inside a currency; totalling them across markets would be meaningless. */}
             {byCurrency.filter((c) => c.byMistake?.length).map((c) => (
@@ -84,6 +111,49 @@ export default function JournalStats({ stats }) {
                     </div>
                 </div>
             ))}
+        </div>
+    );
+}
+
+// Best to worst, so a run of grades reads as a slope rather than an alphabet.
+// 'unknown' last: it means ungraded, not a grade.
+const QUALITY_ORDER = ['excellent', 'good', 'fair', 'poor', 'unknown'];
+
+const LABELS = { unknown: 'not graded' };
+
+/**
+ * A count and win rate per group. Shared because "by grade" and "by setup" are
+ * the same question asked of a different column.
+ */
+function Grouping({ title, rows = [], order, empty }) {
+    const sorted = order
+        ? [...rows].sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key))
+        : [...rows].sort((a, b) => b.count - a.count);
+
+    return (
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+            <h3 className="font-semibold text-gray-900 dark:text-white mb-3">{title}</h3>
+            {sorted.length === 0 ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400">{empty}</p>
+            ) : (
+                <div className="space-y-2">
+                    {sorted.map((r) => (
+                        <div key={r.key} className="flex items-center gap-3">
+                            <div className="w-24 shrink-0 text-sm text-gray-700 dark:text-gray-300 capitalize">
+                                {LABELS[r.key] || r.key}
+                            </div>
+                            <div className="flex-1 bg-gray-100 dark:bg-gray-700 rounded h-5 overflow-hidden">
+                                <div className={`h-full ${r.winRate >= 50 ? 'bg-green-400 dark:bg-green-500' : 'bg-red-400 dark:bg-red-500'}`}
+                                    style={{ width: `${Math.max(2, r.winRate)}%` }} />
+                            </div>
+                            <div className="w-16 text-right text-sm font-semibold text-gray-900 dark:text-white">
+                                {formatPercent(r.winRate, 0)}
+                            </div>
+                            <div className="w-10 text-right text-xs text-gray-500 dark:text-gray-400">×{r.count}</div>
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }

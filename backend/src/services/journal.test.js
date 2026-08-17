@@ -265,6 +265,50 @@ describe('levels that never triggered', () => {
     });
 });
 
+describe('follow-through on levels written in advance', () => {
+    // A trade keeps its entry zone after it opens, so a recorded zone is what marks
+    // an entry as one that started as a plan.
+    const level = (state, o = {}) => decorate({
+        symbol: 'X', currency: 'PKR', direction: 'long', state,
+        entryFrom: 95, entryTo: 105, mistakes: [], ...o
+    });
+    const taken = (state) => level(state, { entryPrice: 100, quantity: 10, entryDate: '2026-01-01' });
+
+    test('counts planned levels that were entered against those let go', () => {
+        const s = statsFor([
+            taken('open'),
+            taken('closed'),
+            level('cancelled'),
+            level('planned')
+        ]);
+        assert.equal(s.levelsTaken, 2);
+        assert.equal(s.levelsAbandoned, 1);
+        assert.equal(s.plannedTrades, 1, 'still waiting, so not settled either way');
+    });
+
+    test('follow-through counts only settled levels', () => {
+        // Two of three settled were taken. The one still being watched is not
+        // evidence of anything yet.
+        const s = statsFor([taken('open'), taken('closed'), level('cancelled'), level('planned')]);
+        assert.equal(Math.round(s.triggerRate), 67);
+    });
+
+    test('is null rather than zero when nothing has settled', () => {
+        // A 0% follow-through on no evidence would read as a damning statistic.
+        assert.equal(statsFor([level('planned')]).triggerRate, null);
+        assert.equal(statsFor([]).triggerRate, null);
+    });
+
+    test('impulse trades with no recorded zone are not counted', () => {
+        const s = statsFor([decorate({
+            symbol: 'Y', currency: 'PKR', direction: 'long', state: 'closed',
+            entryPrice: 100, quantity: 10, exitPrice: 110, mistakes: []
+        })]);
+        assert.equal(s.levelsTaken, 0, 'it was never planned, so it cannot be followed through on');
+        assert.equal(s.triggerRate, null);
+    });
+});
+
 describe('setup quality', () => {
     test('groups closed trades by the grade given before the outcome', () => {
         const trade = (quality, exitPrice) => decorate({
