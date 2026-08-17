@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { X, Plus, Trash2, CheckCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Plus, Trash2, CheckCircle, Lock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { createEntry, updateEntry } from '../../services/journal';
+import { chargesFor } from '../../utils/commission';
 import { mistakeLabel } from './labels';
 
 const dateValue = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '');
@@ -10,6 +11,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
     const editing = Boolean(entry?._id);
     const [form, setForm] = useState({
         state: entry?.state || 'open',
+        portfolioId: entry?.portfolioId || '',
         symbol: entry?.symbol || '',
         exchange: entry?.exchange || 'PSX',
         direction: entry?.direction || 'long',
@@ -73,6 +75,37 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
     const stopWithoutLevel = form.stopPlaced && form.plannedStop === '';
     const zoneMissing = planning && bounds.length === 0;
 
+    // Which legs the portfolio ledger already owns. Those numbers are read-only
+    // here: the transaction is the record, and two editable copies of one fill is
+    // exactly the drift this link exists to remove.
+    const entryBooked = Boolean(entry?.entryTransactionId);
+    const exitBooked = Boolean(entry?.exitTransactionId);
+
+    // Only portfolios in this trade's currency can hold it. Filtering rather than
+    // letting the server reject it keeps the impossible choice off the screen.
+    const currency = (options?.exchangeRules || []).find((x) => x.code === form.exchange)?.currency || 'PKR';
+    const bookable = (options?.portfolios || []).filter((p) => (p.currency || 'PKR') === currency);
+    const portfolio = bookable.find((p) => p._id === form.portfolioId);
+
+    // Commission priced the same way the portfolio's own transaction form prices
+    // it, so a journalled fill and a hand-entered one cost the same.
+    const suggestedFee = portfolio && !planning
+        ? chargesFor({
+            price: form.entryPrice, quantity: form.quantity,
+            slabs: portfolio.commissionSlabs, charges: portfolio.charges,
+            side: form.direction === 'short' ? 'SELL' : 'BUY'
+        }).total
+        : 0;
+
+    const [feeEdited, setFeeEdited] = useState(false);
+    useEffect(() => {
+        // Prefill once, then leave it alone. An explicit flag rather than checking
+        // for an empty value, which froze on the first keystroke last time.
+        if (!feeEdited && !entryBooked && suggestedFee > 0) {
+            setForm((f) => ({ ...f, fees: suggestedFee.toFixed(2) }));
+        }
+    }, [suggestedFee, feeEdited, entryBooked]);
+
     const submit = async (e) => {
         e.preventDefault();
         if (stopWithoutLevel) {
@@ -91,6 +124,8 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                 ...form,
                 // Ungraded is absent, not an empty string the enum would reject.
                 setupQuality: form.setupQuality || null,
+                // Empty means journal-only, not an unparseable ObjectId.
+                portfolioId: form.portfolioId || null,
                 entryFrom: num(form.entryFrom),
                 entryTo: num(form.entryTo),
                 exitPrice: num(form.exitPrice),
@@ -116,6 +151,14 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                 payload.entryPrice = num(form.entryPrice);
                 payload.quantity = num(form.quantity);
             }
+            // Don't send what the ledger owns. The server refuses changes to these
+            // anyway; omitting them means an unrelated edit never trips that guard.
+            if (entryBooked) {
+                delete payload.entryPrice; delete payload.quantity;
+                delete payload.entryDate; delete payload.fees; delete payload.portfolioId;
+            }
+            if (exitBooked) { delete payload.exitPrice; delete payload.exitDate; }
+
             if (editing) await updateEntry(entry._id, payload);
             else await createEntry(payload);
             toast.success(editing ? 'Entry updated' : 'Trade journaled');
@@ -218,20 +261,45 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                             </div>
                         ) : (
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
-                                <Field label="Entry date *">
+                                <Field label="Entry date *" locked={entryBooked}>
                                     <input type="date" required value={form.entryDate} className={input}
+                                        disabled={entryBooked}
                                         onChange={(e) => set('entryDate', e.target.value)} />
                                 </Field>
-                                <Field label="Entry price *">
+                                <Field label="Entry price *" locked={entryBooked}>
                                     <input type="number" step="any" required value={form.entryPrice} className={input}
+                                        disabled={entryBooked}
                                         onChange={(e) => set('entryPrice', e.target.value)} />
                                 </Field>
-                                <Field label="Quantity *">
+                                <Field label="Quantity *" locked={entryBooked}>
                                     <input type="number" step="any" required value={form.quantity} className={input}
+                                        disabled={entryBooked}
                                         onChange={(e) => set('quantity', e.target.value)} />
                                 </Field>
                             </div>
                         )}
+
+                        <div className="mt-3">
+                            <Field label="Book it in a portfolio">
+                                <select value={form.portfolioId} className={input}
+                                    disabled={entryBooked}
+                                    onChange={(e) => set('portfolioId', e.target.value)}>
+                                    <option value="">Don&apos;t book it — journal only</option>
+                                    {bookable.map((p) => (
+                                        <option key={p._id} value={p._id}>{p.name}</option>
+                                    ))}
+                                </select>
+                            </Field>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                {entryBooked
+                                    ? 'Booked. The ledger owns the numbers above — edit the transaction in the portfolio to change them.'
+                                    : form.portfolioId
+                                        ? 'A buy is recorded when you save, and a sell when you close. The ledger then owns those numbers.'
+                                        : bookable.length === 0
+                                            ? `No ${currency} portfolio to book into. The journal will track this trade on its own.`
+                                            : 'Leave unset for a trade held somewhere this app has no ledger for.'}
+                            </p>
+                        </div>
                     </Section>
 
                     <Section title="The plan" hint="Filled in before the outcome is known.">
@@ -269,19 +337,27 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                     {/* Nothing to exit from until the trade is entered. */}
                     <Section title="Exit" hint="Leave blank while the trade is open." hidden={planning}>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                            <Field label="Exit date">
+                            <Field label="Exit date" locked={exitBooked}>
                                 <input type="date" value={form.exitDate} className={input}
+                                    disabled={exitBooked}
                                     onChange={(e) => set('exitDate', e.target.value)} />
                             </Field>
-                            <Field label="Exit price">
+                            <Field label="Exit price" locked={exitBooked}>
                                 <input type="number" step="any" value={form.exitPrice} className={input}
+                                    disabled={exitBooked}
                                     onChange={(e) => set('exitPrice', e.target.value)} />
                             </Field>
-                            <Field label="Fees">
+                            <Field label="Fees" locked={entryBooked}>
                                 <input type="number" step="any" value={form.fees} className={input}
-                                    onChange={(e) => set('fees', e.target.value)} />
+                                    disabled={entryBooked}
+                                    onChange={(e) => { setFeeEdited(true); set('fees', e.target.value); }} />
                             </Field>
                         </div>
+                        {portfolio && !entryBooked && suggestedFee > 0 && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                {suggestedFee.toFixed(2)} from {portfolio.name}&apos;s commission rules. Override if the note says otherwise.
+                            </p>
+                        )}
                         {form.exitPrice !== '' ? (
                             <div className="mt-2">
                                 <Check checked={form.exitConfirmed} onChange={(v) => set('exitConfirmed', v)}
@@ -441,10 +517,14 @@ function TargetsEditor({ targets, onChange }) {
     );
 }
 
-function Field({ label, children }) {
+function Field({ label, locked, children }) {
     return (
         <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{label}</label>
+            <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                {label}
+                {/* Says why it is disabled, rather than leaving it looking broken. */}
+                {locked && <Lock className="w-3 h-3 text-gray-400" title="Recorded in the portfolio ledger" />}
+            </label>
             {children}
         </div>
     );

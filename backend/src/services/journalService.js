@@ -4,6 +4,12 @@
  * persisted, so an edited entry can never disagree with its own statistics.
  */
 import JournalEntry, { MISTAKES } from '../models/JournalEntry.js';
+import { mintMissing, assertEditable, hydrate } from './journalLedger.js';
+
+// Never writable from a request body. The transaction ids are set by the ledger
+// link alone: accepting them from a client would let one journal entry claim
+// another's fills, or a transaction in someone else's portfolio.
+const RESERVED = new Set(['user', '_id', 'entryTransactionId', 'exitTransactionId']);
 
 /** Per-entry metrics. Returns nulls rather than guesses when inputs are missing. */
 export function computeMetrics(entry) {
@@ -233,7 +239,10 @@ class JournalService {
             query.$or = [{ symbol: rx }, { notes: rx }, { lesson: rx }, { tags: rx }];
         }
 
-        let entries = (await JournalEntry.find(query)).map(decorate);
+        // Hydrated from the ledger before anything is derived, or the metrics
+        // would be computed from the journal's own stale copy of the numbers.
+        const found = await JournalEntry.find(query);
+        let entries = (await hydrate(found.map(e => e.toObject()))).map(decorate);
 
         // status/outcome are derived, so they filter after decoration.
         if (filters.status) entries = entries.filter(e => e.status === filters.status);
@@ -258,33 +267,48 @@ class JournalService {
     async get(id, userId) {
         const entry = await JournalEntry.findOne({ _id: id, user: userId });
         if (!entry) throw new Error('Journal entry not found');
-        return decorate(entry);
+        const [hydrated] = await hydrate([entry.toObject()]);
+        return decorate(hydrated);
     }
 
     async create(userId, data) {
-        const entry = await JournalEntry.create({ ...data, user: userId });
-        return decorate(entry);
+        const entry = new JournalEntry({ ...data, user: userId });
+        // Booked before the first save, so a rejected link - a currency mismatch,
+        // say - leaves no half-linked entry behind.
+        await mintMissing(entry, userId);
+        await entry.save();
+        return this.get(entry._id, userId);
     }
 
     async update(id, userId, data) {
         const entry = await JournalEntry.findOne({ _id: id, user: userId });
         if (!entry) throw new Error('Journal entry not found');
 
+        assertEditable(entry, data);
+
         // null clears a field. Without this, an emptied exit price is simply
         // dropped from the JSON body and a closed trade can never be reopened.
         for (const [key, value] of Object.entries(data)) {
-            if (key === 'user' || key === '_id') continue;
+            if (RESERVED.has(key)) continue;
             entry[key] = value === null ? undefined : value;
         }
 
+        await mintMissing(entry, userId);
         await entry.save();
-        return decorate(entry);
+        return this.get(entry._id, userId);
     }
 
     async remove(id, userId) {
-        const result = await JournalEntry.deleteOne({ _id: id, user: userId });
-        if (!result.deletedCount) throw new Error('Journal entry not found');
-        return true;
+        const entry = await JournalEntry.findOne({ _id: id, user: userId });
+        if (!entry) throw new Error('Journal entry not found');
+
+        // The ledger rows outlive the note about them. Deleting the journal entry
+        // must not silently remove real transactions from a portfolio that
+        // reconciles to a broker balance.
+        await JournalEntry.deleteOne({ _id: id, user: userId });
+        return {
+            keptTransactions: [entry.entryTransactionId, entry.exitTransactionId].filter(Boolean).length
+        };
     }
 
     /** Stats split by currency, plus an overall process view that is currency-free. */

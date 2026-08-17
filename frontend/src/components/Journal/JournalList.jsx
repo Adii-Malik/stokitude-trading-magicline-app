@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pencil, Trash2, ShieldCheck, HelpCircle, Bell, AlertTriangle } from 'lucide-react';
+import { Pencil, Trash2, ShieldCheck, HelpCircle, Bell, AlertTriangle, BookMarked } from 'lucide-react';
 import { formatCurrency, formatPercent, getPnLColorClass } from '../../utils/portfolioUtils';
 import { mistakeLabel } from './labels';
 
@@ -42,6 +42,13 @@ export default function JournalList({ entries, onEdit, onDelete, onTake, onCance
                                 {e.status === 'open' && e.stopHit && (
                                     <span className="inline-flex items-center gap-1 text-xs text-red-600 dark:text-red-400">
                                         <AlertTriangle className="w-3.5 h-3.5" /> stop reached
+                                    </span>
+                                )}
+                                {/* Booked means the numbers came from the ledger, not from memory. */}
+                                {e.entryTransactionId && (
+                                    <span className="inline-flex items-center gap-1 text-xs text-cyan-600 dark:text-cyan-400"
+                                        title="Recorded in a portfolio ledger">
+                                        <BookMarked className="w-3.5 h-3.5" /> booked
                                     </span>
                                 )}
                                 {e.followedPlan && (

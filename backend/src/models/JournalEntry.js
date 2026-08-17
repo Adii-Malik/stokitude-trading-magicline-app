@@ -74,11 +74,27 @@ const journalEntrySchema = new mongoose.Schema({
         index: true
     },
 
-    // Optional link to the portfolio this trade was booked in.
+    // Optional link to the portfolio this trade was booked in. Optional because
+    // plenty of trades happen at a broker this app does not hold a ledger for.
     portfolioId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Portfolio',
         index: true
+    },
+
+    // The ledger rows this trade produced, once it is booked in a portfolio here.
+    // Two named fields rather than an array: the journal records one entry and one
+    // exit, so naming them makes minting the same leg twice impossible by
+    // construction. While either is set, the ledger owns those numbers and the
+    // matching fields below are read-only.
+    entryTransactionId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Transaction'
+    },
+
+    exitTransactionId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Transaction'
     },
 
     symbol: {
