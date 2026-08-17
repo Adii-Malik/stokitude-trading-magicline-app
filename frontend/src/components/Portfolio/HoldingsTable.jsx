@@ -50,6 +50,12 @@ export default function HoldingsTable({ portfolioId, currency, onSelectSymbol })
             return (a[sortField] - b[sortField]) * multiplier;
         });
 
+    const totals = filteredAndSorted.reduce((t, h) => ({
+        value: t.value + h.totalValue,
+        cost: t.cost + h.costBasis,
+        unrealized: t.unrealized + h.unrealizedPnL
+    }), { value: 0, cost: 0, unrealized: 0 });
+
     const closed = holdings
         .filter(h => h.closed && matches(h))
         .sort((a, b) => b.realizedPnL - a.realizedPnL);
@@ -154,15 +160,21 @@ export default function HoldingsTable({ portfolioId, currency, onSelectSymbol })
                         ))}
                     </tbody>
                     <tfoot>
-                        <tr className="border-t-2 border-gray-300 font-semibold">
+                        {/* The row that sums the table should read as the loudest
+                            one, not the faintest - it carried no colour at all
+                            and inherited its way to near-invisible in dark. */}
+                        <tr className="border-t-2 border-hairline font-bold text-ink">
                             <td className="pt-4" colSpan="4">Total</td>
-                            <td className="pt-4">
-                                {formatCurrency(filteredAndSorted.reduce((sum, h) => sum + h.totalValue, 0), currency)}
+                            <td className="pt-4 tabular-nums">
+                                {formatCurrency(totals.value, currency)}
                             </td>
-                            <td className="pt-4">
-                                {formatCurrency(filteredAndSorted.reduce((sum, h) => sum + h.unrealizedPnL, 0), currency)}
+                            <td className={`pt-4 tabular-nums ${getPnLColorClass(totals.unrealized)}`}>
+                                {formatCurrency(totals.unrealized, currency, { signed: true })}
                             </td>
-                            <td className="pt-4" colSpan="2"></td>
+                            <td className={`pt-4 tabular-nums ${getPnLColorClass(totals.unrealized)}`}>
+                                {totals.cost > 0 && formatPercent((totals.unrealized / totals.cost) * 100, 2, { signed: true })}
+                            </td>
+                            <td className="pt-4"></td>
                         </tr>
                     </tfoot>
                 </table>
