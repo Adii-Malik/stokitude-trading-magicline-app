@@ -209,10 +209,10 @@ export default function PortfolioDetail() {
                         <div className="p-6">
                             {activeTab === 'holdings' && (
                                 <HoldingsTable
-                                portfolioId={id}
-                                currency={portfolio.currency}
-                                onSelectSymbol={(s) => navigate(`/portfolios/${id}/${s}`)}
-                            />
+                                    portfolioId={id}
+                                    currency={portfolio.currency}
+                                    onSelectSymbol={(s) => navigate(`/portfolios/${id}/${s}`)}
+                                />
                             )}
                             {activeTab === 'transactions' && (
                                 <TransactionList
@@ -353,7 +353,6 @@ export default function PortfolioDetail() {
  * already net - taxing it again here would double-count.
  */
 
-
 function TabButton({ active, onClick, label }) {
     return (
         <button
@@ -368,7 +367,6 @@ function TabButton({ active, onClick, label }) {
     );
 }
 
-
 /**
  * The account as a statement rather than a scoreboard: what it is worth, what
  * it has made, what that cost. Grouped so each heading is the sum of the rows
@@ -380,13 +378,22 @@ function Summary({ dashboard, currency }) {
         totalValue = 0, totalCost = 0, cashBalance = 0, cashTracked,
         unrealizedPnL = 0, realizedPnL = 0, totalDividends = 0,
         totalPnL = 0, totalPnLPct = 0, totalFees = 0,
-        capitalGainsTax = 0, netRealizedPnL = 0, taxRatePct = 15
+        capitalGainsTax = 0, netRealizedPnL = 0, taxRatePct = 15,
+        cgtMethod = 'FLAT', filerStatus = 'FILER'
     } = dashboard;
 
     const money = (v, opts) => formatCurrency(v, currency, opts);
     const accountValue = totalValue + (cashTracked ? cashBalance : 0);
     const bite = totalFees > 0 && realizedPnL > 0 ? (totalFees / realizedPnL) * 100 : null;
     const gain = totalPnL >= 0;
+
+    // FIFO portfolios get holding-period CGT (PSX tiers by holding length +
+    // filer status); everything else falls back to the flat rate. Label the
+    // row so the figure is not mistaken for a single blanket percentage.
+    const tiered = cgtMethod === 'HOLDING_PERIOD';
+    const cgtLabel = tiered
+        ? `Capital gains tax (holding-period, ${filerStatus === 'NON_FILER' ? 'non-filer' : 'filer'})`
+        : `Capital gains tax ${taxRatePct}%`;
 
     return (
         <div className="grid gap-3 sm:gap-4 lg:grid-cols-3">
@@ -414,11 +421,11 @@ function Summary({ dashboard, currency }) {
                 tone="text-amber-600 dark:text-amber-400">
                 <Line label="Commission" value={money(totalFees)}
                     note={bite !== null ? `${bite.toFixed(0)}% of realised gains` : null} />
-                <Line label={`Capital gains tax ${taxRatePct}%`} value={money(capitalGainsTax)} />
+                <Line label={cgtLabel} value={money(capitalGainsTax)} />
+
                 <Line label="In hand from sales" value={money(netRealizedPnL, { signed: true })} strong />
             </Panel>
         </div>
     );
 }
-
 

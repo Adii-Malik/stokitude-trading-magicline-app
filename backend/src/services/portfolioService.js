@@ -8,12 +8,27 @@ import Portfolio from '../models/Portfolio.js';
 import Transaction from '../models/Transaction.js';
 import Position from '../models/Position.js';
 import Stock from '../models/Stock.js';
+import User from '../models/User.js';
+
 import CalculatorRegistry from './portfolio/calculators/CalculatorRegistry.js';
+import { cgtByTaxYear } from '../config/taxConfig.js';
 
 class PortfolioService {
     /**
+     * FBR filer status lives on the user, not the portfolio - it is a property
+     * of the taxpayer and applies across every portfolio they own. Resolves
+     * the owner id whether or not the portfolio's owner field is populated.
+     */
+    async getOwnerFilerStatus(portfolio) {
+        const ownerId = portfolio.owner?._id || portfolio.owner;
+        const owner = await User.findById(ownerId).select('filerStatus').lean();
+        return owner?.filerStatus || 'FILER';
+    }
+
+    /**
      * Create a new portfolio
      */
+
     async createPortfolio(userId, data) {
         const portfolio = new Portfolio({
             ...data,
@@ -509,9 +524,13 @@ class PortfolioService {
         const stock = await Stock.findOne({ symbol });
         const currentPrice = stock?.currentPrice || 0;
 
-        // Calculate using appropriate calculator
+        // Calculate using appropriate calculator. Filer status is a property of
+        // the taxpayer, so it comes off the owner rather than the portfolio.
+        const filerStatus = await this.getOwnerFilerStatus(portfolio);
         const calculator = CalculatorRegistry.get(portfolio.calculationMethod);
-        const result = calculator.calculate(transactions, currentPrice);
+        const result = calculator.calculate(transactions, currentPrice, {
+            filerStatus
+        });
 
         // Calculate dividends separately
         const dividendTxs = await Transaction.find({
@@ -574,6 +593,7 @@ class PortfolioService {
         const priceOf = new Map(stocks.map(s => [s.symbol, s.currentPrice || 0]));
         const existing = new Map(positions.map(p => [p.symbol, p]));
         const calculator = CalculatorRegistry.get(portfolio.calculationMethod);
+        const filerStatus = await this.getOwnerFilerStatus(portfolio);
 
         const results = [];
         const saves = [];
@@ -581,7 +601,9 @@ class PortfolioService {
             try {
                 const currentPrice = priceOf.get(symbol) || 0;
                 const trades = txs.filter(t => ['BUY', 'SELL', 'SPLIT', 'BONUS'].includes(t.type));
-                const result = calculator.calculate(trades, currentPrice);
+                const result = calculator.calculate(trades, currentPrice, {
+                    filerStatus
+                });
 
                 const position = existing.get(symbol) || new Position({ portfolioId, symbol });
                 position.updateFromCalculation(result, currentPrice);
@@ -691,6 +713,7 @@ class PortfolioService {
                     _id: null,
                     realizedPnL: { $sum: '$realizedPnL' },
                     dividends: { $sum: '$dividendsReceived' },
+                    cgtTax: { $sum: '$cgtTax' },
                     closed: { $sum: { $cond: [{ $lte: ['$netShares', 0] }, 1, 0] } }
                 }
             }
@@ -699,7 +722,18 @@ class PortfolioService {
         const totalDividends = booked[0]?.dividends || 0;
         const closedCount = booked[0]?.closed || 0;
 
+        // Loss relief nets across every symbol and carries between tax years, so
+        // the disposals have to be gathered before the tax can be worked out.
+        // Summing each position's own cgtTax taxed gross gains and ignored every
+        // loss, which on a book that churns overstates the bill several times over.
+        const withDisposals = await Position.find({ portfolioId, 'disposals.0': { $exists: true } })
+            .select('disposals').lean();
+        const disposals = withDisposals.flatMap(p => p.disposals || []);
+        const cgtYears = cgtByTaxYear(disposals);
+        const holdingPeriodCGT = Math.round(cgtYears.reduce((sum, y) => sum + y.tax, 0) * 100) / 100;
+
         const cash = await this.getCashBalance(portfolioId);
+        const filerStatus = await this.getOwnerFilerStatus(portfolio);
         const totalPnL = unrealizedPnL + realizedPnL + totalDividends;
 
         // Realized P/L comes from positions no longer held, whose cost is not in
@@ -710,8 +744,16 @@ class PortfolioService {
 
         // Tax falls on realised gains only, and only when there are gains.
         // Dividends arrive already withheld, so taxing them here double-counts.
+        //
+        // Two estimates: the flat taxRatePct (legacy, method-agnostic) and the
+        // holding-period CGT the FIFO calculator sums per disposal, honouring
+        // PSX's 12-month/24-month tiers and filer status. When lots are tracked
+        // the tiered figure is the accurate one - NCCPL deducts it per disposal
+        // at settlement - so it drives the net; otherwise fall back to flat.
         const taxRatePct = portfolio.taxRatePct ?? 15;
-        const capitalGainsTax = realizedPnL > 0 ? (realizedPnL * taxRatePct) / 100 : 0;
+        const flatCGT = realizedPnL > 0 ? (realizedPnL * taxRatePct) / 100 : 0;
+        const usesLotTax = disposals.length > 0;
+        const capitalGainsTax = usesLotTax ? holdingPeriodCGT : flatCGT;
         const netRealizedPnL = realizedPnL - capitalGainsTax;
 
         // Top 5 holdings by market value
@@ -734,7 +776,14 @@ class PortfolioService {
             totalDividends,
             taxRatePct,
             capitalGainsTax,
+            holdingPeriodCGT,
+            cgtMethod: usesLotTax ? 'HOLDING_PERIOD' : 'FLAT',
+            // Per year, so the figure can be checked against a filing rather than
+            // taken on trust, and so unused losses are visible.
+            cgtByYear: cgtYears,
+            filerStatus,
             netRealizedPnL,
+
             // Already inside realizedPnL via cost basis - shown so the drag is
             // visible, not as a further deduction.
             totalFees: cash.fees,

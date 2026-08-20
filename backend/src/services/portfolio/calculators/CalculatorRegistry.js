@@ -5,6 +5,7 @@
  */
 import AverageCostCalculator from './AverageCostCalculator.js';
 import FIFOCalculator from './FIFOCalculator.js';
+import NCCPLCalculator from './NCCPLCalculator.js';
 
 class CalculatorRegistry {
     constructor() {
@@ -19,6 +20,7 @@ class CalculatorRegistry {
     _registerDefaults() {
         this.register(new AverageCostCalculator());
         this.register(new FIFOCalculator());
+        this.register(new NCCPLCalculator());
     }
 
     /**

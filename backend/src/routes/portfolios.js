@@ -116,6 +116,7 @@ router.post('/', async (req, res) => {
             description,
             calculationMethod,
             currency,
+
             // Fee settings are configured on the create form, so they have to
             // survive it - omitting them here silently discarded the slabs.
             commissionSlabs,

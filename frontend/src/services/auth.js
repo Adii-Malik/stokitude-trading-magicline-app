@@ -40,10 +40,11 @@ export const changePassword = async (currentPassword, newPassword) => {
   return response.data;
 };
 
-export const updateProfile = async (username, email) => {
+export const updateProfile = async (username, email, filerStatus) => {
   const response = await api.put('/auth/update-profile', {
     username,
-    email
+    email,
+    filerStatus
   });
   return response.data;
 };

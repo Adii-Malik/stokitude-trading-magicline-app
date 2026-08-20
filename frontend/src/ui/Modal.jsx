@@ -23,15 +23,15 @@ export function Modal({ title, onClose, footer, size = 'md', children }) {
     }, [onClose]);
 
     return (
-        <div
-            className="fixed inset-0 z-50 bg-black/50 flex items-start sm:items-center justify-center p-4 overflow-y-auto"
-            onClick={onClose}
-        >
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
+            {/* No click-to-close on the backdrop. These dialogs hold long forms,
+                and one stray click beside a half-filled trade threw the whole
+                thing away. Escape and the close button are deliberate; a
+                misplaced click is not. */}
             <div
                 role="dialog"
                 aria-modal="true"
                 className={`bg-surface rounded-card shadow-dialog w-full ${SIZES[size]} max-h-[90vh] flex flex-col my-auto`}
-                onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-hairline shrink-0">
                     <h2 className="text-lg font-bold text-ink">{title}</h2>
