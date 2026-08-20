@@ -19,7 +19,6 @@ export default function MainLayout({
                 marketStatus={marketStatus}
                 onNavigateToDashboard={() => navigate('/dashboard')}
                 onNavigateToStocks={() => navigate('/stocks')}
-                onNavigateToTradeSignals={() => navigate('/trade-signals')}
                 onNavigateToPortfolios={() => navigate('/portfolios')}
                 onNavigateToJournal={() => navigate('/journal')}
                 onNavigateToTradingBot={() => navigate('/trading-bot')}

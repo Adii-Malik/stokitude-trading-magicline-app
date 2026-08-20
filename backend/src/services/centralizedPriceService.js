@@ -8,7 +8,7 @@
 
 import Stock from '../models/Stock.js';
 import Position from '../models/Position.js';
-import TradePlan from '../models/TradePlan.js';
+import JournalEntry from '../models/JournalEntry.js';
 import Settings from '../models/Settings.js';
 import psxScraper from './psxScraper.js';
 import marketHoursService from './marketHoursService.js';
@@ -96,11 +96,14 @@ class CentralizedPriceService {
       const isManual = skipMarketCheck;
       console.log(`\n💰 [${currentTime} PKT] ${isManual ? 'Manual' : 'Automatic'} price fetch initiated`);
 
-      // Get symbols from active trade plans and currently held portfolio positions
-      const tradePlanSymbols = await TradePlan.find({ isActive: true }).distinct('symbol');
+      // Get symbols worth a price: held positions, and the levels the journal is
+      // watching. Journal symbols matter because a planned trade is usually on
+      // something not yet owned, and without a fresh price its entry zone and
+      // stop would never be checked.
       const positionSymbols = await Position.find({ netShares: { $gt: 0 } }).distinct('symbol');
+      const journalSymbols = await JournalEntry.find({ state: { $in: ['planned', 'open'] } }).distinct('symbol');
       // Filter out null/undefined/empty symbols and ensure they're strings
-      const activeSymbols = [...new Set([...tradePlanSymbols, ...positionSymbols])]
+      const activeSymbols = [...new Set([...positionSymbols, ...journalSymbols])]
         .filter(symbol => symbol && typeof symbol === 'string' && symbol.trim().length > 0);
 
       if (activeSymbols.length === 0) {
@@ -184,8 +187,24 @@ class CentralizedPriceService {
             await stock.save();
             stocksUpdated++;
           } else {
-            // Stock doesn't exist in database - this shouldn't happen for active symbols
-            console.warn(`  ⚠️ ${symbol} not found in Stock database`);
+            // It does happen: the journal accepts any symbol you can type, and a
+            // level on a name never held has no Stock row. Dropping the price we
+            // just fetched would leave that level permanently unwatched.
+            await Stock.create({
+              symbol,
+              companyName: stockData.companyName || symbol,
+              currentPrice: stockData.price,
+              previousPrice: stockData.previousClose || null,
+              priceChange: stockData.change || null,
+              priceChangePercent: stockData.changePercent || null,
+              high: stockData.high || null,
+              low: stockData.low || null,
+              open: stockData.open || null,
+              volume: stockData.volume || null,
+              lastUpdated: now
+            });
+            stocksUpdated++;
+            console.log(`  + ${symbol} added to Stock`);
           }
         } catch (error) {
           console.error(`  ✗ Error updating ${symbol} in Stock:`, error.message);

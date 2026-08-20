@@ -10,33 +10,30 @@
  */
 
 export const NOTIFICATION_CATEGORIES = {
+    // The id and event ids are stored on every NotificationPreference row, so
+    // they stay as they are even though these now describe journal levels.
     trade_plans: {
         id: 'trade_plans',
-        label: 'Trade Plan Alerts',
-        description: 'Get notified about buy levels, targets, and stop losses',
+        label: 'Level Alerts',
+        description: 'Get notified when your entry zones, targets and stops are reached',
         icon: '💰',
         userControllable: true,
         defaultEnabled: true,
         events: [
             {
                 id: 'buy_level_hit',
-                label: 'Buy Level Hit',
-                description: 'Trade plan buy level reached'
+                label: 'Entry Zone Reached',
+                description: 'Price traded into the entry zone of a planned trade'
             },
             {
                 id: 'target_hit',
-                label: 'Target Hit',
-                description: 'Trade plan target achieved'
+                label: 'Target Reached',
+                description: 'Price traded through a target on an open trade'
             },
             {
                 id: 'stop_loss_hit',
-                label: 'Stop Loss Hit',
-                description: 'Trade plan stop loss triggered'
-            },
-            {
-                id: 'plan_created',
-                label: 'Plan Created',
-                description: 'New trade plan created (admin only)'
+                label: 'Stop Reached',
+                description: 'Price traded through the stop on an open trade'
             }
         ]
     },

@@ -1,7 +1,7 @@
 /**
  * Portfolio Handler
  * Listens to price updates and emits portfolio update events
- * Follows the same pattern as tradePlanHandler
+ * Follows the same pattern as journalLevelHandler
  */
 import Position from '../models/Position.js';
 import Stock from '../models/Stock.js';

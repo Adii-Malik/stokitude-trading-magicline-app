@@ -237,6 +237,7 @@ function CreatePortfolioModal({ portfolio, onClose, onCreated }) {
         description: portfolio?.description || '',
         calculationMethod: portfolio?.calculationMethod || 'AVERAGE_COST',
         currency: portfolio?.currency || 'PKR',
+
         commissionSlabs: portfolio?.commissionSlabs || [],
         charges: portfolio?.charges || []
     });
@@ -290,72 +291,73 @@ function CreatePortfolioModal({ portfolio, onClose, onCreated }) {
 
                 <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1">
                     <div className="overflow-y-auto px-6 py-4 space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Portfolio Name *
-                        </label>
-                        <input
-                            type="text"
-                            value={formData.name}
-                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                            required
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Portfolio Name *
+                            </label>
+                            <input
+                                type="text"
+                                value={formData.name}
+                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                required
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Description
+                            </label>
+                            <textarea
+                                value={formData.description}
+                                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                rows="3"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Calculation Method
+                            </label>
+                            <select
+                                value={formData.calculationMethod}
+                                onChange={(e) => setFormData({ ...formData, calculationMethod: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                            >
+                                <option value="AVERAGE_COST">Average Cost (Simple)</option>
+                                <option value="FIFO">FIFO (Tax Compliant)</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Currency
+                            </label>
+
+                            <select
+                                value={formData.currency}
+                                onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                disabled={!!portfolio}
+                            >
+                                <option value="PKR">PKR (Pakistani Rupee)</option>
+                                <option value="USD">USD (US Dollar)</option>
+                            </select>
+                            {portfolio && (
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Currency cannot be changed after creation</p>
+                            )}
+                        </div>
+
+                        <CommissionSlabEditor
+                            slabs={formData.commissionSlabs}
+                            onChange={(commissionSlabs) => setFormData({ ...formData, commissionSlabs })}
                         />
-                    </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Description
-                        </label>
-                        <textarea
-                            value={formData.description}
-                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                            rows="3"
+                        <OtherChargesEditor
+                            charges={formData.charges}
+                            onChange={(charges) => setFormData({ ...formData, charges })}
                         />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Calculation Method
-                        </label>
-                        <select
-                            value={formData.calculationMethod}
-                            onChange={(e) => setFormData({ ...formData, calculationMethod: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                        >
-                            <option value="AVERAGE_COST">Average Cost (Simple)</option>
-                            <option value="FIFO">FIFO (Tax Compliant)</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Currency
-                        </label>
-                        <select
-                            value={formData.currency}
-                            onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                            disabled={!!portfolio}
-                        >
-                            <option value="PKR">PKR (Pakistani Rupee)</option>
-                            <option value="USD">USD (US Dollar)</option>
-                        </select>
-                        {portfolio && (
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Currency cannot be changed after creation</p>
-                        )}
-                    </div>
-
-                    <CommissionSlabEditor
-                        slabs={formData.commissionSlabs}
-                        onChange={(commissionSlabs) => setFormData({ ...formData, commissionSlabs })}
-                    />
-
-                    <OtherChargesEditor
-                        charges={formData.charges}
-                        onChange={(charges) => setFormData({ ...formData, charges })}
-                    />
 
                     </div>
 

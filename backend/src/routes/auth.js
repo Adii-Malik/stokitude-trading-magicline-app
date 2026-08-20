@@ -4,6 +4,8 @@ import User from '../models/User.js';
 import config from '../config/config.js';
 import { authenticate } from '../middleware/auth.js';
 import emailService from '../services/emailService.js';
+import Portfolio from '../models/Portfolio.js';
+import portfolioService from '../services/portfolioService.js';
 
 const router = express.Router();
 
@@ -37,8 +39,8 @@ router.post('/signup', async (req, res) => {
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: existingUser.email === email 
-          ? 'Email already registered' 
+        message: existingUser.email === email
+          ? 'Email already registered'
           : 'Username already taken'
       });
     }
@@ -57,7 +59,7 @@ router.post('/signup', async (req, res) => {
 
     // ⚠️ DON'T generate token or set cookie for inactive users
     // They need admin approval first
-    
+
     console.log(`✅ New user registered: ${username} (${email}) - Pending approval`);
 
     res.status(201).json({
@@ -254,13 +256,20 @@ router.put('/change-password', authenticate, async (req, res) => {
 // PUT /api/auth/update-profile - Update user profile
 router.put('/update-profile', authenticate, async (req, res) => {
   try {
-    const { username } = req.body;
+    const { username, filerStatus } = req.body;
 
     // Validate input
     if (!username) {
       return res.status(400).json({
         success: false,
         message: 'Please provide username to update'
+      });
+    }
+
+    if (filerStatus !== undefined && !['FILER', 'NON_FILER'].includes(filerStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: 'filerStatus must be FILER or NON_FILER'
       });
     }
 
@@ -285,7 +294,26 @@ router.put('/update-profile', authenticate, async (req, res) => {
       user.username = username;
     }
 
+    // Rates hang off filer status, and CGT is stored on every position. Changing
+    // it without rebuilding leaves each portfolio showing tax at the old rate
+    // until some unrelated edit happens to recalculate it.
+    const filerChanged = filerStatus !== undefined && filerStatus !== user.filerStatus;
+    if (filerStatus !== undefined) {
+      user.filerStatus = filerStatus;
+    }
+
     await user.save();
+
+    if (filerChanged) {
+      const owned = await Portfolio.find({ owner: user._id, isActive: true }).select('_id').lean();
+      // Best effort: the profile change itself has already been saved, so one
+      // portfolio failing to rebuild must not report the whole update as failed.
+      await Promise.all(owned.map(p =>
+        portfolioService.rebuildPositions(p._id, user._id)
+          .catch(err => console.error(`Failed to rebuild ${p._id} after filer change:`, err.message))
+      ));
+      console.log(`♻️  Rebuilt ${owned.length} portfolio(s) for filer status ${filerStatus}`);
+    }
 
     console.log(`✅ Profile updated for user: ${user.username}`);
 
@@ -330,9 +358,9 @@ router.post('/forgot-password', async (req, res) => {
     }
 
     // Generate reset token (simple implementation - for production use crypto)
-    const resetToken = Math.random().toString(36).substring(2, 15) + 
-                       Math.random().toString(36).substring(2, 15);
-    
+    const resetToken = Math.random().toString(36).substring(2, 15) +
+      Math.random().toString(36).substring(2, 15);
+
     user.resetPasswordToken = resetToken;
     user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
     await user.save();

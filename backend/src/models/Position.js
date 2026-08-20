@@ -58,6 +58,30 @@ const positionSchema = new mongoose.Schema({
         default: 0
     },
 
+    // Holding-period CGT on realised gains (advance tax NCCPL would deduct).
+    // Populated by lot-tracking calculators; 0 for AVERAGE_COST.
+    cgtTax: {
+        type: Number,
+        default: 0
+    },
+
+    // Every matched lot-to-sale slice, with its holding period, tier and year.
+    // Kept rather than summed away because loss relief nets across the whole
+    // portfolio and across tax years - it cannot be worked out one symbol at a
+    // time, which is what cgtTax above is.
+    disposals: [{
+        _id: false,
+        quantity: Number,
+        purchaseDate: Date,
+        sellDate: Date,
+        holdingMonths: Number,
+        tier: String,
+        gain: Number,
+        cgtRate: Number,
+        cgtTax: Number,
+        taxYear: Number
+    }],
+
     unrealizedPnL: {
         type: Number,
         default: 0
@@ -126,6 +150,8 @@ positionSchema.methods.updateFromCalculation = function (calculationResult, curr
     this.avgCost = calculationResult.avgCost;
     this.costBasis = calculationResult.costBasis;
     this.realizedPnL = calculationResult.realizedPnL;
+    this.cgtTax = calculationResult.cgtTax || 0;
+    this.disposals = calculationResult.disposals || [];
     this.unrealizedPnL = calculationResult.unrealizedPnL;
     this.marketValue = calculationResult.marketValue;
 

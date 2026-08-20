@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import api from '../../services/api';
-import { searchStocks } from '../../services/stocks';
+import { SymbolInput } from '../../ui/SymbolInput';
 import toast from 'react-hot-toast';
 import { formatCurrency, formatShares } from '../../utils/portfolioUtils';
 import { chargesFor, slabFor, describeSlab } from '../../utils/commission';
@@ -21,8 +21,6 @@ export default function AddTransactionModal({ portfolioId, currency, commissionS
         notes: ''
     });
     const [submitting, setSubmitting] = useState(false);
-    const [stockSuggestions, setStockSuggestions] = useState([]);
-    const [showSuggestions, setShowSuggestions] = useState(false);
     const [holdings, setHoldings] = useState([]);
 
     useEffect(() => {
@@ -86,23 +84,6 @@ export default function AddTransactionModal({ portfolioId, currency, commissionS
         setFormData({ ...formData, symbol, price: h?.currentPrice ?? formData.price });
     };
 
-    const handleSymbolChange = async (value) => {
-        setFormData({ ...formData, symbol: value.toUpperCase() });
-
-        if (value.length >= 1) {
-            try {
-                const response = await searchStocks(value);
-                setStockSuggestions(response.data);
-                setShowSuggestions(true);
-            } catch (error) {
-                console.error('Error searching stocks:', error);
-            }
-        } else {
-            setStockSuggestions([]);
-            setShowSuggestions(false);
-        }
-    };
-
     const selectStock = (stock) => {
         const updates = { symbol: stock.symbol };
 
@@ -112,7 +93,6 @@ export default function AddTransactionModal({ portfolioId, currency, commissionS
         }
 
         setFormData({ ...formData, ...updates });
-        setShowSuggestions(false);
     };
 
     const handleSubmit = async (e) => {
@@ -205,30 +185,12 @@ export default function AddTransactionModal({ portfolioId, currency, commissionS
                                 </select>
                             )
                         ) : (
-                            <input
-                                type="text"
-                                value={formData.symbol}
-                                onChange={(e) => handleSymbolChange(e.target.value)}
-                                onFocus={() => formData.symbol && setShowSuggestions(true)}
-                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500 uppercase"
-                                placeholder="e.g., OGDC"
+                            <SymbolInput
                                 required
+                                value={formData.symbol}
+                                onChange={(v) => setFormData({ ...formData, symbol: v })}
+                                onSelect={selectStock}
                             />
-                        )}
-                        {!pickFromHoldings && showSuggestions && stockSuggestions.length > 0 && (
-                            <div className="absolute z-10 w-full mt-1 bg-surface border border-gray-300 dark:border-gray-600 rounded-lg shadow-card max-h-60 overflow-y-auto">
-                                {stockSuggestions.map((stock) => (
-                                    <button
-                                        key={stock._id}
-                                        type="button"
-                                        onClick={() => selectStock(stock)}
-                                        className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                                    >
-                                        <div className="font-bold text-cyan-600 dark:text-cyan-400">{stock.symbol}</div>
-                                        <div className="text-sm text-gray-600 dark:text-gray-400">{stock.companyName}</div>
-                                    </button>
-                                ))}
-                            </div>
                         )}
                     </div>
 

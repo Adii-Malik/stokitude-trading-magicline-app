@@ -116,6 +116,7 @@ router.post('/', async (req, res) => {
             description,
             calculationMethod,
             currency,
+
             // Fee settings are configured on the create form, so they have to
             // survive it - omitting them here silently discarded the slabs.
             commissionSlabs,
@@ -1111,13 +1112,14 @@ router.patch('/:id/recommendations/:month/execute', authenticate, async (req, re
             });
         }
 
-        // Create BUY transactions for each allocation
-        const transactions = [];
+        // Create BUY transactions for each allocation. Concurrent, not serial:
+        // each create is a round trip, and updatePosition below costs six more
+        // per symbol. Awaited one at a time that is seconds of dead waiting.
+        // create() rather than insertMany() because the pre('save') hook carries
+        // the type validation, and insertMany does not run it.
         const executionDate = new Date();
-        const symbolsToUpdate = new Set();
-
-        for (const alloc of recommendation.allocations) {
-            const transaction = await Transaction.create({
+        const transactions = await Promise.all(
+            recommendation.allocations.map(alloc => Transaction.create({
                 portfolioId: req.params.id,
                 symbol: alloc.symbol,
                 type: 'BUY',
@@ -1127,22 +1129,15 @@ router.patch('/:id/recommendations/:month/execute', authenticate, async (req, re
                 executedAt: executionDate,
                 notes: `SIP ${recommendation.forMonth} - Auto-created from recommendation`,
                 createdBy: req.user._id
-            });
+            }))
+        );
 
-            transactions.push(transaction);
-            symbolsToUpdate.add(alloc.symbol);
-        }
-
-        // Update positions for all affected symbols
-        console.log(`📊 Updating positions for ${symbolsToUpdate.size} symbols...`);
-        for (const symbol of symbolsToUpdate) {
-            try {
-                await portfolioService.updatePosition(req.params.id, symbol);
-                console.log(`  ✓ Updated position for ${symbol}`);
-            } catch (posError) {
-                console.error(`  ❌ Failed to update position for ${symbol}:`, posError.message);
-            }
-        }
+        // One symbol failing to rebuild must not lose the others.
+        const symbolsToUpdate = [...new Set(recommendation.allocations.map(a => a.symbol))];
+        await Promise.all(symbolsToUpdate.map(symbol =>
+            portfolioService.updatePosition(req.params.id, symbol)
+                .catch(posError => console.error(`Failed to update position for ${symbol}:`, posError.message))
+        ));
 
         // Update recommendation status
         recommendation.status = 'EXECUTED';

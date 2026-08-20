@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  TrendingUp, Shield, Target, Sun, Moon, Menu, X, Home, Briefcase, BookOpen
+  TrendingUp, Shield, Sun, Moon, Menu, X, Home, Briefcase, BookOpen
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -13,7 +13,6 @@ export default function Header({
   marketStatus,
   onNavigateToDashboard,
   onNavigateToStocks,
-  onNavigateToTradeSignals,
   onNavigateToTradingBot,
   onNavigateToPortfolios,
   onNavigateToJournal,
@@ -59,17 +58,6 @@ export default function Header({
               >
                 <Home className="w-4 h-4" />
                 <span>Home</span>
-              </button>
-
-              <button
-                onClick={() => handleNavigation(onNavigateToTradeSignals)}
-                className={`px-3 py-2 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${currentPage === 'trade-signals'
-                  ? 'bg-cyan-500 text-white'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-                  }`}
-              >
-                <Target className="w-4 h-4" />
-                <span>Trade Calls</span>
               </button>
 
               <button
@@ -246,17 +234,6 @@ export default function Header({
             >
               <Home className="w-5 h-5" />
               <span>Home</span>
-            </button>
-
-            <button
-              onClick={() => handleNavigation(onNavigateToTradeSignals)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${currentPage === 'trade-signals'
-                ? 'bg-cyan-500 text-white'
-                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-                }`}
-            >
-              <Target className="w-5 h-5" />
-              <span>Trade Calls</span>
             </button>
 
             <button

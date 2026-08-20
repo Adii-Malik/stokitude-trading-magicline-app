@@ -4,24 +4,63 @@
  * persisted, so an edited entry can never disagree with its own statistics.
  */
 import JournalEntry, { MISTAKES } from '../models/JournalEntry.js';
+import { mintMissing, assertEditable, hydrate } from './journalLedger.js';
+import { escapeRegex } from '../utils/escapeRegex.js';
+
+// Never writable from a request body. The transaction ids are set by the ledger
+// link alone: accepting them from a client would let one journal entry claim
+// another's fills, or a transaction in someone else's portfolio.
+const RESERVED = new Set(['user', '_id', 'entryTransactionId', 'exitTransactionId']);
 
 /** Per-entry metrics. Returns nulls rather than guesses when inputs are missing. */
 export function computeMetrics(entry) {
     const sign = entry.direction === 'short' ? -1 : 1;
-    const closed = entry.exitPrice != null;
+    // An exit price closes the trade, whatever state says. Entries written before
+    // the lifecycle existed get 'open' from the schema default on hydration, so
+    // trusting state alone would reopen every historical trade.
+    const state = entry.exitPrice != null ? 'closed'
+        : entry.state === 'planned' || entry.state === 'cancelled' ? entry.state
+            : 'open';
+    const closed = state === 'closed';
 
-    const riskPerShare = entry.plannedStop != null
-        ? Math.abs(entry.entryPrice - entry.plannedStop)
-        : null;
-    const riskAmount = riskPerShare != null ? riskPerShare * entry.quantity : null;
+    // targets[] is the store; plannedTarget is its single-value virtual.
+    const target = entry.targets?.length ? entry.targets[0].price : entry.plannedTarget ?? null;
 
-    const plannedReward = entry.plannedTarget != null
-        ? Math.abs(entry.plannedTarget - entry.entryPrice) * entry.quantity
+    // A trade never entered has no fill, so risk is measured against the zone it
+    // was waiting for. Midpoint, because that is the honest expectation of a band.
+    // Cancelled included: the R:R it was planned at says what you passed up.
+    const zone = entry.entryFrom != null && entry.entryTo != null
+        ? (entry.entryFrom + entry.entryTo) / 2
+        : entry.entryFrom ?? entry.entryTo ?? null;
+    const reference = state === 'planned' || state === 'cancelled' ? zone : entry.entryPrice;
+
+    const riskPerShare = entry.plannedStop != null && reference != null
+        ? Math.abs(reference - entry.plannedStop)
         : null;
-    const plannedRR = riskAmount > 0 && plannedReward != null ? plannedReward / riskAmount : null;
+    const riskAmount = riskPerShare != null && entry.quantity != null
+        ? riskPerShare * entry.quantity
+        : null;
+
+    // Per-share, so a planned trade with no size still has a meaningful ratio.
+    const rewardPerShare = target != null && reference != null
+        ? Math.abs(target - reference)
+        : null;
+    const plannedRR = riskPerShare > 0 && rewardPerShare != null ? rewardPerShare / riskPerShare : null;
 
     // Process is judged on what was controllable, independent of the result.
-    const followedPlan = entry.stopPlaced && entry.eventChecked && (entry.mistakes || []).length === 0;
+    // Premature on a trade that has not been entered yet.
+    const untaken = state === 'planned' || state === 'cancelled';
+    const followedPlan = untaken
+        ? null
+        : entry.stopPlaced && entry.eventChecked && (entry.mistakes || []).length === 0;
+
+    if (untaken) {
+        return {
+            status: state, grossPnL: null, netPnL: null, pnlPct: null,
+            rMultiple: null, outcome: null, riskAmount, plannedRR, followedPlan,
+            unrealizedPnL: null, unrealizedPct: null
+        };
+    }
 
     if (!closed) {
         // Marked to a hand-entered price, kept out of realized totals.
@@ -38,7 +77,9 @@ export function computeMetrics(entry) {
     }
 
     const grossPnL = (entry.exitPrice - entry.entryPrice) * entry.quantity * sign;
-    const netPnL = grossPnL - (entry.fees || 0);
+    // Both legs. Fees are charged on the way in and on the way out.
+    const totalFees = (entry.fees || 0) + (entry.exitFees || 0);
+    const netPnL = grossPnL - totalFees;
     const cost = entry.entryPrice * entry.quantity;
     const pnlPct = cost > 0 ? (netPnL / cost) * 100 : null;
     const rMultiple = riskAmount > 0 ? netPnL / riskAmount : null;
@@ -67,7 +108,11 @@ const pct = (n, d) => (d > 0 ? (n / d) * 100 : 0);
 
 /** Stats for one currency's trades. Mixing PKR and USD into one figure is meaningless. */
 export function statsFor(entries) {
-    const closed = entries.filter(e => e.status === 'closed');
+    // A watched or cancelled level is not a trade taken. Counting either would
+    // dilute every rate below with decisions that were never made.
+    const untaken = (e) => e.status === 'planned' || e.status === 'cancelled';
+    const taken = entries.filter(e => !untaken(e));
+    const closed = taken.filter(e => e.status === 'closed');
     const wins = closed.filter(e => e.outcome === 'win');
     const losses = closed.filter(e => e.outcome === 'loss');
 
@@ -111,6 +156,16 @@ export function statsFor(entries) {
         })).sort((a, b) => a.netPnL - b.netPnL);
     };
 
+    // Follow-through on levels written down in advance. A planned trade keeps its
+    // zone after it opens, so a recorded zone is what marks an entry as one that
+    // started as a plan rather than an impulse. This is the number that keeping
+    // cancelled levels buys: how selective you actually are, versus how selective
+    // it feels.
+    const fromPlan = entries.filter(e => e.entryFrom != null || e.entryTo != null);
+    const levelsTaken = fromPlan.filter(e => e.status === 'open' || e.status === 'closed').length;
+    const levelsAbandoned = fromPlan.filter(e => e.status === 'cancelled').length;
+    const settled = levelsTaken + levelsAbandoned;
+
     // The single most expensive habit, and what the account looks like without it.
     const worst = byMistake[0];
     const headline = worst ? {
@@ -123,8 +178,16 @@ export function statsFor(entries) {
     } : null;
 
     return {
-        totalTrades: entries.length,
-        openTrades: entries.length - closed.length,
+        totalTrades: taken.length,
+        openTrades: taken.length - closed.length,
+        plannedTrades: entries.filter(e => e.status === 'planned').length,
+        // How often a level never triggered. Only a kept record can answer that.
+        cancelledTrades: entries.filter(e => e.status === 'cancelled').length,
+        levelsTaken,
+        levelsAbandoned,
+        // Null rather than 0 when nothing has settled, so the UI can stay quiet
+        // instead of claiming a 0% follow-through on no evidence.
+        triggerRate: settled ? pct(levelsTaken, settled) : null,
         headline,
         closedTrades: closed.length,
         wins: wins.length,
@@ -145,9 +208,9 @@ export function statsFor(entries) {
         worstStreak: Math.abs(worstStreak),
 
         // Process, tracked apart from outcome.
-        stopPlacedRate: pct(entries.filter(e => e.stopPlaced).length, entries.length),
-        eventCheckedRate: pct(entries.filter(e => e.eventChecked).length, entries.length),
-        followedPlanRate: pct(entries.filter(e => e.followedPlan).length, entries.length),
+        stopPlacedRate: pct(taken.filter(e => e.stopPlaced).length, taken.length),
+        eventCheckedRate: pct(taken.filter(e => e.eventChecked).length, taken.length),
+        followedPlanRate: pct(taken.filter(e => e.followedPlan).length, taken.length),
 
         // A loss that obeyed the plan is not a mistake; a win that broke it is luck.
         goodProcessBadOutcome: closed.filter(e => e.followedPlan && e.outcome === 'loss').length,
@@ -158,15 +221,18 @@ export function statsFor(entries) {
 
         byMistake,
         bySetup: group('setupType'),
+        // Grades recorded before the outcome, so this reads as a calibration check.
+        byQuality: group('setupQuality'),
         byEmotion: group('emotionalState')
     };
 }
 
-const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// A planned trade has no entry date yet, so fall back to when it was written down.
+const dateOf = (e) => new Date(e.entryDate || e.createdAt || 0);
 
 const SORTS = {
-    recent: (a, b) => new Date(b.entryDate) - new Date(a.entryDate),
-    oldest: (a, b) => new Date(a.entryDate) - new Date(b.entryDate),
+    recent: (a, b) => dateOf(b) - dateOf(a),
+    oldest: (a, b) => dateOf(a) - dateOf(b),
     best: (a, b) => (b.netPnL ?? -Infinity) - (a.netPnL ?? -Infinity),
     worst: (a, b) => (a.netPnL ?? Infinity) - (b.netPnL ?? Infinity),
     symbol: (a, b) => a.symbol.localeCompare(b.symbol)
@@ -189,7 +255,10 @@ class JournalService {
             query.$or = [{ symbol: rx }, { notes: rx }, { lesson: rx }, { tags: rx }];
         }
 
-        let entries = (await JournalEntry.find(query)).map(decorate);
+        // Hydrated from the ledger before anything is derived, or the metrics
+        // would be computed from the journal's own stale copy of the numbers.
+        const found = await JournalEntry.find(query);
+        let entries = (await hydrate(found.map(e => e.toObject()))).map(decorate);
 
         // status/outcome are derived, so they filter after decoration.
         if (filters.status) entries = entries.filter(e => e.status === filters.status);
@@ -214,33 +283,48 @@ class JournalService {
     async get(id, userId) {
         const entry = await JournalEntry.findOne({ _id: id, user: userId });
         if (!entry) throw new Error('Journal entry not found');
-        return decorate(entry);
+        const [hydrated] = await hydrate([entry.toObject()]);
+        return decorate(hydrated);
     }
 
     async create(userId, data) {
-        const entry = await JournalEntry.create({ ...data, user: userId });
-        return decorate(entry);
+        const entry = new JournalEntry({ ...data, user: userId });
+        // Booked before the first save, so a rejected link - a currency mismatch,
+        // say - leaves no half-linked entry behind.
+        await mintMissing(entry, userId);
+        await entry.save();
+        return this.get(entry._id, userId);
     }
 
     async update(id, userId, data) {
         const entry = await JournalEntry.findOne({ _id: id, user: userId });
         if (!entry) throw new Error('Journal entry not found');
 
+        assertEditable(entry, data);
+
         // null clears a field. Without this, an emptied exit price is simply
         // dropped from the JSON body and a closed trade can never be reopened.
         for (const [key, value] of Object.entries(data)) {
-            if (key === 'user' || key === '_id') continue;
+            if (RESERVED.has(key)) continue;
             entry[key] = value === null ? undefined : value;
         }
 
+        await mintMissing(entry, userId);
         await entry.save();
-        return decorate(entry);
+        return this.get(entry._id, userId);
     }
 
     async remove(id, userId) {
-        const result = await JournalEntry.deleteOne({ _id: id, user: userId });
-        if (!result.deletedCount) throw new Error('Journal entry not found');
-        return true;
+        const entry = await JournalEntry.findOne({ _id: id, user: userId });
+        if (!entry) throw new Error('Journal entry not found');
+
+        // The ledger rows outlive the note about them. Deleting the journal entry
+        // must not silently remove real transactions from a portfolio that
+        // reconciles to a broker balance.
+        await JournalEntry.deleteOne({ _id: id, user: userId });
+        return {
+            keptTransactions: [entry.entryTransactionId, entry.exitTransactionId].filter(Boolean).length
+        };
     }
 
     /** Stats split by currency, plus an overall process view that is currency-free. */
@@ -259,6 +343,11 @@ class JournalService {
             process: {
                 totalTrades: all.totalTrades,
                 closedTrades: all.closedTrades,
+                plannedTrades: all.plannedTrades,
+                cancelledTrades: all.cancelledTrades,
+                levelsTaken: all.levelsTaken,
+                levelsAbandoned: all.levelsAbandoned,
+                triggerRate: all.triggerRate,
                 stopPlacedRate: all.stopPlacedRate,
                 eventCheckedRate: all.eventCheckedRate,
                 followedPlanRate: all.followedPlanRate,
@@ -268,6 +357,7 @@ class JournalService {
                 // Counts only. A cost here would sum currencies, so it lives in byCurrency.
                 byMistake: all.byMistake.map(({ code, count }) => ({ code, count })),
                 bySetup: all.bySetup.map(({ key, count, winRate }) => ({ key, count, winRate })),
+                byQuality: all.byQuality.map(({ key, count, winRate }) => ({ key, count, winRate })),
                 byEmotion: all.byEmotion.map(({ key, count, winRate }) => ({ key, count, winRate }))
             }
         };

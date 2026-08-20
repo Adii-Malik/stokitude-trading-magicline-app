@@ -10,7 +10,8 @@ export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const [tradePlanStats, setTradePlanStats] = useState(null);
+  const [stats, setStats] = useState(null);
+  const [recent, setRecent] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -23,10 +24,13 @@ export default function Dashboard() {
       setLoading(true);
       setError(null);
 
-      const tpResponse = await api.get('/trade-plans/stats/summary');
+      const [statsRes, recentRes] = await Promise.all([
+        api.get('/journal/stats'),
+        api.get('/journal', { params: { status: 'closed', sort: 'recent', limit: 5 } })
+      ]);
 
-      setTradePlanStats(tpResponse.data.data);
-
+      setStats(statsRes.data.data);
+      setRecent(recentRes.data.data || []);
     } catch (err) {
       console.error('Error loading dashboard stats:', err);
       setError('Failed to load dashboard statistics');
@@ -35,9 +39,21 @@ export default function Dashboard() {
     }
   };
 
-  // Calculate key metrics
-  const tradeWinRate = tradePlanStats && tradePlanStats.totalPlans > 0
-    ? ((tradePlanStats.tpHits / tradePlanStats.totalPlans) * 100).toFixed(1)
+  // Counts sum safely across currencies. Money does not, which is why no rupee
+  // or dollar figure appears here - it would silently add PKR to USD.
+  const totals = (stats?.byCurrency || []).reduce((t, c) => ({
+    wins: t.wins + (c.wins || 0),
+    losses: t.losses + (c.losses || 0),
+    closed: t.closed + (c.closedTrades || 0),
+    open: t.open + (c.openTrades || 0),
+    planned: t.planned + (c.plannedTrades || 0),
+    cancelled: t.cancelled + (c.cancelledTrades || 0)
+  }), { wins: 0, losses: 0, closed: 0, open: 0, planned: 0, cancelled: 0 });
+
+  // Over trades that finished, not over everything ever recorded. The old
+  // version divided by total plans, which quietly understated the rate.
+  const winRate = totals.closed > 0
+    ? ((totals.wins / totals.closed) * 100).toFixed(1)
     : 0;
 
   if (loading) {
@@ -88,12 +104,12 @@ export default function Dashboard() {
                 <Activity className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{tradePlanStats?.activePlans || 0}</p>
-                <p className="text-xs text-gray-600 dark:text-gray-400">Active Plans</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{totals.open}</p>
+                <p className="text-xs text-gray-600 dark:text-gray-400">Open Trades</p>
               </div>
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-500">
-              of {tradePlanStats?.totalPlans || 0} total
+              {totals.planned} level{totals.planned === 1 ? '' : 's'} being watched
             </div>
           </div>
 
@@ -103,12 +119,12 @@ export default function Dashboard() {
                 <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-green-600 dark:text-green-400">{tradePlanStats?.successfulPlans || 0}</p>
-                <p className="text-xs text-gray-600 dark:text-gray-400">Successful Plans</p>
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">{totals.wins}</p>
+                <p className="text-xs text-gray-600 dark:text-gray-400">Wins</p>
               </div>
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-500">
-              {tradePlanStats?.tpHits || 0} targets • {tradeWinRate}% win rate
+              {winRate}% of {totals.closed} closed
             </div>
           </div>
 
@@ -118,28 +134,28 @@ export default function Dashboard() {
                 <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-red-600 dark:text-red-400">{tradePlanStats?.slHit || 0}</p>
-                <p className="text-xs text-gray-600 dark:text-gray-400">Stop Loss</p>
+                <p className="text-2xl font-bold text-red-600 dark:text-red-400">{totals.losses}</p>
+                <p className="text-xs text-gray-600 dark:text-gray-400">Losses</p>
               </div>
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-500">
-              {tradePlanStats?.closedPlans || 0} plans closed
+              {Math.round(stats?.process?.followedPlanRate || 0)}% followed the plan
             </div>
           </div>
         </div>
 
         {/* Main Sections */}
         <div className="grid grid-cols-1 gap-6 mb-8">
-          {/* Trade Plans */}
+          {/* Journal */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                   <Target className="w-5 h-5 text-purple-500" />
-                  Trade Plans
+                  Journal
                 </h2>
                 <button
-                  onClick={() => navigate('/trade-signals')}
+                  onClick={() => navigate('/journal')}
                   className="text-purple-500 hover:text-purple-600 text-sm font-medium flex items-center gap-1"
                 >
                   View All
@@ -148,33 +164,40 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {tradePlanStats && (
+            {stats && (
               <div className="p-6">
                 <div className="space-y-3 mb-4">
+                  <div className="flex items-center justify-between p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Watching a level</span>
+                    <span className="text-lg font-bold text-amber-600 dark:text-amber-400">{totals.planned}</span>
+                  </div>
                   <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Active</span>
-                    <span className="text-lg font-bold text-blue-600 dark:text-blue-400">{tradePlanStats.activePlans || 0}</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Open</span>
+                    <span className="text-lg font-bold text-blue-600 dark:text-blue-400">{totals.open}</span>
                   </div>
-                  <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Targets Hit</span>
-                    <span className="text-lg font-bold text-green-600 dark:text-green-400">{tradePlanStats.tpHits || 0}</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Stop Loss</span>
-                    <span className="text-lg font-bold text-red-600 dark:text-red-400">{tradePlanStats.slHit || 0}</span>
+                  <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900/40 rounded-lg">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Never triggered</span>
+                    <span className="text-lg font-bold text-gray-600 dark:text-gray-300">{totals.cancelled}</span>
                   </div>
                 </div>
 
                 <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                   <div className="flex justify-between text-sm mb-2">
                     <span className="text-gray-600 dark:text-gray-400">Win Rate</span>
-                    <span className="font-semibold text-gray-900 dark:text-white">{tradeWinRate}%</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">{winRate}%</span>
                   </div>
                   <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                     <div
                       className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-500"
-                      style={{ width: `${tradeWinRate}%` }}
+                      style={{ width: `${winRate}%` }}
                     ></div>
+                  </div>
+                  {/* Outcome and process are separate questions, so both are shown. */}
+                  <div className="flex justify-between text-sm mt-3">
+                    <span className="text-gray-600 dark:text-gray-400">Followed the plan</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">
+                      {Math.round(stats.process?.followedPlanRate || 0)}%
+                    </span>
                   </div>
                 </div>
               </div>
@@ -185,7 +208,7 @@ export default function Dashboard() {
         {/* Recent Activity */}
         <div className="grid grid-cols-1 gap-6 mb-8">
           {/* Recent Trade Outcomes */}
-          {tradePlanStats?.recentClosed && tradePlanStats.recentClosed.length > 0 && (
+          {recent.length > 0 && (
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
               <div className="p-6 border-b border-gray-200 dark:border-gray-700">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
@@ -195,33 +218,34 @@ export default function Dashboard() {
               </div>
               <div className="p-6">
                 <div className="space-y-3">
-                  {tradePlanStats.recentClosed.map((trade, index) => (
+                  {recent.map((trade) => (
                     <div
-                      key={index}
-                      className={`flex items-center justify-between p-3 rounded-lg ${trade.outcome === 'target'
+                      key={trade._id}
+                      className={`flex items-center justify-between p-3 rounded-lg ${trade.outcome === 'win'
                         ? 'bg-green-50 dark:bg-green-900/20'
-                        : trade.outcome === 'stop_loss'
+                        : trade.outcome === 'loss'
                           ? 'bg-red-50 dark:bg-red-900/20'
                           : 'bg-gray-50 dark:bg-gray-900/50'
                         }`}
                     >
                       <div className="flex items-center gap-3">
-                        {trade.outcome === 'target' ? (
+                        {trade.outcome === 'win' ? (
                           <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
-                        ) : trade.outcome === 'stop_loss' ? (
+                        ) : trade.outcome === 'loss' ? (
                           <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
                         ) : (
                           <Clock className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                         )}
                         <div>
                           <p className="font-medium text-gray-900 dark:text-white">{trade.symbol}</p>
+                          {/* The lesson if there is one - it is the reason the entry exists. */}
                           <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {trade.outcome === 'target' ? 'Target Hit ✓' : trade.outcome === 'stop_loss' ? 'Stop Loss Hit' : 'Manually Closed'}
+                            {trade.lesson || (trade.followedPlan ? 'Followed the plan' : 'Plan not followed')}
                           </p>
                         </div>
                       </div>
                       <span className="text-xs text-gray-500 dark:text-gray-400">
-                        {new Date(trade.exitDate).toLocaleDateString()}
+                        {trade.exitDate ? new Date(trade.exitDate).toLocaleDateString() : '—'}
                       </span>
                     </div>
                   ))}
@@ -240,8 +264,9 @@ export default function Dashboard() {
             <div>
               <h3 className="text-xl font-bold mb-2">Financial Reading Analytics</h3>
               <p className="text-cyan-100">
-                Track your trading performance with real-time KPIs. Analyze trade plan success rates
-                and make data-driven decisions with comprehensive insights. Historical data shows your complete trading journey!
+                Levels you are watching are checked against live prices on every poll, and
+                you are told when one is reached. Outcome and process are tracked apart:
+                a loss that followed the plan is not a mistake, and a win that broke it is luck.
               </p>
             </div>
           </div>

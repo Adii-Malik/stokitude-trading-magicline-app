@@ -6,7 +6,8 @@ import express from 'express';
 import { authenticate } from '../middleware/auth.js';
 import journalService from '../services/journalService.js';
 import RiskProfile from '../models/RiskProfile.js';
-import { SETUP_TYPES, EMOTIONS, MARKET_CONDITIONS, MISTAKES } from '../models/JournalEntry.js';
+import Portfolio from '../models/Portfolio.js';
+import { SETUP_TYPES, SETUP_QUALITIES, EMOTIONS, MARKET_CONDITIONS, MISTAKES } from '../models/JournalEntry.js';
 import { EXCHANGE_CODES, EXCHANGES } from '../config/exchanges.js';
 
 const router = express.Router();
@@ -19,11 +20,22 @@ const fail = (res, error) => {
 };
 
 /** Enum vocabulary, so the UI never hardcodes a list that drifts from the model. */
-router.get('/options', (req, res) => {
+router.get('/options', async (req, res) => {
+    // Portfolios a trade can be booked into, with just enough to populate the
+    // picker and price the commission. Deliberately not /api/portfolios, which
+    // computes a full dashboard per portfolio - fifteen of those to fill a
+    // dropdown is a lot of work for a list of names.
+    const portfolios = await Portfolio.find({
+        $or: [{ owner: req.user._id }, { 'sharedWith.user': req.user._id }],
+        isActive: true
+    }).select('name currency commissionSlabs charges').sort({ name: 1 }).lean();
+
     res.json({
         success: true,
         data: {
+            portfolios,
             setupTypes: SETUP_TYPES,
+            setupQualities: SETUP_QUALITIES,
             emotions: EMOTIONS,
             marketConditions: MARKET_CONDITIONS,
             mistakes: MISTAKES,
@@ -104,8 +116,14 @@ router.put('/:id', async (req, res) => {
 
 router.delete('/:id', async (req, res) => {
     try {
-        await journalService.remove(req.params.id, req.user._id);
-        res.json({ success: true, message: 'Journal entry deleted' });
+        const { keptTransactions } = await journalService.remove(req.params.id, req.user._id);
+        res.json({
+            success: true,
+            // Said out loud, because deleting the note is not deleting the trade.
+            message: keptTransactions
+                ? `Journal entry deleted. ${keptTransactions} ledger transaction${keptTransactions > 1 ? 's' : ''} left in the portfolio.`
+                : 'Journal entry deleted'
+        });
     } catch (error) {
         fail(res, error);
     }

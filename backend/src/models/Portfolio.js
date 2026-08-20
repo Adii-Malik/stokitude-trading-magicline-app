@@ -41,7 +41,7 @@ const portfolioSchema = new mongoose.Schema({
     // selecting one without an implementation throws on every position rebuild.
     calculationMethod: {
         type: String,
-        enum: ['AVERAGE_COST', 'FIFO'],
+        enum: ['AVERAGE_COST', 'FIFO', 'NCCPL'],
         default: 'AVERAGE_COST'
     },
 
@@ -58,6 +58,7 @@ const portfolioSchema = new mongoose.Schema({
     },
 
     // Portfolio configuration
+
     currency: {
         type: String,
         default: 'PKR',

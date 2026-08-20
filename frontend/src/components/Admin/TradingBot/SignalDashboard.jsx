@@ -1,14 +1,7 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import socketService from '../../../services/socket';
-import { 
-  BellIcon, 
-  FunnelIcon,
-  CheckCircleIcon,
-  ArrowTrendingUpIcon,
-  ArrowTrendingDownIcon,
-  SparklesIcon
-} from '@heroicons/react/24/outline';
+import { Bell, Filter, CheckCircle, TrendingUp, TrendingDown, Sparkles } from 'lucide-react';
 import SignalChart from './SignalChart';
 import * as signalService from '../../../services/signals';
 
@@ -145,7 +138,7 @@ export default function SignalDashboard() {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <SparklesIcon className="w-8 h-8 text-cyan-600" />
+            <Sparkles className="w-8 h-8 text-cyan-600" />
             Signal Dashboard
           </h2>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
@@ -156,7 +149,7 @@ export default function SignalDashboard() {
           onClick={() => setShowFilters(!showFilters)}
           className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
         >
-          <FunnelIcon className="w-5 h-5" />
+          <Filter className="w-5 h-5" />
           Filters
         </button>
       </div>
@@ -264,7 +257,7 @@ export default function SignalDashboard() {
                 {filteredSignals.length}
               </p>
             </div>
-            <BellIcon className="w-10 h-10 text-cyan-600" />
+            <Bell className="w-10 h-10 text-cyan-600" />
           </div>
         </div>
 
@@ -276,7 +269,7 @@ export default function SignalDashboard() {
                 {filteredSignals.filter(s => s.signalType === 'BUY').length}
               </p>
             </div>
-            <ArrowTrendingUpIcon className="w-10 h-10 text-green-600" />
+            <TrendingUp className="w-10 h-10 text-green-600" />
           </div>
         </div>
 
@@ -288,7 +281,7 @@ export default function SignalDashboard() {
                 {filteredSignals.filter(s => s.signalType === 'SELL').length}
               </p>
             </div>
-            <ArrowTrendingDownIcon className="w-10 h-10 text-red-600" />
+            <TrendingDown className="w-10 h-10 text-red-600" />
           </div>
         </div>
 
@@ -300,7 +293,7 @@ export default function SignalDashboard() {
                 {filteredSignals.filter(s => s.isExecuted).length}
               </p>
             </div>
-            <CheckCircleIcon className="w-10 h-10 text-cyan-600" />
+            <CheckCircle className="w-10 h-10 text-cyan-600" />
           </div>
         </div>
       </div>
@@ -315,7 +308,7 @@ export default function SignalDashboard() {
 
             {filteredSignals.length === 0 ? (
               <div className="text-center py-12">
-                <BellIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <Bell className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-600 dark:text-gray-400">
                   No signals found. Activate strategies to start receiving signals.
                 </p>
@@ -340,9 +333,9 @@ export default function SignalDashboard() {
                             : 'bg-red-100 dark:bg-red-900'
                         }`}>
                           {signal.signalType === 'BUY' ? (
-                            <ArrowTrendingUpIcon className="w-6 h-6 text-green-600 dark:text-green-400" />
+                            <TrendingUp className="w-6 h-6 text-green-600 dark:text-green-400" />
                           ) : (
-                            <ArrowTrendingDownIcon className="w-6 h-6 text-red-600 dark:text-red-400" />
+                            <TrendingDown className="w-6 h-6 text-red-600 dark:text-red-400" />
                           )}
                         </div>
                         <div>
@@ -400,7 +393,7 @@ export default function SignalDashboard() {
 
                     {signal.isExecuted && (
                       <div className="mt-2 flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
-                        <CheckCircleIcon className="w-4 h-4" />
+                        <CheckCircle className="w-4 h-4" />
                         Executed at PKR {formatPrice(signal.executedPrice)} on {formatDate(signal.executedAt)}
                       </div>
                     )}
@@ -418,7 +411,7 @@ export default function SignalDashboard() {
           ) : (
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 h-full flex items-center justify-center">
               <div className="text-center">
-                <BellIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <Bell className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-600 dark:text-gray-400">
                   Select a signal to view details
                 </p>

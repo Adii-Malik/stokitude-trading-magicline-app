@@ -10,8 +10,10 @@ export default function Profile() {
 
   // Profile form
   const [profileData, setProfileData] = useState({
-    username: user.username || ''
+    username: user.username || '',
+    filerStatus: user.filerStatus || 'FILER'
   });
+
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState(null);
   const [profileSuccess, setProfileSuccess] = useState(false);
@@ -53,7 +55,8 @@ export default function Profile() {
     try {
       const result = await authService.updateProfile(
         profileData.username,
-        null // Don't allow email updates
+        null, // Don't allow email updates
+        profileData.filerStatus
       );
 
       if (result.success) {
@@ -230,8 +233,29 @@ export default function Profile() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      FBR Filer Status
+                    </label>
+                    <div className="relative">
+                      <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <select
+                        name="filerStatus"
+                        value={profileData.filerStatus}
+                        onChange={handleProfileChange}
+                        className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition"
+                        disabled={profileLoading}
+                      >
+                        <option value="FILER">Filer</option>
+                        <option value="NON_FILER">Non-Filer</option>
+                      </select>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Drives capital gains tax and dividend withholding rates across your portfolios</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Role
                     </label>
+
                     <div className="relative">
                       <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                       <input

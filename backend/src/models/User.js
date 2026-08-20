@@ -28,6 +28,14 @@ const userSchema = new mongoose.Schema({
     enum: ['super_admin', 'admin', 'user'],
     default: 'user'
   },
+  // FBR filer status. Drives holding-period CGT and dividend WHT rates across
+  // all of the user's portfolios: filers are taxed more lightly than non-filers.
+  filerStatus: {
+    type: String,
+    enum: ['FILER', 'NON_FILER'],
+    default: 'FILER'
+  },
+
   isActive: {
     type: Boolean,
     default: false // New users need admin approval
@@ -45,12 +53,12 @@ const userSchema = new mongoose.Schema({
 });
 
 // Hash password before saving
-userSchema.pre('save', async function(next) {
+userSchema.pre('save', async function (next) {
   // Only hash if password is modified
   if (!this.isModified('password')) {
     return next();
   }
-  
+
   try {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
@@ -61,7 +69,7 @@ userSchema.pre('save', async function(next) {
 });
 
 // Method to compare password
-userSchema.methods.comparePassword = async function(candidatePassword) {
+userSchema.methods.comparePassword = async function (candidatePassword) {
   try {
     return await bcrypt.compare(candidatePassword, this.password);
   } catch (error) {
@@ -70,7 +78,7 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
 };
 
 // Method to get user without password
-userSchema.methods.toSafeObject = function() {
+userSchema.methods.toSafeObject = function () {
   const obj = this.toObject();
   delete obj.password;
   return obj;

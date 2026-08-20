@@ -8,7 +8,6 @@ import { LayoutProvider } from './components/Layout';
 import { FullPageLoader } from './components/common';
 import Dashboard from './components/Dashboard';
 import AdminDashboard from './components/Admin/AdminDashboard';
-import TradePlans from './components/TradePlans';
 import Notifications from './components/Notifications';
 import Login from './components/Login';
 import Signup from './components/Signup';
@@ -104,14 +103,6 @@ function AppContent() {
         <ProtectedRoute>
           <LayoutProvider currentPage="dashboard">
             <Dashboard />
-          </LayoutProvider>
-        </ProtectedRoute>
-      } />
-
-      <Route path="/trade-signals" element={
-        <ProtectedRoute>
-          <LayoutProvider currentPage="trade-signals">
-            <TradePlans />
           </LayoutProvider>
         </ProtectedRoute>
       } />

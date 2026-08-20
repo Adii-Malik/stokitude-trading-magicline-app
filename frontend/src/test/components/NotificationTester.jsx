@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Bell, TestTube, Send, Loader2, CheckCircle, AlertCircle, Mail, Info, Bug } from 'lucide-react';
 import {
     sendTestNotification,
-    testTradePlanNotification,
     testAdminNotification,
     getEmailDebugInfo,
     sendTestEmail
@@ -73,39 +72,6 @@ export default function NotificationTester() {
             category: 'system',
             action: async () => {
                 const result = await sendTestNotification();
-                return result;
-            }
-        },
-        {
-            id: 'buy_level',
-            label: 'Trade Plan - Buy Level',
-            description: 'Buy level hit notification (PSO Level 1)',
-            icon: '💰',
-            category: 'trade_plans',
-            action: async () => {
-                const result = await testTradePlanNotification('buy');
-                return result;
-            }
-        },
-        {
-            id: 'target',
-            label: 'Trade Plan - Target Hit',
-            description: 'Target achieved notification (PSO TP1)',
-            icon: '🎉',
-            category: 'trade_plans',
-            action: async () => {
-                const result = await testTradePlanNotification('target');
-                return result;
-            }
-        },
-        {
-            id: 'stop_loss',
-            label: 'Trade Plan - Stop Loss',
-            description: 'Stop loss triggered notification (PSO SL)',
-            icon: '⚠️',
-            category: 'trade_plans',
-            action: async () => {
-                const result = await testTradePlanNotification('stop_loss');
                 return result;
             }
         },

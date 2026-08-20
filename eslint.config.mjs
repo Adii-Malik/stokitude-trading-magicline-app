@@ -77,10 +77,10 @@ export default [
      * is how the same card ended up hand-styled in 42 files across 7 corner
      * radii - the drift that showed up every time anything was touched.
      *
-     * Scoped to the portfolio components, which are migrated. Widen the files
-     * list as other areas move over; src/ui is exempt because it defines them.
+     * Scoped to the areas that are migrated. Widen the files list as others move
+     * over; src/ui is exempt because it defines them.
      */
-    files: ['frontend/src/components/Portfolio/**/*.jsx'],
+    files: ['frontend/src/components/{Portfolio,Journal}/**/*.jsx'],
     rules: {
       'no-restricted-syntax': ['error',
         {
@@ -90,10 +90,24 @@ export default [
         },
         {
           /**
+           * The same rule again for template literals, which are a different AST
+           * node and so were invisible to the selector above. That blind spot sat
+           * exactly where drift collects: the conditional `${active ? ... : ...}`
+           * class strings, which is most of the styling that ever changes.
+           */
+          selector: 'TemplateElement[value.raw=/(?<!hover:)\\b(bg-white|bg-gray-800|rounded-xl|rounded-2xl|shadow-sm|shadow-md|shadow-lg|shadow-xl)\\b/]',
+          message: 'Use a design token or a primitive from src/ui - bg-surface, rounded-card, shadow-card. Raw surface classes drift.'
+        },
+        {
+          /**
            * A palette colour with no dark counterpart in the same class string.
            * This is how the totals row went near-invisible: border-gray-300 and
            * no text colour at all, so it inherited its way to unreadable. The
            * surface rule above did not look at borders or ink.
+           *
+           * Literals only, deliberately. A template literal is chopped into
+           * chunks at each ${}, so the dark: variant frequently lands in a
+           * different chunk from the colour it pairs with and this would cry wolf.
            */
           selector: 'Literal[value=/^(?!.*dark:).*\\b(text|border|bg)-gray-[0-9]/]',
           message: 'This colour has no dark counterpart. Use a token - text-ink, text-ink-muted, text-ink-faint, border-hairline, bg-surface-muted.'

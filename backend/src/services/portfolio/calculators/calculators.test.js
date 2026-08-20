@@ -165,7 +165,60 @@ describe('statutory charges', () => {
     });
 });
 
+describe('holding-period CGT', () => {
+    // PSX tiers: <12m short-term (filer 15%), 12-24m medium (12.5%),
+    // >24m long-term (0%). NCCPL settles per disposal, FIFO.
+    test('short-term gain is taxed at 15% for a filer', () => {
+        const r = fifo.calculate([
+            tx('BUY', 100, 10, { executedAt: '2026-01-01T00:00:00Z' }),
+            tx('SELL', 100, 20, { executedAt: '2026-06-01T00:00:00Z' })
+        ], 20);
+        assert.equal(r.realizedPnL, 1000);
+        assert.equal(r.cgtTax, 150, '15% of a 1000 short-term gain');
+        assert.equal(r.disposals[0].tier, 'short-term');
+    });
+
+    test('long-term gain (>24m) is exempt', () => {
+        const r = fifo.calculate([
+            tx('BUY', 100, 10, { executedAt: '2023-01-01T00:00:00Z' }),
+            tx('SELL', 100, 20, { executedAt: '2026-02-01T00:00:00Z' })
+        ], 20);
+        assert.equal(r.realizedPnL, 1000);
+        assert.equal(r.cgtTax, 0);
+        assert.equal(r.disposals[0].tier, 'long-term');
+    });
+
+    test('non-filer pays the higher 20% short-term rate', () => {
+        const r = fifo.calculate([
+            tx('BUY', 100, 10, { executedAt: '2026-01-01T00:00:00Z' }),
+            tx('SELL', 100, 20, { executedAt: '2026-06-01T00:00:00Z' })
+        ], 20, { filerStatus: 'NON_FILER' });
+        assert.equal(r.cgtTax, 200, '20% of a 1000 gain');
+    });
+
+    test('losses are not taxed', () => {
+        const r = fifo.calculate([
+            tx('BUY', 100, 20, { executedAt: '2026-01-01T00:00:00Z' }),
+            tx('SELL', 100, 10, { executedAt: '2026-06-01T00:00:00Z' })
+        ], 10);
+        assert.equal(r.realizedPnL, -1000);
+        assert.equal(r.cgtTax, 0);
+    });
+
+    test('each FIFO lot is taxed on its own holding period', () => {
+        // Old lot is long-term exempt; recent lot is short-term taxed.
+        const r = fifo.calculate([
+            tx('BUY', 100, 10, { executedAt: '2023-01-01T00:00:00Z' }),
+            tx('BUY', 100, 10, { executedAt: '2026-01-01T00:00:00Z' }),
+            tx('SELL', 200, 20, { executedAt: '2026-06-01T00:00:00Z' })
+        ], 20);
+        assert.equal(r.disposals.length, 2);
+        assert.equal(r.cgtTax, 150, 'only the short-term lot: 15% of 1000');
+    });
+});
+
 describe('empty and degenerate input', () => {
+
     test('no transactions produce a flat position', () => {
         const r = avg.calculate([], 10);
         assert.equal(r.netShares, 0);

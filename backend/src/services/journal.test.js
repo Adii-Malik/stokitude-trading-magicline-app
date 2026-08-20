@@ -69,6 +69,33 @@ describe('per-trade metrics', () => {
     });
 });
 
+describe('fees on both legs', () => {
+    // A round trip is charged twice, at different rates. One combined field meant
+    // closing a booked trade billed the sell the buy's commission.
+    test('net P/L subtracts the entry and the exit', () => {
+        const m = computeMetrics(trade({
+            entryPrice: 900, quantity: 10, exitPrice: 960, fees: 13.50, exitFees: 14.40
+        }));
+        assert.equal(m.grossPnL, 600);
+        assert.equal(Math.round(m.netPnL * 100) / 100, 572.10);
+    });
+
+    test('an absent exit fee costs nothing rather than NaN', () => {
+        const m = computeMetrics(trade({ exitPrice: 120, fees: 5 }));
+        assert.equal(m.netPnL, 195);
+    });
+
+    test('fees alone can turn a gross win into a net loss', () => {
+        // The reason the journal reports net rather than gross at all.
+        const m = computeMetrics(trade({
+            entryPrice: 100, quantity: 1, exitPrice: 101, fees: 1, exitFees: 1
+        }));
+        assert.equal(m.grossPnL, 1);
+        assert.equal(m.netPnL, -1);
+        assert.equal(m.outcome, 'loss');
+    });
+});
+
 describe('followedPlan', () => {
     const base = { exitPrice: 120, plannedStop: 95 };
 
@@ -164,5 +191,188 @@ describe('aggregate stats', () => {
         assert.equal(empty.profitFactor, null);
         assert.equal(empty.avgR, null);
         assert.equal(empty.headline, null);
+    });
+});
+
+describe('planned trades', () => {
+    // A level being watched, with no fill and therefore no size or entry price.
+    const plan = (o = {}) => ({
+        symbol: 'OGDC', currency: 'PKR', direction: 'long', state: 'planned',
+        entryFrom: 95, entryTo: 105, plannedStop: 90,
+        targets: [{ level: 1, price: 120, isHit: false }],
+        mistakes: [], ...o
+    });
+
+    test('claims no P/L of any kind', () => {
+        const m = computeMetrics(plan());
+        assert.equal(m.status, 'planned');
+        assert.equal(m.netPnL, null);
+        assert.equal(m.unrealizedPnL, null);
+        assert.equal(m.outcome, null);
+    });
+
+    test('risk is measured from the midpoint of the zone it waits for', () => {
+        // Midpoint 100, stop 90, target 120: one unit of risk for two of reward.
+        assert.equal(computeMetrics(plan()).plannedRR, 2);
+    });
+
+    test('R:R survives having no quantity yet', () => {
+        const m = computeMetrics(plan());
+        assert.equal(m.riskAmount, null, 'no size means no rupee risk');
+        assert.equal(m.plannedRR, 2, 'but the ratio still holds');
+    });
+
+    test('a single bound is treated as the whole zone', () => {
+        const m = computeMetrics(plan({ entryFrom: 100, entryTo: undefined }));
+        assert.equal(m.plannedRR, 2);
+    });
+
+    test('discipline is not judged before the trade is taken', () => {
+        assert.equal(computeMetrics(plan()).followedPlan, null);
+    });
+
+    test('no numeric field comes back NaN', () => {
+        // The entry price fields are absent, so every derived number has to
+        // either compute from the zone or return null.
+        const m = computeMetrics(plan());
+        for (const [key, value] of Object.entries(m)) {
+            assert.ok(!Number.isNaN(value), `${key} is NaN`);
+        }
+    });
+
+    test('an exit price beats a stale planned state', () => {
+        // Guards the reverse of the migration hazard: state must never keep a
+        // trade planned once it has a result.
+        assert.equal(computeMetrics(plan({ exitPrice: 120, entryPrice: 100, quantity: 10 })).status, 'closed');
+    });
+});
+
+describe('levels that never triggered', () => {
+    const cancelled = (o = {}) => ({
+        symbol: 'X', currency: 'PKR', direction: 'long', state: 'cancelled',
+        entryFrom: 95, entryTo: 105, plannedStop: 90,
+        targets: [{ level: 1, price: 120, isHit: false }], mistakes: [], ...o
+    });
+
+    test('report as cancelled rather than quietly reading open', () => {
+        // The schema default is 'open', so anything that forgets cancelled here
+        // turns an abandoned level into a position you think you hold.
+        assert.equal(computeMetrics(cancelled()).status, 'cancelled');
+    });
+
+    test('claim no P/L', () => {
+        const m = computeMetrics(cancelled());
+        assert.equal(m.netPnL, null);
+        assert.equal(m.unrealizedPnL, null);
+        assert.equal(m.outcome, null);
+    });
+
+    test('are not judged on discipline', () => {
+        assert.equal(computeMetrics(cancelled()).followedPlan, null);
+    });
+
+    test('keep the R:R they were planned at', () => {
+        // Worth keeping: it says what you passed up.
+        assert.equal(computeMetrics(cancelled()).plannedRR, 2);
+    });
+
+    test('are counted separately from watched and taken trades', () => {
+        const s = statsFor([
+            decorate(cancelled()),
+            decorate(cancelled({ state: 'planned' })),
+            decorate({
+                symbol: 'A', currency: 'PKR', direction: 'long', quantity: 10,
+                entryPrice: 100, exitPrice: 110, mistakes: [], state: 'closed'
+            })
+        ]);
+        assert.equal(s.totalTrades, 1, 'only the trade actually taken');
+        assert.equal(s.plannedTrades, 1);
+        assert.equal(s.cancelledTrades, 1);
+        assert.equal(s.openTrades, 0);
+    });
+});
+
+describe('follow-through on levels written in advance', () => {
+    // A trade keeps its entry zone after it opens, so a recorded zone is what marks
+    // an entry as one that started as a plan.
+    const level = (state, o = {}) => decorate({
+        symbol: 'X', currency: 'PKR', direction: 'long', state,
+        entryFrom: 95, entryTo: 105, mistakes: [], ...o
+    });
+    const taken = (state) => level(state, { entryPrice: 100, quantity: 10, entryDate: '2026-01-01' });
+
+    test('counts planned levels that were entered against those let go', () => {
+        const s = statsFor([
+            taken('open'),
+            taken('closed'),
+            level('cancelled'),
+            level('planned')
+        ]);
+        assert.equal(s.levelsTaken, 2);
+        assert.equal(s.levelsAbandoned, 1);
+        assert.equal(s.plannedTrades, 1, 'still waiting, so not settled either way');
+    });
+
+    test('follow-through counts only settled levels', () => {
+        // Two of three settled were taken. The one still being watched is not
+        // evidence of anything yet.
+        const s = statsFor([taken('open'), taken('closed'), level('cancelled'), level('planned')]);
+        assert.equal(Math.round(s.triggerRate), 67);
+    });
+
+    test('is null rather than zero when nothing has settled', () => {
+        // A 0% follow-through on no evidence would read as a damning statistic.
+        assert.equal(statsFor([level('planned')]).triggerRate, null);
+        assert.equal(statsFor([]).triggerRate, null);
+    });
+
+    test('impulse trades with no recorded zone are not counted', () => {
+        const s = statsFor([decorate({
+            symbol: 'Y', currency: 'PKR', direction: 'long', state: 'closed',
+            entryPrice: 100, quantity: 10, exitPrice: 110, mistakes: []
+        })]);
+        assert.equal(s.levelsTaken, 0, 'it was never planned, so it cannot be followed through on');
+        assert.equal(s.triggerRate, null);
+    });
+});
+
+describe('setup quality', () => {
+    test('groups closed trades by the grade given before the outcome', () => {
+        const trade = (quality, exitPrice) => decorate({
+            symbol: 'X', currency: 'PKR', direction: 'long', quantity: 10,
+            entryPrice: 100, exitPrice, setupQuality: quality, mistakes: [], state: 'closed'
+        });
+        const s = statsFor([trade('excellent', 120), trade('poor', 90), trade('poor', 95)]);
+
+        const poor = s.byQuality.find(q => q.key === 'poor');
+        const excellent = s.byQuality.find(q => q.key === 'excellent');
+        assert.equal(poor.count, 2);
+        assert.equal(poor.winRate, 0);
+        assert.equal(excellent.winRate, 100);
+    });
+});
+
+describe('planned trades in the stats', () => {
+    const taken = decorate({
+        symbol: 'A', currency: 'PKR', direction: 'long', quantity: 10, entryPrice: 100,
+        exitPrice: 110, stopPlaced: true, eventChecked: true, mistakes: [], state: 'closed'
+    });
+    const watching = decorate({
+        symbol: 'B', currency: 'PKR', direction: 'long', state: 'planned',
+        entryFrom: 95, entryTo: 105, mistakes: []
+    });
+    const s = statsFor([taken, watching]);
+
+    test('are counted apart from trades actually taken', () => {
+        assert.equal(s.totalTrades, 1);
+        assert.equal(s.plannedTrades, 1);
+        assert.equal(s.openTrades, 0, 'watching a level is not holding a position');
+    });
+
+    test('do not dilute the discipline rates', () => {
+        // The one real trade placed its stop. A watchlist entry must not drag
+        // that to 50%.
+        assert.equal(s.stopPlacedRate, 100);
+        assert.equal(s.followedPlanRate, 100);
     });
 });
