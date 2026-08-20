@@ -255,19 +255,28 @@ class PortfolioService {
         // price are two real trades. Only skip as many as the portfolio already
         // holds, so a re-import tops up rather than collapsing them.
         const existing = await Transaction.find({ portfolioId })
-            .select('type symbol executedAt quantity price dividendCash cashAmount').lean();
+            .select('type symbol executedAt quantity price dividendCash cashAmount ratio')
+            .sort({ executedAt: 1 }).lean();
         const already = new Map();
         for (const tx of existing) already.set(keyOf(tx), (already.get(keyOf(tx)) || 0) + 1);
 
         // Opening share counts, so a SELL in the file is checked against what
         // the portfolio already holds plus whatever this file has bought.
+        // SPLIT and BONUS scale that count: the calculators already scale their
+        // lots, and a guard that skipped them would reject every real sale made
+        // after a split for holding too few shares.
+        const calculator = CalculatorRegistry.get(portfolio.calculationMethod);
         const held = {};
-        for (const tx of existing) {
-            if (!tx.symbol) continue;
-            const symbol = tx.symbol.toUpperCase();
+        const applyToHeld = (tx) => {
+            if (!tx.symbol) return;
+            const symbol = String(tx.symbol).toUpperCase();
             if (tx.type === 'BUY') held[symbol] = (held[symbol] || 0) + (tx.quantity || 0);
             else if (tx.type === 'SELL') held[symbol] = (held[symbol] || 0) - (tx.quantity || 0);
-        }
+            else if (tx.type === 'SPLIT' || tx.type === 'BONUS') {
+                held[symbol] = (held[symbol] || 0) * calculator.parseRatio(tx.ratio);
+            }
+        };
+        for (const tx of existing) applyToHeld(tx);
 
         const docs = [];
         const errors = [];
@@ -290,10 +299,7 @@ class PortfolioService {
                 }
             }
 
-            if (symbol) {
-                if (row.type === 'BUY') held[symbol] = (held[symbol] || 0) + (row.quantity || 0);
-                else if (row.type === 'SELL') held[symbol] = (held[symbol] || 0) - (row.quantity || 0);
-            }
+            applyToHeld(row);
 
             docs.push({ ...row, portfolioId, createdBy: userId, source: 'import', importBatchId });
         }
