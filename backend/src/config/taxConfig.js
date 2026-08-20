@@ -27,6 +27,12 @@ export const CGT_TIERS = [
 
 /**
  * Dividend withholding tax rates, Section 150. Final tax.
+ *
+ * Reference only, and deliberately not applied anywhere. Dividends are recorded
+ * as the cash actually received, which is already net of this - so deducting it
+ * again would tax the same rupees twice. Kept because a return still declares
+ * the gross figure and the tax withheld, and because the day someone records a
+ * gross dividend instead, this is the rate they will need.
  */
 export const DIVIDEND_WHT = {
     [FILER_STATUS.FILER]: 15,

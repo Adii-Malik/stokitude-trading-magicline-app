@@ -79,9 +79,15 @@ export default class FIFOCalculator extends BasePnLCalculator {
                     // Allocate fees proportionally
                     const feesPortion = (totalSellFees * sellQty) / tx.quantity;
 
-                    // Calculate P/L for this portion
+                    // Calculate P/L for this portion. The lot's own fees are
+                    // split across the slices that consume it and drawn down as
+                    // they go: dividing by the shrinking quantity while leaving
+                    // lot.fees whole charged the same fees to every slice, so a
+                    // lot sold in two halves cost more than the same lot sold at
+                    // once.
+                    const lotFeeShare = lot.quantity > 0 ? (lot.fees * sellQty) / lot.quantity : 0;
                     const sellProceeds = (sellQty * sellPrice) - feesPortion;
-                    const costBasis = (sellQty * lot.price) + ((lot.fees * sellQty) / lot.quantity);
+                    const costBasis = (sellQty * lot.price) + lotFeeShare;
                     const gain = sellProceeds - costBasis;
                     realizedPnL += gain;
 
@@ -105,6 +111,7 @@ export default class FIFOCalculator extends BasePnLCalculator {
                     });
 
                     // Update lot
+                    lot.fees -= lotFeeShare;
                     lot.quantity -= sellQty;
                     remainingToSell -= sellQty;
 
