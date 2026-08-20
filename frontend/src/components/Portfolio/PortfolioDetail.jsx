@@ -10,6 +10,7 @@ import PerformanceChart from './PerformanceChart';
 import TransactionList from './TransactionList';
 import AddTransactionModal from './AddTransactionModal';
 import AllocationView from './AllocationView';
+import TaxYearReport from './TaxYearReport';
 
 export default function PortfolioDetail() {
     const { id } = useParams();
@@ -199,6 +200,11 @@ export default function PortfolioDetail() {
                                     label="Transactions"
                                 />
                                 <TabButton
+                                    active={activeTab === 'tax'}
+                                    onClick={() => setActiveTab('tax')}
+                                    label="Tax"
+                                />
+                                <TabButton
                                     active={activeTab === 'allocation'}
                                     onClick={() => setActiveTab('allocation')}
                                     label="SIP Allocation"
@@ -219,6 +225,12 @@ export default function PortfolioDetail() {
                                     portfolioId={id}
                                     currency={portfolio.currency}
                                     onTransactionChange={loadPortfolio}
+                                />
+                            )}
+                            {activeTab === 'tax' && (
+                                <TaxYearReport
+                                    dashboard={{ ...dashboard, calculationMethod: portfolio.calculationMethod }}
+                                    currency={portfolio.currency}
                                 />
                             )}
                             {activeTab === 'allocation' && (
