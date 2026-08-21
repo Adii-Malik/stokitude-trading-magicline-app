@@ -243,6 +243,16 @@ function CreatePortfolioModal({ portfolio, onClose, onCreated }) {
     });
     const [submitting, setSubmitting] = useState(false);
 
+    // Read from the registry rather than a hand-written list. NCCPL shipped with
+    // the tax work and was registered on the server, but this form hardcoded two
+    // options, so there was no way to pick the calculator the tax figures need.
+    const [methods, setMethods] = useState([]);
+    useEffect(() => {
+        api.get('/portfolios/calculators/available')
+            .then((res) => setMethods(res.data?.data || []))
+            .catch(() => setMethods([]));
+    }, []);
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setSubmitting(true);
@@ -325,8 +335,16 @@ function CreatePortfolioModal({ portfolio, onClose, onCreated }) {
                                 onChange={(e) => setFormData({ ...formData, calculationMethod: e.target.value })}
                                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
                             >
-                                <option value="AVERAGE_COST">Average Cost (Simple)</option>
-                                <option value="FIFO">FIFO (Tax Compliant)</option>
+                                {methods.length === 0 && (
+                                    <option value={formData.calculationMethod}>
+                                        {formData.calculationMethod}
+                                    </option>
+                                )}
+                                {methods.map((m) => (
+                                    <option key={m.name} value={m.name}>
+                                        {m.description || m.name}
+                                    </option>
+                                ))}
                             </select>
                         </div>
 
