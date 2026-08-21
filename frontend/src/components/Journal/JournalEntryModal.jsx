@@ -239,7 +239,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                     </div>
                 )}
 
-                <Section title="Trade">
+                <Section title="The plan" hint="What you are watching, and why.">
                     <div className={ROW}>
                         <Field label="Symbol *">
                             <SymbolInput
@@ -278,7 +278,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                                 onChange={(v) => set('setupType', v[0] || '')} />
                         </Field>
                     </div>
-                    {planning ? (
+                    {planning && (
                         <div className="mt-3">
                             <div className={ROW}>
                                 <Field label="Entry zone from *">
@@ -289,17 +289,58 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                                     <input type="number" step="any" value={form.entryTo} className={input}
                                         onChange={(e) => set('entryTo', e.target.value)} />
                                 </Field>
-                                <Field label="Quantity">
-                                    <input type="number" step="any" value={form.quantity} className={input}
-                                        placeholder="optional"
-                                        onChange={(e) => set('quantity', e.target.value)} />
-                                </Field>
                             </div>
                             <p className="text-xs text-ink-faint mt-1">
                                 A level is a band, not a number. You&apos;ll be told when price trades into it.
                             </p>
                         </div>
-                    ) : (
+                    )}
+                </Section>
+
+                <Section title="Risk" hint="Decided before the entry, not after it.">
+                    <div className={ROW}>
+                        <Field label="Stop level">
+                            <input type="number" step="any" value={form.plannedStop} className={input}
+                                onChange={(e) => set('plannedStop', e.target.value)} />
+                        </Field>
+                        {/* The size sits with the stop, because together they are the
+                            risk. On a taken trade the fill owns it, so it moves down
+                            to the entry and this row holds the stop alone. */}
+                        {planning && (
+                            <Field label="Shares">
+                                <input type="number" step="any" value={form.quantity} className={input}
+                                    placeholder="optional"
+                                    onChange={(e) => set('quantity', e.target.value)} />
+                            </Field>
+                        )}
+                    </div>
+
+                    <TargetsEditor targets={form.targets} onChange={(t) => set('targets', t)} />
+
+                    {/* Derived, so it reads as a readout rather than two empty-looking
+                        inputs you might try to type into. */}
+                    {(risk != null || rr != null) && (
+                        <div className="flex flex-wrap gap-x-6 gap-y-1 mt-3 px-3 py-2 bg-surface-muted rounded-control text-sm">
+                            {risk != null && (
+                                <span className="text-ink-muted">
+                                    Risk <span className="font-semibold text-ink tabular-nums">{risk.toFixed(2)}</span>
+                                </span>
+                            )}
+                            {rr != null && (
+                                <span className="text-ink-muted">
+                                    Reward : risk{' '}
+                                    <span className={`font-semibold tabular-nums ${rr >= 2 ? 'text-green-600 dark:text-green-400' : 'text-ink'}`}>
+                                        {rr.toFixed(2)} : 1
+                                    </span>
+                                </span>
+                            )}
+                        </div>
+                    )}
+
+                </Section>
+
+                <Section title="Entry" hidden={planning}>
+
                         <div className="mt-3">
                             <div className={ROW}>
                                 <Field label="Entry date *" locked={entryBooked}>
@@ -330,8 +371,6 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                                 </p>
                             )}
                         </div>
-                    )}
-
                     <div className="mt-3">
                         <Field label="Book it in a portfolio">
                             <select value={form.portfolioId} className={input}
@@ -353,38 +392,6 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                                         : 'Leave unset for a trade held somewhere this app has no ledger for.'}
                         </p>
                     </div>
-                </Section>
-
-                <Section title="The plan" hint="Filled in before the outcome is known.">
-                    <div className={ROW}>
-                        <Field label="Stop level">
-                            <input type="number" step="any" value={form.plannedStop} className={input}
-                                onChange={(e) => set('plannedStop', e.target.value)} />
-                        </Field>
-                    </div>
-
-                    <TargetsEditor targets={form.targets} onChange={(t) => set('targets', t)} />
-
-                    {/* Derived, so it reads as a readout rather than two empty-looking
-                        inputs you might try to type into. */}
-                    {(risk != null || rr != null) && (
-                        <div className="flex flex-wrap gap-x-6 gap-y-1 mt-3 px-3 py-2 bg-surface-muted rounded-control text-sm">
-                            {risk != null && (
-                                <span className="text-ink-muted">
-                                    Risk <span className="font-semibold text-ink tabular-nums">{risk.toFixed(2)}</span>
-                                </span>
-                            )}
-                            {rr != null && (
-                                <span className="text-ink-muted">
-                                    Reward : risk{' '}
-                                    <span className={`font-semibold tabular-nums ${rr >= 2 ? 'text-green-600 dark:text-green-400' : 'text-ink'}`}>
-                                        {rr.toFixed(2)} : 1
-                                    </span>
-                                </span>
-                            )}
-                        </div>
-                    )}
-
                 </Section>
 
                 <Section title="Exit" hidden={!closing}>

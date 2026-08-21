@@ -16,7 +16,10 @@ import { FIELD } from './field';
  * picking is easier than retyping.
  */
 export function TagInput({ value = [], onChange, suggestions = [], placeholder, single = false }) {
-    const [draft, setDraft] = useState('');
+    // In single mode the value lives in the box itself. Showing it as a chip
+    // below a full-width empty input made the field look large and the answer
+    // look tiny, which is backwards.
+    const [draft, setDraft] = useState(single ? (value[0] || '') : '');
     const [open, setOpen] = useState(false);
     const box = useRef(null);
 
@@ -31,19 +34,19 @@ export function TagInput({ value = [], onChange, suggestions = [], placeholder, 
         // Trimmed and lowercased so the same words are one tag, not three.
         if (!tag) return;
         onChange(single ? [tag] : (value.includes(tag) ? value : [...value, tag]));
-        setDraft('');
+        setDraft(single ? tag : '');
         setOpen(false);
     };
 
     const term = draft.trim().toLowerCase();
     const matches = suggestions
-        .filter((s) => !value.includes(s) && (!term || s.toLowerCase().includes(term)))
+        .filter((s) => (single ? s !== term : !value.includes(s)) && (!term || s.toLowerCase().includes(term)))
         .slice(0, 8);
 
     return (
         <div className="relative" ref={box}>
-            <div className="flex flex-wrap gap-1.5 mb-1.5">
-                {value.map((tag) => (
+            <div className={`flex flex-wrap gap-1.5 ${value.length && !single ? 'mb-1.5' : ''}`}>
+                {(single ? [] : value).map((tag) => (
                     <span key={tag}
                         className="inline-flex items-center gap-1 px-2 py-0.5 rounded-control
                                    bg-surface-muted text-ink text-xs">
@@ -60,15 +63,20 @@ export function TagInput({ value = [], onChange, suggestions = [], placeholder, 
             <input
                 type="text"
                 value={draft}
-                placeholder={single && value.length ? 'Replace…' : placeholder}
+                placeholder={placeholder}
                 className={FIELD}
-                onChange={(e) => { setDraft(e.target.value); setOpen(true); }}
+                onChange={(e) => {
+                    setDraft(e.target.value);
+                    setOpen(true);
+                    // One value: what is typed is the answer, no commit step.
+                    if (single) onChange(e.target.value.trim() ? [e.target.value.trim().toLowerCase()] : []);
+                }}
                 onFocus={() => setOpen(true)}
                 onKeyDown={(e) => {
-                    if (e.key === 'Enter') { e.preventDefault(); add(draft); }
+                    if (e.key === 'Enter') { e.preventDefault(); if (single) setOpen(false); else add(draft); }
                     // Backspace on an empty box removes the last tag, so a mistyped
                     // one goes without reaching for the mouse.
-                    else if (e.key === 'Backspace' && !draft && value.length) {
+                    else if (e.key === 'Backspace' && !single && !draft && value.length) {
                         onChange(value.slice(0, -1));
                     } else if (e.key === 'Escape') setOpen(false);
                 }}
