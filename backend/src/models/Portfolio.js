@@ -37,8 +37,15 @@ const portfolioSchema = new mongoose.Schema({
         }
     }],
 
-    // P/L calculation method. Only the two with a registered calculator:
-    // selecting one without an implementation throws on every position rebuild.
+    /**
+     * P/L calculation method. Only those with a registered calculator:
+     * selecting one without an implementation throws on every position rebuild.
+     *
+     * A PKR portfolio is always NCCPL and is not asked. NCCPL settles PSX trades
+     * one way - same-day LIFO, older holdings FIFO - regardless of what anyone
+     * would rather it did, so any other choice reports a tax figure the taxpayer
+     * does not owe. It is a fact about the exchange, not a preference.
+     */
     calculationMethod: {
         type: String,
         enum: ['AVERAGE_COST', 'FIFO', 'NCCPL'],
@@ -148,6 +155,12 @@ portfolioSchema.methods.isOwnedBy = function (userId) {
     const ownerId = this.owner._id || this.owner;
     return ownerId.toString() === userId.toString();
 };
+
+// PKR means PSX means NCCPL. Enforced here rather than in the form, so an older
+// client or a direct API call cannot store a method that misreports the tax.
+portfolioSchema.pre('validate', function () {
+    if ((this.currency || 'PKR').toUpperCase() === 'PKR') this.calculationMethod = 'NCCPL';
+});
 
 portfolioSchema.methods.hasAccess = function (userId, requiredRole = 'viewer') {
     // Owner has full access

@@ -235,7 +235,6 @@ function CreatePortfolioModal({ portfolio, onClose, onCreated }) {
     const [formData, setFormData] = useState({
         name: portfolio?.name || '',
         description: portfolio?.description || '',
-        calculationMethod: portfolio?.calculationMethod || 'AVERAGE_COST',
         currency: portfolio?.currency || 'PKR',
 
         commissionSlabs: portfolio?.commissionSlabs || [],
@@ -243,15 +242,6 @@ function CreatePortfolioModal({ portfolio, onClose, onCreated }) {
     });
     const [submitting, setSubmitting] = useState(false);
 
-    // Read from the registry rather than a hand-written list. NCCPL shipped with
-    // the tax work and was registered on the server, but this form hardcoded two
-    // options, so there was no way to pick the calculator the tax figures need.
-    const [methods, setMethods] = useState([]);
-    useEffect(() => {
-        api.get('/portfolios/calculators/available')
-            .then((res) => setMethods(res.data?.data || []))
-            .catch(() => setMethods([]));
-    }, []);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -326,26 +316,13 @@ function CreatePortfolioModal({ portfolio, onClose, onCreated }) {
                             />
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                Calculation Method
-                            </label>
-                            <select
-                                value={formData.calculationMethod}
-                                onChange={(e) => setFormData({ ...formData, calculationMethod: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                            >
-                                {methods.length === 0 && (
-                                    <option value={formData.calculationMethod}>
-                                        {formData.calculationMethod}
-                                    </option>
-                                )}
-                                {methods.map((m) => (
-                                    <option key={m.name} value={m.name}>
-                                        {m.description || m.name}
-                                    </option>
-                                ))}
-                            </select>
+                        <div className="rounded-control bg-surface-muted px-3 py-2">
+                            <p className="text-sm font-medium text-ink">Capital gains method</p>
+                            <p className="text-xs text-ink-muted mt-1">
+                                PSX trades settle through NCCPL: shares bought and sold the
+                                same day match last-in-first-out, anything held overnight
+                                first-in-first-out. Applied automatically.
+                            </p>
                         </div>
 
                         <div>
