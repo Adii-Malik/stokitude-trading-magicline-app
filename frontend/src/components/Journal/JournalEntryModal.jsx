@@ -3,9 +3,9 @@ import { Plus, Trash2, CheckCircle, Lock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Modal } from '../../ui/Modal';
 import { SymbolInput } from '../../ui/SymbolInput';
+import { TagInput } from '../../ui/TagInput';
 import { createEntry, updateEntry } from '../../services/journal';
 import { chargesFor } from '../../utils/commission';
-import { mistakeLabel } from './labels';
 
 const dateValue = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '');
 
@@ -18,7 +18,6 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
         exchange: entry?.exchange || 'PSX',
         direction: entry?.direction || 'long',
         setupType: entry?.setupType || 'other',
-        setupQuality: entry?.setupQuality || '',
         entryFrom: entry?.entryFrom ?? '',
         entryTo: entry?.entryTo ?? '',
         entryDate: dateValue(entry?.entryDate) || new Date().toISOString().slice(0, 10),
@@ -27,15 +26,12 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
         exitDate: dateValue(entry?.exitDate),
         exitPrice: entry?.exitPrice ?? '',
         exitConfirmed: entry?.exitConfirmed ?? false,
-        markPrice: entry?.markPrice ?? '',
         fees: entry?.fees ?? '',
         exitFees: entry?.exitFees ?? '',
         plannedStop: entry?.plannedStop ?? '',
         // Copied, not referenced: editing a price must not mutate the loaded
         // entry, and isHit has to survive a save it was not part of.
         targets: (entry?.targets || []).map((t) => ({ ...t })),
-        stopPlaced: entry?.stopPlaced ?? false,
-        eventChecked: entry?.eventChecked ?? false,
         emotionalState: entry?.emotionalState || 'neutral',
         marketCondition: entry?.marketCondition || 'sideways',
         mistakes: entry?.mistakes || [],
@@ -58,10 +54,6 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
     const closingNow = entry?.state === 'open' && closing;
 
     const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
-    const toggleMistake = (code) =>
-        set('mistakes', form.mistakes.includes(code)
-            ? form.mistakes.filter((m) => m !== code)
-            : [...form.mistakes, code]);
 
     // A planned trade has no fill, so risk is measured against the zone midpoint
     // - the same reference the backend uses.
@@ -86,7 +78,6 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
         ? Math.abs(nearest - reference) / riskPerShare
         : null;
 
-    const stopWithoutLevel = form.stopPlaced && form.plannedStop === '';
     const zoneMissing = planning && bounds.length === 0;
 
     // Which legs the portfolio ledger already owns. Those numbers are read-only
@@ -137,10 +128,6 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
 
     const submit = async (e) => {
         e.preventDefault();
-        if (stopWithoutLevel) {
-            toast.error('Enter the stop level you placed');
-            return;
-        }
         if (zoneMissing) {
             toast.error('Give the entry zone a level to watch for');
             return;
@@ -158,13 +145,11 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
             const payload = {
                 ...form,
                 // Ungraded is absent, not an empty string the enum would reject.
-                setupQuality: form.setupQuality || null,
                 // Empty means journal-only, not an unparseable ObjectId.
                 portfolioId: form.portfolioId || null,
                 entryFrom: num(form.entryFrom),
                 entryTo: num(form.entryTo),
                 exitPrice: num(form.exitPrice),
-                markPrice: num(form.markPrice),
                 fees: num(form.fees) || 0,
                 exitFees: num(form.exitFees) || 0,
                 plannedStop: num(form.plannedStop),
@@ -181,7 +166,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                 // trip the conditional validators the moment it opens.
                 Object.assign(payload, {
                     entryPrice: null, quantity: null, entryDate: null,
-                    exitPrice: null, exitDate: null, markPrice: null
+                    exitPrice: null, exitDate: null
                 });
             } else {
                 payload.entryPrice = num(form.entryPrice);
@@ -286,20 +271,12 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                             </select>
                         </Field>
                     </div>
-                    <div className="grid grid-cols-2 gap-3 mt-3">
+                    <div className="mt-3">
                         <Field label="Setup">
-                            <select value={form.setupType} className={input}
-                                onChange={(e) => set('setupType', e.target.value)}>
-                                {(options?.setupTypes || []).map((s) => <option key={s} value={s}>{s}</option>)}
-                            </select>
-                        </Field>
-                        <Field label="Setup quality">
-                            <select value={form.setupQuality} className={input}
-                                onChange={(e) => set('setupQuality', e.target.value)}>
-                                {/* Blank by default: a grade should mean you gave one. */}
-                                <option value="">not graded</option>
-                                {(options?.setupQualities || []).map((s) => <option key={s} value={s}>{s}</option>)}
-                            </select>
+                            <TagInput single value={form.setupType ? [form.setupType] : []}
+                                suggestions={options?.setupTypes || []}
+                                placeholder="what you call it"
+                                onChange={(v) => set('setupType', v[0] || '')} />
                         </Field>
                     </div>
                     {planning ? (
@@ -409,31 +386,6 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                         </div>
                     )}
 
-                    <div className="mt-2 space-y-2">
-                        <Check checked={form.stopPlaced} onChange={(v) => set('stopPlaced', v)}
-                            label="Stop was actually placed at the broker"
-                            hint="Not a mental stop — a resting order." />
-                        {stopWithoutLevel && (
-                            <p className="text-xs text-red-600 dark:text-red-400 pl-6">Enter the stop level too.</p>
-                        )}
-                        <Check checked={form.eventChecked} onChange={(v) => set('eventChecked', v)}
-                            label="Checked the earnings/event calendar before entering" />
-                    </div>
-                </Section>
-
-                {/* Only a trade being closed has an exit. While it is live the one
-                    useful number is where it stands, so that is all it asks for. */}
-                <Section title="Where it stands" hidden={!live}>
-                    <div className="sm:w-1/3">
-                        <Field label="Last price">
-                            <input type="number" step="any" className={input} value={form.markPrice}
-                                placeholder="optional"
-                                onChange={(e) => set('markPrice', e.target.value)} />
-                        </Field>
-                        <p className="text-xs text-ink-faint mt-1">
-                            Marks the trade by hand. Kept out of realized P/L.
-                        </p>
-                    </div>
                 </Section>
 
                 <Section title="Exit" hidden={!closing}>
@@ -507,16 +459,9 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                         <p className="text-xs text-ink-faint mb-2">
                             Leave empty if the plan was followed — a loss on a good decision is not a mistake.
                         </p>
-                        <div className="flex flex-wrap gap-2">
-                            {(options?.mistakes || []).map((code) => (
-                                <button key={code} type="button" onClick={() => toggleMistake(code)}
-                                    className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${form.mistakes.includes(code)
-                                        ? 'bg-red-500 border-red-500 text-white'
-                                        : 'border-hairline text-ink-muted hover:border-red-400'}`}>
-                                    {mistakeLabel(code)}
-                                </button>
-                            ))}
-                        </div>
+                        <TagInput value={form.mistakes} suggestions={options?.mistakes || []}
+                            placeholder="in your own words, then Enter"
+                            onChange={(v) => set('mistakes', v)} />
                     </div>
 
                     <div className="mt-3">

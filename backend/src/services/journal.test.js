@@ -56,7 +56,8 @@ describe('per-trade metrics', () => {
     });
 
     test('a marked open trade shows unrealized only', () => {
-        const m = computeMetrics(trade({ entryPrice: 79.47, quantity: 4, markPrice: 71.48 }));
+        // lastPrice comes from the price poll, not from the trader typing it.
+        const m = computeMetrics(trade({ entryPrice: 79.47, quantity: 4, lastPrice: 71.48 }));
         assert.equal(Math.round(m.unrealizedPnL * 100) / 100, -31.96);
         assert.equal(Math.round(m.unrealizedPct * 100) / 100, -10.05);
         assert.equal(m.netPnL, null, 'unrealized must never leak into realized');
@@ -99,18 +100,20 @@ describe('fees on both legs', () => {
 describe('followedPlan', () => {
     const base = { exitPrice: 120, plannedStop: 95 };
 
-    test('needs a placed stop, a checked calendar and no mistakes', () => {
-        assert.equal(computeMetrics(trade({ ...base, stopPlaced: true, eventChecked: true })).followedPlan, true);
+    test('nothing named as going wrong means the plan held', () => {
+        // Derived, never asked. The checkbox version was answered on none of the
+        // entries, while the reasons themselves were filled in.
+        assert.equal(computeMetrics(trade(base)).followedPlan, true);
     });
 
-    test('a mistake disqualifies a winner', () => {
-        const m = computeMetrics(trade({ ...base, stopPlaced: true, eventChecked: true, mistakes: ['fomo_entry'] }));
+    test('a reason disqualifies a winner', () => {
+        const m = computeMetrics(trade({ ...base, mistakes: ['chased the gap'] }));
         assert.equal(m.followedPlan, false);
         assert.equal(m.outcome, 'win', 'still a win - process and outcome are independent');
     });
 
-    test('an unplaced stop disqualifies regardless of result', () => {
-        assert.equal(computeMetrics(trade({ ...base, eventChecked: true })).followedPlan, false);
+    test('a trade never entered is not judged either way', () => {
+        assert.equal(computeMetrics(trade({ state: 'planned', entryPrice: undefined })).followedPlan, null);
     });
 });
 
@@ -158,13 +161,20 @@ describe('aggregate stats', () => {
     });
 
     test('discipline is measured over every trade, not just closed ones', () => {
-        assert.equal(Math.round(s.stopPlacedRate), 14, '1 of 7');
-        assert.equal(Math.round(s.followedPlanRate), 14);
+        // Open trades count: a stop moved on a position still held is still a
+        // stop moved. Rate is over taken trades, closed or not.
+        const taken = entries.filter(e => e.status === 'open' || e.status === 'closed');
+        const clean = taken.filter(e => (e.mistakes || []).length === 0).length;
+        assert.equal(Math.round(s.followedPlanRate), Math.round((clean / taken.length) * 100));
     });
 
     test('separates a well-run loss from a lucky win', () => {
-        assert.equal(s.goodProcessBadOutcome, 1, 'DXCM');
-        assert.equal(s.badProcessGoodOutcome, 4, 'the wins with no recorded stop');
+        // The point of the whole feature: judge the decision, not the result.
+        const closedOnly = entries.filter(e => e.status === 'closed');
+        assert.equal(s.goodProcessBadOutcome,
+            closedOnly.filter(e => e.followedPlan && e.outcome === 'loss').length);
+        assert.equal(s.badProcessGoodOutcome,
+            closedOnly.filter(e => !e.followedPlan && e.outcome === 'win').length);
     });
 
     test('ranks mistakes by what they cost, worst first', () => {
@@ -370,9 +380,7 @@ describe('planned trades in the stats', () => {
     });
 
     test('do not dilute the discipline rates', () => {
-        // The one real trade placed its stop. A watchlist entry must not drag
-        // that to 50%.
-        assert.equal(s.stopPlacedRate, 100);
+        // A watched level is not a trade taken, so it cannot drag the rate to 50%.
         assert.equal(s.followedPlanRate, 100);
     });
 });

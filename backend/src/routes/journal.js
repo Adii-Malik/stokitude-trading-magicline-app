@@ -7,7 +7,8 @@ import { authenticate } from '../middleware/auth.js';
 import journalService from '../services/journalService.js';
 import RiskProfile from '../models/RiskProfile.js';
 import Portfolio from '../models/Portfolio.js';
-import { SETUP_TYPES, SETUP_QUALITIES, EMOTIONS, MARKET_CONDITIONS, MISTAKES } from '../models/JournalEntry.js';
+import { SETUP_SUGGESTIONS, MISTAKE_SUGGESTIONS, EMOTIONS, MARKET_CONDITIONS } from '../models/JournalEntry.js';
+import JournalEntry from '../models/JournalEntry.js';
 import { EXCHANGE_CODES, EXCHANGES } from '../config/exchanges.js';
 
 const router = express.Router();
@@ -30,15 +31,30 @@ router.get('/options', async (req, res) => {
         isActive: true
     }).select('name currency commissionSlabs charges').sort({ name: 1 }).lean();
 
+    // Your own words first, most used first, with the seed list filling in behind.
+    // A fixed vocabulary put 7 of 8 trades in "other"; this one is learned.
+    const used = async (field) => {
+        const rows = await JournalEntry.aggregate([
+            { $match: { user: req.user._id } },
+            { $unwind: `$${field}` },
+            { $match: { [field]: { $nin: [null, ''] } } },
+            { $group: { _id: `$${field}`, n: { $sum: 1 } } },
+            { $sort: { n: -1 } },
+            { $limit: 40 }
+        ]);
+        return rows.map(r => r._id);
+    };
+    const merge = (mine, seed) => [...mine, ...seed.filter(x => !mine.includes(x))];
+    const [setupsUsed, mistakesUsed] = await Promise.all([used('setupType'), used('mistakes')]);
+
     res.json({
         success: true,
         data: {
             portfolios,
-            setupTypes: SETUP_TYPES,
-            setupQualities: SETUP_QUALITIES,
+            setupTypes: merge(setupsUsed, SETUP_SUGGESTIONS),
             emotions: EMOTIONS,
             marketConditions: MARKET_CONDITIONS,
-            mistakes: MISTAKES,
+            mistakes: merge(mistakesUsed, MISTAKE_SUGGESTIONS),
             exchanges: EXCHANGE_CODES,
             // Currency and fractional-share rules per market, so sizing matches the venue.
             exchangeRules: Object.values(EXCHANGES).map(x => ({

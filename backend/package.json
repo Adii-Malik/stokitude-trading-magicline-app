@@ -9,7 +9,8 @@
     "dev": "nodemon src/index.js",
     "create-admin": "node src/scripts/createSuperAdmin.js",
     "migrate-journal": "node src/scripts/migrateJournalLifecycle.js",
-    "test": "node --test src"
+    "test": "node --test src",
+    "migrate-journal-vocab": "node src/scripts/migrateJournalVocabulary.js"
   },
   "keywords": [
     "psx",

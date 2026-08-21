@@ -11,6 +11,7 @@
  * came to disagree about the same trade in the first place.
  */
 import Transaction from '../models/Transaction.js';
+import Stock from '../models/Stock.js';
 import Portfolio from '../models/Portfolio.js';
 import portfolioService from './portfolioService.js';
 
@@ -192,6 +193,20 @@ export function assertEditable(entry, incoming) {
  * @param {Array} entries plain objects, already decorated or not
  */
 export async function hydrate(entries) {
+    // Where an open trade stands, from the poller rather than from the trader.
+    // This was a field on the form asking for a price the system already knows.
+    const symbols = [...new Set(entries.filter(e => !e.exitPrice && e.symbol).map(e => e.symbol))];
+    if (symbols.length) {
+        const stocks = await Stock.find({ symbol: { $in: symbols } })
+            .select('symbol currentPrice').lean();
+        const price = new Map(stocks.map(s => [s.symbol, s.currentPrice]));
+        for (const entry of entries) {
+            if (!entry.exitPrice && price.get(entry.symbol) > 0) {
+                entry.lastPrice = price.get(entry.symbol);
+            }
+        }
+    }
+
     const ids = entries.flatMap(e => [e.entryTransactionId, e.exitTransactionId].filter(Boolean));
     if (!ids.length) return entries;
 

@@ -45,11 +45,23 @@ describe('what a trade must have', () => {
         assert.ok(errors(new JournalEntry({ user, symbol: 'X', state: 'pending' })).includes('state'));
     });
 
-    test('a grade is optional, but must be one of the real ones', () => {
-        // No default: grading every ungraded trade would fabricate a judgement.
-        assert.equal(new JournalEntry({ user, symbol: 'X', state: 'planned' }).setupQuality, undefined);
-        assert.ok(errors(new JournalEntry({ user, symbol: 'X', state: 'planned', setupQuality: 'amazing' }))
-            .includes('setupQuality'));
+    test('a setup is whatever the trader calls it, and stays unset until named', () => {
+        // A fixed list put 7 of 8 entries in "other", so the vocabulary is the
+        // trader's. No default either: "other" on every ungraded trade is noise
+        // that reads like an answer.
+        assert.equal(new JournalEntry({ user, symbol: 'X', state: 'planned' }).setupType, undefined);
+        const doc = new JournalEntry({ user, symbol: 'X', state: 'planned', setupType: '  failed breakdown  ' });
+        assert.deepEqual(errors(doc), []);
+        assert.equal(doc.setupType, 'failed breakdown', 'trimmed, so the same words are one tag');
+    });
+
+    test('a reason for a loss is free text, trimmed so it aggregates', () => {
+        const doc = new JournalEntry({
+            user, symbol: 'X', state: 'planned',
+            mistakes: ['  chased the gap  ', 'moved my stop']
+        });
+        assert.deepEqual(errors(doc), []);
+        assert.deepEqual(doc.mistakes.slice(), ['chased the gap', 'moved my stop']);
     });
 
     test('a trade defaults to open, so existing callers keep working', () => {

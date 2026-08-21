@@ -3,7 +3,7 @@
  * Derives every metric from the stored decision. Nothing computed here is
  * persisted, so an edited entry can never disagree with its own statistics.
  */
-import JournalEntry, { MISTAKES } from '../models/JournalEntry.js';
+import JournalEntry from '../models/JournalEntry.js';
 import { mintMissing, assertEditable, hydrate } from './journalLedger.js';
 import { escapeRegex } from '../utils/escapeRegex.js';
 
@@ -50,9 +50,11 @@ export function computeMetrics(entry) {
     // Process is judged on what was controllable, independent of the result.
     // Premature on a trade that has not been entered yet.
     const untaken = state === 'planned' || state === 'cancelled';
-    const followedPlan = untaken
-        ? null
-        : entry.stopPlaced && entry.eventChecked && (entry.mistakes || []).length === 0;
+    // Nothing named as having gone wrong. Derived rather than asked: a checkbox
+    // saying "I followed my plan" was answered on none of the entries, while the
+    // reasons themselves were filled in - people will name a specific failure
+    // long before they will grade themselves.
+    const followedPlan = untaken ? null : (entry.mistakes || []).length === 0;
 
     if (untaken) {
         return {
@@ -63,9 +65,12 @@ export function computeMetrics(entry) {
     }
 
     if (!closed) {
-        // Marked to a hand-entered price, kept out of realized totals.
-        const marked = entry.markPrice != null
-            ? (entry.markPrice - entry.entryPrice) * entry.quantity * sign
+        // Marked to the last polled price, kept out of realized totals. Read from
+        // the price feed rather than typed: it was a field on the form, filled on
+        // two entries out of eight, for a number the poller already knows.
+        const last = entry.lastPrice;
+        const marked = last != null
+            ? (last - entry.entryPrice) * entry.quantity * sign
             : null;
         const cost = entry.entryPrice * entry.quantity;
         return {
@@ -134,12 +139,14 @@ export function statsFor(entries) {
         worstStreak = Math.min(worstStreak, run);
     }
 
-    const byMistake = MISTAKES
+    // Built from what was actually written, not from a list of reasons someone
+    // thought of in advance. Ordered by what each one cost: frequency alone would
+    // rank a habit you do often and survive above the one that empties the account.
+    const byMistake = [...new Set(closed.flatMap(e => e.mistakes || []))]
         .map(code => {
             const hit = closed.filter(e => (e.mistakes || []).includes(code));
             return { code, count: hit.length, cost: sum(hit, 'netPnL') };
         })
-        .filter(m => m.count > 0)
         .sort((a, b) => a.cost - b.cost);
 
     const group = (key) => {
@@ -208,9 +215,8 @@ export function statsFor(entries) {
         worstStreak: Math.abs(worstStreak),
 
         // Process, tracked apart from outcome.
-        stopPlacedRate: pct(taken.filter(e => e.stopPlaced).length, taken.length),
-        eventCheckedRate: pct(taken.filter(e => e.eventChecked).length, taken.length),
         followedPlanRate: pct(taken.filter(e => e.followedPlan).length, taken.length),
+
 
         // A loss that obeyed the plan is not a mistake; a win that broke it is luck.
         goodProcessBadOutcome: closed.filter(e => e.followedPlan && e.outcome === 'loss').length,
@@ -348,8 +354,6 @@ class JournalService {
                 levelsTaken: all.levelsTaken,
                 levelsAbandoned: all.levelsAbandoned,
                 triggerRate: all.triggerRate,
-                stopPlacedRate: all.stopPlacedRate,
-                eventCheckedRate: all.eventCheckedRate,
                 followedPlanRate: all.followedPlanRate,
                 goodProcessBadOutcome: all.goodProcessBadOutcome,
                 badProcessGoodOutcome: all.badProcessGoodOutcome,

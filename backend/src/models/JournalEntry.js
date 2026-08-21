@@ -6,8 +6,12 @@
 import mongoose from 'mongoose';
 import { EXCHANGE_CODES, DEFAULT_EXCHANGE, currencyOf } from '../config/exchanges.js';
 
-export const SETUP_TYPES = ['breakout', 'reversal', 'pullback', 'trend', 'range', 'earnings', 'other'];
-export const SETUP_QUALITIES = ['excellent', 'good', 'fair', 'poor'];
+// Starting suggestions, not a constraint. Both of these are free text: a closed
+// list can only hold the reasons someone thought of in advance, and the ones that
+// matter are the ones you would not have listed. The UI suggests what you have
+// used before, so a vocabulary emerges from your own trades and still counts.
+export const SETUP_SUGGESTIONS = ['breakout', 'reversal', 'pullback', 'trend', 'range'];
+export const MISTAKE_SUGGESTIONS = ['no stop placed', 'held through event', 'no profit protection'];
 
 // The states that mean a fill actually happened, and so require entry details.
 // Planned and cancelled both describe a level that was never entered - demanding
@@ -18,17 +22,6 @@ export const MARKET_CONDITIONS = ['bullish', 'bearish', 'sideways', 'volatile'];
 
 // Process failures, kept separate from outcome. A trade can lose money with none
 // of these set, and win with several.
-export const MISTAKES = [
-    'no_stop_placed',
-    'held_through_event',
-    'no_profit_protection',
-    'moved_stop_down',
-    'oversized',
-    'fomo_entry',
-    'no_thesis',
-    'exited_early'
-];
-
 /**
  * Orders targets nearest-first and renumbers their levels, so targets[0] is
  * always the one R:R is quoted against. A short's targets sit below its entry,
@@ -126,21 +119,8 @@ const journalEntrySchema = new mongoose.Schema({
 
     setupType: {
         type: String,
-        enum: SETUP_TYPES,
-        default: 'other'
-    },
-
-    // How good the setup looked at the time, graded before the outcome is known.
-    // A separate axis from setupType: this is quality, that is kind. Worth having
-    // because "do my best-looking setups actually pay better" is answerable only
-    // if the grade was recorded before you knew.
-    //
-    // No default on purpose. A default would grade every trade you never graded,
-    // including the whole history, and the statistic would then claim a judgement
-    // you never made.
-    setupQuality: {
-        type: String,
-        enum: SETUP_QUALITIES
+        trim: true,
+        maxlength: [40, 'Setup name cannot exceed 40 characters']
     },
 
     // Where the trade is in its life. A planned trade is a level being watched,
@@ -232,13 +212,6 @@ const journalEntrySchema = new mongoose.Schema({
         min: [0, 'Fees cannot be negative']
     },
 
-    // Hand-entered last price for an open trade. Not a live quote — it exists so
-    // an open position can show where it stands until a US price source lands.
-    markPrice: {
-        type: Number,
-        min: [0, 'Mark price cannot be negative']
-    },
-
     // ----- The plan, recorded before the outcome is known -----
     plannedStop: {
         type: Number,
@@ -263,18 +236,6 @@ const journalEntrySchema = new mongoose.Schema({
         hitDate: Date
     }],
 
-    // The distinction that matters: a stop you intended vs one resting at the broker.
-    stopPlaced: {
-        type: Boolean,
-        default: false
-    },
-
-    // Earnings/event calendar checked before entry.
-    eventChecked: {
-        type: Boolean,
-        default: false
-    },
-
     // ----- Review -----
     emotionalState: {
         type: String,
@@ -290,7 +251,8 @@ const journalEntrySchema = new mongoose.Schema({
 
     mistakes: [{
         type: String,
-        enum: MISTAKES
+        trim: true,
+        maxlength: [60, 'A reason cannot exceed 60 characters']
     }],
 
     tags: [{
@@ -347,9 +309,6 @@ journalEntrySchema.virtual('plannedTarget')
 
 journalEntrySchema.pre('save', function (next) {
     // A stop can't be recorded as placed if there was no stop level.
-    if (this.stopPlaced && this.plannedStop == null) {
-        return next(new Error('stopPlaced requires a plannedStop level'));
-    }
 
     // An exit price closes the trade, and clearing it reopens one — the
     // behaviour update() has always relied on to correct a mistaken exit.

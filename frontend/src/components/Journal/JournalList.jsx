@@ -76,7 +76,7 @@ export default function JournalList({ entries, onEdit, onDelete, onTake, onClose
                                         {e.quantity} @ {e.entryPrice} · {shortDate(e.entryDate)}
                                         {e.status === 'closed'
                                             ? ` → ${e.exitPrice} · ${shortDate(e.exitDate)}`
-                                            : e.markPrice != null && ` · marked ${e.markPrice}`}
+                                            : e.lastPrice != null && ` · last ${e.lastPrice}`}
                                         {e.datesEstimated && <span className="text-amber-600 dark:text-amber-400"> · dates estimated</span>}
                                     </>
                                 )}
