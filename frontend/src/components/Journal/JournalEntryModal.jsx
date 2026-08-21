@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { Modal } from '../../ui/Modal';
 import { SymbolInput } from '../../ui/SymbolInput';
 import { TagInput } from '../../ui/TagInput';
+import { FIELD } from '../../ui/field';
 import { createEntry, updateEntry } from '../../services/journal';
 import { chargesFor } from '../../utils/commission';
 
@@ -239,9 +240,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                 )}
 
                 <Section title="Trade">
-                    {/* Three across, twice, rather than five across a four-column
-                        grid leaving one orphaned on its own row. */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div className={ROW}>
                         <Field label="Symbol *">
                             <SymbolInput
                                 required
@@ -281,7 +280,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                     </div>
                     {planning ? (
                         <div className="mt-3">
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                            <div className={ROW}>
                                 <Field label="Entry zone from *">
                                     <input type="number" step="any" value={form.entryFrom} className={input}
                                         onChange={(e) => set('entryFrom', e.target.value)} />
@@ -302,7 +301,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                         </div>
                     ) : (
                         <div className="mt-3">
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            <div className={ROW}>
                                 <Field label="Entry date *" locked={entryBooked}>
                                     <input type="date" required value={form.entryDate} className={input}
                                         disabled={entryBooked}
@@ -357,7 +356,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                 </Section>
 
                 <Section title="The plan" hint="Filled in before the outcome is known.">
-                    <div className="sm:w-1/3">
+                    <div className={ROW}>
                         <Field label="Stop level">
                             <input type="number" step="any" value={form.plannedStop} className={input}
                                 onChange={(e) => set('plannedStop', e.target.value)} />
@@ -389,7 +388,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                 </Section>
 
                 <Section title="Exit" hidden={!closing}>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div className={ROW}>
                         <Field label="Exit date" locked={exitBooked}>
                             <input type="date" value={form.exitDate} className={input}
                                 disabled={exitBooked}
@@ -413,7 +412,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                             {suggestedExitFee.toFixed(2)} from {portfolio.name}&apos;s commission rules for the sell side.
                         </p>
                     )}
-                    <div className="mt-2">
+                    <div className="mt-3">
                         <Check checked={form.exitConfirmed} onChange={(v) => set('exitConfirmed', v)}
                             label="Confirmed from a broker fill or statement"
                             hint="Leave unchecked if this is from memory — the stats will flag it." />
@@ -437,7 +436,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                     </Section>
                 ) : (
                 <Section title="Review">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className={ROW}>
                         <Field label="How I felt">
                             <select value={form.emotionalState} className={input}
                                 onChange={(e) => set('emotionalState', e.target.value)}>
@@ -489,15 +488,18 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
 // footer, so the two are joined by id rather than by nesting.
 const FORM_ID = 'journal-entry-form';
 
-const input = 'w-full px-3 py-2 border border-hairline bg-surface text-ink rounded-control focus:ring-2 focus:ring-cyan-500 disabled:opacity-60 disabled:cursor-not-allowed';
+const input = FIELD;
+const ROW = 'grid gap-3 grid-cols-[repeat(auto-fit,minmax(150px,1fr))]';
 
 function Section({ title, hint, hidden, children }) {
     if (hidden) return null;
     return (
-        <div className="border-t border-hairline pt-4 first:border-t-0 first:pt-0">
+        <div className="border-t border-hairline pt-5 first:border-t-0 first:pt-0">
             <h3 className="font-semibold text-ink">{title}</h3>
-            {hint && <p className="text-xs text-ink-faint mb-2">{hint}</p>}
-            <div className={hint ? '' : 'mt-2'}>{children}</div>
+            {hint && <p className="text-xs text-ink-faint mt-0.5">{hint}</p>}
+            {/* Fixed, not conditional on the hint: the gap above the fields was
+                what shifted between sections, not the heading. */}
+            <div className="mt-3">{children}</div>
         </div>
     );
 }

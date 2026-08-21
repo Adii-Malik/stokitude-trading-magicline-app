@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { searchStocks } from '../services/stocks';
+import { FIELD_UPPER } from './field';
 
 /**
  * The symbol field, built once.
@@ -83,7 +84,7 @@ export function SymbolInput({
                 disabled={disabled}
                 placeholder={placeholder}
                 autoComplete="off"
-                className={className || INPUT}
+                className={className || FIELD_UPPER}
                 onChange={(e) => { onChange(e.target.value.toUpperCase()); setOpen(true); }}
                 onFocus={() => setOpen(true)}
                 onKeyDown={onKeyDown}
@@ -118,7 +119,5 @@ export function SymbolInput({
     );
 }
 
-const INPUT = 'w-full px-3 py-2 border border-hairline bg-surface text-ink rounded-control ' +
-    'uppercase focus:ring-2 focus:ring-cyan-500 disabled:opacity-60 disabled:cursor-not-allowed';
 
 export default SymbolInput;

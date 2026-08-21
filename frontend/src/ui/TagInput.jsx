@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { X } from 'lucide-react';
+import { FIELD } from './field';
 
 /**
  * Free text that still counts.
@@ -60,7 +61,7 @@ export function TagInput({ value = [], onChange, suggestions = [], placeholder, 
                 type="text"
                 value={draft}
                 placeholder={single && value.length ? 'Replace…' : placeholder}
-                className={INPUT}
+                className={FIELD}
                 onChange={(e) => { setDraft(e.target.value); setOpen(true); }}
                 onFocus={() => setOpen(true)}
                 onKeyDown={(e) => {
@@ -88,7 +89,5 @@ export function TagInput({ value = [], onChange, suggestions = [], placeholder, 
     );
 }
 
-const INPUT = 'w-full px-3 py-2 border border-hairline bg-surface text-ink rounded-control ' +
-    'text-sm focus:ring-2 focus:ring-cyan-500';
 
 export default TagInput;
