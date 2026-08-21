@@ -242,18 +242,26 @@ function CreatePortfolioModal({ portfolio, onClose, onCreated }) {
     });
     const [submitting, setSubmitting] = useState(false);
 
+    // PKR is PSX here, and PSX is the only market whose fees and settlement
+    // this form knows how to describe.
+    const isPSX = (formData.currency || 'PKR').toUpperCase() === 'PKR';
+
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setSubmitting(true);
 
+        // Slabs typed before switching to USD are still in state but no longer on
+        // screen, and they describe a market this book does not trade on.
+        const payload = isPSX ? formData : { ...formData, commissionSlabs: [], charges: [] };
+
         try {
             let response;
             if (portfolio) {
-                response = await api.put(`/portfolios/${portfolio._id}`, formData);
+                response = await api.put(`/portfolios/${portfolio._id}`, payload);
                 toast.success('Portfolio updated');
             } else {
-                response = await api.post('/portfolios', formData);
+                response = await api.post('/portfolios', payload);
                 toast.success('Portfolio created');
             }
             onCreated(response.data.data);
@@ -316,15 +324,6 @@ function CreatePortfolioModal({ portfolio, onClose, onCreated }) {
                             />
                         </div>
 
-                        <div className="rounded-control bg-surface-muted px-3 py-2">
-                            <p className="text-sm font-medium text-ink">Capital gains method</p>
-                            <p className="text-xs text-ink-muted mt-1">
-                                PSX trades settle through NCCPL: shares bought and sold the
-                                same day match last-in-first-out, anything held overnight
-                                first-in-first-out. Applied automatically.
-                            </p>
-                        </div>
-
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                 Currency
@@ -344,15 +343,25 @@ function CreatePortfolioModal({ portfolio, onClose, onCreated }) {
                             )}
                         </div>
 
-                        <CommissionSlabEditor
-                            slabs={formData.commissionSlabs}
-                            onChange={(commissionSlabs) => setFormData({ ...formData, commissionSlabs })}
-                        />
+                        {/* Brokerage bands and per-share charges are how PSX bills. They
+                            describe no other market, so a non-PKR book is not asked. */}
+                        {isPSX ? (
+                            <>
+                                <CommissionSlabEditor
+                                    slabs={formData.commissionSlabs}
+                                    onChange={(commissionSlabs) => setFormData({ ...formData, commissionSlabs })}
+                                />
 
-                        <OtherChargesEditor
-                            charges={formData.charges}
-                            onChange={(charges) => setFormData({ ...formData, charges })}
-                        />
+                                <OtherChargesEditor
+                                    charges={formData.charges}
+                                    onChange={(charges) => setFormData({ ...formData, charges })}
+                                />
+                            </>
+                        ) : (
+                            <p className="text-xs text-ink-muted">
+                                Fees come from each transaction as entered.
+                            </p>
+                        )}
 
                     </div>
 
