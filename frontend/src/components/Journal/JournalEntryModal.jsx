@@ -45,6 +45,8 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
     });
     const [saving, setSaving] = useState(false);
     const [showMore, setShowMore] = useState(false);
+    // Whether the entry price is one we filled from the symbol, or one you typed.
+    const [autoPriced, setAutoPriced] = useState(false);
 
     /**
      * The form asks only what its stage can answer. Watching a level has no fill,
@@ -282,9 +284,16 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                                 // Picking a known stock fills the entry price for a
                                 // trade being logged now; a plan is waiting for a
                                 // level, so leave its zone alone.
+                                //
+                                // A price we filled is replaced when the symbol
+                                // changes - it belonged to the old symbol, and
+                                // leaving it is worse than leaving it blank. A
+                                // price you typed is never overwritten.
                                 onSelect={(stock) => {
-                                    if (live && !entryBooked && stock.currentPrice > 0 && form.entryPrice === '') {
+                                    if (live && !entryBooked && stock.currentPrice > 0
+                                        && (form.entryPrice === '' || autoPriced)) {
                                         set('entryPrice', String(stock.currentPrice));
+                                        setAutoPriced(true);
                                     }
                                 }}
                             />
@@ -323,7 +332,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                             <Field label="Entry price *" locked={entryBooked}>
                                 <input type="number" step="any" required value={form.entryPrice} className={input}
                                     disabled={entryBooked}
-                                    onChange={(e) => set('entryPrice', e.target.value)} />
+                                    onChange={(e) => { setAutoPriced(false); set('entryPrice', e.target.value); }} />
                             </Field>
                         )}
                         <Field label="Stop loss">
