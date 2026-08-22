@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
-import { Calculator, Save, AlertTriangle } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Calculator, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
 import { sizePosition } from '../../utils/positionSizing';
+import { FIELD as input, choice } from '../../ui/field';
 import { formatCurrency, formatPercent } from '../../utils/portfolioUtils';
 
 // Starting points, not stored settings. Tapping one writes the two numbers below;
@@ -22,6 +23,7 @@ export default function RiskCalculator({ options }) {
     const [profiles, setProfiles] = useState({});
     const [trade, setTrade] = useState({ entryPrice: '', stopPrice: '', targetPrice: '' });
     const [saving, setSaving] = useState(false);
+    const [savedAt, setSavedAt] = useState(null);
 
     const book = books.find((b) => b._id === portfolioId) || books[0];
     const currency = book?.currency || 'PKR';
@@ -47,23 +49,38 @@ export default function RiskCalculator({ options }) {
             .catch(() => setProfiles({}));
     }, []);
 
-    const setProfile = (patch) =>
-        setProfiles((p) => ({ ...p, [currency]: { ...profile, ...patch } }));
+    // Kept, not staged. A limit you set and then lost because you did not press
+    // a second button is worse than no limit: the next trade is judged against
+    // something you thought you had changed.
+    const pending = useRef(null);
+    const setProfile = (patch) => {
+        const next = { ...profile, ...patch };
+        setProfiles((p) => ({ ...p, [currency]: next }));
 
-    const saveProfile = async () => {
-        setSaving(true);
-        try {
-            await api.put(`/journal/risk-profiles/${currency}`, {
-                defaultRiskPct: parseFloat(profile.defaultRiskPct),
-                maxPositionPct: parseFloat(profile.maxPositionPct)
-            });
-            toast.success(`${currency} capital saved`);
-        } catch (error) {
-            toast.error(error.response?.data?.message || 'Failed to save');
-        } finally {
-            setSaving(false);
-        }
+        clearTimeout(pending.current);
+        pending.current = setTimeout(async () => {
+            const risk = parseFloat(next.defaultRiskPct);
+            const cap = parseFloat(next.maxPositionPct);
+            if (!Number.isFinite(risk) || !Number.isFinite(cap)) return;
+            setSaving(true);
+            try {
+                await api.put(`/journal/risk-profiles/${currency}`,
+                    { defaultRiskPct: risk, maxPositionPct: cap });
+                setSavedAt(Date.now());
+            } catch (error) {
+                toast.error(error.response?.data?.message || 'Could not save your limits');
+            } finally {
+                setSaving(false);
+            }
+        }, 600);
     };
+    useEffect(() => () => clearTimeout(pending.current), []);
+
+    // Which preset these numbers are, if any. Named so the one in force is
+    // visible rather than inferred from two percentages.
+    const active = PRESETS.find((x) =>
+        Number(x.risk) === Number(profile.defaultRiskPct)
+        && Number(x.cap) === Number(profile.maxPositionPct));
 
     const result = sizePosition({
         capital,
@@ -96,11 +113,11 @@ export default function RiskCalculator({ options }) {
                 <div className="flex flex-wrap gap-2 mb-3">
                     {PRESETS.map((preset) => (
                         <button key={preset.name} type="button"
+                            aria-pressed={active?.name === preset.name}
                             onClick={() => setProfile({ defaultRiskPct: preset.risk, maxPositionPct: preset.cap })}
-                            className="px-3 py-1.5 rounded-control ring-1 ring-hairline text-sm
-                                       text-ink-muted hover:text-ink hover:ring-cyan-500">
+                            className={choice(active?.name === preset.name)}>
                             {preset.name}
-                            <span className="block text-xs text-ink-faint">
+                            <span className={`block text-xs ${active?.name === preset.name ? 'text-cyan-50' : 'text-ink-faint'}`}>
                                 {preset.risk}% risk · {preset.cap}% cap
                             </span>
                         </button>
@@ -136,16 +153,14 @@ export default function RiskCalculator({ options }) {
                             <span className="absolute right-3 top-2 text-ink-faint text-sm">%</span>
                         </div>
                     </div>
-                    <p className="col-span-2 sm:col-span-3 text-xs text-gray-500 dark:text-gray-400">
+                    <p className="col-span-2 sm:col-span-3 text-xs text-ink-faint">
                         Risk per trade is what you lose when the stop works. The gap cap limits the
                         position itself, for when price jumps straight past it — 20–25% is sensible.
+                        {' '}
+                        <span className="text-ink-muted">
+                            {saving ? 'Saving…' : savedAt ? 'Saved.' : 'Kept as you change them.'}
+                        </span>
                     </p>
-                    <div className="flex items-end">
-                        <button type="button" onClick={saveProfile} disabled={saving}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center justify-center gap-1 disabled:opacity-50">
-                            <Save className="w-4 h-4" /> Save
-                        </button>
-                    </div>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 border-t border-gray-200 dark:border-gray-700 pt-4">
@@ -221,7 +236,6 @@ export default function RiskCalculator({ options }) {
     );
 }
 
-const input = 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500';
 
 function Label({ children }) {
     return <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{children}</label>;
