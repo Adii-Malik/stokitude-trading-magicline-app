@@ -168,7 +168,7 @@ export default function RiskCalculator({ options }) {
                             onChange={(e) => setProfile({ defaultRiskPct: e.target.value })} />
                     </div>
                     <div>
-                        <Label>Max in one stock (%)</Label>
+                        <Label>Max per stock (%)</Label>
                         <input type="number" step="any" min="0" max="100" className={input}
                             value={profile.maxPositionPct}
                             onChange={(e) => setProfile({ maxPositionPct: e.target.value })} />
@@ -188,8 +188,8 @@ export default function RiskCalculator({ options }) {
 
                     <p className="col-span-2 sm:col-span-3 text-xs text-ink-faint">
                         <strong className="text-ink-muted">Risk per trade</strong> is what you lose if the
-                        stop hits. <strong className="text-ink-muted">Max in one stock</strong> caps the
-                        position itself, whatever the stop says — it is what protects you when price gaps
+                        stop hits. <strong className="text-ink-muted">Max per stock</strong> caps how much of the
+                        book any one name can become, whatever the stop says — it is what protects you when price gaps
                         straight past the stop instead of filling at it.
                         {dirty && (
                             <span className="text-cyan-600 dark:text-cyan-400 font-medium">
