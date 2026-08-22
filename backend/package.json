@@ -10,7 +10,8 @@
     "create-admin": "node src/scripts/createSuperAdmin.js",
     "migrate-journal": "node src/scripts/migrateJournalLifecycle.js",
     "test": "node --test src",
-    "migrate-journal-vocab": "node src/scripts/migrateJournalVocabulary.js"
+    "migrate-journal-vocab": "node src/scripts/migrateJournalVocabulary.js",
+    "migrate-risk-profiles": "node src/scripts/migrateRiskProfiles.js"
   },
   "keywords": [
     "psx",

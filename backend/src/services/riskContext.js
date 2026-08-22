@@ -108,9 +108,11 @@ export function suggestSize({ capital, riskPct, maxPositionPct, entryPrice, stop
         : null;
 }
 
-export async function contextFor(userId, { currency, portfolioId }) {
+export async function contextFor(userId, { portfolioId }) {
+    // The limits belong to the book being traded, so both halves of the verdict
+    // come from the same place and a second book cannot lend it its rules.
     const [profile, capital] = await Promise.all([
-        RiskProfile.findOne({ user: userId, currency: String(currency || 'PKR').toUpperCase() }).lean(),
+        portfolioId ? RiskProfile.findOne({ user: userId, portfolioId }).lean() : null,
         capitalFor(userId, portfolioId)
     ]);
     return {

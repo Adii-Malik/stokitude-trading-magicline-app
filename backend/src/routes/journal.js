@@ -91,18 +91,18 @@ router.get('/risk-context', async (req, res) => {
 /** Risk tolerance, one profile per currency. Capital is not stored - see the model. */
 router.get('/risk-profiles', async (req, res) => {
     try {
-        const profiles = await RiskProfile.find({ user: req.user._id }).sort({ currency: 1 });
+        const profiles = await RiskProfile.find({ user: req.user._id }).lean();
         res.json({ success: true, data: profiles });
     } catch (error) {
         fail(res, error);
     }
 });
 
-router.put('/risk-profiles/:currency', async (req, res) => {
+router.put('/risk-profiles/:portfolioId', async (req, res) => {
     try {
         const { defaultRiskPct, maxPositionPct } = req.body;
         const profile = await RiskProfile.findOneAndUpdate(
-            { user: req.user._id, currency: req.params.currency.toUpperCase() },
+            { user: req.user._id, portfolioId: req.params.portfolioId },
             { defaultRiskPct, maxPositionPct },
             { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true }
         );

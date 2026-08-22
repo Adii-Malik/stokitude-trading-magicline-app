@@ -2,8 +2,10 @@
  * Risk Profile
  *
  * Two numbers: how much of the account one trade may risk, and how much of it a
- * single position may become. Held per currency because a PSX account and a US
- * account are separate pots that must never be added together.
+ * single position may become. Held per portfolio, because the mandate belongs to
+ * the account and not to the currency it happens to be denominated in - two PKR
+ * brokers can be run to different rules, and a swing book set to 5% must not
+ * drag an investing book onto the same line.
  *
  * Capital is deliberately not here. It was a typed field, and a typed capital
  * goes stale the moment the account moves - set once at 200k while the book grew
@@ -21,10 +23,11 @@ const riskProfileSchema = new mongoose.Schema({
         index: true
     },
 
-    currency: {
-        type: String,
+    portfolioId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Portfolio',
         required: true,
-        uppercase: true
+        index: true
     },
 
     // Percent of capital risked on one trade, if the stop is hit.
@@ -46,6 +49,6 @@ const riskProfileSchema = new mongoose.Schema({
     timestamps: true
 });
 
-riskProfileSchema.index({ user: 1, currency: 1 }, { unique: true });
+riskProfileSchema.index({ user: 1, portfolioId: 1 }, { unique: true });
 
 export default mongoose.model('RiskProfile', riskProfileSchema);

@@ -34,7 +34,9 @@ export default function RiskCalculator({ options }) {
     const rule = rules.find((r) => r.currency === currency) || rules[0];
     // Balanced rather than an arbitrary pair: an unsaved account should start on
     // something with a name, or all three tabs sit unlit with nothing saying why.
-    const profile = profiles[currency] || { defaultRiskPct: BALANCED.risk, maxPositionPct: BALANCED.cap };
+    // Keyed on the book: two brokers in one currency can be run to different
+    // rules, and a swing book at 5% must not put an investing book on that line.
+    const profile = profiles[portfolioId] || { defaultRiskPct: BALANCED.risk, maxPositionPct: BALANCED.cap };
 
     // Read, never entered: the portfolio already knows what it is worth.
     const [capital, setCapital] = useState(null);
@@ -49,9 +51,9 @@ export default function RiskCalculator({ options }) {
         api.get('/journal/risk-profiles')
             .then((res) => {
                 const map = {};
-                for (const p of res.data.data) map[p.currency] = p;
+                for (const p of res.data.data) map[p.portfolioId] = p;
                 setProfiles(map);
-                setSaved(Object.fromEntries(Object.entries(map).map(([c, v]) => [c, {
+                setSaved(Object.fromEntries(Object.entries(map).map(([id, v]) => [id, {
                     defaultRiskPct: v.defaultRiskPct, maxPositionPct: v.maxPositionPct
                 }])));
             })
@@ -59,26 +61,30 @@ export default function RiskCalculator({ options }) {
     }, []);
 
     const setProfile = (patch) =>
-        setProfiles((p) => ({ ...p, [currency]: { ...profile, ...patch } }));
+        setProfiles((p) => ({ ...p, [portfolioId]: { ...profile, ...patch } }));
 
-    const dirty = saved[currency]
-        ? Number(saved[currency].defaultRiskPct) !== Number(profile.defaultRiskPct)
-            || Number(saved[currency].maxPositionPct) !== Number(profile.maxPositionPct)
+    const dirty = saved[portfolioId]
+        ? Number(saved[portfolioId].defaultRiskPct) !== Number(profile.defaultRiskPct)
+            || Number(saved[portfolioId].maxPositionPct) !== Number(profile.maxPositionPct)
         : true;
 
     const saveProfile = async () => {
         const risk = parseFloat(profile.defaultRiskPct);
         const cap = parseFloat(profile.maxPositionPct);
+        if (!portfolioId) {
+            toast.error('Pick the book these limits belong to');
+            return;
+        }
         if (!Number.isFinite(risk) || !Number.isFinite(cap)) {
             toast.error('Both limits need a number');
             return;
         }
         setSaving(true);
         try {
-            await api.put(`/journal/risk-profiles/${currency}`,
+            await api.put(`/journal/risk-profiles/${portfolioId}`,
                 { defaultRiskPct: risk, maxPositionPct: cap });
-            setSaved((v) => ({ ...v, [currency]: { defaultRiskPct: risk, maxPositionPct: cap } }));
-            toast.success(`${currency} limits saved`);
+            setSaved((v) => ({ ...v, [portfolioId]: { defaultRiskPct: risk, maxPositionPct: cap } }));
+            toast.success(`Limits saved for ${book?.name || 'this book'}`);
         } catch (error) {
             toast.error(error.response?.data?.message || 'Could not save your limits');
         } finally {
@@ -120,7 +126,7 @@ export default function RiskCalculator({ options }) {
                     </select>
                 </div>
 
-                <div className="flex flex-wrap gap-2 mb-3">
+                <div className="flex flex-wrap items-center gap-2 mb-3">
                     {PRESETS.map((preset) => (
                         <button key={preset.name} type="button"
                             aria-pressed={active?.name === preset.name}
@@ -132,6 +138,12 @@ export default function RiskCalculator({ options }) {
                             </span>
                         </button>
                     ))}
+                    {!active && (
+                        <span className="px-2.5 py-1 rounded-control ring-1 ring-cyan-500
+                                         text-xs font-semibold text-cyan-600 dark:text-cyan-400">
+                            Custom
+                        </span>
+                    )}
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
