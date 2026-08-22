@@ -5,6 +5,8 @@ import { Modal } from '../../ui/Modal';
 import { SymbolInput } from '../../ui/SymbolInput';
 import { TagInput } from '../../ui/TagInput';
 import { FIELD } from '../../ui/field';
+import { RiskVerdict } from './RiskVerdict';
+import api from '../../services/api';
 import { createEntry, updateEntry } from '../../services/journal';
 import { chargesFor } from '../../utils/commission';
 
@@ -56,28 +58,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
 
     const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
-    // A planned trade has no fill, so risk is measured against the zone midpoint
-    // - the same reference the backend uses.
     const bounds = [form.entryFrom, form.entryTo].filter((v) => v !== '').map(Number);
-    const reference = planning
-        ? (bounds.length ? bounds.reduce((a, b) => a + b, 0) / bounds.length : null)
-        : (form.entryPrice === '' ? null : Number(form.entryPrice));
-
-    const riskPerShare = form.plannedStop !== '' && reference != null
-        ? Math.abs(reference - Number(form.plannedStop))
-        : null;
-    const risk = riskPerShare != null && form.quantity !== ''
-        ? riskPerShare * Number(form.quantity)
-        : null;
-
-    // Quoted against the nearest target, which is what the model stores first.
-    const nearest = form.targets.length
-        ? form.targets.map((t) => Number(t.price)).filter((p) => !Number.isNaN(p))
-            .sort((a, b) => (form.direction === 'short' ? b - a : a - b))[0]
-        : null;
-    const rr = riskPerShare > 0 && nearest != null && reference != null
-        ? Math.abs(nearest - reference) / riskPerShare
-        : null;
 
     const zoneMissing = planning && bounds.length === 0;
 
@@ -126,6 +107,34 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
             setForm((f) => ({ ...f, exitFees: suggestedExitFee.toFixed(2) }));
         }
     }, [suggestedExitFee, exitFeeEdited, exitBooked]);
+
+
+    // The verdict is the server's to give: capital comes from the portfolios and
+    // the limits from your profile, so neither is this form's to guess at.
+    const [riskCtx, setRiskCtx] = useState(null);
+    const riskKey = [form.portfolioId, currency, form.entryPrice || form.entryFrom,
+        form.plannedStop, form.quantity, form.targets?.[0]?.price, form.direction].join('|');
+    useEffect(() => {
+        if (!form.plannedStop || !(form.entryPrice || form.entryFrom)) { setRiskCtx(null); return; }
+        let live = true;
+        const t = setTimeout(async () => {
+            try {
+                const res = await api.get('/journal/risk-context', {
+                    params: {
+                        currency,
+                        portfolioId: form.portfolioId || undefined,
+                        entryPrice: form.entryPrice || form.entryFrom,
+                        stopPrice: form.plannedStop,
+                        quantity: form.quantity || undefined,
+                        targetPrice: form.targets?.[0]?.price,
+                        direction: form.direction
+                    }
+                });
+                if (live) setRiskCtx(res.data.data);
+            } catch { if (live) setRiskCtx(null); }
+        }, 250);
+        return () => { live = false; clearTimeout(t); };
+    }, [riskKey]);
 
     const submit = async (e) => {
         e.preventDefault();
@@ -317,25 +326,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
 
                     <TargetsEditor targets={form.targets} onChange={(t) => set('targets', t)} />
 
-                    {/* Derived, so it reads as a readout rather than two empty-looking
-                        inputs you might try to type into. */}
-                    {(risk != null || rr != null) && (
-                        <div className="flex flex-wrap gap-x-6 gap-y-1 mt-3 px-3 py-2 bg-surface-muted rounded-control text-sm">
-                            {risk != null && (
-                                <span className="text-ink-muted">
-                                    Risk <span className="font-semibold text-ink tabular-nums">{risk.toFixed(2)}</span>
-                                </span>
-                            )}
-                            {rr != null && (
-                                <span className="text-ink-muted">
-                                    Reward : risk{' '}
-                                    <span className={`font-semibold tabular-nums ${rr >= 2 ? 'text-green-600 dark:text-green-400' : 'text-ink'}`}>
-                                        {rr.toFixed(2)} : 1
-                                    </span>
-                                </span>
-                            )}
-                        </div>
-                    )}
+                    <RiskVerdict verdict={riskCtx?.verdict} currency={currency} />
 
                 </Section>
 

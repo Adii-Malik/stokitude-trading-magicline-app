@@ -5,6 +5,14 @@ import api from '../../services/api';
 import { sizePosition } from '../../utils/positionSizing';
 import { formatCurrency, formatPercent } from '../../utils/portfolioUtils';
 
+// Starting points, not stored settings. Tapping one writes the two numbers below;
+// there is nothing to name, assign or keep in step with a portfolio.
+const PRESETS = [
+    { name: 'Conservative', risk: 1, cap: 15 },
+    { name: 'Balanced', risk: 2, cap: 20 },
+    { name: 'Aggressive', risk: 5, cap: 30 }
+];
+
 export default function RiskCalculator({ options }) {
     const rules = options?.exchangeRules || [{ code: 'PSX', currency: 'PKR', fractionalShares: false }];
     const [exchange, setExchange] = useState(rules[0].code);
@@ -14,7 +22,15 @@ export default function RiskCalculator({ options }) {
 
     const rule = rules.find((r) => r.code === exchange) || rules[0];
     const currency = rule.currency;
-    const profile = profiles[currency] || { accountCapital: '', defaultRiskPct: 1, maxPositionPct: 25 };
+    const profile = profiles[currency] || { defaultRiskPct: 1, maxPositionPct: 25 };
+
+    // Read, never entered: the portfolios already know what they are worth.
+    const [capital, setCapital] = useState(null);
+    useEffect(() => {
+        api.get('/journal/risk-context', { params: { currency } })
+            .then((res) => setCapital(res.data.data.capital))
+            .catch(() => setCapital(null));
+    }, [currency]);
 
     useEffect(() => {
         api.get('/journal/risk-profiles')
@@ -30,14 +46,9 @@ export default function RiskCalculator({ options }) {
         setProfiles((p) => ({ ...p, [currency]: { ...profile, ...patch } }));
 
     const saveProfile = async () => {
-        if (!profile.accountCapital) {
-            toast.error('Enter your account capital first');
-            return;
-        }
         setSaving(true);
         try {
             await api.put(`/journal/risk-profiles/${currency}`, {
-                accountCapital: parseFloat(profile.accountCapital),
                 defaultRiskPct: parseFloat(profile.defaultRiskPct),
                 maxPositionPct: parseFloat(profile.maxPositionPct)
             });
@@ -50,7 +61,7 @@ export default function RiskCalculator({ options }) {
     };
 
     const result = sizePosition({
-        capital: parseFloat(profile.accountCapital),
+        capital,
         riskPct: parseFloat(profile.defaultRiskPct),
         entryPrice: parseFloat(trade.entryPrice),
         stopPrice: parseFloat(trade.stopPrice),
@@ -80,12 +91,32 @@ export default function RiskCalculator({ options }) {
                     </div>
                 </div>
 
+                <div className="flex flex-wrap gap-2 mb-3">
+                    {PRESETS.map((preset) => (
+                        <button key={preset.name} type="button"
+                            onClick={() => setProfile({ defaultRiskPct: preset.risk, maxPositionPct: preset.cap })}
+                            className="px-3 py-1.5 rounded-control ring-1 ring-hairline text-sm
+                                       text-ink-muted hover:text-ink hover:ring-cyan-500">
+                            {preset.name}
+                            <span className="block text-xs text-ink-faint">
+                                {preset.risk}% risk · {preset.cap}% cap
+                            </span>
+                        </button>
+                    ))}
+                </div>
+
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    <div className="col-span-2 sm:col-span-3">
-                        <Label>Account capital ({currency})</Label>
-                        <input type="number" step="any" className={input} value={profile.accountCapital}
-                            placeholder="What this account holds"
-                            onChange={(e) => setProfile({ accountCapital: e.target.value })} />
+                    <div className="col-span-2 sm:col-span-3 rounded-control bg-surface-muted px-3 py-2">
+                        <Label>Capital</Label>
+                        <p className="text-lg font-semibold text-ink tabular-nums">
+                            {capital == null
+                                ? `No ${currency} portfolio yet`
+                                : `${currency} ${capital.toLocaleString()}`}
+                        </p>
+                        <p className="text-xs text-ink-faint mt-0.5">
+                            Your {currency} portfolios, valued now. Typed once, it would be
+                            wrong by the time the account moved.
+                        </p>
                     </div>
                     <div>
                         <Label>Risk per trade</Label>

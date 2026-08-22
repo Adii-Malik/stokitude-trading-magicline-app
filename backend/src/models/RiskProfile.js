@@ -1,7 +1,15 @@
 /**
  * Risk Profile
- * Account capital and risk tolerance, held per currency because a PSX account
- * and a US account are separate pots that must never be added together.
+ *
+ * Two numbers: how much of the account one trade may risk, and how much of it a
+ * single position may become. Held per currency because a PSX account and a US
+ * account are separate pots that must never be added together.
+ *
+ * Capital is deliberately not here. It was a typed field, and a typed capital
+ * goes stale the moment the account moves - set once at 200k while the book grew
+ * to 677k, every verdict it produced would be wrong in the same direction. The
+ * portfolios in this currency already know their own value, so it is read from
+ * them instead.
  */
 import mongoose from 'mongoose';
 
@@ -19,13 +27,7 @@ const riskProfileSchema = new mongoose.Schema({
         uppercase: true
     },
 
-    accountCapital: {
-        type: Number,
-        required: true,
-        min: [0, 'Capital cannot be negative']
-    },
-
-    // Percent of capital risked on one trade.
+    // Percent of capital risked on one trade, if the stop is hit.
     defaultRiskPct: {
         type: Number,
         default: 1,

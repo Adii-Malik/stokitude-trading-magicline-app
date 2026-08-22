@@ -6,6 +6,7 @@ import express from 'express';
 import { authenticate } from '../middleware/auth.js';
 import journalService from '../services/journalService.js';
 import RiskProfile from '../models/RiskProfile.js';
+import { contextFor, judge, suggestSize } from '../services/riskContext.js';
 import Portfolio from '../models/Portfolio.js';
 import { SETUP_SUGGESTIONS, MISTAKE_SUGGESTIONS, EMOTIONS, MARKET_CONDITIONS } from '../models/JournalEntry.js';
 import JournalEntry from '../models/JournalEntry.js';
@@ -64,7 +65,29 @@ router.get('/options', async (req, res) => {
     });
 });
 
-/** Account capital and risk tolerance, one profile per currency. */
+/**
+ * What this trade risks against the line you drew, for the modal to show while
+ * you type. Capital is read from the portfolios, never stored, so it cannot go
+ * stale. Informational only: it never refuses a trade.
+ */
+router.get('/risk-context', async (req, res) => {
+    try {
+        const { currency, portfolioId, entryPrice, stopPrice, quantity, targetPrice, direction } = req.query;
+        const ctx = await contextFor(req.user._id, { currency, portfolioId });
+        res.json({
+            success: true,
+            data: {
+                ...ctx,
+                verdict: judge({ ...ctx, entryPrice, stopPrice, quantity, targetPrice, direction }),
+                suggested: quantity ? null : suggestSize({ ...ctx, entryPrice, stopPrice })
+            }
+        });
+    } catch (error) {
+        fail(res, error);
+    }
+});
+
+/** Risk tolerance, one profile per currency. Capital is not stored - see the model. */
 router.get('/risk-profiles', async (req, res) => {
     try {
         const profiles = await RiskProfile.find({ user: req.user._id }).sort({ currency: 1 });
@@ -76,10 +99,10 @@ router.get('/risk-profiles', async (req, res) => {
 
 router.put('/risk-profiles/:currency', async (req, res) => {
     try {
-        const { accountCapital, defaultRiskPct, maxPositionPct } = req.body;
+        const { defaultRiskPct, maxPositionPct } = req.body;
         const profile = await RiskProfile.findOneAndUpdate(
             { user: req.user._id, currency: req.params.currency.toUpperCase() },
-            { accountCapital, defaultRiskPct, maxPositionPct },
+            { defaultRiskPct, maxPositionPct },
             { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true }
         );
         res.json({ success: true, data: profile });
