@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ImagePlus, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
@@ -34,12 +34,24 @@ export function ChartUpload({ value, onChange }) {
         }
     };
 
-    const fromClipboard = (e) => {
-        const item = [...(e.clipboardData?.items || [])].find((i) => i.type.startsWith('image/'));
-        if (!item) return;
-        e.preventDefault();
-        send(item.getAsFile());
-    };
+    /**
+     * Paste is caught on the document, not on the drop zone. The zone is a label,
+     * and a label only sees a paste when focus is already inside it - clicking it
+     * opens the file dialog instead, so the event never arrived. Screenshot then
+     * Ctrl+V now works from anywhere in the form, which is the point of it.
+     *
+     * Only an image is taken, so pasting text into a note is untouched.
+     */
+    useEffect(() => {
+        const onPaste = (e) => {
+            const item = [...(e.clipboardData?.items || [])].find((i) => i.type.startsWith('image/'));
+            if (!item) return;
+            e.preventDefault();
+            send(item.getAsFile());
+        };
+        document.addEventListener('paste', onPaste);
+        return () => document.removeEventListener('paste', onPaste);
+    }, []);
 
     if (value) {
         return (
@@ -60,7 +72,6 @@ export function ChartUpload({ value, onChange }) {
 
     return (
         <label
-            onPaste={fromClipboard}
             onDragOver={(e) => { e.preventDefault(); setOver(true); }}
             onDragLeave={() => setOver(false)}
             onDrop={(e) => { e.preventDefault(); setOver(false); send(e.dataTransfer.files?.[0]); }}
@@ -71,7 +82,7 @@ export function ChartUpload({ value, onChange }) {
         >
             <ImagePlus className="w-5 h-5 text-ink-faint" />
             <span className="text-sm font-medium text-ink-muted">
-                {busy ? 'Storing…' : 'Paste, drop, or choose a chart'}
+                {busy ? 'Storing…' : 'Paste a screenshot, drop a file, or choose one'}
             </span>
             <span className="text-xs text-ink-faint">PNG, JPEG or WebP, up to 6MB</span>
             <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only"

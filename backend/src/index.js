@@ -66,6 +66,11 @@ app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads'), {
     setHeaders: (res) => res.setHeader('Content-Security-Policy', "default-src 'none'")
 }));
 
+// A chart that is not there is missing, not the app. Without this the catch-all
+// below answers with index.html and 200, so a deleted file renders as a broken
+// image rather than reporting itself.
+app.use('/uploads', (req, res) => res.status(404).json({ success: false, message: 'File not found' }));
+
 // Serve static files from React build (production)
 const frontendDistPath = path.join(__dirname, '../../frontend/dist');
 app.use(express.static(frontendDistPath));
