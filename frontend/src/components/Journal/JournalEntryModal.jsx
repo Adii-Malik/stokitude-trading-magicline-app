@@ -17,7 +17,10 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
     const editing = Boolean(entry?._id);
     const [form, setForm] = useState({
         state: entry?.state || 'open',
-        portfolioId: entry?.portfolioId || '',
+        // A new trade opens on the book the last one used, so the risk panel is
+        // live from the start. Forgetting to pick one leaves the trade with no
+        // capital to be measured against, which saves it ungraded.
+        portfolioId: entry?.portfolioId || options?.lastBook || '',
         symbol: entry?.symbol || '',
         exchange: entry?.exchange || 'PSX',
         direction: entry?.direction || 'long',

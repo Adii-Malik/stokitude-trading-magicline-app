@@ -49,10 +49,23 @@ router.get('/options', async (req, res) => {
     const merge = (mine, seed) => [...mine, ...seed.filter(x => !mine.includes(x))];
     const [setupsUsed, mistakesUsed] = await Promise.all([used('setupType'), used('mistakes')]);
 
+    // The book to open a new trade on: whichever the last one used. Derived
+    // rather than configured, so there is no default to set, none to keep in
+    // step when a book is retired, and it follows you if you change books.
+    // Only a book still open to trade counts - the newest entry here points at
+    // one that is retired.
+    const open = new Set(portfolios.map(p => String(p._id)));
+    const recent = await JournalEntry.find({ user: req.user._id, portfolioId: { $ne: null } })
+        .select('portfolioId').sort({ createdAt: -1 }).limit(20).lean();
+    const lastBook = recent.map(e => String(e.portfolioId)).find(id => open.has(id))
+        // Nothing journalled yet, and only one book to trade: no choice to make.
+        || (portfolios.length === 1 ? String(portfolios[0]._id) : null);
+
     res.json({
         success: true,
         data: {
             portfolios,
+            lastBook,
             setupTypes: merge(setupsUsed, SETUP_SUGGESTIONS),
             emotions: EMOTIONS,
             marketConditions: MARKET_CONDITIONS,
