@@ -17,7 +17,7 @@ const TRADES = [
     {
         symbol: 'UPS', exchange: 'NYSE', direction: 'long', setupType: 'other',
         entryDate: d('2026-01-08'), entryPrice: 107.43, quantity: 4,
-        exitDate: d('2026-06-01'), exitPrice: 109.155, exitConfirmed: true,
+        exitDate: d('2026-06-01'), exitPrice: 109.155,
         emotionalState: 'neutral', marketCondition: 'sideways', mistakes: [],
         tags: ['lot-1'],
         notes: 'Lot 1 of three. Clean entry and exit, no issues identified. Whether a resting stop was in place is not recorded — left unticked rather than assumed.'
@@ -25,7 +25,7 @@ const TRADES = [
     {
         symbol: 'UPS', exchange: 'NYSE', direction: 'long', setupType: 'other',
         entryDate: d('2026-04-14'), entryPrice: 101.74, quantity: 5,
-        exitDate: d('2026-06-08'), exitPrice: 108.31, exitConfirmed: true,
+        exitDate: d('2026-06-08'), exitPrice: 108.31,
         emotionalState: 'neutral', marketCondition: 'sideways', mistakes: [],
         tags: ['lot-2'],
         notes: 'Lot 2 of three. Cost basis is the average of two purchases, 4/14 and 5/8; the entry date shown is the first of them. Clean entry and exit.'
@@ -33,7 +33,7 @@ const TRADES = [
     {
         symbol: 'UPS', exchange: 'NYSE', direction: 'long', setupType: 'other',
         entryDate: d('2026-06-24'), entryPrice: 106.095, quantity: 4,
-        exitDate: d('2026-07-08'), exitPrice: 110.60, exitConfirmed: true,
+        exitDate: d('2026-07-08'), exitPrice: 110.60,
         emotionalState: 'neutral', marketCondition: 'sideways', mistakes: [],
         tags: ['lot-3'],
         notes: 'Lot 3 of three. Clean entry and exit, no issues identified.'
@@ -41,7 +41,7 @@ const TRADES = [
     {
         symbol: 'SMCI', exchange: 'NASDAQ', direction: 'long', setupType: 'other',
         entryDate: d('2026-05-28'), entryPrice: 42.027, quantity: 3,
-        exitDate: d('2026-06-02'), exitPrice: 50.16, exitConfirmed: true,
+        exitDate: d('2026-06-02'), exitPrice: 50.16,
         emotionalState: 'confident', marketCondition: 'bullish', mistakes: [],
         notes: 'Best percentage gain of the set, held five days. Clean entry and exit. No resting stop recorded — the result was right but the protection is unconfirmed.'
     },
@@ -49,7 +49,7 @@ const TRADES = [
         // The reference trade: a loss that cost exactly what it was supposed to.
         symbol: 'DXCM', exchange: 'NASDAQ', direction: 'long', setupType: 'other',
         entryDate: d('2026-06-08'), entryPrice: 77.575, quantity: 5,
-        exitDate: d('2026-06-15'), exitPrice: 73.71, exitConfirmed: true,
+        exitDate: d('2026-06-15'), exitPrice: 73.71,
         plannedStop: 73.71,
         emotionalState: 'disciplined', marketCondition: 'sideways', mistakes: [],
         notes: 'Correctly managed. A real stop order was resting at the broker and it filled exactly as planned — a well-run loss, not a mistake. The only trade in the set with a placed stop.',
@@ -58,7 +58,7 @@ const TRADES = [
     {
         symbol: 'INTC', exchange: 'NASDAQ', direction: 'long', setupType: 'other',
         entryDate: d('2026-06-24'), entryPrice: 131.68, quantity: 3,
-        exitDate: d('2026-07-08'), exitPrice: 108.09, exitConfirmed: true,
+        exitDate: d('2026-07-08'), exitPrice: 108.09,
         emotionalState: 'fearful', marketCondition: 'volatile',
         mistakes: ['no stop placed', 'no profit protection'],
         notes: 'No stop placed at the broker. Was +6% unrealized on the 6/30 statement and gave the whole gain back and more — no rule to protect an open profit and no cap on the eventual loss. The single worst trade of the set.',

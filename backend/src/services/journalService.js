@@ -133,7 +133,6 @@ export function statsFor(entries) {
     const grossLosses = Math.abs(sum(losses, 'netPnL'));
 
     const withR = closed.filter(e => e.rMultiple != null);
-    const confirmed = closed.filter(e => e.exitConfirmed);
 
     // Longest streaks, oldest trade first.
     let bestStreak = 0, worstStreak = 0, run = 0;
@@ -229,9 +228,6 @@ export function statsFor(entries) {
         // A loss that obeyed the plan is not a mistake; a win that broke it is luck.
         goodProcessBadOutcome: closed.filter(e => e.followedPlan && e.outcome === 'loss').length,
         badProcessGoodOutcome: closed.filter(e => !e.followedPlan && e.outcome === 'win').length,
-
-        // Data quality: unconfirmed exits are recollection, not fills.
-        unconfirmedExits: closed.length - confirmed.length,
 
         byMistake,
         bySetup: group('setupType'),
@@ -401,7 +397,6 @@ class JournalService {
                 followedPlanRate: all.followedPlanRate,
                 goodProcessBadOutcome: all.goodProcessBadOutcome,
                 badProcessGoodOutcome: all.badProcessGoodOutcome,
-                unconfirmedExits: all.unconfirmedExits,
                 // Counts only. A cost here would sum currencies, so it lives in byCurrency.
                 byMistake: all.byMistake.map(({ code, count }) => ({ code, count })),
                 bySetup: all.bySetup.map(({ key, count, winRate }) => ({ key, count, winRate })),

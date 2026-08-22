@@ -11,7 +11,7 @@ import { computeMetrics, decorate, statsFor } from './journalService.js';
 const trade = (o = {}) => ({
     symbol: 'X', currency: 'USD', direction: 'long', quantity: 10,
     entryPrice: 100, entryDate: '2026-01-01', fees: 0,
-    stopPlaced: false, eventChecked: false, whatHappened: [], exitConfirmed: true,
+    whatHappened: [],
     ...o
 });
 
@@ -201,11 +201,6 @@ describe('aggregate stats', () => {
         assert.equal(s.headline.mistake, 'no_stop_placed');
         assert.ok(s.headline.netWithout > 0, 'positive once the unstopped loss is removed');
         assert.ok(s.headline.cost < 0);
-    });
-
-    test('flags exits taken from memory', () => {
-        const withDoubt = statsFor([decorate(trade({ exitPrice: 110, exitConfirmed: false }))]);
-        assert.equal(withDoubt.unconfirmedExits, 1);
     });
 
     test('an empty book does not divide by zero', () => {

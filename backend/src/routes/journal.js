@@ -9,7 +9,7 @@ import RiskProfile from '../models/RiskProfile.js';
 import { contextFor, judge, suggestSize } from '../services/riskContext.js';
 import { chartUpload, URL_PREFIX } from '../services/chartStorage.js';
 import Portfolio from '../models/Portfolio.js';
-import { SETUP_SUGGESTIONS, HAPPENED_SUGGESTIONS, PLAN_RAN, EMOTIONS, MARKET_CONDITIONS } from '../models/JournalEntry.js';
+import { SETUP_SUGGESTIONS, HAPPENED_SUGGESTIONS, WAYS_OUT_UP, WAYS_OUT_DOWN, PLAN_RAN, EMOTIONS, MARKET_CONDITIONS } from '../models/JournalEntry.js';
 import JournalEntry from '../models/JournalEntry.js';
 import { EXCHANGE_CODES, EXCHANGES } from '../config/exchanges.js';
 
@@ -70,8 +70,10 @@ router.get('/options', async (req, res) => {
             emotions: EMOTIONS,
             marketConditions: MARKET_CONDITIONS,
             whatHappened: merge(happenedUsed, HAPPENED_SUGGESTIONS),
-            // So the form can show how each word will be read.
+            // So the form can show how each word will be read, and offer the ways
+            // out that fit a trade that went the way this one did.
             planRan: PLAN_RAN,
+            waysOut: { up: WAYS_OUT_UP, down: WAYS_OUT_DOWN },
             exchanges: EXCHANGE_CODES,
             // Currency and fractional-share rules per market, so sizing matches the venue.
             exchangeRules: Object.values(EXCHANGES).map(x => ({

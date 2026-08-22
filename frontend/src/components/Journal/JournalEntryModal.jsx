@@ -33,7 +33,6 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
         quantity: entry?.quantity ?? '',
         exitDate: dateValue(entry?.exitDate),
         exitPrice: entry?.exitPrice ?? '',
-        exitConfirmed: entry?.exitConfirmed ?? false,
         fees: entry?.fees ?? '',
         exitFees: entry?.exitFees ?? '',
         plannedStop: entry?.plannedStop ?? '',
@@ -68,6 +67,16 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
             pnlPct: cost > 0 ? (gross / cost) * 100 : null,
             rMultiple: perShare > 0 ? gross / (perShare * q) : null
         };
+    })();
+
+    // Offer the ways out that fit the result. Suggesting "target hit" beside a
+    // loss is noise at the moment someone is trying to be straight with
+    // themselves. Words already used come first either way.
+    const waysOut = (() => {
+        const fitting = closedMetrics == null ? []
+            : (closedMetrics.netPnL >= 0 ? options?.waysOut?.up : options?.waysOut?.down) || [];
+        const mine = (options?.whatHappened || []).filter((t) => !fitting.includes(t));
+        return [...fitting, ...mine];
     })();
 
     /**
@@ -485,30 +494,34 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                     <p id="sold-note" className="text-xs text-ink-faint mt-1">
                         All of them. Selling part of a position is not supported yet.
                     </p>
-                    <div className="mt-3">
-                        <Check checked={form.exitConfirmed} onChange={(v) => set('exitConfirmed', v)}
-                            label="Confirmed from a broker fill or statement"
-                            hint="Leave unchecked if this is from memory — the stats will flag it." />
-                    </div>
                 </Section>
 
+                {/* Held back until the exit price is in, because the price is what
+                    says whether this went well or badly - and the ways out worth
+                    offering are different either way. */}
                 <Section title="2 · What happened" hidden={!closing}
-                    hint="How you got out, and anything you would rather have done differently — in the words you would use yourself.">
-                    <TagInput
-                        value={form.whatHappened}
-                        suggestions={options?.whatHappened || []}
-                        placeholder="type it, then Enter"
-                        toneOf={(tag) => (planRan.has(tag) ? 'good' : 'bad')}
-                        onChange={(v) => set('whatHappened', v)}
-                    />
-                    <p className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-ink-faint mt-2">
-                        <span className="flex items-center gap-1.5">
-                            <i className="w-2 h-2 rounded-sm bg-green-600/60" /> the plan ran
-                        </span>
-                        <span className="flex items-center gap-1.5">
-                            <i className="w-2 h-2 rounded-sm bg-red-500/60" /> something you would do differently
-                        </span>
-                    </p>
+                    hint={closedMetrics
+                        ? 'How you got out, and anything you would rather have done differently — in the words you would use yourself.'
+                        : 'Put the exit price in first. What it says about the trade decides what is worth suggesting here.'}>
+                    <fieldset disabled={!closedMetrics} className="disabled:opacity-50">
+                        <TagInput
+                            value={form.whatHappened}
+                            suggestions={waysOut}
+                            placeholder="type it, then Enter"
+                            toneOf={(tag) => (planRan.has(tag) ? 'good' : 'bad')}
+                            onChange={(v) => set('whatHappened', v)}
+                        />
+                    </fieldset>
+                    {closedMetrics && (
+                        <p className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-ink-faint mt-2">
+                            <span className="flex items-center gap-1.5">
+                                <i className="w-2 h-2 rounded-sm bg-green-600/60" /> the plan ran
+                            </span>
+                            <span className="flex items-center gap-1.5">
+                                <i className="w-2 h-2 rounded-sm bg-red-500/60" /> something you would do differently
+                            </span>
+                        </p>
+                    )}
                 </Section>
 
                 <Section title="3 · Worth remembering" hidden={!closing}>
@@ -632,15 +645,3 @@ function Field({ label, locked, children }) {
     );
 }
 
-function Check({ checked, onChange, label, hint }) {
-    return (
-        <label className="flex items-start gap-2 cursor-pointer">
-            <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)}
-                className="mt-1 w-4 h-4 rounded text-cyan-500 focus:ring-cyan-500" />
-            <span>
-                <span className="text-sm text-ink-muted">{label}</span>
-                {hint && <span className="block text-xs text-ink-faint">{hint}</span>}
-            </span>
-        </label>
-    );
-}

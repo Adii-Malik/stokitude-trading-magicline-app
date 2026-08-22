@@ -25,7 +25,17 @@ export const SETUP_SUGGESTIONS = ['breakout', 'reversal', 'pullback', 'trend', '
 export const PLAN_RAN = [
     'stop hit', 'target hit', 'trailed out', 'thesis broke', 'took some off', 'time stop'
 ];
-export const HAPPENED_SUGGESTIONS = [...PLAN_RAN, 'ran out of patience'];
+/**
+ * Which ways out to offer, by how the trade actually went. Suggesting "target
+ * hit" beside a loss is noise, and worse than noise at the moment someone is
+ * trying to be straight with themselves about what happened.
+ *
+ * Both lists are suggestions only. Anything can still be typed, and whatever the
+ * trader has used before is offered ahead of these.
+ */
+export const WAYS_OUT_UP = ['target hit', 'trailed out', 'took some off'];
+export const WAYS_OUT_DOWN = ['stop hit', 'thesis broke', 'trailed out', 'ran out of patience'];
+export const HAPPENED_SUGGESTIONS = [...new Set([...WAYS_OUT_UP, ...WAYS_OUT_DOWN])];
 
 /** Whether a tag describes the plan running, rather than a slip. */
 export function ranToPlan(tag) {
@@ -203,12 +213,6 @@ const journalEntrySchema = new mongoose.Schema({
         min: [0, 'Exit price cannot be negative']
     },
 
-    // False means "this is my recollection, not a broker fill". Stats treat
-    // unconfirmed trades separately rather than quietly trusting them.
-    exitConfirmed: {
-        type: Boolean,
-        default: false
-    },
 
     // Set when dates were reconstructed rather than taken from a statement.
     datesEstimated: {
