@@ -18,6 +18,10 @@ services:
     environment:
       NODE_ENV: production
       PORT: 5001
+    volumes:
+      # Chart screenshots. Without this they live in the container's own layer and
+      # every `up -d` that recreates it silently takes them with it.
+      - journal_uploads:/app/backend/uploads
     # No published ports: only Caddy reaches the app, over the internal network.
     expose:
       - "5001"
@@ -51,5 +55,6 @@ services:
         max-file: "3"
 
 volumes:
+  journal_uploads:
   caddy_data:
   caddy_config:

@@ -7,6 +7,7 @@ import { authenticate } from '../middleware/auth.js';
 import journalService from '../services/journalService.js';
 import RiskProfile from '../models/RiskProfile.js';
 import { contextFor, judge, suggestSize } from '../services/riskContext.js';
+import { chartUpload, URL_PREFIX } from '../services/chartStorage.js';
 import Portfolio from '../models/Portfolio.js';
 import { SETUP_SUGGESTIONS, MISTAKE_SUGGESTIONS, EMOTIONS, MARKET_CONDITIONS } from '../models/JournalEntry.js';
 import JournalEntry from '../models/JournalEntry.js';
@@ -109,6 +110,18 @@ router.put('/risk-profiles/:currency', async (req, res) => {
     } catch (error) {
         fail(res, error);
     }
+});
+
+/**
+ * Store a chart and hand back its path. Separate from saving the entry so a
+ * screenshot can be pasted into a trade that does not exist yet.
+ */
+router.post('/chart', (req, res) => {
+    chartUpload.single('chart')(req, res, (err) => {
+        if (err) return res.status(400).json({ success: false, message: err.message });
+        if (!req.file) return res.status(400).json({ success: false, message: 'No image received' });
+        res.json({ success: true, data: { chartUrl: `${URL_PREFIX}${req.file.filename}` } });
+    });
 });
 
 router.get('/stats', async (req, res) => {

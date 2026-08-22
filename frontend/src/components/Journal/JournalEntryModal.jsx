@@ -6,6 +6,7 @@ import { SymbolInput } from '../../ui/SymbolInput';
 import { TagInput } from '../../ui/TagInput';
 import { FIELD } from '../../ui/field';
 import { RiskRail } from './RiskRail';
+import { ChartUpload } from './ChartUpload';
 import api from '../../services/api';
 import { createEntry, updateEntry } from '../../services/journal';
 import { chargesFor } from '../../utils/commission';
@@ -38,6 +39,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
         emotionalState: entry?.emotionalState || 'neutral',
         marketCondition: entry?.marketCondition || 'sideways',
         mistakes: entry?.mistakes || [],
+        chartUrl: entry?.chartUrl || '',
         notes: entry?.notes || '',
         lesson: entry?.lesson || ''
     });
@@ -287,6 +289,12 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                                 }}
                             />
                         </Field>
+                        <Field label="Exchange">
+                            <select value={form.exchange} className={input}
+                                onChange={(e) => set('exchange', e.target.value)}>
+                                {(options?.exchanges || ['PSX']).map((x) => <option key={x}>{x}</option>)}
+                            </select>
+                        </Field>
                         <Field label="Direction">
                             <select value={form.direction} className={input}
                                 onChange={(e) => set('direction', e.target.value)}>
@@ -357,7 +365,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                     className="flex items-center gap-1.5 text-sm font-semibold text-cyan-600
                                dark:text-cyan-400 border-t border-dashed border-hairline pt-4">
                     {showMore ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                    Setup, market and targets
+                    Setup, chart, targets and your thesis
                 </button>
 
                 {showMore && (
@@ -369,15 +377,26 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                                     placeholder="what you call it"
                                     onChange={(v) => set('setupType', v[0] || '')} />
                             </Field>
-                            <Field label="Exchange">
-                                <select value={form.exchange} className={input}
-                                    onChange={(e) => set('exchange', e.target.value)}>
-                                    {(options?.exchanges || ['PSX']).map((x) => <option key={x}>{x}</option>)}
-                                </select>
-                            </Field>
                         </div>
 
+                        <Field label="Chart">
+                            <ChartUpload value={form.chartUrl} onChange={(v) => set('chartUrl', v)} />
+                        </Field>
+
                         <TargetsEditor targets={form.targets} onChange={(t) => set('targets', t)} />
+
+                        {/* The thesis, written while the outcome is still unknown.
+                            Asking what went wrong on a trade still running invites a
+                            made-up answer, so until it closes this is the only prompt. */}
+                        {!closing && (
+                            <Field label={planning ? 'Why this level' : 'Why this trade'}>
+                                <textarea rows="3" value={form.notes} className={input} maxLength={2000}
+                                    placeholder={planning
+                                        ? 'What makes this level worth taking?'
+                                        : 'Why did I take this? How will I manage it?'}
+                                    onChange={(e) => set('notes', e.target.value)} />
+                            </Field>
+                        )}
                     </div>
                 )}
 
@@ -401,22 +420,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                     </div>
                 </Section>
 
-                {/* Judgment belongs after the fact. Asking what went wrong with a
-                    trade still running invites a fabricated answer, so until it is
-                    closed the only prompt is the thesis. */}
-                {!closing ? (
-                    <Section
-                        title={planning ? 'Why this level' : 'Why this trade'}
-                        hint="The thesis, written while the outcome is still unknown.">
-                        <Field label="Notes">
-                            <textarea rows="3" value={form.notes} className={input} maxLength={2000}
-                                placeholder={planning
-                                    ? 'What makes this level worth taking?'
-                                    : 'Why did I take this? How will I manage it?'}
-                                onChange={(e) => set('notes', e.target.value)} />
-                        </Field>
-                    </Section>
-                ) : (
+                {closing && (
                 <Section title="Review">
                     <div className={ROW}>
                         <Field label="How I felt">

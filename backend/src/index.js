@@ -58,6 +58,14 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
+// Uploaded charts. Ahead of the SPA fallback, or the catch-all would answer
+// image requests with index.html.
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads'), {
+    maxAge: '30d',
+    // Nothing here is executable, and a stored file must never be run as one.
+    setHeaders: (res) => res.setHeader('Content-Security-Policy', "default-src 'none'")
+}));
+
 // Serve static files from React build (production)
 const frontendDistPath = path.join(__dirname, '../../frontend/dist');
 app.use(express.static(frontendDistPath));

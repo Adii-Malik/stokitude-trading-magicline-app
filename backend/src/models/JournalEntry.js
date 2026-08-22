@@ -255,6 +255,14 @@ const journalEntrySchema = new mongoose.Schema({
         maxlength: [60, 'A reason cannot exceed 60 characters']
     }],
 
+    // The chart is the setup for a price-action trade, so it is kept with the
+    // trade rather than described in prose. Stored as a path under /uploads; the
+    // bytes stay on disk so a list query never drags images along with it.
+    chartUrl: {
+        type: String,
+        trim: true
+    },
+
     tags: [{
         type: String,
         trim: true

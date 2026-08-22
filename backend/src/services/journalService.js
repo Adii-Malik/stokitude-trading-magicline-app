@@ -4,6 +4,7 @@
  * persisted, so an edited entry can never disagree with its own statistics.
  */
 import JournalEntry from '../models/JournalEntry.js';
+import { removeChart } from './chartStorage.js';
 import { mintMissing, assertEditable, hydrate } from './journalLedger.js';
 import { escapeRegex } from '../utils/escapeRegex.js';
 
@@ -328,6 +329,10 @@ class JournalService {
         // must not silently remove real transactions from a portfolio that
         // reconciles to a broker balance.
         await JournalEntry.deleteOne({ _id: id, user: userId });
+
+        // The chart belongs to the note, not to the ledger, so it goes with it.
+        await removeChart(entry.chartUrl);
+
         return {
             keptTransactions: [entry.entryTransactionId, entry.exitTransactionId].filter(Boolean).length
         };
