@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { Calculator, AlertTriangle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Calculator, AlertTriangle, Save, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
 import { sizePosition } from '../../utils/positionSizing';
@@ -13,6 +13,7 @@ const PRESETS = [
     { name: 'Balanced', risk: 2, cap: 20 },
     { name: 'Aggressive', risk: 5, cap: 30 }
 ];
+const BALANCED = PRESETS[1];
 
 export default function RiskCalculator({ options }) {
     const rules = options?.exchangeRules || [{ code: 'PSX', currency: 'PKR', fractionalShares: false }];
@@ -23,12 +24,17 @@ export default function RiskCalculator({ options }) {
     const [profiles, setProfiles] = useState({});
     const [trade, setTrade] = useState({ entryPrice: '', stopPrice: '', targetPrice: '' });
     const [saving, setSaving] = useState(false);
-    const [savedAt, setSavedAt] = useState(null);
+    // What the server holds, kept apart from what is on screen, so "changed but
+    // not saved" is a state the panel can show rather than one you discover
+    // later by finding your limit back where it was.
+    const [saved, setSaved] = useState({});
 
     const book = books.find((b) => b._id === portfolioId) || books[0];
     const currency = book?.currency || 'PKR';
     const rule = rules.find((r) => r.currency === currency) || rules[0];
-    const profile = profiles[currency] || { defaultRiskPct: 1, maxPositionPct: 25 };
+    // Balanced rather than an arbitrary pair: an unsaved account should start on
+    // something with a name, or all three tabs sit unlit with nothing saying why.
+    const profile = profiles[currency] || { defaultRiskPct: BALANCED.risk, maxPositionPct: BALANCED.cap };
 
     // Read, never entered: the portfolio already knows what it is worth.
     const [capital, setCapital] = useState(null);
@@ -45,36 +51,40 @@ export default function RiskCalculator({ options }) {
                 const map = {};
                 for (const p of res.data.data) map[p.currency] = p;
                 setProfiles(map);
+                setSaved(Object.fromEntries(Object.entries(map).map(([c, v]) => [c, {
+                    defaultRiskPct: v.defaultRiskPct, maxPositionPct: v.maxPositionPct
+                }])));
             })
             .catch(() => setProfiles({}));
     }, []);
 
-    // Kept, not staged. A limit you set and then lost because you did not press
-    // a second button is worse than no limit: the next trade is judged against
-    // something you thought you had changed.
-    const pending = useRef(null);
-    const setProfile = (patch) => {
-        const next = { ...profile, ...patch };
-        setProfiles((p) => ({ ...p, [currency]: next }));
+    const setProfile = (patch) =>
+        setProfiles((p) => ({ ...p, [currency]: { ...profile, ...patch } }));
 
-        clearTimeout(pending.current);
-        pending.current = setTimeout(async () => {
-            const risk = parseFloat(next.defaultRiskPct);
-            const cap = parseFloat(next.maxPositionPct);
-            if (!Number.isFinite(risk) || !Number.isFinite(cap)) return;
-            setSaving(true);
-            try {
-                await api.put(`/journal/risk-profiles/${currency}`,
-                    { defaultRiskPct: risk, maxPositionPct: cap });
-                setSavedAt(Date.now());
-            } catch (error) {
-                toast.error(error.response?.data?.message || 'Could not save your limits');
-            } finally {
-                setSaving(false);
-            }
-        }, 600);
+    const dirty = saved[currency]
+        ? Number(saved[currency].defaultRiskPct) !== Number(profile.defaultRiskPct)
+            || Number(saved[currency].maxPositionPct) !== Number(profile.maxPositionPct)
+        : true;
+
+    const saveProfile = async () => {
+        const risk = parseFloat(profile.defaultRiskPct);
+        const cap = parseFloat(profile.maxPositionPct);
+        if (!Number.isFinite(risk) || !Number.isFinite(cap)) {
+            toast.error('Both limits need a number');
+            return;
+        }
+        setSaving(true);
+        try {
+            await api.put(`/journal/risk-profiles/${currency}`,
+                { defaultRiskPct: risk, maxPositionPct: cap });
+            setSaved((v) => ({ ...v, [currency]: { defaultRiskPct: risk, maxPositionPct: cap } }));
+            toast.success(`${currency} limits saved`);
+        } catch (error) {
+            toast.error(error.response?.data?.message || 'Could not save your limits');
+        } finally {
+            setSaving(false);
+        }
     };
-    useEffect(() => () => clearTimeout(pending.current), []);
 
     // Which preset these numbers are, if any. Named so the one in force is
     // visible rather than inferred from two percentages.
@@ -153,13 +163,27 @@ export default function RiskCalculator({ options }) {
                             <span className="absolute right-3 top-2 text-ink-faint text-sm">%</span>
                         </div>
                     </div>
+                    {/* Beside the limits it saves, not at the foot of the panel: the
+                        two numbers and the act of keeping them belong together. */}
+                    <div className="flex items-end">
+                        <button type="button" onClick={saveProfile} disabled={saving || !dirty}
+                            className={`w-full flex items-center justify-center gap-1.5 px-3 py-2
+                                rounded-control text-sm font-semibold transition-colors
+                                ${dirty
+                                    ? 'bg-cyan-500 text-white hover:bg-cyan-600'
+                                    : 'ring-1 ring-hairline text-ink-faint cursor-default'}`}>
+                            {saving ? 'Saving…' : dirty ? <><Save className="w-4 h-4" /> Save</> : <><Check className="w-4 h-4" /> Saved</>}
+                        </button>
+                    </div>
+
                     <p className="col-span-2 sm:col-span-3 text-xs text-ink-faint">
                         Risk per trade is what you lose when the stop works. The gap cap limits the
                         position itself, for when price jumps straight past it — 20–25% is sensible.
-                        {' '}
-                        <span className="text-ink-muted">
-                            {saving ? 'Saving…' : savedAt ? 'Saved.' : 'Kept as you change them.'}
-                        </span>
+                        {dirty && (
+                            <span className="text-cyan-600 dark:text-cyan-400 font-medium">
+                                {' '}Not saved yet — these limits will not judge a trade until they are.
+                            </span>
+                        )}
                     </p>
                 </div>
 
