@@ -19,7 +19,10 @@ export function TagInput({
     value = [], onChange, suggestions = [], placeholder, single = false,
     // Optional: 'good' | 'bad' | null per tag, so a word can show how it is being
     // read rather than the reading happening silently somewhere else.
-    toneOf
+    toneOf,
+    // Optional: tags for which only one can be true at a time. A trade has one
+    // way out, so choosing another replaces it rather than claiming both.
+    exclusive
 }) {
     const [draft, setDraft] = useState('');
     const [open, setOpen] = useState(false);
@@ -35,7 +38,15 @@ export function TagInput({
         const tag = String(raw).trim().toLowerCase();
         // Trimmed and lowercased so the same words are one tag, not three.
         if (!tag) return;
-        onChange(single ? [tag] : (value.includes(tag) ? value : [...value, tag]));
+        if (single) {
+            onChange([tag]);
+        } else if (value.includes(tag)) {
+            onChange(value);
+        } else {
+            // One of a mutually exclusive set displaces whichever was there.
+            const kept = exclusive?.(tag) ? value.filter((t) => !exclusive(t)) : value;
+            onChange([...kept, tag]);
+        }
         setDraft('');
         setOpen(false);
     };

@@ -509,6 +509,8 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                             suggestions={waysOut}
                             placeholder="type it, then Enter"
                             toneOf={(tag) => (planRan.has(tag) ? 'good' : 'bad')}
+                            // A trade has one way out. Slips stack; these replace.
+                            exclusive={(tag) => planRan.has(tag)}
                             onChange={(v) => set('whatHappened', v)}
                         />
                     </fieldset>
