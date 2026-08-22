@@ -52,9 +52,19 @@ export function TagInput({
     };
 
     const term = draft.trim().toLowerCase();
-    const matches = suggestions
-        .filter((s) => !value.includes(s) && (!term || s.toLowerCase().includes(term)))
-        .slice(0, 8);
+    // Suggestions arrive either flat or as [{ name, tags }]. Grouped ones keep
+    // their headings, because the groups are how the tags behave rather than
+    // tidying: one outcome, any number of the rest.
+    const grouped = Array.isArray(suggestions) && suggestions[0]?.tags
+        ? suggestions
+        : [{ name: null, tags: suggestions || [] }];
+    const matches = grouped
+        .map((g) => ({
+            ...g,
+            tags: (g.tags || []).filter((t) => !value.includes(t) && (!term || t.toLowerCase().includes(term)))
+        }))
+        .filter((g) => g.tags.length);
+    const anyMatch = matches.some((g) => g.tags.length);
 
     return (
         <div className="relative" ref={box}>
@@ -90,14 +100,24 @@ export function TagInput({
                 }}
             />
 
-            {open && matches.length > 0 && (
+            {open && anyMatch && (
                 <div className="absolute z-20 w-full mt-1 bg-surface rounded-control shadow-card
-                                ring-1 ring-hairline max-h-52 overflow-y-auto">
-                    {matches.map((s) => (
-                        <button key={s} type="button" onClick={() => add(s)}
-                            className="w-full text-left px-3 py-1.5 text-sm text-ink hover:bg-surface-muted">
-                            {s}
-                        </button>
+                                ring-1 ring-hairline max-h-64 overflow-y-auto">
+                    {matches.map((g) => (
+                        <div key={g.name || 'all'}>
+                            {g.name && (
+                                <p className="px-3 pt-2 pb-1 text-[10.5px] font-bold uppercase
+                                              tracking-[0.08em] text-ink-faint">
+                                    {g.name}
+                                </p>
+                            )}
+                            {g.tags.map((t) => (
+                                <button key={t} type="button" onClick={() => add(t)}
+                                    className="w-full text-left px-3 py-1.5 text-sm text-ink hover:bg-surface-muted">
+                                    {t}
+                                </button>
+                            ))}
+                        </div>
                     ))}
                 </div>
             )}

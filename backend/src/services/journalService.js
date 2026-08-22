@@ -5,7 +5,6 @@
  */
 import JournalEntry, { ranToPlan } from '../models/JournalEntry.js';
 
-const round = (n) => Math.round(n * 100) / 100;
 import { removeChart } from './chartStorage.js';
 import { mintMissing, assertEditable, hydrate } from './journalLedger.js';
 import { escapeRegex } from '../utils/escapeRegex.js';
@@ -288,38 +287,6 @@ class JournalService {
         const skip = Math.max(0, parseInt(filters.skip, 10) || 0);
         const limit = Math.min(200, Math.max(1, parseInt(filters.limit, 10) || 25));
         return { total: entries.length, entries: entries.slice(skip, skip + limit) };
-    }
-
-    /**
-     * What these words have done across every closed trade carrying them, so the
-     * cost of a habit can be said at the moment it is being repeated rather than
-     * found later in a report. Excludes the entry being written, which has no
-     * result yet and would otherwise count itself.
-     */
-    async tagHistory(userId, tags, exceptId) {
-        const wanted = (Array.isArray(tags) ? tags : [tags]).filter(Boolean);
-        if (!wanted.length) return [];
-
-        const query = { user: userId, whatHappened: { $in: wanted }, exitPrice: { $ne: null } };
-        if (exceptId) query._id = { $ne: exceptId };
-
-        const found = await JournalEntry.find(query).lean();
-        const decorated = (await hydrate(found)).map(decorate).filter(e => e.status === 'closed');
-
-        return wanted.map((tag) => {
-            const hit = decorated.filter(e => (e.whatHappened || []).includes(tag));
-            const withR = hit.filter(e => e.rMultiple != null);
-            return {
-                tag,
-                ranToPlan: ranToPlan(tag),
-                trades: hit.length,
-                netPnL: round(hit.reduce((sum, e) => sum + (e.netPnL || 0), 0)),
-                avgR: withR.length
-                    ? Math.round((withR.reduce((sum, e) => sum + e.rMultiple, 0) / withR.length) * 100) / 100
-                    : null,
-                green: hit.filter(e => e.outcome === 'win').length
-            };
-        }).filter(x => x.trades > 0);
     }
 
     async get(id, userId) {

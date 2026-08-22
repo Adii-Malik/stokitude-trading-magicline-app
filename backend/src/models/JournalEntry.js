@@ -13,34 +13,59 @@ import { EXCHANGE_CODES, DEFAULT_EXCHANGE, currencyOf } from '../config/exchange
 export const SETUP_SUGGESTIONS = ['breakout', 'reversal', 'pullback', 'trend', 'range'];
 
 /**
- * Ways out that mean the plan ran. A stop being hit is the plan working, not a
- * failure, so these are read as the trade going as intended.
+ * What happened to a trade, in three groups that behave differently.
  *
- * Everything else written in that field is read as something the trader would
- * rather have done differently. That is the safe way round for a figure about
- * one's own discipline: an unrecognised word counts against you rather than
- * quietly passing, and the entry shows how it was taken so a wrong reading is
- * one click to correct.
+ *   Outcome    how it was got out of. Exactly one is true, so choosing another
+ *              replaces it - a trade cannot be both stopped out and target hit.
+ *   Behaviour  what the market did. Neutral, and several can be true at once.
+ *   Execution  what the trader would rather have done differently. Several can
+ *              be true, and these alone count against the plan.
+ *
+ * A stop being hit is the plan working, which is why Outcome sits apart from
+ * Execution rather than everything unfamiliar reading as a fault.
+ *
+ * Suggestions only: anything can still be typed, and whatever has been used
+ * before is offered first.
  */
-export const PLAN_RAN = [
-    'stop hit', 'target hit', 'trailed out', 'thesis broke', 'took some off', 'time stop'
+export const TAG_GROUPS = [
+    {
+        name: 'Outcome',
+        oneOnly: true,
+        tags: ['target hit', 'stop hit', 'breakeven', 'scaled out',
+            'trailing stop', 'manual exit', 'time exit']
+    },
+    {
+        name: 'What happened',
+        tags: ['thesis played out', 'thesis broken', 'failed breakout',
+            'no follow-through', 'reversal', 'gave back profit']
+    },
+    {
+        name: 'Execution',
+        slip: true,
+        tags: ['lost patience', 'held through events', 'moved stop', 'no stop',
+            'premature exit', 'no profit protection', 'fomo exit', 'oversized']
+    }
 ];
-/**
- * Which ways out to offer, by how the trade actually went. Suggesting "target
- * hit" beside a loss is noise, and worse than noise at the moment someone is
- * trying to be straight with themselves about what happened.
- *
- * Both lists are suggestions only. Anything can still be typed, and whatever the
- * trader has used before is offered ahead of these.
- */
-export const WAYS_OUT_UP = ['target hit', 'trailed out', 'took some off'];
-export const WAYS_OUT_DOWN = ['stop hit', 'thesis broke', 'trailed out', 'ran out of patience'];
-export const HAPPENED_SUGGESTIONS = [...new Set([...WAYS_OUT_UP, ...WAYS_OUT_DOWN])];
 
-/** Whether a tag describes the plan running, rather than a slip. */
-export function ranToPlan(tag) {
-    return PLAN_RAN.includes(String(tag || '').trim().toLowerCase());
+const GROUP_OF = new Map(TAG_GROUPS.flatMap(g => g.tags.map(t => [t, g])));
+const norm = (tag) => String(tag || '').trim().toLowerCase();
+
+/** Only one way out can be true, so picking another displaces it. */
+export function isOutcome(tag) {
+    return GROUP_OF.get(norm(tag))?.oneOnly === true;
 }
+
+/**
+ * Whether a tag describes the plan running rather than a slip. A word not in
+ * any group counts as a slip: an unfamiliar note about your own discipline
+ * should weigh against you rather than quietly pass.
+ */
+export function ranToPlan(tag) {
+    const group = GROUP_OF.get(norm(tag));
+    return group ? !group.slip : false;
+}
+
+export const HAPPENED_SUGGESTIONS = TAG_GROUPS.flatMap(g => g.tags);
 
 // The states that mean a fill actually happened, and so require entry details.
 // Planned and cancelled both describe a level that was never entered - demanding

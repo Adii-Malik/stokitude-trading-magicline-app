@@ -9,7 +9,7 @@ import RiskProfile from '../models/RiskProfile.js';
 import { contextFor, judge, suggestSize } from '../services/riskContext.js';
 import { chartUpload, URL_PREFIX } from '../services/chartStorage.js';
 import Portfolio from '../models/Portfolio.js';
-import { SETUP_SUGGESTIONS, HAPPENED_SUGGESTIONS, WAYS_OUT_UP, WAYS_OUT_DOWN, PLAN_RAN, EMOTIONS, MARKET_CONDITIONS } from '../models/JournalEntry.js';
+import { SETUP_SUGGESTIONS, HAPPENED_SUGGESTIONS, TAG_GROUPS, EMOTIONS, MARKET_CONDITIONS } from '../models/JournalEntry.js';
 import JournalEntry from '../models/JournalEntry.js';
 import { EXCHANGE_CODES, EXCHANGES } from '../config/exchanges.js';
 
@@ -70,10 +70,9 @@ router.get('/options', async (req, res) => {
             emotions: EMOTIONS,
             marketConditions: MARKET_CONDITIONS,
             whatHappened: merge(happenedUsed, HAPPENED_SUGGESTIONS),
-            // So the form can show how each word will be read, and offer the ways
-            // out that fit a trade that went the way this one did.
-            planRan: PLAN_RAN,
-            waysOut: { up: WAYS_OUT_UP, down: WAYS_OUT_DOWN },
+            // Grouped, so the picker can show them the way they behave: one
+            // outcome, any number of the rest.
+            tagGroups: TAG_GROUPS,
             exchanges: EXCHANGE_CODES,
             // Currency and fractional-share rules per market, so sizing matches the venue.
             exchangeRules: Object.values(EXCHANGES).map(x => ({
@@ -139,19 +138,6 @@ router.post('/chart', (req, res) => {
         if (!req.file) return res.status(400).json({ success: false, message: 'No image received' });
         res.json({ success: true, data: { chartUrl: `${URL_PREFIX}${req.file.filename}` } });
     });
-});
-
-/** What a tag has cost or made before, for the panel shown while closing. */
-router.get('/tag-history', async (req, res) => {
-    try {
-        const tags = String(req.query.tags || '').split(',').map(t => t.trim()).filter(Boolean);
-        res.json({
-            success: true,
-            data: await journalService.tagHistory(req.user._id, tags, req.query.exceptId)
-        });
-    } catch (error) {
-        fail(res, error);
-    }
 });
 
 router.get('/stats', async (req, res) => {

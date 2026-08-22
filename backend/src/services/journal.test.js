@@ -392,3 +392,37 @@ describe('planned trades in the stats', () => {
         assert.equal(s.followedPlanRate, 100);
     });
 });
+
+describe('the three tag groups', () => {
+    test('only Execution counts against the plan', async () => {
+        const { ranToPlan } = await import('../models/JournalEntry.js');
+        // How you got out and what the market did are facts, not faults.
+        for (const t of ['stop hit', 'target hit', 'breakeven', 'reversal', 'thesis broken']) {
+            assert.equal(ranToPlan(t), true, t);
+        }
+        for (const t of ['moved stop', 'no stop', 'lost patience', 'premature exit']) {
+            assert.equal(ranToPlan(t), false, t);
+        }
+    });
+
+    test('a word in no group counts against you rather than passing quietly', async () => {
+        const { ranToPlan } = await import('../models/JournalEntry.js');
+        assert.equal(ranToPlan('chased it like an idiot'), false);
+        assert.equal(ranToPlan(''), false);
+    });
+
+    test('only the outcome group is one-at-a-time', async () => {
+        const { isOutcome } = await import('../models/JournalEntry.js');
+        assert.equal(isOutcome('stop hit'), true);
+        assert.equal(isOutcome('reversal'), false, 'the market can do several things');
+        assert.equal(isOutcome('moved stop'), false, 'and you can slip more than once');
+    });
+
+    test('a losing trade taken properly still reads as the plan holding', () => {
+        const m = computeMetrics(trade({
+            exitPrice: 95, plannedStop: 95, whatHappened: ['stop hit', 'reversal']
+        }));
+        assert.equal(m.outcome, 'loss');
+        assert.equal(m.followedPlan, true);
+    });
+});

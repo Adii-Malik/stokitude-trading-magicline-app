@@ -11,7 +11,7 @@ import { TrendingUp, TrendingDown } from 'lucide-react';
  * written before the outcome was known, which is the only reason it is worth
  * reading now, and a fresh text box here was a worse version of the lesson.
  */
-export function ResultRail({ metrics, plan, thesis, tagHistory = [], currency = 'PKR' }) {
+export function ResultRail({ metrics, plan, thesis, currency = 'PKR' }) {
     const pnl = metrics?.netPnL;
     const up = pnl != null && pnl >= 0;
     const money = (n) => `${currency} ${Math.abs(Math.round(n)).toLocaleString()}`;
@@ -74,20 +74,6 @@ export function ResultRail({ metrics, plan, thesis, tagHistory = [], currency = 
                 </section>
             )}
 
-            {/* What these words have done before, said while you are writing them
-                again rather than left for a report you will not open. */}
-            {tagHistory.map((t) => (
-                <p key={t.tag} className={`rounded-control px-3 py-2.5 text-xs leading-relaxed ring-1
-                    ${t.ranToPlan
-                        ? 'bg-green-50 dark:bg-green-950/30 ring-green-600/30 text-green-800 dark:text-green-300'
-                        : 'bg-red-50 dark:bg-red-950/30 ring-red-500/30 text-red-700 dark:text-red-300'}`}>
-                    <strong className="block font-bold">{t.tag} · {t.trades} before this</strong>
-                    {t.netPnL >= 0 ? 'Made ' : 'Cost you '}
-                    {money(t.netPnL)} between them
-                    {t.avgR != null && `, averaging ${t.avgR >= 0 ? '+' : ''}${t.avgR}R`}
-                    {t.green === 0 && t.trades > 1 && ', and not one finished green'}.
-                </p>
-            ))}
         </div>
     );
 }

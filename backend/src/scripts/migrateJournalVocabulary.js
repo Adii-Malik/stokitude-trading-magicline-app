@@ -19,6 +19,22 @@ import config from '../config/config.js';
  * Idempotent: only touches what still holds the old shape.
  * Pass --dry to report without writing.
  */
+// The first vocabulary was three words I guessed. This one is the trader's,
+// grouped by how the tags behave, so the old wording is brought onto it.
+const RETAGS = {
+    'no stop placed': 'no stop',
+    'held through event': 'held through events',
+    'thesis broke': 'thesis broken',
+    'trailed out': 'trailing stop',
+    'took some off': 'scaled out',
+    'ran out of patience': 'lost patience',
+    'time stop': 'time exit',
+    'chased the move': 'fomo exit',
+    'position too large': 'oversized',
+    'exited early': 'premature exit',
+    'moved my stop': 'moved stop'
+};
+
 const REASONS = {
     no_stop_placed: 'no stop placed',
     held_through_event: 'held through event',
@@ -58,6 +74,16 @@ const migrate = async () => {
     console.log(`  ${dropped} entries carrying removed fields`);
     if (!dry && dropped) {
         await entries.updateMany({}, { $unset: { stopPlaced: '', eventChecked: '', markPrice: '', setupQuality: '' } });
+    }
+
+    const stale = await entries.find({ whatHappened: { $in: Object.keys(RETAGS) } }).toArray();
+    console.log(`  ${stale.length} entries on the older tag wording`);
+    if (!dry) {
+        for (const e of stale) {
+            await entries.updateOne({ _id: e._id }, {
+                $set: { whatHappened: [...new Set((e.whatHappened || []).map(t => RETAGS[t] || t))] }
+            });
+        }
     }
 
     const named = await entries.countDocuments({ mistakes: { $exists: true } });

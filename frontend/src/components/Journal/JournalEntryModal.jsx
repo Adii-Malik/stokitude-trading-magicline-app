@@ -50,7 +50,6 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
     const [showMore, setShowMore] = useState(false);
     // Whether the entry price is one we filled from the symbol, or one you typed.
     const [autoPriced, setAutoPriced] = useState(false);
-    const planRan = new Set(options?.planRan || []);
 
     // Computed here rather than read off the saved entry: while you are closing,
     // the numbers that matter are the ones in the boxes in front of you.
@@ -69,15 +68,21 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
         };
     })();
 
-    // Offer the ways out that fit the result. Suggesting "target hit" beside a
-    // loss is noise at the moment someone is trying to be straight with
-    // themselves. Words already used come first either way.
-    const waysOut = (() => {
-        const fitting = closedMetrics == null ? []
-            : (closedMetrics.netPnL >= 0 ? options?.waysOut?.up : options?.waysOut?.down) || [];
-        const mine = (options?.whatHappened || []).filter((t) => !fitting.includes(t));
-        return [...fitting, ...mine];
+    // Groups as the server defines them, with anything already used offered
+    // first. The groups are not tidying: one outcome is true, any number of the
+    // rest can be.
+    const tagGroups = (() => {
+        const groups = options?.tagGroups || [];
+        const known = new Set(groups.flatMap((g) => g.tags));
+        const mine = (options?.whatHappened || []).filter((t) => !known.has(t));
+        return mine.length ? [{ name: 'Yours', tags: mine }, ...groups] : groups;
     })();
+    const outcomes = new Set(
+        (options?.tagGroups || []).filter((g) => g.oneOnly).flatMap((g) => g.tags)
+    );
+    const slips = new Set(
+        (options?.tagGroups || []).filter((g) => g.slip).flatMap((g) => g.tags)
+    );
 
     /**
      * The form asks only what its stage can answer. Watching a level has no fill,
@@ -179,18 +184,6 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
     }, [riskKey]);
 
 
-    // What these words have done before, asked for as they are written so the
-    // cost of a habit lands while it is being repeated.
-    const [tagHistory, setTagHistory] = useState([]);
-    const tagKey = (form.whatHappened || []).join('|');
-    useEffect(() => {
-        if (!closing || !tagKey) { setTagHistory([]); return; }
-        let live = true;
-        api.get('/journal/tag-history', { params: { tags: tagKey.split('|').join(','), exceptId: entry?._id } })
-            .then((res) => { if (live) setTagHistory(res.data.data); })
-            .catch(() => { if (live) setTagHistory([]); });
-        return () => { live = false; };
-    }, [tagKey, closing, entry?._id]);
 
     const submit = async (e) => {
         e.preventDefault();
@@ -268,7 +261,6 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                     metrics={closedMetrics}
                     currency={currency}
                     thesis={form.notes}
-                    tagHistory={tagHistory}
                     plan={[
                         { k: 'Entry', v: form.entryPrice || '—' },
                         { k: 'Stop', v: form.plannedStop || '—', mute: !form.plannedStop },
@@ -506,11 +498,11 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                     <fieldset disabled={!closedMetrics} className="disabled:opacity-50">
                         <TagInput
                             value={form.whatHappened}
-                            suggestions={waysOut}
+                            suggestions={tagGroups}
                             placeholder="type it, then Enter"
-                            toneOf={(tag) => (planRan.has(tag) ? 'good' : 'bad')}
-                            // A trade has one way out. Slips stack; these replace.
-                            exclusive={(tag) => planRan.has(tag)}
+                            toneOf={(tag) => (slips.has(tag) ? 'bad' : 'good')}
+                            // A trade has one way out. The rest stack; outcomes replace.
+                            exclusive={(tag) => outcomes.has(tag)}
                             onChange={(v) => set('whatHappened', v)}
                         />
                     </fieldset>
