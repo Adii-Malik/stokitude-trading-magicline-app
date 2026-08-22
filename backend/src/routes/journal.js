@@ -79,7 +79,7 @@ router.get('/risk-context', async (req, res) => {
             data: {
                 ...ctx,
                 verdict: judge({ ...ctx, entryPrice, stopPrice, quantity, targetPrice, direction }),
-                suggested: quantity ? null : suggestSize({ ...ctx, entryPrice, stopPrice })
+                suggested: suggestSize({ ...ctx, entryPrice, stopPrice })
             }
         });
     } catch (error) {

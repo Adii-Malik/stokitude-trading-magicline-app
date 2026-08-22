@@ -9,7 +9,7 @@ import { X } from 'lucide-react';
  * Header and footer stay put while the body scrolls, so the actions are
  * reachable no matter how long the form gets.
  */
-export function Modal({ title, onClose, footer, size = 'md', children }) {
+export function Modal({ title, onClose, footer, rail, size = 'md', children }) {
     useEffect(() => {
         const onKey = (e) => e.key === 'Escape' && onClose?.();
         window.addEventListener('keydown', onKey);
@@ -43,7 +43,18 @@ export function Modal({ title, onClose, footer, size = 'md', children }) {
                     </button>
                 </div>
 
-                <div className="overflow-y-auto px-5 py-4 flex-1">{children}</div>
+                {/* A rail is a second column on a wide screen and part of the
+                    scroll on a narrow one, so what it says is never below the
+                    fold on the device the form is most often filled on. */}
+                <div className="overflow-y-auto flex-1 flex flex-col lg:flex-row lg:items-stretch">
+                    <div className="px-5 py-4 flex-1 min-w-0">{children}</div>
+                    {rail && (
+                        <aside className="shrink-0 px-5 py-4 bg-surface-muted
+                                          border-t lg:border-t-0 lg:border-l border-hairline lg:w-72">
+                            {rail}
+                        </aside>
+                    )}
+                </div>
 
                 {footer && (
                     <div className="flex gap-3 px-5 py-4 border-t border-hairline shrink-0">{footer}</div>

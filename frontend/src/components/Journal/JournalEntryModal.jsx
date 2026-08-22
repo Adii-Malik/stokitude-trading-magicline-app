@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, CheckCircle, Lock } from 'lucide-react';
+import { Plus, Trash2, CheckCircle, Lock, ChevronRight, ChevronDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Modal } from '../../ui/Modal';
 import { SymbolInput } from '../../ui/SymbolInput';
 import { TagInput } from '../../ui/TagInput';
 import { FIELD } from '../../ui/field';
-import { RiskVerdict } from './RiskVerdict';
+import { RiskRail } from './RiskRail';
 import api from '../../services/api';
 import { createEntry, updateEntry } from '../../services/journal';
 import { chargesFor } from '../../utils/commission';
@@ -42,6 +42,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
         lesson: entry?.lesson || ''
     });
     const [saving, setSaving] = useState(false);
+    const [showMore, setShowMore] = useState(false);
 
     /**
      * The form asks only what its stage can answer. Watching a level has no fill,
@@ -59,6 +60,12 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
     const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
     const bounds = [form.entryFrom, form.entryTo].filter((v) => v !== '').map(Number);
+    const entryRef = planning
+        ? (bounds.length ? bounds.reduce((a, b) => a + b, 0) / bounds.length : null)
+        : (form.entryPrice === '' ? null : Number(form.entryPrice));
+    const perShare = entryRef != null && form.plannedStop !== ''
+        ? Math.abs(entryRef - Number(form.plannedStop))
+        : 0;
 
     const zoneMissing = planning && bounds.length === 0;
 
@@ -93,20 +100,18 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
 
     // Explicit flags rather than checking for an empty value, which froze the
     // prefill on the first keystroke last time.
-    const [feeEdited, setFeeEdited] = useState(false);
-    const [exitFeeEdited, setExitFeeEdited] = useState(false);
 
     useEffect(() => {
-        if (!feeEdited && !entryBooked && suggestedFee > 0) {
+        if (!entryBooked && suggestedFee > 0) {
             setForm((f) => ({ ...f, fees: suggestedFee.toFixed(2) }));
         }
-    }, [suggestedFee, feeEdited, entryBooked]);
+    }, [suggestedFee, entryBooked]);
 
     useEffect(() => {
-        if (!exitFeeEdited && !exitBooked && suggestedExitFee > 0) {
+        if (!exitBooked && suggestedExitFee > 0) {
             setForm((f) => ({ ...f, exitFees: suggestedExitFee.toFixed(2) }));
         }
-    }, [suggestedExitFee, exitFeeEdited, exitBooked]);
+    }, [suggestedExitFee, exitBooked]);
 
 
     // The verdict is the server's to give: capital comes from the portfolios and
@@ -207,8 +212,21 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
 
     return (
         <Modal
-            size="lg"
+            size="xl"
             onClose={onClose}
+            rail={
+                <RiskRail
+                    books={bookable}
+                    portfolioId={form.portfolioId}
+                    onPickBook={(v) => set('portfolioId', v)}
+                    locked={entryBooked}
+                    capital={riskCtx?.capital}
+                    verdict={riskCtx?.verdict}
+                    suggested={riskCtx?.suggested}
+                    currency={currency}
+                    onUseSuggested={(n) => set('quantity', String(n))}
+                />
+            }
             title={closingNow ? `Close ${form.symbol || 'the trade'}`
                 : editing ? (planning ? 'Edit Planned Trade' : 'Edit Trade')
                     : (planning ? 'Plan a Trade' : 'Journal a Trade')}
@@ -250,7 +268,9 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                     </div>
                 )}
 
-                <Section title="The plan" hint="What you are watching, and why.">
+                <Section title="1 · What you’re trading"
+                    when={planning ? null : form.entryDate}
+                    onWhen={(v) => set('entryDate', v)} whenLocked={entryBooked}>
                     <div className={ROW}>
                         <Field label="Symbol *">
                             <SymbolInput
@@ -267,12 +287,6 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                                 }}
                             />
                         </Field>
-                        <Field label="Market">
-                            <select value={form.exchange} className={input}
-                                onChange={(e) => set('exchange', e.target.value)}>
-                                {(options?.exchanges || ['PSX']).map((x) => <option key={x}>{x}</option>)}
-                            </select>
-                        </Field>
                         <Field label="Direction">
                             <select value={form.direction} className={input}
                                 onChange={(e) => set('direction', e.target.value)}>
@@ -281,17 +295,13 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                             </select>
                         </Field>
                     </div>
-                    <div className="mt-3">
-                        <Field label="Setup">
-                            <TagInput single value={form.setupType ? [form.setupType] : []}
-                                suggestions={options?.setupTypes || []}
-                                placeholder="what you call it"
-                                onChange={(v) => set('setupType', v[0] || '')} />
-                        </Field>
-                    </div>
-                    {planning && (
-                        <div className="mt-3">
-                            <div className={ROW}>
+                </Section>
+
+                {/* The two that decide the size, together and nothing between them. */}
+                <Section title="2 · Entry and stop">
+                    <div className={ROW}>
+                        {planning ? (
+                            <>
                                 <Field label="Entry zone from *">
                                     <input type="number" step="any" value={form.entryFrom} className={input}
                                         onChange={(e) => set('entryFrom', e.target.value)} />
@@ -300,93 +310,76 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                                     <input type="number" step="any" value={form.entryTo} className={input}
                                         onChange={(e) => set('entryTo', e.target.value)} />
                                 </Field>
-                            </div>
-                            <p className="text-xs text-ink-faint mt-1">
-                                A level is a band, not a number. You&apos;ll be told when price trades into it.
-                            </p>
-                        </div>
-                    )}
-                </Section>
-
-                <Section title="Risk" hint="Decided before the entry, not after it.">
-                    <div className={ROW}>
-                        <Field label="Stop level">
+                            </>
+                        ) : (
+                            <Field label="Entry price *" locked={entryBooked}>
+                                <input type="number" step="any" required value={form.entryPrice} className={input}
+                                    disabled={entryBooked}
+                                    onChange={(e) => set('entryPrice', e.target.value)} />
+                            </Field>
+                        )}
+                        <Field label="Stop loss">
                             <input type="number" step="any" value={form.plannedStop} className={input}
                                 onChange={(e) => set('plannedStop', e.target.value)} />
                         </Field>
-                        {/* The size sits with the stop, because together they are the
-                            risk. On a taken trade the fill owns it, so it moves down
-                            to the entry and this row holds the stop alone. */}
-                        {planning && (
-                            <Field label="Shares">
-                                <input type="number" step="any" value={form.quantity} className={input}
-                                    placeholder="optional"
-                                    onChange={(e) => set('quantity', e.target.value)} />
-                            </Field>
-                        )}
                     </div>
-
-                    <TargetsEditor targets={form.targets} onChange={(t) => set('targets', t)} />
-
-                    <RiskVerdict verdict={riskCtx?.verdict} currency={currency}
-                        needsBook={!form.portfolioId && !!form.plannedStop} />
-
-                </Section>
-
-                <Section title="Entry" hidden={planning}>
-
-                        <div className="mt-3">
-                            <div className={ROW}>
-                                <Field label="Entry date *" locked={entryBooked}>
-                                    <input type="date" required value={form.entryDate} className={input}
-                                        disabled={entryBooked}
-                                        onChange={(e) => set('entryDate', e.target.value)} />
-                                </Field>
-                                <Field label="Entry price *" locked={entryBooked}>
-                                    <input type="number" step="any" required value={form.entryPrice} className={input}
-                                        disabled={entryBooked}
-                                        onChange={(e) => set('entryPrice', e.target.value)} />
-                                </Field>
-                                <Field label="Quantity *" locked={entryBooked}>
-                                    <input type="number" step="any" required value={form.quantity} className={input}
-                                        disabled={entryBooked}
-                                        onChange={(e) => set('quantity', e.target.value)} />
-                                </Field>
-                                {/* Beside the entry it pays for, not down in the exit. */}
-                                <Field label="Entry fees" locked={entryBooked}>
-                                    <input type="number" step="any" value={form.fees} className={input}
-                                        disabled={entryBooked}
-                                        onChange={(e) => { setFeeEdited(true); set('fees', e.target.value); }} />
-                                </Field>
-                            </div>
-                            {portfolio && !entryBooked && suggestedFee > 0 && (
-                                <p className="text-xs text-ink-faint mt-1">
-                                    {suggestedFee.toFixed(2)} from {portfolio.name}&apos;s commission rules. Override if the note says otherwise.
-                                </p>
-                            )}
-                        </div>
-                    <div className="mt-3">
-                        <Field label="Book it in a portfolio">
-                            <select value={form.portfolioId} className={input}
-                                disabled={entryBooked}
-                                onChange={(e) => set('portfolioId', e.target.value)}>
-                                <option value="">Don&apos;t book it — journal only</option>
-                                {bookable.map((p) => (
-                                    <option key={p._id} value={p._id}>{p.name}</option>
-                                ))}
-                            </select>
-                        </Field>
+                    {planning && (
                         <p className="text-xs text-ink-faint mt-1">
-                            {entryBooked
-                                ? 'Booked. The ledger owns the numbers above — edit the transaction in the portfolio to change them.'
-                                : form.portfolioId
-                                    ? 'A buy is recorded when you save, and a sell when you close. The ledger then owns those numbers.'
-                                    : bookable.length === 0
-                                        ? `No ${currency} portfolio to book into. The journal will track this trade on its own.`
-                                        : 'Leave unset for a trade held somewhere this app has no ledger for.'}
+                            A level is a band, not a number. You&apos;ll be told when price trades into it.
                         </p>
-                    </div>
+                    )}
+                    {perShare > 0 && (
+                        <p className="text-xs text-ink-faint mt-1 tabular-nums">
+                            {perShare.toFixed(2)} a share at risk — the distance that sets the size.
+                        </p>
+                    )}
                 </Section>
+
+                <Section title="3 · How many">
+                    <div className={ROW}>
+                        <Field label="Shares" locked={entryBooked}>
+                            <input type="number" step="any" required={!planning} value={form.quantity}
+                                className={input} disabled={entryBooked}
+                                placeholder={planning ? 'optional' : ''}
+                                onChange={(e) => set('quantity', e.target.value)} />
+                        </Field>
+                    </div>
+                    <p className="text-xs text-ink-faint mt-1">
+                        {riskCtx?.suggested
+                            ? 'Take the suggestion beside this, or type your own.'
+                            : 'An entry and a stop will suggest a size.'}
+                    </p>
+                </Section>
+
+                {/* Judgement rather than arithmetic: none of it is needed to size
+                    a trade, so none of it is in the way of doing so. */}
+                <button type="button" onClick={() => setShowMore((v) => !v)}
+                    className="flex items-center gap-1.5 text-sm font-semibold text-cyan-600
+                               dark:text-cyan-400 border-t border-dashed border-hairline pt-4">
+                    {showMore ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                    Setup, market and targets
+                </button>
+
+                {showMore && (
+                    <div className="flex flex-col gap-4">
+                        <div className={ROW}>
+                            <Field label="Setup">
+                                <TagInput single value={form.setupType ? [form.setupType] : []}
+                                    suggestions={options?.setupTypes || []}
+                                    placeholder="what you call it"
+                                    onChange={(v) => set('setupType', v[0] || '')} />
+                            </Field>
+                            <Field label="Exchange">
+                                <select value={form.exchange} className={input}
+                                    onChange={(e) => set('exchange', e.target.value)}>
+                                    {(options?.exchanges || ['PSX']).map((x) => <option key={x}>{x}</option>)}
+                                </select>
+                            </Field>
+                        </div>
+
+                        <TargetsEditor targets={form.targets} onChange={(t) => set('targets', t)} />
+                    </div>
+                )}
 
                 <Section title="Exit" hidden={!closing}>
                     <div className={ROW}>
@@ -400,19 +393,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                                 disabled={exitBooked}
                                 onChange={(e) => set('exitPrice', e.target.value)} />
                         </Field>
-                        {/* The sell's own commission. Sharing one field with the
-                            entry meant the exit was billed the entry's rate. */}
-                        <Field label="Exit fees" locked={exitBooked}>
-                            <input type="number" step="any" value={form.exitFees} className={input}
-                                disabled={exitBooked}
-                                onChange={(e) => { setExitFeeEdited(true); set('exitFees', e.target.value); }} />
-                        </Field>
                     </div>
-                    {portfolio && !exitBooked && suggestedExitFee > 0 && (
-                        <p className="text-xs text-ink-faint mt-1">
-                            {suggestedExitFee.toFixed(2)} from {portfolio.name}&apos;s commission rules for the sell side.
-                        </p>
-                    )}
                     <div className="mt-3">
                         <Check checked={form.exitConfirmed} onChange={(v) => set('exitConfirmed', v)}
                             label="Confirmed from a broker fill or statement"
@@ -444,7 +425,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                                 {(options?.emotions || []).map((x) => <option key={x} value={x}>{x}</option>)}
                             </select>
                         </Field>
-                        <Field label="Market">
+                        <Field label="Market condition">
                             <select value={form.marketCondition} className={input}
                                 onChange={(e) => set('marketCondition', e.target.value)}>
                                 {(options?.marketConditions || []).map((x) => <option key={x} value={x}>{x}</option>)}
@@ -492,11 +473,25 @@ const FORM_ID = 'journal-entry-form';
 const input = FIELD;
 const ROW = 'grid gap-3 grid-cols-[repeat(auto-fit,minmax(150px,1fr))]';
 
-function Section({ title, hint, hidden, children }) {
+function Section({ title, hint, hidden, when, onWhen, whenLocked, children }) {
     if (hidden) return null;
     return (
         <div className="border-t border-hairline pt-5 first:border-t-0 first:pt-0">
-            <h3 className="font-semibold text-ink">{title}</h3>
+            <div className="flex items-center gap-3">
+                <h3 className="font-semibold text-ink">{title}</h3>
+                {/* On the heading row, which had the space going spare. Needed on
+                    every trade and right by default on almost all of them, so it
+                    earns sight without costing a tab stop among the real fields. */}
+                {when !== undefined && when !== null && (
+                    <input
+                        type="date" value={when} disabled={whenLocked}
+                        onChange={(e) => onWhen(e.target.value)}
+                        aria-label="Trade date"
+                        className="ml-auto px-2 py-1 text-xs rounded-control border border-hairline
+                                   bg-surface text-ink-muted tabular-nums disabled:opacity-60"
+                    />
+                )}
+            </div>
             {hint && <p className="text-xs text-ink-faint mt-0.5">{hint}</p>}
             {/* Fixed, not conditional on the hint: the gap above the fields was
                 what shifted between sections, not the heading. */}
