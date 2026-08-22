@@ -76,25 +76,27 @@ export function RiskRail({
             {verdict?.capital != null && (verdict.risk != null || verdict.position != null) && (
                 <section className="flex flex-col gap-3.5">
                     <Meter
-                        label="Risk if stopped" amount={verdict.risk}
+                        label="If the stop hits, you lose" currency={currency}
+                        amount={verdict.risk}
                         pct={verdict.riskPctOfCapital} limit={verdict.limits.riskPct}
                         breached={verdict.breaches.risk}
                     />
                     <Meter
-                        label="Share of the book" amount={verdict.position}
+                        label="Money in this one stock" currency={currency}
+                        amount={verdict.position}
                         pct={verdict.positionPctOfCapital} limit={verdict.limits.maxPositionPct}
                         breached={verdict.breaches.position}
                     />
                     {/* Only when a target was set. A trailing stop has none, and a
                         made-up one would put fiction into every R:R reported. */}
-                    <p className="flex justify-between text-xs">
-                        <span className="text-ink-muted font-semibold">Reward : risk</span>
-                        <span className={verdict.rr != null
-                            ? `font-bold tabular-nums ${verdict.rr >= 2 ? 'text-green-700 dark:text-green-400' : 'text-ink'}`
-                            : 'text-ink-faint'}>
-                            {verdict.rr != null ? `${verdict.rr.toFixed(2)} : 1` : 'no target set'}
-                        </span>
-                    </p>
+                    {verdict.rr != null && (
+                        <p className="flex justify-between text-xs">
+                            <span className="text-ink-muted font-semibold">For every 1 risked, you make</span>
+                            <span className={`font-bold tabular-nums ${verdict.rr >= 2 ? 'text-green-700 dark:text-green-400' : 'text-ink'}`}>
+                                {verdict.rr.toFixed(2)}
+                            </span>
+                        </p>
+                    )}
                 </section>
             )}
 
@@ -103,13 +105,19 @@ export function RiskRail({
                               ring-1 ring-red-200 dark:ring-red-900 px-3 py-2.5
                               text-xs text-red-700 dark:text-red-300">
                     <AlertTriangle className="w-4 h-4 shrink-0 mt-px" />
+                    {/* Say the numbers rather than the rule. "Past your own limit"
+                        makes you go back and work out which one and by how much. */}
                     <span>
                         <strong className="block font-bold">
                             {verdict.breaches.stopBackwards
-                                ? 'The stop is on the wrong side of the entry.'
-                                : 'Past your own limit.'}
+                                ? 'The stop is on the wrong side of the entry'
+                                : verdict.breaches.risk
+                                    ? `This risks ${verdict.riskPctOfCapital.toFixed(1)}% of the book, not ${verdict.limits.riskPct}%`
+                                    : `This puts ${verdict.positionPctOfCapital.toFixed(1)}% of the book in one stock, not ${verdict.limits.maxPositionPct}%`}
                         </strong>
-                        Saving is fine. It is recorded as a trade you sized past your rule.
+                        {verdict.breaches.stopBackwards
+                            ? 'A long stops below the entry, a short above it.'
+                            : 'You can still save it — it will be marked as a trade you sized past your own rule.'}
                     </span>
                 </p>
             )}
@@ -125,32 +133,42 @@ function Head({ children }) {
     );
 }
 
-/** The notch is the limit, the fill is this trade. Read before any number is. */
-function Meter({ label, amount, pct, limit, breached }) {
+/**
+ * One number said three ways: the money, the share of the book, and where that
+ * share sits against the line you drew. The bar is the fastest of the three to
+ * read, so the limit is drawn on it rather than described beneath it.
+ */
+function Meter({ label, amount, pct, limit, breached, currency }) {
     if (amount == null) return null;
-    const span = Math.max(limit ?? 0, pct ?? 0, 1) * 1.05;
+    const span = Math.max(limit ?? 0, pct ?? 0, 1) * 1.15;
+    const at = (v) => `${Math.min((v / span) * 100, 100)}%`;
     return (
         <div>
-            <div className="flex justify-between items-baseline gap-2 mb-1.5">
-                <span className="text-xs font-semibold text-ink-muted">{label}</span>
-                <span className="text-xs font-bold text-ink tabular-nums">
-                    {Math.round(amount).toLocaleString()}
-                    {pct != null && <span className="font-medium text-ink-faint"> · {pct.toFixed(1)}%</span>}
+            <p className="text-xs text-ink-muted font-semibold">{label}</p>
+            <p className="flex items-baseline justify-between gap-2 mt-0.5">
+                <span className={`text-base font-bold tabular-nums ${breached ? 'text-red-600 dark:text-red-400' : 'text-ink'}`}>
+                    {currency} {Math.round(amount).toLocaleString()}
                 </span>
-            </div>
-            <div className="relative h-[7px] rounded-full bg-surface-muted ring-1 ring-hairline overflow-hidden">
+                {pct != null && (
+                    <span className="text-xs text-ink-faint tabular-nums">
+                        {pct.toFixed(1)}% of the book
+                    </span>
+                )}
+            </p>
+            <div className="relative h-2 mt-1.5 rounded-full bg-surface-muted ring-1 ring-hairline overflow-hidden">
                 <span
                     className={`absolute inset-y-0 left-0 rounded-full ${breached ? 'bg-red-500' : 'bg-green-600 dark:bg-green-400'}`}
-                    style={{ width: `${Math.min((pct ?? 0) / span * 100, 100)}%` }}
+                    style={{ width: at(pct ?? 0) }}
                 />
                 {limit != null && (
-                    <span className="absolute -top-0.5 -bottom-0.5 w-0.5 bg-ink/50 rounded-sm"
-                        style={{ left: `${Math.min(limit / span * 100, 100)}%` }} />
+                    <span className="absolute -top-0.5 -bottom-0.5 w-0.5 bg-ink/60 rounded-sm" style={{ left: at(limit) }} />
                 )}
             </div>
             {limit != null && (
-                <p className={`mt-1 text-[11px] ${breached ? 'text-red-600 dark:text-red-400 font-semibold' : 'text-ink-faint'}`}>
-                    {breached ? `Past your ${limit}% line` : `Inside your ${limit}%`}
+                <p className={`mt-1 text-[11px] tabular-nums ${breached ? 'text-red-600 dark:text-red-400 font-semibold' : 'text-ink-faint'}`}>
+                    {breached
+                        ? `Over the ${limit}% you allow yourself`
+                        : `The mark is your ${limit}% limit`}
                 </p>
             )}
         </div>

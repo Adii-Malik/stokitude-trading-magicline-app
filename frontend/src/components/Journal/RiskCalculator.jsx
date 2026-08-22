@@ -94,9 +94,17 @@ export default function RiskCalculator({ options }) {
 
     // Which preset these numbers are, if any. Named so the one in force is
     // visible rather than inferred from two percentages.
-    const active = PRESETS.find((x) =>
-        Number(x.risk) === Number(profile.defaultRiskPct)
-        && Number(x.cap) === Number(profile.maxPositionPct));
+    const nearest = (() => {
+        const risk = Number(profile.defaultRiskPct);
+        const cap = Number(profile.maxPositionPct);
+        if (!Number.isFinite(risk) || !Number.isFinite(cap)) return null;
+        // Distance in both numbers at once, so neither alone decides it.
+        return PRESETS.reduce((best, x) => {
+            const d = Math.abs(x.risk - risk) + Math.abs(x.cap - cap) / 5;
+            return best && best.d <= d ? best : { ...x, d };
+        }, null);
+    })();
+    const active = nearest;
 
     const result = sizePosition({
         capital,
@@ -126,7 +134,7 @@ export default function RiskCalculator({ options }) {
                     </select>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 mb-3">
+                <div className="grid grid-cols-3 gap-2 mb-3">
                     {PRESETS.map((preset) => (
                         <button key={preset.name} type="button"
                             aria-pressed={active?.name === preset.name}
@@ -138,12 +146,6 @@ export default function RiskCalculator({ options }) {
                             </span>
                         </button>
                     ))}
-                    {!active && (
-                        <span className="px-2.5 py-1 rounded-control ring-1 ring-cyan-500
-                                         text-xs font-semibold text-cyan-600 dark:text-cyan-400">
-                            Custom
-                        </span>
-                    )}
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -160,20 +162,16 @@ export default function RiskCalculator({ options }) {
                         </p>
                     </div>
                     <div>
-                        <Label>Risk per trade</Label>
-                        <div className="relative">
-                            <input type="number" step="any" className={input} value={profile.defaultRiskPct}
-                                onChange={(e) => setProfile({ defaultRiskPct: e.target.value })} />
-                            <span className="absolute right-3 top-2 text-ink-faint text-sm">%</span>
-                        </div>
+                        <Label>Risk per trade (%)</Label>
+                        <input type="number" step="any" min="0" max="100" className={input}
+                            value={profile.defaultRiskPct}
+                            onChange={(e) => setProfile({ defaultRiskPct: e.target.value })} />
                     </div>
                     <div>
-                        <Label>Gap cap</Label>
-                        <div className="relative">
-                            <input type="number" step="any" className={input} value={profile.maxPositionPct}
-                                onChange={(e) => setProfile({ maxPositionPct: e.target.value })} />
-                            <span className="absolute right-3 top-2 text-ink-faint text-sm">%</span>
-                        </div>
+                        <Label>Most of the book in one stock (%)</Label>
+                        <input type="number" step="any" min="0" max="100" className={input}
+                            value={profile.maxPositionPct}
+                            onChange={(e) => setProfile({ maxPositionPct: e.target.value })} />
                     </div>
                     {/* Beside the limits it saves, not at the foot of the panel: the
                         two numbers and the act of keeping them belong together. */}
@@ -189,8 +187,9 @@ export default function RiskCalculator({ options }) {
                     </div>
 
                     <p className="col-span-2 sm:col-span-3 text-xs text-ink-faint">
-                        Risk per trade is what you lose when the stop works. The gap cap limits the
-                        position itself, for when price jumps straight past it — 20–25% is sensible.
+                        <strong className="text-ink-muted">Risk per trade</strong> is what you lose if the
+                        stop hits. The second limit caps how much of the book one stock can become, whatever
+                        the stop says — it is what protects you when price gaps straight past it.
                         {dirty && (
                             <span className="text-cyan-600 dark:text-cyan-400 font-medium">
                                 {' '}Not saved yet — these limits will not judge a trade until they are.
