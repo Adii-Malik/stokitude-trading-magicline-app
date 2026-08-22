@@ -148,7 +148,7 @@ export default function RiskCalculator({ options }) {
                     ))}
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 items-end">
                     <div className="col-span-2 sm:col-span-3 rounded-control bg-surface-muted px-3 py-2">
                         <Label>Capital</Label>
                         <p className="text-lg font-semibold text-ink tabular-nums">
@@ -168,7 +168,7 @@ export default function RiskCalculator({ options }) {
                             onChange={(e) => setProfile({ defaultRiskPct: e.target.value })} />
                     </div>
                     <div>
-                        <Label>Most of the book in one stock (%)</Label>
+                        <Label>Max in one stock (%)</Label>
                         <input type="number" step="any" min="0" max="100" className={input}
                             value={profile.maxPositionPct}
                             onChange={(e) => setProfile({ maxPositionPct: e.target.value })} />
@@ -188,8 +188,9 @@ export default function RiskCalculator({ options }) {
 
                     <p className="col-span-2 sm:col-span-3 text-xs text-ink-faint">
                         <strong className="text-ink-muted">Risk per trade</strong> is what you lose if the
-                        stop hits. The second limit caps how much of the book one stock can become, whatever
-                        the stop says — it is what protects you when price gaps straight past it.
+                        stop hits. <strong className="text-ink-muted">Max in one stock</strong> caps the
+                        position itself, whatever the stop says — it is what protects you when price gaps
+                        straight past the stop instead of filling at it.
                         {dirty && (
                             <span className="text-cyan-600 dark:text-cyan-400 font-medium">
                                 {' '}Not saved yet — these limits will not judge a trade until they are.
