@@ -53,6 +53,23 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
     const [autoPriced, setAutoPriced] = useState(false);
     const planRan = new Set(options?.planRan || []);
 
+    // Computed here rather than read off the saved entry: while you are closing,
+    // the numbers that matter are the ones in the boxes in front of you.
+    const closedMetrics = (() => {
+        const n = (v) => (v === '' || v == null ? null : Number(v));
+        const [ep, xp, q, st] = [n(form.entryPrice), n(form.exitPrice), n(form.quantity), n(form.plannedStop)];
+        if (ep == null || xp == null || q == null) return null;
+        const sign = form.direction === 'short' ? -1 : 1;
+        const gross = (xp - ep) * q * sign;
+        const cost = ep * q;
+        const perShare = st != null ? Math.abs(ep - st) : null;
+        return {
+            netPnL: gross,
+            pnlPct: cost > 0 ? (gross / cost) * 100 : null,
+            rMultiple: perShare > 0 ? gross / (perShare * q) : null
+        };
+    })();
+
     /**
      * The form asks only what its stage can answer. Watching a level has no fill,
      * being in a trade has no result, and only a finished trade can be reviewed —
@@ -239,7 +256,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
             onClose={onClose}
             rail={closing ? (
                 <ResultRail
-                    metrics={entry}
+                    metrics={closedMetrics}
                     currency={currency}
                     thesis={form.notes}
                     tagHistory={tagHistory}
@@ -309,7 +326,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                     </div>
                 )}
 
-                <Section title="1 · What you’re trading"
+                <Section title="1 · What you’re trading" hidden={closing}
                     when={planning ? null : form.entryDate}
                     onWhen={(v) => set('entryDate', v)} whenLocked={entryBooked}>
                     <div className={ROW}>
@@ -352,7 +369,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                 </Section>
 
                 {/* The two that decide the size, together and nothing between them. */}
-                <Section title="2 · Entry and stop">
+                <Section title="2 · Entry and stop" hidden={closing}>
                     <div className={ROW}>
                         {planning ? (
                             <>
@@ -389,7 +406,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                     )}
                 </Section>
 
-                <Section title="3 · How many">
+                <Section title="3 · How many" hidden={closing}>
                     <div className={ROW}>
                         <Field label="Shares" locked={entryBooked}>
                             <input type="number" step="any" required={!planning} value={form.quantity}
@@ -407,14 +424,16 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
 
                 {/* Judgement rather than arithmetic: none of it is needed to size
                     a trade, so none of it is in the way of doing so. */}
+                {!closing && (
                 <button type="button" onClick={() => setShowMore((v) => !v)}
                     className="flex items-center gap-1.5 text-sm font-semibold text-cyan-600
                                dark:text-cyan-400 border-t border-dashed border-hairline pt-4">
                     {showMore ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                     Setup, chart, targets and your thesis
                 </button>
+                )}
 
-                {showMore && (
+                {showMore && !closing && (
                     <div className="flex flex-col gap-4">
                         <div className={ROW}>
                             <Field label="Setup">
