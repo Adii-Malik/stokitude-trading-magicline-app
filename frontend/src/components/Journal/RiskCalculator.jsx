@@ -15,22 +15,27 @@ const PRESETS = [
 
 export default function RiskCalculator({ options }) {
     const rules = options?.exchangeRules || [{ code: 'PSX', currency: 'PKR', fractionalShares: false }];
-    const [exchange, setExchange] = useState(rules[0].code);
+    // Sizing is against one book, so the book is chosen, not the market. A
+    // portfolio held for investing is not the capital a swing trade risks.
+    const books = options?.portfolios || [];
+    const [portfolioId, setPortfolioId] = useState(books[0]?._id || '');
     const [profiles, setProfiles] = useState({});
     const [trade, setTrade] = useState({ entryPrice: '', stopPrice: '', targetPrice: '' });
     const [saving, setSaving] = useState(false);
 
-    const rule = rules.find((r) => r.code === exchange) || rules[0];
-    const currency = rule.currency;
+    const book = books.find((b) => b._id === portfolioId) || books[0];
+    const currency = book?.currency || 'PKR';
+    const rule = rules.find((r) => r.currency === currency) || rules[0];
     const profile = profiles[currency] || { defaultRiskPct: 1, maxPositionPct: 25 };
 
-    // Read, never entered: the portfolios already know what they are worth.
+    // Read, never entered: the portfolio already knows what it is worth.
     const [capital, setCapital] = useState(null);
     useEffect(() => {
-        api.get('/journal/risk-context', { params: { currency } })
+        if (!portfolioId) { setCapital(null); return; }
+        api.get('/journal/risk-context', { params: { currency, portfolioId } })
             .then((res) => setCapital(res.data.data.capital))
             .catch(() => setCapital(null));
-    }, [currency]);
+    }, [currency, portfolioId]);
 
     useEffect(() => {
         api.get('/journal/risk-profiles')
@@ -78,17 +83,14 @@ export default function RiskCalculator({ options }) {
                 </h3>
 
                 <div>
-                    <Label>Market</Label>
-                    <div className="flex gap-2">
-                        {rules.map((r) => (
-                            <button key={r.code} type="button" onClick={() => setExchange(r.code)}
-                                className={`px-3 py-1.5 rounded-lg text-sm font-medium ${exchange === r.code
-                                    ? 'bg-cyan-500 text-white'
-                                    : 'border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300'}`}>
-                                {r.code}
-                            </button>
+                    <Label>Book</Label>
+                    <select value={portfolioId} className={input}
+                        onChange={(e) => setPortfolioId(e.target.value)}>
+                        {books.length === 0 && <option value="">No portfolio yet</option>}
+                        {books.map((b) => (
+                            <option key={b._id} value={b._id}>{b.name} · {b.currency}</option>
                         ))}
-                    </div>
+                    </select>
                 </div>
 
                 <div className="flex flex-wrap gap-2 mb-3">
@@ -110,12 +112,12 @@ export default function RiskCalculator({ options }) {
                         <Label>Capital</Label>
                         <p className="text-lg font-semibold text-ink tabular-nums">
                             {capital == null
-                                ? `No ${currency} portfolio yet`
+                                ? 'Pick a portfolio'
                                 : `${currency} ${capital.toLocaleString()}`}
                         </p>
                         <p className="text-xs text-ink-faint mt-0.5">
-                            Your {currency} portfolios, valued now. Typed once, it would be
-                            wrong by the time the account moved.
+                            {book ? `${book.name}, valued now.` : 'Choose the book this trade belongs to.'}
+                            {' '}Typed once, it would be wrong by the time the account moved.
                         </p>
                     </div>
                     <div>

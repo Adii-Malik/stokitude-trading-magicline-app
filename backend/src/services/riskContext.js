@@ -14,13 +14,18 @@ import Portfolio from '../models/Portfolio.js';
 import RiskProfile from '../models/RiskProfile.js';
 import portfolioService from './portfolioService.js';
 
-/** Total value of the currency's portfolios: what the risk is a percentage of. */
-export async function capitalFor(userId, currency, portfolioId) {
-    const query = portfolioId
-        ? { _id: portfolioId }
-        : { owner: userId, isActive: true, currency: String(currency || 'PKR').toUpperCase() };
+/**
+ * What the named portfolio is worth: the capital this trade is a percentage of.
+ *
+ * One portfolio, never a sum across a currency. A book held for investing is not
+ * trading capital, and adding it in would quietly make every trade look smaller
+ * and safer than it is. A trade names the book it belongs to; that book is the
+ * denominator, and one that is never traded never contributes.
+ */
+export async function capitalFor(userId, portfolioId) {
+    if (!portfolioId) return null;
 
-    const portfolios = await Portfolio.find(query).select('_id currency').lean();
+    const portfolios = await Portfolio.find({ _id: portfolioId }).select('_id currency').lean();
     if (!portfolios.length) return null;
 
     let total = 0;
@@ -106,7 +111,7 @@ export function suggestSize({ capital, riskPct, maxPositionPct, entryPrice, stop
 export async function contextFor(userId, { currency, portfolioId }) {
     const [profile, capital] = await Promise.all([
         RiskProfile.findOne({ user: userId, currency: String(currency || 'PKR').toUpperCase() }).lean(),
-        capitalFor(userId, currency, portfolioId)
+        capitalFor(userId, portfolioId)
     ]);
     return {
         capital,

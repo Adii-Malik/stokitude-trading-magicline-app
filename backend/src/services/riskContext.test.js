@@ -66,3 +66,11 @@ describe('suggesting a size, the one thing it decides', () => {
         assert.equal(suggestSize({ ...profile, entryPrice: 100, stopPrice: 100 }), null, 'no distance, no size');
     });
 });
+
+describe('whose capital it is', () => {
+    test('a trade with no portfolio named has no capital to be judged against', async () => {
+        const { capitalFor } = await import('./riskContext.js');
+        assert.equal(await capitalFor('anyone', null), null,
+            'summing every book would let an investing account inflate trading capital');
+    });
+});

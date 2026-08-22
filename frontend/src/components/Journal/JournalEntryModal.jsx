@@ -115,7 +115,9 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
     const riskKey = [form.portfolioId, currency, form.entryPrice || form.entryFrom,
         form.plannedStop, form.quantity, form.targets?.[0]?.price, form.direction].join('|');
     useEffect(() => {
-        if (!form.plannedStop || !(form.entryPrice || form.entryFrom)) { setRiskCtx(null); return; }
+        if (!form.portfolioId || !form.plannedStop || !(form.entryPrice || form.entryFrom)) {
+            setRiskCtx(null); return;
+        }
         let live = true;
         const t = setTimeout(async () => {
             try {
@@ -326,7 +328,8 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
 
                     <TargetsEditor targets={form.targets} onChange={(t) => set('targets', t)} />
 
-                    <RiskVerdict verdict={riskCtx?.verdict} currency={currency} />
+                    <RiskVerdict verdict={riskCtx?.verdict} currency={currency}
+                        needsBook={!form.portfolioId && !!form.plannedStop} />
 
                 </Section>
 

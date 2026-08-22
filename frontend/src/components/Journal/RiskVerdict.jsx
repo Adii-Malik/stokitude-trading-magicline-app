@@ -8,7 +8,16 @@ import { AlertTriangle } from 'lucide-react';
  * gets written. Lines are omitted rather than zeroed when a number is unknown -
  * a dash reads as "nothing", which is a different claim from "not yet known".
  */
-export function RiskVerdict({ verdict, currency = 'PKR' }) {
+export function RiskVerdict({ verdict, currency = 'PKR', needsBook }) {
+    // Silence would read as "nothing to worry about". Say which piece is missing.
+    if (needsBook) {
+        return (
+            <p className="mt-3 text-xs text-ink-faint">
+                Name the portfolio this trade belongs to and its balance becomes the
+                yardstick for the risk.
+            </p>
+        );
+    }
     if (!verdict || verdict.capital == null) return null;
 
     const { risk, riskPctOfCapital, position, positionPctOfCapital, rr, limits, breaches } = verdict;
