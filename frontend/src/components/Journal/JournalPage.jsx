@@ -191,7 +191,7 @@ export default function JournalPage() {
                                 <select value={mistake} onChange={(e) => reset(() => setMistake(e.target.value))}
                                     className="px-3 py-2 text-sm border border-hairline bg-surface text-ink rounded-control">
                                     <option value="">Any mistake</option>
-                                    {(options?.mistakes || []).map((m) => (
+                                    {(options?.whatHappened || []).map((m) => (
                                         <option key={m} value={m}>{mistakeLabel(m)}</option>
                                     ))}
                                 </select>

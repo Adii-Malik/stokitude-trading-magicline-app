@@ -11,7 +11,7 @@ import { computeMetrics, decorate, statsFor } from './journalService.js';
 const trade = (o = {}) => ({
     symbol: 'X', currency: 'USD', direction: 'long', quantity: 10,
     entryPrice: 100, entryDate: '2026-01-01', fees: 0,
-    stopPlaced: false, eventChecked: false, mistakes: [], exitConfirmed: true,
+    stopPlaced: false, eventChecked: false, whatHappened: [], exitConfirmed: true,
     ...o
 });
 
@@ -106,10 +106,23 @@ describe('followedPlan', () => {
         assert.equal(computeMetrics(trade(base)).followedPlan, true);
     });
 
-    test('a reason disqualifies a winner', () => {
-        const m = computeMetrics(trade({ ...base, mistakes: ['chased the gap'] }));
+    test('a slip disqualifies a winner', () => {
+        const m = computeMetrics(trade({ ...base, whatHappened: ['chased the gap'] }));
         assert.equal(m.followedPlan, false);
         assert.equal(m.outcome, 'win', 'still a win - process and outcome are independent');
+    });
+
+    test('a stop being hit is the plan working, not a slip', () => {
+        // The distinction the single field turns on: how you got out is not a
+        // fault, so it must not count against the discipline figure.
+        const m = computeMetrics(trade({ exitPrice: 95, plannedStop: 95, whatHappened: ['stop hit'] }));
+        assert.equal(m.followedPlan, true);
+        assert.equal(m.outcome, 'loss', 'a loss taken properly is still a loss');
+    });
+
+    test('one slip among the ways out is still a slip', () => {
+        const m = computeMetrics(trade({ ...base, whatHappened: ['trailed out', 'moved my stop'] }));
+        assert.equal(m.followedPlan, false);
     });
 
     test('a trade never entered is not judged either way', () => {
@@ -130,11 +143,11 @@ describe('aggregate stats', () => {
         })),
         decorate(trade({
             symbol: 'INTC', entryPrice: 131.68, quantity: 3, exitPrice: 108.09,
-            mistakes: ['no_stop_placed', 'no_profit_protection']
+            whatHappened: ['no_stop_placed', 'no_profit_protection']
         })),
         decorate(trade({
             symbol: 'MAS', entryPrice: 79.47, quantity: 4, markPrice: 71.48,
-            mistakes: ['no_stop_placed', 'held_through_event']
+            whatHappened: ['no_stop_placed', 'held_through_event']
         }))
     ];
     const s = statsFor(entries);
@@ -164,7 +177,7 @@ describe('aggregate stats', () => {
         // Open trades count: a stop moved on a position still held is still a
         // stop moved. Rate is over taken trades, closed or not.
         const taken = entries.filter(e => e.status === 'open' || e.status === 'closed');
-        const clean = taken.filter(e => (e.mistakes || []).length === 0).length;
+        const clean = taken.filter(e => (e.whatHappened || []).every((t) => ['stop hit','target hit','trailed out','thesis broke','took some off','time stop'].includes(t))).length;
         assert.equal(Math.round(s.followedPlanRate), Math.round((clean / taken.length) * 100));
     });
 
@@ -210,7 +223,7 @@ describe('planned trades', () => {
         symbol: 'OGDC', currency: 'PKR', direction: 'long', state: 'planned',
         entryFrom: 95, entryTo: 105, plannedStop: 90,
         targets: [{ level: 1, price: 120, isHit: false }],
-        mistakes: [], ...o
+        whatHappened: [], ...o
     });
 
     test('claims no P/L of any kind', () => {
@@ -261,7 +274,7 @@ describe('levels that never triggered', () => {
     const cancelled = (o = {}) => ({
         symbol: 'X', currency: 'PKR', direction: 'long', state: 'cancelled',
         entryFrom: 95, entryTo: 105, plannedStop: 90,
-        targets: [{ level: 1, price: 120, isHit: false }], mistakes: [], ...o
+        targets: [{ level: 1, price: 120, isHit: false }], whatHappened: [], ...o
     });
 
     test('report as cancelled rather than quietly reading open', () => {
@@ -292,7 +305,7 @@ describe('levels that never triggered', () => {
             decorate(cancelled({ state: 'planned' })),
             decorate({
                 symbol: 'A', currency: 'PKR', direction: 'long', quantity: 10,
-                entryPrice: 100, exitPrice: 110, mistakes: [], state: 'closed'
+                entryPrice: 100, exitPrice: 110, whatHappened: [], state: 'closed'
             })
         ]);
         assert.equal(s.totalTrades, 1, 'only the trade actually taken');
@@ -307,7 +320,7 @@ describe('follow-through on levels written in advance', () => {
     // an entry as one that started as a plan.
     const level = (state, o = {}) => decorate({
         symbol: 'X', currency: 'PKR', direction: 'long', state,
-        entryFrom: 95, entryTo: 105, mistakes: [], ...o
+        entryFrom: 95, entryTo: 105, whatHappened: [], ...o
     });
     const taken = (state) => level(state, { entryPrice: 100, quantity: 10, entryDate: '2026-01-01' });
 
@@ -339,7 +352,7 @@ describe('follow-through on levels written in advance', () => {
     test('impulse trades with no recorded zone are not counted', () => {
         const s = statsFor([decorate({
             symbol: 'Y', currency: 'PKR', direction: 'long', state: 'closed',
-            entryPrice: 100, quantity: 10, exitPrice: 110, mistakes: []
+            entryPrice: 100, quantity: 10, exitPrice: 110, whatHappened: []
         })]);
         assert.equal(s.levelsTaken, 0, 'it was never planned, so it cannot be followed through on');
         assert.equal(s.triggerRate, null);
@@ -350,7 +363,7 @@ describe('setup quality', () => {
     test('groups closed trades by the grade given before the outcome', () => {
         const trade = (quality, exitPrice) => decorate({
             symbol: 'X', currency: 'PKR', direction: 'long', quantity: 10,
-            entryPrice: 100, exitPrice, setupQuality: quality, mistakes: [], state: 'closed'
+            entryPrice: 100, exitPrice, setupQuality: quality, whatHappened: [], state: 'closed'
         });
         const s = statsFor([trade('excellent', 120), trade('poor', 90), trade('poor', 95)]);
 
@@ -365,11 +378,11 @@ describe('setup quality', () => {
 describe('planned trades in the stats', () => {
     const taken = decorate({
         symbol: 'A', currency: 'PKR', direction: 'long', quantity: 10, entryPrice: 100,
-        exitPrice: 110, stopPlaced: true, eventChecked: true, mistakes: [], state: 'closed'
+        exitPrice: 110, stopPlaced: true, eventChecked: true, whatHappened: [], state: 'closed'
     });
     const watching = decorate({
         symbol: 'B', currency: 'PKR', direction: 'long', state: 'planned',
-        entryFrom: 95, entryTo: 105, mistakes: []
+        entryFrom: 95, entryTo: 105, whatHappened: []
     });
     const s = statsFor([taken, watching]);
 

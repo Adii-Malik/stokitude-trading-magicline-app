@@ -136,9 +136,9 @@ export default function JournalList({ entries, onEdit, onDelete, onTake, onClose
 
                     {(e.status === 'planned' || e.status === 'open') && <Levels entry={e} />}
 
-                    {e.mistakes?.length > 0 && (
+                    {e.whatHappened?.length > 0 && (
                         <div className="flex flex-wrap gap-1.5 mt-3">
-                            {e.mistakes.map((m) => (
+                            {e.whatHappened.map((m) => (
                                 <span key={m} className="px-2 py-0.5 rounded-full text-xs bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400">
                                     {mistakeLabel(m)}
                                 </span>

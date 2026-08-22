@@ -9,7 +9,7 @@ import RiskProfile from '../models/RiskProfile.js';
 import { contextFor, judge, suggestSize } from '../services/riskContext.js';
 import { chartUpload, URL_PREFIX } from '../services/chartStorage.js';
 import Portfolio from '../models/Portfolio.js';
-import { SETUP_SUGGESTIONS, MISTAKE_SUGGESTIONS, EMOTIONS, MARKET_CONDITIONS } from '../models/JournalEntry.js';
+import { SETUP_SUGGESTIONS, HAPPENED_SUGGESTIONS, PLAN_RAN, EMOTIONS, MARKET_CONDITIONS } from '../models/JournalEntry.js';
 import JournalEntry from '../models/JournalEntry.js';
 import { EXCHANGE_CODES, EXCHANGES } from '../config/exchanges.js';
 
@@ -47,7 +47,7 @@ router.get('/options', async (req, res) => {
         return rows.map(r => r._id);
     };
     const merge = (mine, seed) => [...mine, ...seed.filter(x => !mine.includes(x))];
-    const [setupsUsed, mistakesUsed] = await Promise.all([used('setupType'), used('mistakes')]);
+    const [setupsUsed, happenedUsed] = await Promise.all([used('setupType'), used('whatHappened')]);
 
     // The book to open a new trade on: whichever the last one used. Derived
     // rather than configured, so there is no default to set, none to keep in
@@ -69,7 +69,9 @@ router.get('/options', async (req, res) => {
             setupTypes: merge(setupsUsed, SETUP_SUGGESTIONS),
             emotions: EMOTIONS,
             marketConditions: MARKET_CONDITIONS,
-            mistakes: merge(mistakesUsed, MISTAKE_SUGGESTIONS),
+            whatHappened: merge(happenedUsed, HAPPENED_SUGGESTIONS),
+            // So the form can show how each word will be read.
+            planRan: PLAN_RAN,
             exchanges: EXCHANGE_CODES,
             // Currency and fractional-share rules per market, so sizing matches the venue.
             exchangeRules: Object.values(EXCHANGES).map(x => ({
@@ -135,6 +137,19 @@ router.post('/chart', (req, res) => {
         if (!req.file) return res.status(400).json({ success: false, message: 'No image received' });
         res.json({ success: true, data: { chartUrl: `${URL_PREFIX}${req.file.filename}` } });
     });
+});
+
+/** What a tag has cost or made before, for the panel shown while closing. */
+router.get('/tag-history', async (req, res) => {
+    try {
+        const tags = String(req.query.tags || '').split(',').map(t => t.trim()).filter(Boolean);
+        res.json({
+            success: true,
+            data: await journalService.tagHistory(req.user._id, tags, req.query.exceptId)
+        });
+    } catch (error) {
+        fail(res, error);
+    }
 });
 
 router.get('/stats', async (req, res) => {

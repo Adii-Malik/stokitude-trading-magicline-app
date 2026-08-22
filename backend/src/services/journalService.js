@@ -3,7 +3,9 @@
  * Derives every metric from the stored decision. Nothing computed here is
  * persisted, so an edited entry can never disagree with its own statistics.
  */
-import JournalEntry from '../models/JournalEntry.js';
+import JournalEntry, { ranToPlan } from '../models/JournalEntry.js';
+
+const round = (n) => Math.round(n * 100) / 100;
 import { removeChart } from './chartStorage.js';
 import { mintMissing, assertEditable, hydrate } from './journalLedger.js';
 import { escapeRegex } from '../utils/escapeRegex.js';
@@ -55,7 +57,11 @@ export function computeMetrics(entry) {
     // saying "I followed my plan" was answered on none of the entries, while the
     // reasons themselves were filled in - people will name a specific failure
     // long before they will grade themselves.
-    const followedPlan = untaken ? null : (entry.mistakes || []).length === 0;
+    // The plan held when nothing was recorded against it, or when everything
+    // recorded describes a way out rather than a slip.
+    const followedPlan = untaken
+        ? null
+        : (entry.whatHappened || []).every(ranToPlan);
 
     if (untaken) {
         return {
@@ -143,9 +149,10 @@ export function statsFor(entries) {
     // Built from what was actually written, not from a list of reasons someone
     // thought of in advance. Ordered by what each one cost: frequency alone would
     // rank a habit you do often and survive above the one that empties the account.
-    const byMistake = [...new Set(closed.flatMap(e => e.mistakes || []))]
+    const byMistake = [...new Set(closed.flatMap(e => e.whatHappened || []))]
+        .filter(tag => !ranToPlan(tag))
         .map(code => {
-            const hit = closed.filter(e => (e.mistakes || []).includes(code));
+            const hit = closed.filter(e => (e.whatHappened || []).includes(code));
             return { code, count: hit.length, cost: sum(hit, 'netPnL') };
         })
         .sort((a, b) => a.cost - b.cost);
@@ -181,7 +188,7 @@ export function statsFor(entries) {
         count: worst.count,
         cost: worst.cost,
         netWithout: closed
-            .filter(e => !(e.mistakes || []).includes(worst.code))
+            .filter(e => !(e.whatHappened || []).includes(worst.code))
             .reduce((t, e) => t + (e.netPnL || 0), 0)
     } : null;
 
@@ -270,7 +277,7 @@ class JournalService {
         // status/outcome are derived, so they filter after decoration.
         if (filters.status) entries = entries.filter(e => e.status === filters.status);
         if (filters.outcome) entries = entries.filter(e => e.outcome === filters.outcome);
-        if (filters.mistake) entries = entries.filter(e => (e.mistakes || []).includes(filters.mistake));
+        if (filters.mistake) entries = entries.filter(e => (e.whatHappened || []).includes(filters.mistake));
         if (filters.followedPlan != null) {
             const want = String(filters.followedPlan) === 'true';
             entries = entries.filter(e => Boolean(e.followedPlan) === want);
@@ -285,6 +292,38 @@ class JournalService {
         const skip = Math.max(0, parseInt(filters.skip, 10) || 0);
         const limit = Math.min(200, Math.max(1, parseInt(filters.limit, 10) || 25));
         return { total: entries.length, entries: entries.slice(skip, skip + limit) };
+    }
+
+    /**
+     * What these words have done across every closed trade carrying them, so the
+     * cost of a habit can be said at the moment it is being repeated rather than
+     * found later in a report. Excludes the entry being written, which has no
+     * result yet and would otherwise count itself.
+     */
+    async tagHistory(userId, tags, exceptId) {
+        const wanted = (Array.isArray(tags) ? tags : [tags]).filter(Boolean);
+        if (!wanted.length) return [];
+
+        const query = { user: userId, whatHappened: { $in: wanted }, exitPrice: { $ne: null } };
+        if (exceptId) query._id = { $ne: exceptId };
+
+        const found = await JournalEntry.find(query).lean();
+        const decorated = (await hydrate(found)).map(decorate).filter(e => e.status === 'closed');
+
+        return wanted.map((tag) => {
+            const hit = decorated.filter(e => (e.whatHappened || []).includes(tag));
+            const withR = hit.filter(e => e.rMultiple != null);
+            return {
+                tag,
+                ranToPlan: ranToPlan(tag),
+                trades: hit.length,
+                netPnL: round(hit.reduce((sum, e) => sum + (e.netPnL || 0), 0)),
+                avgR: withR.length
+                    ? Math.round((withR.reduce((sum, e) => sum + e.rMultiple, 0) / withR.length) * 100) / 100
+                    : null,
+                green: hit.filter(e => e.outcome === 'win').length
+            };
+        }).filter(x => x.trades > 0);
     }
 
     async get(id, userId) {

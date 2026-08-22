@@ -55,13 +55,13 @@ describe('what a trade must have', () => {
         assert.equal(doc.setupType, 'failed breakdown', 'trimmed, so the same words are one tag');
     });
 
-    test('a reason for a loss is free text, trimmed so it aggregates', () => {
+    test('what happened is free text, trimmed so it aggregates', () => {
         const doc = new JournalEntry({
             user, symbol: 'X', state: 'planned',
-            mistakes: ['  chased the gap  ', 'moved my stop']
+            whatHappened: ['  chased the gap  ', 'moved my stop']
         });
         assert.deepEqual(errors(doc), []);
-        assert.deepEqual(doc.mistakes.slice(), ['chased the gap', 'moved my stop']);
+        assert.deepEqual(doc.whatHappened.slice(), ['chased the gap', 'moved my stop']);
     });
 
     test('a trade defaults to open, so existing callers keep working', () => {

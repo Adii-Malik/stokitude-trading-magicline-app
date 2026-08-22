@@ -6,6 +6,7 @@ import { SymbolInput } from '../../ui/SymbolInput';
 import { TagInput } from '../../ui/TagInput';
 import { FIELD } from '../../ui/field';
 import { RiskRail } from './RiskRail';
+import { ResultRail } from './ResultRail';
 import { ChartUpload } from './ChartUpload';
 import api from '../../services/api';
 import { createEntry, updateEntry } from '../../services/journal';
@@ -41,7 +42,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
         targets: (entry?.targets || []).map((t) => ({ ...t })),
         emotionalState: entry?.emotionalState || 'neutral',
         marketCondition: entry?.marketCondition || 'sideways',
-        mistakes: entry?.mistakes || [],
+        whatHappened: entry?.whatHappened || [],
         chartUrl: entry?.chartUrl || '',
         notes: entry?.notes || '',
         lesson: entry?.lesson || ''
@@ -50,6 +51,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
     const [showMore, setShowMore] = useState(false);
     // Whether the entry price is one we filled from the symbol, or one you typed.
     const [autoPriced, setAutoPriced] = useState(false);
+    const planRan = new Set(options?.planRan || []);
 
     /**
      * The form asks only what its stage can answer. Watching a level has no fill,
@@ -150,6 +152,20 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
         return () => { live = false; clearTimeout(t); };
     }, [riskKey]);
 
+
+    // What these words have done before, asked for as they are written so the
+    // cost of a habit lands while it is being repeated.
+    const [tagHistory, setTagHistory] = useState([]);
+    const tagKey = (form.whatHappened || []).join('|');
+    useEffect(() => {
+        if (!closing || !tagKey) { setTagHistory([]); return; }
+        let live = true;
+        api.get('/journal/tag-history', { params: { tags: tagKey.split('|').join(','), exceptId: entry?._id } })
+            .then((res) => { if (live) setTagHistory(res.data.data); })
+            .catch(() => { if (live) setTagHistory([]); });
+        return () => { live = false; };
+    }, [tagKey, closing, entry?._id]);
+
     const submit = async (e) => {
         e.preventDefault();
         if (zoneMissing) {
@@ -221,7 +237,25 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
         <Modal
             size="xl"
             onClose={onClose}
-            rail={
+            rail={closing ? (
+                <ResultRail
+                    metrics={entry}
+                    currency={currency}
+                    thesis={form.notes}
+                    tagHistory={tagHistory}
+                    plan={[
+                        { k: 'Entry', v: form.entryPrice || '—' },
+                        { k: 'Stop', v: form.plannedStop || '—', mute: !form.plannedStop },
+                        {
+                            k: 'Target',
+                            v: form.targets?.[0]?.price || 'none set',
+                            mute: !form.targets?.[0]?.price
+                        },
+                        { k: 'Exit', v: form.exitPrice || '—', mute: !form.exitPrice },
+                        { k: 'Shares', v: form.quantity || '—' }
+                    ]}
+                />
+            ) : (
                 <RiskRail
                     books={bookable}
                     portfolioId={form.portfolioId}
@@ -233,7 +267,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                     currency={currency}
                     onUseSuggested={(n) => set('quantity', String(n))}
                 />
-            }
+            )}
             title={closingNow ? `Close ${form.symbol || 'the trade'}`
                 : editing ? (planning ? 'Edit Planned Trade' : 'Edit Trade')
                     : (planning ? 'Plan a Trade' : 'Journal a Trade')}
@@ -412,19 +446,26 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                     </div>
                 )}
 
-                <Section title="Exit" hidden={!closing}>
+                {/* Closing is a different job: the exit price is the only thing the
+                    app cannot already work out, so it and what happened are all
+                    that is asked. The rail beside it reports the result. */}
+                <Section title="1 · How it ended" hidden={!closing}
+                    when={closing ? form.exitDate : null}
+                    onWhen={(v) => set('exitDate', v)} whenLocked={exitBooked}>
                     <div className={ROW}>
-                        <Field label="Exit date" locked={exitBooked}>
-                            <input type="date" value={form.exitDate} className={input}
-                                disabled={exitBooked}
-                                onChange={(e) => set('exitDate', e.target.value)} />
-                        </Field>
                         <Field label="Exit price *" locked={exitBooked}>
                             <input type="number" step="any" value={form.exitPrice} className={input}
                                 disabled={exitBooked}
                                 onChange={(e) => set('exitPrice', e.target.value)} />
                         </Field>
+                        <Field label="Shares sold">
+                            <input type="number" className={input} value={form.quantity} disabled
+                                aria-describedby="sold-note" />
+                        </Field>
                     </div>
+                    <p id="sold-note" className="text-xs text-ink-faint mt-1">
+                        All of them. Selling part of a position is not supported yet.
+                    </p>
                     <div className="mt-3">
                         <Check checked={form.exitConfirmed} onChange={(v) => set('exitConfirmed', v)}
                             label="Confirmed from a broker fill or statement"
@@ -432,8 +473,34 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                     </div>
                 </Section>
 
-                {closing && (
-                <Section title="Review">
+                <Section title="2 · What happened" hidden={!closing}
+                    hint="How you got out, and anything you would rather have done differently — in the words you would use yourself.">
+                    <TagInput
+                        value={form.whatHappened}
+                        suggestions={options?.whatHappened || []}
+                        placeholder="type it, then Enter"
+                        toneOf={(tag) => (planRan.has(tag) ? 'good' : 'bad')}
+                        onChange={(v) => set('whatHappened', v)}
+                    />
+                    <p className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-ink-faint mt-2">
+                        <span className="flex items-center gap-1.5">
+                            <i className="w-2 h-2 rounded-sm bg-green-600/60" /> the plan ran
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                            <i className="w-2 h-2 rounded-sm bg-red-500/60" /> something you would do differently
+                        </span>
+                    </p>
+                </Section>
+
+                <Section title="3 · Worth remembering" hidden={!closing}>
+                    <Field label="One line you want to find again">
+                        <textarea rows="3" value={form.lesson} className={input} maxLength={500}
+                            placeholder="What would you tell yourself before the next one?"
+                            onChange={(e) => set('lesson', e.target.value)} />
+                    </Field>
+                </Section>
+
+                {closing && showMore && (
                     <div className={ROW}>
                         <Field label="How I felt">
                             <select value={form.emotionalState} className={input}
@@ -448,34 +515,6 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                             </select>
                         </Field>
                     </div>
-
-                    <div className="mt-3">
-                        <div className="text-sm font-medium text-ink-muted mb-1">
-                            What went wrong
-                        </div>
-                        <p className="text-xs text-ink-faint mb-2">
-                            Leave empty if the plan was followed — a loss on a good decision is not a mistake.
-                        </p>
-                        <TagInput value={form.mistakes} suggestions={options?.mistakes || []}
-                            placeholder="in your own words, then Enter"
-                            onChange={(v) => set('mistakes', v)} />
-                    </div>
-
-                    <div className="mt-3">
-                        <Field label="Notes">
-                            <textarea rows="3" value={form.notes} className={input} maxLength={2000}
-                                placeholder="Why did I take this? How did I manage it?"
-                                onChange={(e) => set('notes', e.target.value)} />
-                        </Field>
-                    </div>
-                    <div className="mt-3">
-                        <Field label="Lesson">
-                            <input value={form.lesson} className={input} maxLength={500}
-                                placeholder="One sentence I want to remember"
-                                onChange={(e) => set('lesson', e.target.value)} />
-                        </Field>
-                    </div>
-                </Section>
                 )}
             </form>
         </Modal>

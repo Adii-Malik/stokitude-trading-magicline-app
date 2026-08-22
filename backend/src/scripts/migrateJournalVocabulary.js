@@ -11,6 +11,11 @@ import config from '../config/config.js';
  * snake_case forever. setupType defaulted to 'other' on every entry that was
  * never given one, which reads like an answer when it is the absence of one.
  *
+ * Also renames `mistakes` to `whatHappened`. The field holds how a trade was got
+ * out of as well as anything the trader would rather have done differently, and
+ * "target hit" is not a mistake - a name that has to be explained away is one
+ * that will mislead whoever reads the code next.
+ *
  * Idempotent: only touches what still holds the old shape.
  * Pass --dry to report without writing.
  */
@@ -54,6 +59,10 @@ const migrate = async () => {
     if (!dry && dropped) {
         await entries.updateMany({}, { $unset: { stopPlaced: '', eventChecked: '', markPrice: '', setupQuality: '' } });
     }
+
+    const named = await entries.countDocuments({ mistakes: { $exists: true } });
+    console.log(`  ${named} entries with the old "mistakes" field`);
+    if (!dry && named) await entries.updateMany({}, { $rename: { mistakes: 'whatHappened' } });
 
     console.log(dry ? 'Dry run, nothing written.' : 'Done.');
     await mongoose.disconnect();

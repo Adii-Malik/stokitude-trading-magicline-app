@@ -11,7 +11,26 @@ import { EXCHANGE_CODES, DEFAULT_EXCHANGE, currencyOf } from '../config/exchange
 // matter are the ones you would not have listed. The UI suggests what you have
 // used before, so a vocabulary emerges from your own trades and still counts.
 export const SETUP_SUGGESTIONS = ['breakout', 'reversal', 'pullback', 'trend', 'range'];
-export const MISTAKE_SUGGESTIONS = ['no stop placed', 'held through event', 'no profit protection'];
+
+/**
+ * Ways out that mean the plan ran. A stop being hit is the plan working, not a
+ * failure, so these are read as the trade going as intended.
+ *
+ * Everything else written in that field is read as something the trader would
+ * rather have done differently. That is the safe way round for a figure about
+ * one's own discipline: an unrecognised word counts against you rather than
+ * quietly passing, and the entry shows how it was taken so a wrong reading is
+ * one click to correct.
+ */
+export const PLAN_RAN = [
+    'stop hit', 'target hit', 'trailed out', 'thesis broke', 'took some off', 'time stop'
+];
+export const HAPPENED_SUGGESTIONS = [...PLAN_RAN, 'ran out of patience'];
+
+/** Whether a tag describes the plan running, rather than a slip. */
+export function ranToPlan(tag) {
+    return PLAN_RAN.includes(String(tag || '').trim().toLowerCase());
+}
 
 // The states that mean a fill actually happened, and so require entry details.
 // Planned and cancelled both describe a level that was never entered - demanding
@@ -249,10 +268,16 @@ const journalEntrySchema = new mongoose.Schema({
         default: 'sideways'
     },
 
-    mistakes: [{
+    /**
+     * What happened, in the trader's own words: how the trade was got out of and
+     * anything they would rather have done differently, in one list. Splitting
+     * the two made a person decide which box a thing belonged in before they
+     * could write it down; ranToPlan tells them apart afterwards.
+     */
+    whatHappened: [{
         type: String,
         trim: true,
-        maxlength: [60, 'A reason cannot exceed 60 characters']
+        maxlength: [60, 'A note cannot exceed 60 characters']
     }],
 
     // The chart is the setup for a price-action trade, so it is kept with the

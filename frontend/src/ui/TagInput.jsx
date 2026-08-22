@@ -15,7 +15,12 @@ import { FIELD } from './field';
  * vocabulary is learned rather than guessed, and spelling converges because
  * picking is easier than retyping.
  */
-export function TagInput({ value = [], onChange, suggestions = [], placeholder, single = false }) {
+export function TagInput({
+    value = [], onChange, suggestions = [], placeholder, single = false,
+    // Optional: 'good' | 'bad' | null per tag, so a word can show how it is being
+    // read rather than the reading happening silently somewhere else.
+    toneOf
+}) {
     const [draft, setDraft] = useState('');
     const [open, setOpen] = useState(false);
     const box = useRef(null);
@@ -44,14 +49,13 @@ export function TagInput({ value = [], onChange, suggestions = [], placeholder, 
         <div className="relative" ref={box}>
             <div className={`flex flex-wrap gap-1.5 ${value.length ? 'mb-1.5' : ''}`}>
                 {value.map((tag) => (
-                    <span key={tag}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-control
-                                   bg-surface-muted text-ink text-xs">
+                    <span key={tag} className={`inline-flex items-center gap-2 px-3 py-1.5
+                                    rounded-control text-sm ring-1 ${TONE[toneOf?.(tag)] || TONE.plain}`}>
                         {tag}
                         <button type="button" aria-label={`Remove ${tag}`}
                             onClick={() => onChange(value.filter((t) => t !== tag))}
-                            className="text-ink-faint hover:text-ink">
-                            <X className="w-3 h-3" />
+                            className="opacity-60 hover:opacity-100">
+                            <X className="w-3.5 h-3.5" />
                         </button>
                     </span>
                 ))}
@@ -90,5 +94,11 @@ export function TagInput({ value = [], onChange, suggestions = [], placeholder, 
     );
 }
 
+
+const TONE = {
+    plain: 'bg-surface-muted text-ink ring-hairline',
+    good: 'bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300 ring-green-600/30',
+    bad: 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 ring-red-500/30'
+};
 
 export default TagInput;
