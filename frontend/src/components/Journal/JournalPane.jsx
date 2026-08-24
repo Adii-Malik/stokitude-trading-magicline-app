@@ -135,10 +135,25 @@ export default function JournalPane({ entry, portfolioName, onEdit, onDelete, on
                     v={entry.plannedStop != null ? num(entry.plannedStop) : 'none set'}
                     sub={entry.stopHit ? 'price reached it' : null}
                     faint={entry.plannedStop == null} />
-                <Fact k={closed ? 'Was at risk' : 'At risk'}
-                    v={entry.riskAmount != null ? formatCurrency(entry.riskAmount, entry.currency) : '—'}
-                    sub={entry.riskAmount != null ? 'if the stop hits' : 'needs a stop'}
-                    faint={entry.riskAmount == null} />
+                {/* Open and closed want different fourth facts. While it runs,
+                    what it can still lose. Once it is over that number has
+                    already happened, and "if the stop hits" is a conditional on
+                    a settled trade - so the box asks what you were aiming for
+                    instead, which is the only thing on this screen that can be
+                    compared with how it actually went. */}
+                {closed ? (
+                    <Fact k="Aimed for"
+                        v={entry.plannedRR != null ? `${entry.plannedRR.toFixed(1)} : 1` : 'no target set'}
+                        sub={entry.riskAmount != null
+                            ? `risked ${formatCurrency(entry.riskAmount, entry.currency)}`
+                            : 'no stop, so no R'}
+                        faint={entry.plannedRR == null} />
+                ) : (
+                    <Fact k="At risk"
+                        v={entry.riskAmount != null ? formatCurrency(entry.riskAmount, entry.currency) : '—'}
+                        sub={entry.riskAmount != null ? 'if the stop hits' : 'needs a stop'}
+                        faint={entry.riskAmount == null} />
+                )}
             </div>
 
             {/* Only the targets. The stop has its own box above, and showing it
@@ -176,17 +191,18 @@ export default function JournalPane({ entry, portfolioName, onEdit, onDelete, on
                 </a>
             )}
 
-            {/* The note is written going in, the lesson coming out, so they are
-                named separately. Unlabelled, the lesson read as a stray second
-                paragraph of the note. */}
+            {/* Named by the moment they belong to rather than by what they are.
+                "Notes" and "Lesson" are both true and neither says whether it was
+                written walking into the trade or looking back at it, which is the
+                whole difference between them. */}
             {entry.notes && (
-                <Section label="Notes">
+                <Section label="Why you took it">
                     <p className="text-sm text-ink-muted whitespace-pre-wrap">{entry.notes}</p>
                 </Section>
             )}
 
             {closed && entry.lesson && (
-                <Section label="Lesson">
+                <Section label="What you learned">
                     <p className="text-sm border-l-2 border-cyan-400 pl-3 text-ink italic">{entry.lesson}</p>
                 </Section>
             )}

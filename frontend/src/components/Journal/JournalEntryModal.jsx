@@ -401,7 +401,7 @@ export default function JournalEntryModal({ entry, options, trackers = [], onClo
                         <TargetsEditor targets={form.targets} onChange={(t) => set('targets', t)} />
 
                         {/* The thesis, written while the outcome is still unknown. */}
-                        <Field label="Why this trade">
+                        <Field label="Why you took it">
                             <textarea rows="3" value={form.notes} className={input} maxLength={2000}
                                 placeholder="Why did I take this? How will I manage it?"
                                 onChange={(e) => set('notes', e.target.value)} />
@@ -444,8 +444,8 @@ export default function JournalEntryModal({ entry, options, trackers = [], onClo
                     </Section>
                 )}
 
-                <Section title={step ? (trackers.length ? '3 · Lesson' : '2 · Lesson') : 'Lesson'}
-                    hidden={!reviewable}>
+                <Section title={step ? (trackers.length ? '3 · What you learned' : '2 · What you learned')
+                    : 'What you learned'} hidden={!reviewable}>
                     <Field label="One line you want to find again">
                         <textarea rows="3" value={form.lesson} className={input} maxLength={500}
                             placeholder="What would you tell yourself before the next one?"
