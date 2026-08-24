@@ -80,6 +80,21 @@ export default function JournalEntryModal({ entry, options, trackers = [], onClo
     // rather than revisiting one already finished.
     const closingNow = entry?.state === 'open' && closing;
 
+    /**
+     * Closing is a task with three steps. Editing is a form.
+     *
+     * These were told apart by state rather than by intent, so a closed trade
+     * opened in the closing layout and its entry price, stop, quantity, setup,
+     * chart and notes were all unreachable - there was no way to correct a typo
+     * in a fill once the trade was done. Only the deliberate act of closing an
+     * open position narrows the dialog now.
+     */
+    const step = closingNow;
+
+    // A review needs something to review. A trade being logged for the first
+    // time has no lesson in it yet, so it is not asked for one.
+    const reviewable = editing || closing;
+
     const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
     const entryRef = form.entryPrice === '' ? null : Number(form.entryPrice);
@@ -279,7 +294,7 @@ export default function JournalEntryModal({ entry, options, trackers = [], onClo
             }
         >
             <form id={FORM_ID} onSubmit={submit} className="space-y-5">
-                <Section title="1 · What you’re trading" hidden={closing}
+                <Section title="What you’re trading" hidden={step}
                     when={form.entryDate}
                     onWhen={(v) => set('entryDate', v)} whenLocked={entryBooked}>
                     <div className={ROW}>
@@ -322,7 +337,7 @@ export default function JournalEntryModal({ entry, options, trackers = [], onClo
                 </Section>
 
                 {/* The two that decide the size, together and nothing between them. */}
-                <Section title="2 · Entry and stop" hidden={closing}>
+                <Section title="Entry and stop" hidden={step}>
                     <div className={ROW}>
                         <Field label="Entry price *" locked={entryBooked}>
                             <input type="number" step="any" required value={form.entryPrice} className={input}
@@ -341,7 +356,7 @@ export default function JournalEntryModal({ entry, options, trackers = [], onClo
                     )}
                 </Section>
 
-                <Section title="3 · How many" hidden={closing}>
+                <Section title="How many" hidden={step}>
                     <div className={ROW}>
                         <Field label="Shares" locked={entryBooked}>
                             <input type="number" step="any" required value={form.quantity}
@@ -358,16 +373,16 @@ export default function JournalEntryModal({ entry, options, trackers = [], onClo
 
                 {/* Judgement rather than arithmetic: none of it is needed to size
                     a trade, so none of it is in the way of doing so. */}
-                {!closing && (
+                {!step && (
                 <button type="button" onClick={() => setShowMore((v) => !v)}
                     className="flex items-center gap-1.5 text-sm font-semibold text-cyan-600
                                dark:text-cyan-400 border-t border-dashed border-hairline pt-4">
                     {showMore ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                    Setup, chart, targets, notes and what you have learned
+                    Setup, chart, targets and your thesis
                 </button>
                 )}
 
-                {showMore && !closing && (
+                {showMore && !step && (
                     <div className="flex flex-col gap-4">
                         <div className={ROW}>
                             <Field label="Setup">
@@ -391,32 +406,13 @@ export default function JournalEntryModal({ entry, options, trackers = [], onClo
                                 onChange={(e) => set('notes', e.target.value)} />
                         </Field>
 
-                        {/* Both of these used to wait for the exit, which assumed a
-                            trade is only understood once it is over. A swing
-                            position runs for months: "held through earnings"
-                            becomes true while it is open, and a lesson learned in
-                            July is not improved by being written down in October
-                            from memory. They are asked for again at the close, so
-                            nothing is missed either way. */}
-                        {trackers.length > 0 && (
-                            <Field label="Tags">
-                                <Trackers list={trackers} value={form.whatHappened}
-                                    onChange={(v) => set('whatHappened', v)} />
-                            </Field>
-                        )}
-
-                        <Field label="Lesson">
-                            <textarea rows="2" value={form.lesson} className={input} maxLength={500}
-                                placeholder="Anything you already know you would do differently?"
-                                onChange={(e) => set('lesson', e.target.value)} />
-                        </Field>
                     </div>
                 )}
 
                 {/* Closing is a different job: the exit price is the only thing the
                     app cannot already work out, so it and what happened are all
                     that is asked. The rail beside it reports the result. */}
-                <Section title="1 · How it ended" hidden={!closing}
+                <Section title={step ? '1 · How it ended' : 'How it ended'} hidden={!closing}
                     when={closing ? form.exitDate : null}
                     onWhen={(v) => set('exitDate', v)} whenLocked={exitBooked}>
                     <div className={ROW}>
@@ -438,16 +434,17 @@ export default function JournalEntryModal({ entry, options, trackers = [], onClo
                 {/* Only what you said you wanted counted, and only if you said so.
                     An empty tracker list means this section never renders — the
                     app has no vocabulary of its own to push at you. */}
-                {closing && trackers.length > 0 && (
-                    <Section title="2 · Tags"
+                {/* Nothing to review on a trade that has not happened yet. */}
+                {reviewable && trackers.length > 0 && (
+                    <Section title={step ? '2 · Tags' : 'Tags'}
                         hint="Tap what applies. Nothing is read into these beyond a count and a total — they are yours, and you keep the list in journal settings.">
                         <Trackers list={trackers} value={form.whatHappened}
                             onChange={(v) => set('whatHappened', v)} />
                     </Section>
                 )}
 
-                <Section title={trackers.length ? '3 · Lesson' : '2 · Lesson'}
-                    hidden={!closing}>
+                <Section title={step ? (trackers.length ? '3 · Lesson' : '2 · Lesson') : 'Lesson'}
+                    hidden={!reviewable}>
                     <Field label="One line you want to find again">
                         <textarea rows="3" value={form.lesson} className={input} maxLength={500}
                             placeholder="What would you tell yourself before the next one?"
@@ -455,7 +452,7 @@ export default function JournalEntryModal({ entry, options, trackers = [], onClo
                     </Field>
                 </Section>
 
-                {closing && showMore && (
+                {closing && showMore && !step && (
                     <div className={ROW}>
                         <Field label="How I felt">
                             <select value={form.emotionalState} className={input}
