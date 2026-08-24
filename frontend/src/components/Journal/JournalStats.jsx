@@ -1,13 +1,16 @@
 import { formatCurrency, formatPercent, getPnLColorClass } from '../../utils/portfolioUtils';
 
 /**
- * The deeper read, one tab down from the four figures on the main screen.
+ * Why, rather than how much.
  *
- * Four panels used to live here reporting on fields that no longer exist — stop
- * placed, event checked, setup grade, unconfirmed exits — and every one of them
- * had settled at zero. Nothing here is asked of the trader: how a trade ended is
- * derived from the exit against the levels, and a tracker is only counted
- * because they named it themselves.
+ * The main screen answers how the account is doing; this answers where the
+ * money went. It used to open with profit factor, average win, average loss and
+ * streaks, which is the first question asked a second way - the tiles already
+ * carry the win rate and the payoff ratio those are built from. What is left
+ * is three groupings, none of which appear anywhere else.
+ *
+ * Nothing here is asked of the trader: how a trade ended is derived from the
+ * exit against the levels, and a tracker is counted only because they named it.
  */
 export default function JournalStats({ stats }) {
     if (!stats) return null;
@@ -26,23 +29,6 @@ export default function JournalStats({ stats }) {
                             {c.currency}
                         </h3>
                     )}
-
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <Stat label="Profit factor"
-                            value={c.profitFactor != null ? c.profitFactor.toFixed(2) : '—'}
-                            sub={c.profitFactor != null && c.profitFactor < 1 ? 'below breakeven' : 'gross wins ÷ gross losses'} />
-                        <Stat label="Average win"
-                            value={formatCurrency(c.avgWin, c.currency)}
-                            sub={`${c.wins} win${c.wins === 1 ? '' : 's'}`}
-                            color="text-green-600 dark:text-green-400" />
-                        <Stat label="Average loss"
-                            value={formatCurrency(c.avgLoss, c.currency)}
-                            sub={`${c.losses} loss${c.losses === 1 ? '' : 'es'}`}
-                            color="text-red-600 dark:text-red-400" />
-                        <Stat label="Longest run"
-                            value={`${c.bestStreak}W / ${c.worstStreak}L`}
-                            sub="back to back" />
-                    </div>
 
                     {/* Derived from the exit against the stop and targets, so this
                         groups a fact rather than a claim. Usually the row worth
@@ -104,16 +90,6 @@ function Grouping({ title, rows = [], currency, empty, labels = {} }) {
                     ))}
                 </div>
             )}
-        </div>
-    );
-}
-
-function Stat({ label, value, sub, color }) {
-    return (
-        <div className="bg-surface rounded-card p-5 shadow-card ring-1 ring-hairline">
-            <div className="text-sm font-medium text-ink-faint">{label}</div>
-            <div className={`text-2xl font-bold tracking-tight tabular-nums mt-1 ${color || 'text-ink'}`}>{value}</div>
-            {sub && <div className="text-xs text-ink-faint mt-0.5">{sub}</div>}
         </div>
     );
 }

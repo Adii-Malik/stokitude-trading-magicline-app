@@ -1,22 +1,22 @@
 import { useState, useEffect } from 'react';
-import { Calculator, AlertTriangle, Save, Check } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { Calculator, AlertTriangle, Settings } from 'lucide-react';
 import api from '../../services/api';
-import { getRiskProfiles, saveRiskProfile } from '../../services/journal';
+import { getRiskProfiles } from '../../services/journal';
 import { sizePosition } from '../../utils/positionSizing';
-import { FIELD as input, choice } from '../../ui/field';
+import { FIELD as input } from '../../ui/field';
 import { formatCurrency, formatPercent } from '../../utils/portfolioUtils';
+import { BALANCED } from './presets';
 
-// Starting points, not stored settings. Tapping one writes the two numbers below;
-// there is nothing to name, assign or keep in step with a portfolio.
-const PRESETS = [
-    { name: 'Conservative', risk: 1, cap: 15 },
-    { name: 'Balanced', risk: 2, cap: 20 },
-    { name: 'Aggressive', risk: 5, cap: 30 }
-];
-const BALANCED = PRESETS[1];
-
-export default function RiskCalculator({ options }) {
+/**
+ * Arithmetic, and nothing else.
+ *
+ * The rule a book is run to used to be editable here, which meant one stored
+ * value had two doors into it and neither said the other existed. The rule is
+ * configuration and now lives in journal settings; this reads it and works out
+ * the size. What is left is a calculator you can point at any prices you like
+ * without changing anything.
+ */
+export default function RiskCalculator({ options, onOpenSettings }) {
     const rules = options?.exchangeRules || [{ code: 'PSX', currency: 'PKR', fractionalShares: false }];
     // Sizing is against one book, so the book is chosen, not the market. A
     // portfolio held for investing is not the capital a swing trade risks.
@@ -24,20 +24,17 @@ export default function RiskCalculator({ options }) {
     const [portfolioId, setPortfolioId] = useState(books[0]?._id || '');
     const [profiles, setProfiles] = useState({});
     const [trade, setTrade] = useState({ entryPrice: '', stopPrice: '', targetPrice: '' });
-    const [saving, setSaving] = useState(false);
-    // What the server holds, kept apart from what is on screen, so "changed but
-    // not saved" is a state the panel can show rather than one you discover
-    // later by finding your limit back where it was.
-    const [saved, setSaved] = useState({});
 
     const book = books.find((b) => b._id === portfolioId) || books[0];
     const currency = book?.currency || 'PKR';
     const rule = rules.find((r) => r.currency === currency) || rules[0];
-    // Balanced rather than an arbitrary pair: an unsaved account should start on
-    // something with a name, or all three tabs sit unlit with nothing saying why.
     // Keyed on the book: two brokers in one currency can be run to different
     // rules, and a swing book at 5% must not put an investing book on that line.
-    const profile = profiles[portfolioId] || { defaultRiskPct: BALANCED.risk, maxPositionPct: BALANCED.cap };
+    // Balanced stands in when a book has no rule, so the sum still answers -
+    // said out loud below, because a borrowed number presented as yours is worse
+    // than no number at all.
+    const stored = profiles[portfolioId];
+    const profile = stored || { defaultRiskPct: BALANCED.risk, maxPositionPct: BALANCED.cap };
 
     // Read, never entered: the portfolio already knows what it is worth.
     const [capital, setCapital] = useState(null);
@@ -54,57 +51,9 @@ export default function RiskCalculator({ options }) {
                 const map = {};
                 for (const p of list) map[p.portfolioId] = p;
                 setProfiles(map);
-                setSaved(Object.fromEntries(Object.entries(map).map(([id, v]) => [id, {
-                    defaultRiskPct: v.defaultRiskPct, maxPositionPct: v.maxPositionPct
-                }])));
             })
             .catch(() => setProfiles({}));
     }, []);
-
-    const setProfile = (patch) =>
-        setProfiles((p) => ({ ...p, [portfolioId]: { ...profile, ...patch } }));
-
-    const dirty = saved[portfolioId]
-        ? Number(saved[portfolioId].defaultRiskPct) !== Number(profile.defaultRiskPct)
-            || Number(saved[portfolioId].maxPositionPct) !== Number(profile.maxPositionPct)
-        : true;
-
-    const saveProfile = async () => {
-        const risk = parseFloat(profile.defaultRiskPct);
-        const cap = parseFloat(profile.maxPositionPct);
-        if (!portfolioId) {
-            toast.error('Pick the book these limits belong to');
-            return;
-        }
-        if (!Number.isFinite(risk) || !Number.isFinite(cap)) {
-            toast.error('Both limits need a number');
-            return;
-        }
-        setSaving(true);
-        try {
-            await saveRiskProfile(portfolioId, { defaultRiskPct: risk, maxPositionPct: cap });
-            setSaved((v) => ({ ...v, [portfolioId]: { defaultRiskPct: risk, maxPositionPct: cap } }));
-            toast.success(`Limits saved for ${book?.name || 'this book'}`);
-        } catch (error) {
-            toast.error(error.response?.data?.message || 'Could not save your limits');
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    // Which preset these numbers are, if any. Named so the one in force is
-    // visible rather than inferred from two percentages.
-    const nearest = (() => {
-        const risk = Number(profile.defaultRiskPct);
-        const cap = Number(profile.maxPositionPct);
-        if (!Number.isFinite(risk) || !Number.isFinite(cap)) return null;
-        // Distance in both numbers at once, so neither alone decides it.
-        return PRESETS.reduce((best, x) => {
-            const d = Math.abs(x.risk - risk) + Math.abs(x.cap - cap) / 5;
-            return best && best.d <= d ? best : { ...x, d };
-        }, null);
-    })();
-    const active = nearest;
 
     const result = sizePosition({
         capital,
@@ -134,69 +83,32 @@ export default function RiskCalculator({ options }) {
                     </select>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 mb-3">
-                    {PRESETS.map((preset) => (
-                        <button key={preset.name} type="button"
-                            aria-pressed={active?.name === preset.name}
-                            onClick={() => setProfile({ defaultRiskPct: preset.risk, maxPositionPct: preset.cap })}
-                            className={choice(active?.name === preset.name)}>
-                            {preset.name}
-                            <span className={`block text-xs ${active?.name === preset.name ? 'text-cyan-50' : 'text-ink-faint'}`}>
-                                {preset.risk}% risk · {preset.cap}% cap
-                            </span>
-                        </button>
-                    ))}
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 items-end">
-                    <div className="col-span-2 sm:col-span-3 rounded-control bg-surface-muted px-3 py-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="rounded-control bg-surface-muted px-3 py-2.5">
                         <Label>Capital</Label>
                         <p className="text-lg font-semibold text-ink tabular-nums">
-                            {capital == null
-                                ? 'Pick a portfolio'
-                                : `${currency} ${capital.toLocaleString()}`}
+                            {capital == null ? 'Pick a book' : `${currency} ${capital.toLocaleString()}`}
                         </p>
                         <p className="text-xs text-ink-faint mt-0.5">
                             {book ? `${book.name}, valued now.` : 'Choose the book this trade belongs to.'}
-                            {' '}Typed once, it would be wrong by the time the account moved.
                         </p>
                     </div>
-                    <div>
-                        <Label>Risk per trade (%)</Label>
-                        <input type="number" step="any" min="0" max="100" className={input}
-                            value={profile.defaultRiskPct}
-                            onChange={(e) => setProfile({ defaultRiskPct: e.target.value })} />
+                    <div className="rounded-control bg-surface-muted px-3 py-2.5">
+                        <Label>This book&apos;s rule</Label>
+                        <p className="text-lg font-semibold text-ink tabular-nums">
+                            {profile.defaultRiskPct}% risk · {profile.maxPositionPct}% max
+                        </p>
+                        <p className="text-xs text-ink-faint mt-0.5">
+                            {stored ? 'Set in journal settings.' : 'No rule set — using Balanced for the sum below.'}
+                            {onOpenSettings && (
+                                <button type="button" onClick={onOpenSettings}
+                                    className="ml-1 inline-flex items-center gap-1 font-semibold
+                                        text-cyan-600 dark:text-cyan-400 hover:underline">
+                                    <Settings className="w-3 h-3" /> {stored ? 'Change' : 'Set one'}
+                                </button>
+                            )}
+                        </p>
                     </div>
-                    <div>
-                        <Label>Max per stock (%)</Label>
-                        <input type="number" step="any" min="0" max="100" className={input}
-                            value={profile.maxPositionPct}
-                            onChange={(e) => setProfile({ maxPositionPct: e.target.value })} />
-                    </div>
-                    {/* Beside the limits it saves, not at the foot of the panel: the
-                        two numbers and the act of keeping them belong together. */}
-                    <div className="flex items-end">
-                        <button type="button" onClick={saveProfile} disabled={saving || !dirty}
-                            className={`w-full flex items-center justify-center gap-1.5 px-3 py-2
-                                rounded-control text-sm font-semibold transition-colors
-                                ${dirty
-                                    ? 'bg-cyan-500 text-white hover:bg-cyan-600'
-                                    : 'ring-1 ring-hairline text-ink-faint cursor-default'}`}>
-                            {saving ? 'Saving…' : dirty ? <><Save className="w-4 h-4" /> Save</> : <><Check className="w-4 h-4" /> Saved</>}
-                        </button>
-                    </div>
-
-                    <p className="col-span-2 sm:col-span-3 text-xs text-ink-faint">
-                        <strong className="text-ink-muted">Risk per trade</strong> is what you lose if the
-                        stop hits. <strong className="text-ink-muted">Max per stock</strong> caps how much of the
-                        book any one name can become, whatever the stop says — it is what protects you when price gaps
-                        straight past the stop instead of filling at it.
-                        {dirty && (
-                            <span className="text-cyan-600 dark:text-cyan-400 font-medium">
-                                {' '}Not saved yet — these limits will not judge a trade until they are.
-                            </span>
-                        )}
-                    </p>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 border-t border-gray-200 dark:border-gray-700 pt-4">
@@ -243,7 +155,7 @@ export default function RiskCalculator({ options }) {
 
                         {result.cappedBy && (
                             <p className="text-xs text-amber-600 dark:text-amber-400">
-                                Cut from {result.byRisk.toLocaleString()} shares by your {profile.maxPositionPct}% gap cap.
+                                Cut from {result.byRisk.toLocaleString()} shares by the {profile.maxPositionPct}% gap cap.
                                 The stop is tight enough that a gap through it would hurt far more than the planned risk.
                             </p>
                         )}

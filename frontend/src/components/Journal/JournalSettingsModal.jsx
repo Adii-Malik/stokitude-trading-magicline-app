@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { X, Plus } from 'lucide-react';
+import { X, Plus, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Modal } from '../../ui/Modal';
-import { FIELD } from '../../ui/field';
+import { FIELD, choice } from '../../ui/field';
+import { PRESETS, nearestPreset } from './presets';
 import { saveSettings, getRiskProfiles, saveRiskProfile } from '../../services/journal';
 import { formatCurrency, getPnLColorClass } from '../../utils/portfolioUtils';
 
@@ -38,8 +39,12 @@ export default function JournalSettingsModal({ settings, portfolios = [], byTrac
             .catch(() => setRules({}));
     }, []);
 
-    const setRule = (id, key, value) =>
-        setRules((r) => ({ ...r, [id]: { ...(r[id] || {}), [key]: value } }));
+    // Which book's rule is open for editing, if any. One at a time: two numbers
+    // and three presets is a panel, not a table cell.
+    const [editingBook, setEditingBook] = useState(null);
+
+    const setRule = (id, patch) =>
+        setRules((r) => ({ ...r, [id]: { ...(r[id] || {}), ...patch } }));
 
     // Counts come from closed trades, so a tracker shows what keeping it has been
     // worth before you decide whether to keep it.
@@ -167,36 +172,37 @@ export default function JournalSettingsModal({ settings, portfolios = [], byTrac
                 </Section>
 
                 <Section title="Risk rules, per book"
-                    hint="A trade follows the rules of the book it is logged against, so one book being aggressive has nothing to do with another. Leave a book blank and it is simply not judged.">
+                    hint="A trade follows the rules of the book it is logged against, so one book being aggressive has nothing to do with another. Leave a book alone and it is simply not judged.">
                     {rules === null ? (
                         <p className="text-sm text-ink-faint py-2">Loading…</p>
                     ) : portfolios.length === 0 ? (
                         <p className="text-sm text-ink-faint py-2">No books yet.</p>
+                    ) : editingBook ? (
+                        <RuleEditor
+                            book={portfolios.find((p) => String(p._id) === editingBook)}
+                            rule={rules[editingBook] || {}}
+                            onChange={(patch) => setRule(editingBook, patch)}
+                            onDone={() => setEditingBook(null)} />
                     ) : (
                         <div className="divide-y divide-hairline/70">
-                            <div className="grid grid-cols-[1fr_92px_92px] gap-3 pb-2 text-xs
-                                font-bold uppercase tracking-wider text-ink-faint">
-                                <span>Book</span>
-                                <span className="text-right">Risk %</span>
-                                <span className="text-right">Max %</span>
-                            </div>
                             {portfolios.map((p) => {
-                                const r = rules[String(p._id)] || {};
-                                const partial = Boolean(r.defaultRiskPct) !== Boolean(r.maxPositionPct);
+                                const id = String(p._id);
+                                const r = rules[id];
+                                const set = r?.defaultRiskPct && r?.maxPositionPct;
                                 return (
-                                    <div key={p._id} className="grid grid-cols-[1fr_92px_92px] gap-3 py-2.5 items-center">
-                                        <span className="text-sm font-semibold text-ink truncate">
+                                    <div key={id} className="flex items-center gap-3 py-2.5">
+                                        <span className={`text-sm font-semibold truncate ${set ? 'text-ink' : 'text-ink-faint'}`}>
                                             {p.name}
-                                            {partial && (
-                                                <span className="block text-xs font-normal text-amber-600 dark:text-amber-400">
-                                                    needs both to count
-                                                </span>
-                                            )}
                                         </span>
-                                        <RuleInput value={r.defaultRiskPct} placeholder="1"
-                                            onChange={(v) => setRule(String(p._id), 'defaultRiskPct', v)} />
-                                        <RuleInput value={r.maxPositionPct} placeholder="25"
-                                            onChange={(v) => setRule(String(p._id), 'maxPositionPct', v)} />
+                                        <span className="ml-auto text-sm text-ink-faint tabular-nums whitespace-nowrap">
+                                            {set
+                                                ? `${r.defaultRiskPct}% risk · ${r.maxPositionPct}% max`
+                                                : 'not judged'}
+                                        </span>
+                                        <button onClick={() => setEditingBook(id)}
+                                            className="text-sm font-semibold text-cyan-600 dark:text-cyan-400 hover:underline shrink-0">
+                                            {set ? 'Edit' : 'Set'}
+                                        </button>
                                     </div>
                                 );
                             })}
@@ -209,13 +215,62 @@ export default function JournalSettingsModal({ settings, portfolios = [], byTrac
     );
 }
 
-/** A percentage. Blank is meaningful — it means this book has no rule. */
-function RuleInput({ value, placeholder, onChange }) {
+/**
+ * One book's rule, in the shape the size calculator used to carry.
+ *
+ * It lives here now rather than there because it is configuration, not
+ * arithmetic — and having it in both places meant two ways to change one stored
+ * value. The calculator reads what this writes.
+ */
+function RuleEditor({ book, rule, onChange, onDone }) {
+    const active = nearestPreset(rule.defaultRiskPct, rule.maxPositionPct);
+
     return (
-        <input type="number" step="any" min="0" max="100"
-            value={value || ''} placeholder={placeholder}
-            onChange={(e) => onChange(e.target.value)}
-            className={`${FIELD} text-right tabular-nums px-2.5`} />
+        <div className="flex flex-col gap-3">
+            <button onClick={onDone}
+                className="flex items-center gap-1.5 text-sm font-semibold text-cyan-600 dark:text-cyan-400 self-start">
+                <ArrowLeft className="w-4 h-4" /> All books
+            </button>
+            <p className="text-sm font-semibold text-ink">{book?.name}</p>
+
+            <div className="grid grid-cols-3 gap-2">
+                {PRESETS.map((preset) => (
+                    <button key={preset.name} type="button"
+                        aria-pressed={active?.name === preset.name}
+                        onClick={() => onChange({
+                            defaultRiskPct: String(preset.risk), maxPositionPct: String(preset.cap)
+                        })}
+                        className={choice(active?.name === preset.name)}>
+                        {preset.name}
+                        <span className={`block text-xs ${active?.name === preset.name ? 'text-cyan-50' : 'text-ink-faint'}`}>
+                            {preset.risk}% · {preset.cap}%
+                        </span>
+                    </button>
+                ))}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+                <label className="flex flex-col gap-1.5">
+                    <span className="text-sm font-medium text-ink-muted">Risk per trade (%)</span>
+                    <input type="number" step="any" min="0" max="100" className={`${FIELD} tabular-nums`}
+                        value={rule.defaultRiskPct || ''} placeholder="2"
+                        onChange={(e) => onChange({ defaultRiskPct: e.target.value })} />
+                </label>
+                <label className="flex flex-col gap-1.5">
+                    <span className="text-sm font-medium text-ink-muted">Max per stock (%)</span>
+                    <input type="number" step="any" min="0" max="100" className={`${FIELD} tabular-nums`}
+                        value={rule.maxPositionPct || ''} placeholder="20"
+                        onChange={(e) => onChange({ maxPositionPct: e.target.value })} />
+                </label>
+            </div>
+
+            <p className="text-sm text-ink-faint">
+                <strong className="text-ink-muted">Risk per trade</strong> is what you lose if the stop
+                hits. <strong className="text-ink-muted">Max per stock</strong> caps how much of the book
+                one name can become whatever the stop says — it is what protects you when price gaps
+                straight past the stop instead of filling at it.
+            </p>
+        </div>
     );
 }
 

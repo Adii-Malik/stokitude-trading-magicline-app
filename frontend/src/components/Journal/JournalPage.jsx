@@ -14,7 +14,9 @@ import RiskCalculator from './RiskCalculator';
 
 const TABS = [
     { key: 'trades', label: 'Trades' },
-    { key: 'performance', label: 'Performance' },
+    // "Performance" promised a second dashboard; what it holds is the groupings
+    // that say where the money went, which the tiles cannot.
+    { key: 'patterns', label: 'Patterns' },
     { key: 'risk', label: 'Size a trade' }
 ];
 
@@ -220,9 +222,12 @@ export default function JournalPage() {
                         </div>
                     )}
 
-                    {tab === 'performance' && <JournalStats stats={stats} />}
+                    {tab === 'patterns' && <JournalStats stats={stats} />}
 
-                    {tab === 'risk' && <RiskCalculator options={options} />}
+                    {tab === 'risk' && (
+                        <RiskCalculator options={options}
+                            onOpenSettings={() => setShowSettings(true)} />
+                    )}
                 </>
             )}
 
