@@ -155,7 +155,9 @@ export default function JournalPane({ entry, portfolioName, onEdit, onDelete, on
                 </Section>
             )}
 
-            {entry.whatHappened?.length > 0 && (
+            {/* The review is a closed trade's. An open one has an entry, levels
+                and a thesis, and nothing to conclude. */}
+            {closed && entry.whatHappened?.length > 0 && (
                 <Section label="Tags">
                     <div className="flex flex-wrap gap-2">
                         {entry.whatHappened.map((t) => (
@@ -174,16 +176,16 @@ export default function JournalPane({ entry, portfolioName, onEdit, onDelete, on
                 </a>
             )}
 
-            {/* Written at two different moments - the note going in, the lesson
-                coming out - so they are named separately. Unlabelled, the lesson
-                read as a stray second paragraph of the note. */}
+            {/* The note is written going in, the lesson coming out, so they are
+                named separately. Unlabelled, the lesson read as a stray second
+                paragraph of the note. */}
             {entry.notes && (
                 <Section label="Notes">
                     <p className="text-sm text-ink-muted whitespace-pre-wrap">{entry.notes}</p>
                 </Section>
             )}
 
-            {entry.lesson && (
+            {closed && entry.lesson && (
                 <Section label="Lesson">
                     <p className="text-sm border-l-2 border-cyan-400 pl-3 text-ink italic">{entry.lesson}</p>
                 </Section>

@@ -91,9 +91,10 @@ export default function JournalEntryModal({ entry, options, trackers = [], onClo
      */
     const step = closingNow;
 
-    // A review needs something to review. A trade being logged for the first
-    // time has no lesson in it yet, so it is not asked for one.
-    const reviewable = editing || closing;
+    // The review belongs to a finished trade. A position you are still in has
+    // not concluded, so there is no lesson to draw from it and no way it "went"
+    // yet - asking invites an answer written before the answer is known.
+    const reviewable = closing;
 
     const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 

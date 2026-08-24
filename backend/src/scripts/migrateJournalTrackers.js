@@ -163,6 +163,32 @@ const migrate = async () => {
         touched++;
     }
 
+    // --- 5. a review belongs to a finished trade -------------------------------
+    // Tags and a lesson are what you write once the trade is over. An open one
+    // has an entry, levels and a thesis and nothing to conclude, so the form no
+    // longer offers either - which would leave anything already there stranded,
+    // visible in the pane and unreachable from the form.
+    //
+    // The lesson is appended to the note rather than dropped: it is the trader's
+    // own sentence about their own trade, and the note is where prose lives on a
+    // position still running. Tags go, since a tag is only ever a shorthand for
+    // something the note can say in words.
+    const openWithReview = await entries.find({
+        state: 'open',
+        $or: [{ lesson: { $nin: [null, ''] } }, { whatHappened: { $exists: true, $ne: [] } }]
+    }).toArray();
+
+    for (const e of openWithReview) {
+        const notes = [e.notes, e.lesson].map(t => String(t || '').trim()).filter(Boolean).join(' ');
+        console.log(`  ${e.symbol} is open: lesson folded into the note`
+            + (e.whatHappened?.length ? `, tags dropped (${e.whatHappened.join(', ')})` : ''));
+        if (!dry) {
+            await entries.updateOne({ _id: e._id },
+                { $set: { notes, lesson: '', whatHappened: [] } });
+        }
+    }
+    console.log(`  ${openWithReview.length} open trade(s) carrying a review`);
+
     console.log(dry
         ? `Dry run. Would write ${touched} tracker list(s).`
         : `Wrote ${touched} tracker list(s).`);
