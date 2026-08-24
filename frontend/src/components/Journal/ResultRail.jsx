@@ -80,7 +80,7 @@ export function ResultRail({ metrics, plan, thesis, currency = 'PKR' }) {
 
 function Head({ children }) {
     return (
-        <h4 className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-ink-faint mb-1.5">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-ink-faint mb-1.5">
             {children}
         </h4>
     );

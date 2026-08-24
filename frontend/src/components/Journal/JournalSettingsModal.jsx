@@ -101,7 +101,7 @@ export default function JournalSettingsModal({ settings, portfolios = [], byTrac
                                         <span className="text-xs text-ink-faint tabular-nums">
                                             {stat ? `${stat.count} trade${stat.count > 1 ? 's' : ''}` : 'never'}
                                         </span>
-                                        <span className={`text-[13px] font-bold tabular-nums text-right w-20 ${stat ? getPnLColorClass(stat.netPnL) : 'text-ink-faint'}`}>
+                                        <span className={`text-sm font-bold tabular-nums text-right w-24 ${stat ? getPnLColorClass(stat.netPnL) : 'text-ink-faint'}`}>
                                             {stat ? formatCurrency(stat.netPnL, stat.currency, { signed: true }) : '—'}
                                         </span>
                                         <button onClick={() => setTrackers(trackers.filter((t) => t !== name))}
@@ -151,8 +151,8 @@ export default function JournalSettingsModal({ settings, portfolios = [], byTrac
 function Section({ title, hint, children }) {
     return (
         <div className="flex flex-col gap-2">
-            <h3 className="text-[11px] font-extrabold uppercase tracking-[0.09em] text-ink-faint">{title}</h3>
-            {hint && <p className="text-xs text-ink-faint -mt-1 max-w-[58ch]">{hint}</p>}
+            <h3 className="text-xs font-bold uppercase tracking-wider text-ink-faint">{title}</h3>
+            {hint && <p className="text-sm text-ink-faint -mt-1 max-w-[58ch]">{hint}</p>}
             {children}
         </div>
     );

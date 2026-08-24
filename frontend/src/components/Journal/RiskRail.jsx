@@ -127,7 +127,7 @@ export function RiskRail({
 
 function Head({ children }) {
     return (
-        <h4 className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-ink-faint mb-1.5">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-ink-faint mb-1.5">
             {children}
         </h4>
     );
@@ -165,7 +165,7 @@ function Meter({ label, amount, pct, limit, breached, currency }) {
                 )}
             </div>
             {limit != null && (
-                <p className={`mt-1 text-[11px] tabular-nums ${breached ? 'text-red-600 dark:text-red-400 font-semibold' : 'text-ink-faint'}`}>
+                <p className={`mt-1 text-xs tabular-nums ${breached ? 'text-red-600 dark:text-red-400 font-semibold' : 'text-ink-faint'}`}>
                     {breached
                         ? `Over the ${limit}% you allow yourself`
                         : `The mark is your ${limit}% limit`}

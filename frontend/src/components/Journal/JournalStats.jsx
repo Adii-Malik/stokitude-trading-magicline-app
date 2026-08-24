@@ -22,12 +22,12 @@ export default function JournalStats({ stats }) {
             {byCurrency.map((c) => (
                 <div key={c.currency} className="space-y-4">
                     {byCurrency.length > 1 && (
-                        <h3 className="text-[11px] font-extrabold uppercase tracking-[0.09em] text-ink-faint">
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-ink-faint">
                             {c.currency}
                         </h3>
                     )}
 
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <Stat label="Profit factor"
                             value={c.profitFactor != null ? c.profitFactor.toFixed(2) : '—'}
                             sub={c.profitFactor != null && c.profitFactor < 1 ? 'below breakeven' : 'gross wins ÷ gross losses'} />
@@ -51,7 +51,7 @@ export default function JournalStats({ stats }) {
                         empty="Nothing closed yet."
                         labels={{ unknown: 'no levels recorded' }} />
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <Grouping title="By setup" rows={c.bySetup} currency={c.currency}
                             empty="No closed trades to group yet." />
                         {/* Only the things this user chose to count about
@@ -78,7 +78,7 @@ function Grouping({ title, rows = [], currency, empty, labels = {} }) {
     const worst = Math.max(...rows.map((r) => Math.abs(r.netPnL || 0)), 1);
 
     return (
-        <div className="bg-surface rounded-card p-4 shadow-card ring-1 ring-hairline">
+        <div className="bg-surface rounded-card p-5 shadow-card ring-1 ring-hairline">
             <h3 className="font-semibold text-ink mb-3">{title}</h3>
             {rows.length === 0 ? (
                 <p className="text-sm text-ink-faint">{empty}</p>
@@ -110,9 +110,9 @@ function Grouping({ title, rows = [], currency, empty, labels = {} }) {
 
 function Stat({ label, value, sub, color }) {
     return (
-        <div className="bg-surface rounded-card p-4 shadow-card ring-1 ring-hairline">
-            <div className="text-xs text-ink-faint">{label}</div>
-            <div className={`text-xl font-bold tabular-nums ${color || 'text-ink'}`}>{value}</div>
+        <div className="bg-surface rounded-card p-5 shadow-card ring-1 ring-hairline">
+            <div className="text-sm font-medium text-ink-faint">{label}</div>
+            <div className={`text-2xl font-bold tracking-tight tabular-nums mt-1 ${color || 'text-ink'}`}>{value}</div>
             {sub && <div className="text-xs text-ink-faint mt-0.5">{sub}</div>}
         </div>
     );

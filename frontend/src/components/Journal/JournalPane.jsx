@@ -51,11 +51,11 @@ function exitStory(entry) {
 export default function JournalPane({ entry, portfolioName, onEdit, onDelete, onClose }) {
     if (!entry) {
         return (
-            <div className="bg-surface rounded-card ring-1 ring-hairline min-h-[300px]
-                flex flex-col items-center justify-center gap-2 text-center p-8">
-                <BookMarked className="w-7 h-7 text-ink-faint" />
-                <p className="font-semibold text-ink-muted">Pick a trade to read it</p>
-                <p className="text-sm text-ink-faint max-w-[36ch]">
+            <div className="bg-surface rounded-card ring-1 ring-hairline min-h-[360px]
+                flex flex-col items-center justify-center gap-3 text-center p-10">
+                <BookMarked className="w-8 h-8 text-ink-faint" />
+                <p className="text-lg font-semibold text-ink-muted">Pick a trade to read it</p>
+                <p className="text-sm text-ink-faint max-w-[40ch]">
                     The note, the lesson and the chart live here — the parts of a journal that
                     never fit in a list.
                 </p>
@@ -69,52 +69,52 @@ export default function JournalPane({ entry, portfolioName, onEdit, onDelete, on
     const held = heldFor(entry);
 
     return (
-        <div className="bg-surface rounded-card ring-1 ring-hairline p-4 md:p-5 flex flex-col gap-4 min-w-0">
-            <div className="flex flex-wrap items-start gap-3">
+        <div className="bg-surface rounded-card ring-1 ring-hairline p-5 md:p-6 flex flex-col gap-5 min-w-0">
+            <div className="flex flex-wrap items-start gap-4">
                 <div className="min-w-0">
-                    <h2 className="text-2xl font-extrabold tracking-tight text-ink leading-none">{entry.symbol}</h2>
-                    <p className="text-xs text-ink-faint mt-1">
+                    <h2 className="text-3xl font-bold tracking-tight text-ink leading-none">{entry.symbol}</h2>
+                    <p className="text-sm text-ink-faint mt-1.5">
                         {[entry.exchange, entry.direction === 'short' ? 'Short' : 'Long',
                             [longDate(entry.entryDate), longDate(entry.exitDate)].filter(Boolean).join(' → '),
                             held, portfolioName].filter(Boolean).join(' · ')}
                     </p>
                 </div>
                 <div className="ml-auto text-right">
-                    <div className={`text-2xl font-extrabold tabular-nums tracking-tight leading-none ${money != null ? getPnLColorClass(money) : 'text-ink-faint'}`}>
+                    <div className={`text-3xl font-bold tabular-nums tracking-tight leading-none ${money != null ? getPnLColorClass(money) : 'text-ink-faint'}`}>
                         {money != null ? formatCurrency(money, entry.currency, { signed: true }) : '—'}
                     </div>
-                    <div className="text-xs text-ink-faint tabular-nums mt-1">
+                    <div className="text-sm text-ink-faint tabular-nums mt-1.5">
                         {pct != null && formatPercent(pct, 1, { signed: true })}
                         {entry.rMultiple != null ? ` · ${entry.rMultiple.toFixed(2)}R`
                             : entry.plannedStop == null ? ' · no R — no stop was set' : ''}
                         {!closed && ' · unrealized'}
                     </div>
                 </div>
-                <div className="flex gap-1.5">
+                <div className="flex gap-2">
                     {!closed && (
                         <button onClick={() => onClose(entry)}
-                            className="px-3 py-1.5 text-xs font-semibold rounded-control bg-cyan-500 text-white hover:bg-cyan-600">
+                            className="px-4 py-2 text-sm font-semibold rounded-control bg-cyan-500 text-white hover:bg-cyan-600">
                             Close it
                         </button>
                     )}
                     <button onClick={() => onEdit(entry)} title="Edit"
-                        className="p-2 text-ink-faint hover:text-cyan-600 border border-hairline rounded-control">
-                        <Pencil className="w-3.5 h-3.5" />
+                        className="p-2.5 text-ink-faint hover:text-cyan-600 border border-hairline rounded-control">
+                        <Pencil className="w-4 h-4" />
                     </button>
                     <button onClick={() => onDelete(entry)} title="Delete"
-                        className="p-2 text-ink-faint hover:text-red-600 border border-hairline rounded-control">
-                        <Trash2 className="w-3.5 h-3.5" />
+                        className="p-2.5 text-ink-faint hover:text-red-600 border border-hairline rounded-control">
+                        <Trash2 className="w-4 h-4" />
                     </button>
                 </div>
             </div>
 
             {closed && (
-                <p className="bg-surface-muted rounded-control px-3 py-2.5 text-sm text-ink-muted border-l-[3px] border-hairline">
+                <p className="bg-surface-muted rounded-control px-4 py-3 text-sm text-ink-muted border-l-[3px] border-hairline">
                     {exitStory(entry)}
                 </p>
             )}
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <Fact k="Entry" v={`${num(entry.quantity)} @ ${num(entry.entryPrice)}`} />
                 <Fact k={closed ? 'Exit' : 'Last price'}
                     v={closed ? num(entry.exitPrice) : entry.lastPrice != null ? num(entry.lastPrice) : '—'} />
@@ -125,7 +125,7 @@ export default function JournalPane({ entry, portfolioName, onEdit, onDelete, on
 
             {(entry.plannedStop != null || entry.targets?.length > 0) && (
                 <Section label="Levels">
-                    <div className="flex flex-wrap gap-1.5 text-xs">
+                    <div className="flex flex-wrap gap-2 text-sm">
                         {entry.plannedStop != null && (
                             <Chip tone={entry.stopHit ? 'red' : 'plain'}>
                                 SL {num(entry.plannedStop)}{entry.stopHit && ' ✓'}
@@ -142,9 +142,9 @@ export default function JournalPane({ entry, portfolioName, onEdit, onDelete, on
 
             {entry.whatHappened?.length > 0 && (
                 <Section label="Tracking">
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap gap-2">
                         {entry.whatHappened.map((t) => (
-                            <span key={t} className="px-2.5 py-1 rounded-control text-xs bg-cyan-500 text-white font-medium">
+                            <span key={t} className="px-3 py-1.5 rounded-control text-sm bg-cyan-500 text-white font-medium">
                                 {t}
                             </span>
                         ))}
@@ -155,12 +155,12 @@ export default function JournalPane({ entry, portfolioName, onEdit, onDelete, on
             {entry.chartUrl && (
                 <a href={entry.chartUrl} target="_blank" rel="noreferrer" className="block">
                     <img src={entry.chartUrl} alt={`${entry.symbol} setup`}
-                        className="w-full max-h-72 object-contain rounded-control ring-1 ring-hairline bg-surface-muted" />
+                        className="w-full max-h-80 object-contain rounded-control ring-1 ring-hairline bg-surface-muted" />
                 </a>
             )}
 
             {(entry.notes || entry.lesson) && (
-                <div className="flex flex-col gap-2.5 text-sm text-ink-muted">
+                <div className="flex flex-col gap-3 text-sm text-ink-muted">
                     {entry.notes && <p className="whitespace-pre-wrap">{entry.notes}</p>}
                     {entry.lesson && (
                         <p className="border-l-2 border-cyan-400 pl-3 text-ink italic">{entry.lesson}</p>
@@ -173,17 +173,17 @@ export default function JournalPane({ entry, portfolioName, onEdit, onDelete, on
 
 function Fact({ k, v, faint }) {
     return (
-        <div className="bg-surface-muted rounded-control px-2.5 py-2">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-ink-faint">{k}</div>
-            <div className={`text-sm font-bold tabular-nums ${faint ? 'text-ink-faint' : 'text-ink'}`}>{v}</div>
+        <div className="bg-surface-muted rounded-control px-3.5 py-3">
+            <div className="text-xs font-semibold uppercase tracking-wider text-ink-faint">{k}</div>
+            <div className={`text-base font-bold tabular-nums mt-0.5 ${faint ? 'text-ink-faint' : 'text-ink'}`}>{v}</div>
         </div>
     );
 }
 
 function Section({ label, children }) {
     return (
-        <div className="flex flex-col gap-1.5">
-            <span className="text-[10px] font-extrabold uppercase tracking-[0.09em] text-ink-faint">{label}</span>
+        <div className="flex flex-col gap-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-ink-faint">{label}</span>
             {children}
         </div>
     );
@@ -195,5 +195,5 @@ function Chip({ tone, children }) {
         green: 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 ring-green-500/35',
         red: 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 ring-red-500/35'
     };
-    return <span className={`px-2 py-0.5 rounded ring-1 tabular-nums ${tones[tone]}`}>{children}</span>;
+    return <span className={`px-2.5 py-1 rounded-control ring-1 tabular-nums ${tones[tone]}`}>{children}</span>;
 }

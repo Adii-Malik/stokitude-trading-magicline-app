@@ -48,7 +48,7 @@ function context(e) {
 export default function JournalList({ entries, selectedId, onSelect, emptyHint, grouped }) {
     if (!entries.length) {
         return (
-            <div className="p-8 text-center text-sm text-ink-faint">
+            <div className="p-10 text-center text-sm text-ink-faint">
                 {emptyHint || 'No trades journaled yet. Log one to start building the record.'}
             </div>
         );
@@ -68,30 +68,30 @@ export default function JournalList({ entries, selectedId, onSelect, emptyHint, 
             {groups.map(([heading, list]) => (
                 <div key={heading || 'all'}>
                     {heading && (
-                        <div className="flex items-center px-3 py-1.5 text-[10px] font-extrabold uppercase
-                            tracking-[0.1em] text-ink-faint bg-surface-muted border-y border-hairline">
+                        <div className="flex items-center px-4 py-2 text-xs font-bold uppercase
+                            tracking-wider text-ink-faint bg-surface-muted border-y border-hairline">
                             {heading}
-                            <span className="ml-auto tracking-normal opacity-75">{list.length}</span>
+                            <span className="ml-auto tracking-normal opacity-70">{list.length}</span>
                         </div>
                     )}
                     {list.map((e) => {
                         const money = e.status === 'closed' ? e.netPnL : e.unrealizedPnL;
                         return (
                             <button key={e._id} onClick={() => onSelect(e)}
-                                className={`w-full text-left grid grid-cols-[1fr_auto] gap-x-3 px-3 py-2.5
+                                className={`w-full text-left grid grid-cols-[1fr_auto] gap-x-3 px-4 py-3
                                     border-b border-hairline/70 border-l-[3px] items-baseline
                                     hover:bg-surface-muted transition-colors ${edge(e)}
                                     ${selectedId === e._id ? 'bg-cyan-500/10' : ''}`}>
-                                <span className={`font-extrabold text-sm ${selectedId === e._id ? 'text-cyan-600 dark:text-cyan-400' : 'text-ink'}`}>
+                                <span className={`font-bold text-base ${selectedId === e._id ? 'text-cyan-600 dark:text-cyan-400' : 'text-ink'}`}>
                                     {e.symbol}
                                 </span>
-                                <span className={`text-right font-extrabold text-[13px] tabular-nums ${money != null ? getPnLColorClass(money) : 'text-ink-faint'}`}>
+                                <span className={`text-right font-bold text-sm tabular-nums ${money != null ? getPnLColorClass(money) : 'text-ink-faint'}`}>
                                     {money != null ? formatCurrency(money, e.currency, { signed: true }) : '—'}
                                 </span>
-                                <span className={`text-[11px] truncate ${needsYou(e) ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-ink-faint'}`}>
+                                <span className={`text-xs truncate mt-0.5 ${needsYou(e) ? 'text-amber-600 dark:text-amber-400 font-semibold' : 'text-ink-faint'}`}>
                                     {context(e)}
                                 </span>
-                                <span className="text-[11px] text-ink-faint text-right tabular-nums whitespace-nowrap">
+                                <span className="text-xs text-ink-faint text-right tabular-nums whitespace-nowrap mt-0.5">
                                     {shortDate(e.exitDate || e.entryDate)}
                                 </span>
                             </button>
