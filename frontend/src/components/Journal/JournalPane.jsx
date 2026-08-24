@@ -67,6 +67,10 @@ export default function JournalPane({ entry, portfolioName, onEdit, onDelete, on
     const money = closed ? entry.netPnL : entry.unrealizedPnL;
     const pct = closed ? entry.pnlPct : entry.unrealizedPct;
     const held = heldFor(entry);
+    // Both legs. Already inside netPnL, so it belongs beside that number rather
+    // than in a box of its own - it is a footnote on the result, not a metric.
+    const fees = (entry.fees || 0) + (entry.exitFees || 0);
+    const targets = entry.targets || [];
 
     return (
         <div className="bg-surface rounded-card ring-1 ring-hairline p-5 md:p-6 flex flex-col gap-5 min-w-0">
@@ -84,10 +88,15 @@ export default function JournalPane({ entry, portfolioName, onEdit, onDelete, on
                         {money != null ? formatCurrency(money, entry.currency, { signed: true }) : '—'}
                     </div>
                     <div className="text-sm text-ink-faint tabular-nums mt-1.5">
-                        {pct != null && formatPercent(pct, 1, { signed: true })}
-                        {entry.rMultiple != null ? ` · ${entry.rMultiple.toFixed(2)}R`
-                            : entry.plannedStop == null ? ' · no R — no stop was set' : ''}
-                        {!closed && ' · unrealized'}
+                        {money == null
+                            ? 'no price for it yet'
+                            : [
+                                pct != null ? formatPercent(pct, 1, { signed: true }) : null,
+                                entry.rMultiple != null ? `${entry.rMultiple.toFixed(2)}R`
+                                    : entry.plannedStop == null ? 'no R — no stop set' : null,
+                                fees ? `${num(fees)} in fees` : null,
+                                closed ? null : 'unrealized'
+                            ].filter(Boolean).join(' · ')}
                     </div>
                 </div>
                 <div className="flex gap-2">
@@ -114,26 +123,32 @@ export default function JournalPane({ entry, portfolioName, onEdit, onDelete, on
                 </p>
             )}
 
+            {/* Four facts, and the fourth is what the trade could lose rather
+                than what it cost to place. Fees were a box reading "—" on most
+                trades and are inside the net figure anyway. */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <Fact k="Entry" v={`${num(entry.quantity)} @ ${num(entry.entryPrice)}`} />
                 <Fact k={closed ? 'Exit' : 'Last price'}
-                    v={closed ? num(entry.exitPrice) : entry.lastPrice != null ? num(entry.lastPrice) : '—'} />
-                <Fact k="Planned stop" v={entry.plannedStop != null ? num(entry.plannedStop) : 'none set'}
+                    v={closed ? num(entry.exitPrice) : entry.lastPrice != null ? num(entry.lastPrice) : 'no quote'}
+                    faint={!closed && entry.lastPrice == null} />
+                <Fact k="Stop loss"
+                    v={entry.plannedStop != null ? num(entry.plannedStop) : 'none set'}
+                    sub={entry.stopHit ? 'price reached it' : null}
                     faint={entry.plannedStop == null} />
-                <Fact k="Fees" v={[entry.fees, entry.exitFees].filter((f) => f).map(num).join(' · ') || '—'} />
+                <Fact k={closed ? 'Was at risk' : 'At risk'}
+                    v={entry.riskAmount != null ? formatCurrency(entry.riskAmount, entry.currency) : '—'}
+                    sub={entry.riskAmount != null ? 'if the stop hits' : 'needs a stop'}
+                    faint={entry.riskAmount == null} />
             </div>
 
-            {(entry.plannedStop != null || entry.targets?.length > 0) && (
-                <Section label="Levels">
+            {/* Only the targets. The stop has its own box above, and showing it
+                twice was the same number in two shapes. */}
+            {targets.length > 0 && (
+                <Section label="Targets">
                     <div className="flex flex-wrap gap-2 text-sm">
-                        {entry.plannedStop != null && (
-                            <Chip tone={entry.stopHit ? 'red' : 'plain'}>
-                                SL {num(entry.plannedStop)}{entry.stopHit && ' ✓'}
-                            </Chip>
-                        )}
-                        {(entry.targets || []).map((t) => (
+                        {targets.map((t) => (
                             <Chip key={t.level} tone={t.isHit ? 'green' : 'plain'}>
-                                T{t.level} {num(t.price)}{t.isHit && ' ✓'}
+                                T{t.level} {num(t.price)}{t.isHit && ' ✓ reached'}
                             </Chip>
                         ))}
                     </div>
@@ -141,7 +156,7 @@ export default function JournalPane({ entry, portfolioName, onEdit, onDelete, on
             )}
 
             {entry.whatHappened?.length > 0 && (
-                <Section label="Tracking">
+                <Section label="Things you tracked">
                     <div className="flex flex-wrap gap-2">
                         {entry.whatHappened.map((t) => (
                             <span key={t} className="px-3 py-1.5 rounded-control text-sm bg-cyan-500 text-white font-medium">
@@ -159,23 +174,30 @@ export default function JournalPane({ entry, portfolioName, onEdit, onDelete, on
                 </a>
             )}
 
-            {(entry.notes || entry.lesson) && (
-                <div className="flex flex-col gap-3 text-sm text-ink-muted">
-                    {entry.notes && <p className="whitespace-pre-wrap">{entry.notes}</p>}
-                    {entry.lesson && (
-                        <p className="border-l-2 border-cyan-400 pl-3 text-ink italic">{entry.lesson}</p>
-                    )}
-                </div>
+            {/* Two different things written at two different moments, so they
+                are named. Unlabelled, the lesson read as a stray second
+                paragraph of the note. */}
+            {entry.notes && (
+                <Section label={closed ? 'What you wrote' : 'Why this trade'}>
+                    <p className="text-sm text-ink-muted whitespace-pre-wrap">{entry.notes}</p>
+                </Section>
+            )}
+
+            {entry.lesson && (
+                <Section label="Worth remembering">
+                    <p className="text-sm border-l-2 border-cyan-400 pl-3 text-ink italic">{entry.lesson}</p>
+                </Section>
             )}
         </div>
     );
 }
 
-function Fact({ k, v, faint }) {
+function Fact({ k, v, sub, faint }) {
     return (
         <div className="bg-surface-muted rounded-control px-3.5 py-3">
             <div className="text-xs font-semibold uppercase tracking-wider text-ink-faint">{k}</div>
             <div className={`text-base font-bold tabular-nums mt-0.5 ${faint ? 'text-ink-faint' : 'text-ink'}`}>{v}</div>
+            {sub && <div className="text-xs text-ink-faint mt-0.5">{sub}</div>}
         </div>
     );
 }
