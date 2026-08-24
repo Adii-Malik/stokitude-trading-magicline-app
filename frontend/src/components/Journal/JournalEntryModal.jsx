@@ -363,7 +363,7 @@ export default function JournalEntryModal({ entry, options, trackers = [], onClo
                     className="flex items-center gap-1.5 text-sm font-semibold text-cyan-600
                                dark:text-cyan-400 border-t border-dashed border-hairline pt-4">
                     {showMore ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                    Setup, chart, targets and your thesis
+                    Setup, chart, targets, notes and what you have learned
                 </button>
                 )}
 
@@ -384,16 +384,32 @@ export default function JournalEntryModal({ entry, options, trackers = [], onClo
 
                         <TargetsEditor targets={form.targets} onChange={(t) => set('targets', t)} />
 
-                        {/* The thesis, written while the outcome is still unknown.
-                            Asking what went wrong on a trade still running invites a
-                            made-up answer, so until it closes this is the only prompt. */}
-                        {!closing && (
-                            <Field label="Why this trade">
-                                <textarea rows="3" value={form.notes} className={input} maxLength={2000}
-                                    placeholder="Why did I take this? How will I manage it?"
-                                    onChange={(e) => set('notes', e.target.value)} />
+                        {/* The thesis, written while the outcome is still unknown. */}
+                        <Field label="Why this trade">
+                            <textarea rows="3" value={form.notes} className={input} maxLength={2000}
+                                placeholder="Why did I take this? How will I manage it?"
+                                onChange={(e) => set('notes', e.target.value)} />
+                        </Field>
+
+                        {/* Both of these used to wait for the exit, which assumed a
+                            trade is only understood once it is over. A swing
+                            position runs for months: "held through earnings"
+                            becomes true while it is open, and a lesson learned in
+                            July is not improved by being written down in October
+                            from memory. They are asked for again at the close, so
+                            nothing is missed either way. */}
+                        {trackers.length > 0 && (
+                            <Field label="Tags">
+                                <Trackers list={trackers} value={form.whatHappened}
+                                    onChange={(v) => set('whatHappened', v)} />
                             </Field>
                         )}
+
+                        <Field label="Lesson">
+                            <textarea rows="2" value={form.lesson} className={input} maxLength={500}
+                                placeholder="Anything you already know you would do differently?"
+                                onChange={(e) => set('lesson', e.target.value)} />
+                        </Field>
                     </div>
                 )}
 
@@ -425,20 +441,8 @@ export default function JournalEntryModal({ entry, options, trackers = [], onClo
                 {closing && trackers.length > 0 && (
                     <Section title="2 · Tags"
                         hint="Tap what applies. Nothing is read into these beyond a count and a total — they are yours, and you keep the list in journal settings.">
-                        <div className="flex flex-wrap gap-2">
-                            {trackers.map((t) => {
-                                const on = form.whatHappened.includes(t);
-                                return (
-                                    <button key={t} type="button"
-                                        onClick={() => set('whatHappened', on
-                                            ? form.whatHappened.filter((x) => x !== t)
-                                            : [...form.whatHappened, t])}
-                                        className={choice(on)}>
-                                        {t}
-                                    </button>
-                                );
-                            })}
-                        </div>
+                        <Trackers list={trackers} value={form.whatHappened}
+                            onChange={(v) => set('whatHappened', v)} />
                     </Section>
                 )}
 
@@ -478,6 +482,25 @@ const FORM_ID = 'journal-entry-form';
 
 const input = FIELD;
 const ROW = 'grid gap-3 grid-cols-[repeat(auto-fit,minmax(150px,1fr))]';
+
+/** The tags this user keeps, as a row of toggles. Never typed here — the list
+ *  is authored once in journal settings, which is what keeps it short. */
+function Trackers({ list, value, onChange }) {
+    return (
+        <div className="flex flex-wrap gap-2">
+            {list.map((t) => {
+                const on = value.includes(t);
+                return (
+                    <button key={t} type="button" aria-pressed={on}
+                        onClick={() => onChange(on ? value.filter((x) => x !== t) : [...value, t])}
+                        className={choice(on)}>
+                        {t}
+                    </button>
+                );
+            })}
+        </div>
+    );
+}
 
 function Section({ title, hint, hidden, when, onWhen, whenLocked, children }) {
     if (hidden) return null;
