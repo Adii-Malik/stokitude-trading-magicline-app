@@ -5,6 +5,56 @@ import config from '../config/config.js';
 import { SEED_TRACKERS } from '../models/JournalEntry.js';
 
 /**
+ * Old tags that named something the app now works out for itself.
+ *
+ * These are the reason the vocabulary had to go. "no stop" is plannedStop being
+ * null; "target hit" is the exit read against the levels; "oversized" is the
+ * size against the book's cap. Carrying them forward as trackers would ask the
+ * trader to type what the record already holds - and worse, lets the two
+ * disagree: MAS carried "no stop" while holding a stop of 71, and the pane
+ * showed both.
+ */
+const COMPUTED_NOW = new Set([
+    // read off plannedStop
+    'no stop', 'no stop placed',
+    // read off the exit against the stop and targets
+    'target hit', 'stop hit', 'trailing stop', 'trailed out', 'manual exit',
+    'scaled out', 'took some off', 'time exit', 'time stop', 'breakeven',
+    'premature exit', 'exited early', 'no profit protection',
+    // read off riskAmount against the book's rule
+    'oversized', 'position too large'
+]);
+
+/**
+ * Old tags that describe what the market did rather than what the trader did.
+ *
+ * True, but not countable about you - two people can write "reversal" about
+ * completely different trades. This is what the note is for, and the note is
+ * searchable.
+ */
+const PROSE_NOW = new Set([
+    'thesis played out', 'thesis broken', 'thesis broke', 'failed breakout',
+    'no follow-through', 'reversal', 'gave back profit'
+]);
+
+/** Old wording for something the seed list already covers. */
+const RENAMED = {
+    'held through events': 'held through earnings',
+    'held through event': 'held through earnings',
+    'fomo exit': 'chased the move',
+    'chased the move': 'chased the move',
+    'lost patience': 'lost patience',
+    'moved stop': 'moved my stop'
+};
+
+/** What a tag becomes: itself, a new name, or nothing. */
+const carriedForward = (tag) => {
+    const t = String(tag || '').trim().toLowerCase();
+    if (!t || COMPUTED_NOW.has(t) || PROSE_NOW.has(t)) return null;
+    return RENAMED[t] || String(tag).trim();
+};
+
+/**
  * Retires the tag vocabulary and the watched-level state.
  *
  * Two changes, both subtractions.
@@ -24,8 +74,9 @@ import { SEED_TRACKERS } from '../models/JournalEntry.js';
  * trades, because there was never a fill to record, so they are removed rather
  * than left to load as an open position with no entry price.
  *
- * Existing tags seed each user's tracker list, so nothing anyone typed is
- * orphaned; they can then delete whatever they do not want.
+ * Tags that survive the rule seed each user's tracker list. Ones naming
+ * something the app now computes are dropped from the entries too, rather than
+ * left to contradict the record they sit beside.
  *
  * Idempotent. Pass --dry to report without writing.
  */
@@ -57,36 +108,64 @@ const migrate = async () => {
     console.log(`  ${carrying} entr(ies) carrying zone fields`);
     if (!dry && carrying) await entries.updateMany({}, { $unset: zoneFields });
 
-    // --- 3. seed each user's tracker list -------------------------------------
-    // Whatever they wrote comes first, because those are words they chose; the
-    // four seeds fill in behind. A user who already has settings is left alone,
-    // which is what makes a second run harmless.
+    // --- 3. retire the tags the app now works out ------------------------------
+    const tagged = await entries.find({ whatHappened: { $exists: true, $ne: [] } })
+        .project({ symbol: 1, whatHappened: 1, plannedStop: 1 }).toArray();
+
+    let rewritten = 0;
+    for (const e of tagged) {
+        const kept = [...new Set(e.whatHappened.map(carriedForward).filter(Boolean))];
+        if (kept.length === e.whatHappened.length
+            && kept.every((t, i) => t === e.whatHappened[i])) continue;
+
+        const gone = e.whatHappened.filter(t => !kept.includes(carriedForward(t) || ''));
+        console.log(`    ${e.symbol}: [${e.whatHappened.join(', ')}] -> [${kept.join(', ')}]`
+            + (gone.includes('no stop') && e.plannedStop != null
+                ? '   (it had a stop of ' + e.plannedStop + ' all along)' : ''));
+
+        if (!dry) await entries.updateOne({ _id: e._id }, { $set: { whatHappened: kept } });
+        rewritten++;
+    }
+    console.log(`  ${rewritten} entr(ies) with tags the record already answers`);
+
+    // --- 4. each user's tracker list ------------------------------------------
+    // Their own words first, because those are words they chose; the seeds fill
+    // in behind. Runs for an existing list too, so a list seeded by an earlier
+    // version of this script is pruned rather than left carrying the vocabulary
+    // this change exists to retire.
     const users = await entries.distinct('user');
-    let seeded = 0, already = 0;
+    let touched = 0;
 
     for (const user of users) {
-        if (await settings.findOne({ user })) { already++; continue; }
+        const existing = await settings.findOne({ user });
 
         const mine = (await entries.distinct('whatHappened', { user }))
-            .map(t => String(t || '').trim())
-            .filter(Boolean);
-        const trackers = [...mine, ...SEED_TRACKERS.filter(t => !mine.includes(t))].slice(0, 20);
+            .map(carriedForward).filter(Boolean);
+        const fromList = (existing?.trackers || []).map(carriedForward).filter(Boolean);
+        const chosen = [...new Set([...mine, ...fromList])];
+        const trackers = [...chosen, ...SEED_TRACKERS.filter(t => !chosen.includes(t))].slice(0, 20);
 
+        if (existing && existing.trackers?.length === trackers.length
+            && existing.trackers.every((t, i) => t === trackers[i])) continue;
+
+        const dropped = (existing?.trackers || []).filter(t => !trackers.includes(t));
         console.log(`  ${String(user).slice(-6)}: ${trackers.length} tracker(s)`
-            + (mine.length ? ` (${mine.length} of your own: ${mine.join(', ')})` : ''));
+            + (dropped.length ? `, dropping ${dropped.join(', ')}` : ''));
 
         if (!dry) {
-            await settings.insertOne({
-                user, trackers, askForBook: false,
-                createdAt: new Date(), updatedAt: new Date()
-            });
+            await settings.updateOne(
+                { user },
+                { $set: { trackers, updatedAt: new Date() },
+                  $setOnInsert: { user, askForBook: false, createdAt: new Date() } },
+                { upsert: true }
+            );
         }
-        seeded++;
+        touched++;
     }
 
     console.log(dry
-        ? `Dry run. Would seed ${seeded} user(s), ${already} already set up.`
-        : `Seeded ${seeded} user(s), ${already} already set up.`);
+        ? `Dry run. Would write ${touched} tracker list(s).`
+        : `Wrote ${touched} tracker list(s).`);
 
     await mongoose.disconnect();
 };
