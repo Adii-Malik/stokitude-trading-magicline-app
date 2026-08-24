@@ -135,25 +135,17 @@ export default function JournalPane({ entry, portfolioName, onEdit, onDelete, on
                     v={entry.plannedStop != null ? num(entry.plannedStop) : 'none set'}
                     sub={entry.stopHit ? 'price reached it' : null}
                     faint={entry.plannedStop == null} />
-                {/* Open and closed want different fourth facts. While it runs,
-                    what it can still lose. Once it is over that number has
-                    already happened, and "if the stop hits" is a conditional on
-                    a settled trade - so the box asks what you were aiming for
-                    instead, which is the only thing on this screen that can be
-                    compared with how it actually went. */}
-                {closed ? (
-                    <Fact k="Aimed for"
-                        v={entry.plannedRR != null ? `${entry.plannedRR.toFixed(1)} : 1` : 'no target set'}
-                        sub={entry.riskAmount != null
-                            ? `risked ${formatCurrency(entry.riskAmount, entry.currency)}`
-                            : 'no stop, so no R'}
-                        faint={entry.plannedRR == null} />
-                ) : (
-                    <Fact k="At risk"
-                        v={entry.riskAmount != null ? formatCurrency(entry.riskAmount, entry.currency) : '—'}
-                        sub={entry.riskAmount != null ? 'if the stop hits' : 'needs a stop'}
-                        faint={entry.riskAmount == null} />
-                )}
+                {/* One box for both states: what the trade was for, and what it
+                    cost to find out. "At risk — if the stop hits" was a
+                    conditional about a settled trade once the stop had hit, and
+                    splitting the box in two to fix that gave the same slot two
+                    meanings. The pair reads in either tense. */}
+                <Fact k="Aimed for"
+                    v={entry.plannedRR != null ? `${entry.plannedRR.toFixed(1)} : 1` : 'no target set'}
+                    sub={entry.riskAmount != null
+                        ? `${closed ? 'risked' : 'risking'} ${formatCurrency(entry.riskAmount, entry.currency)}`
+                        : 'no stop set'}
+                    faint={entry.plannedRR == null} />
             </div>
 
             {/* Only the targets. The stop has its own box above, and showing it
