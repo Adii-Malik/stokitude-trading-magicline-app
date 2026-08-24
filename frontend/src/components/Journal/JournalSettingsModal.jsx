@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Modal } from '../../ui/Modal';
 import { FIELD } from '../../ui/field';
-import { saveSettings } from '../../services/journal';
+import { saveSettings, getRiskProfiles, saveRiskProfile } from '../../services/journal';
 import { formatCurrency, getPnLColorClass } from '../../utils/portfolioUtils';
 
 /**
@@ -20,6 +20,27 @@ export default function JournalSettingsModal({ settings, portfolios = [], byTrac
     const [draft, setDraft] = useState('');
     const [saving, setSaving] = useState(false);
 
+    // The rule each book is judged by, keyed on portfolio. Loaded rather than
+    // read off `options.portfolios`, which carries only what the trade form's
+    // pickers need — a book with rules set was showing "no rules set" here
+    // because the field was never on that payload in the first place.
+    const [rules, setRules] = useState(null);
+    const [savedRules, setSavedRules] = useState({});
+    useEffect(() => {
+        getRiskProfiles()
+            .then((list) => {
+                const map = Object.fromEntries(list.map((r) => [String(r.portfolioId), {
+                    defaultRiskPct: String(r.defaultRiskPct), maxPositionPct: String(r.maxPositionPct)
+                }]));
+                setRules(map);
+                setSavedRules(map);
+            })
+            .catch(() => setRules({}));
+    }, []);
+
+    const setRule = (id, key, value) =>
+        setRules((r) => ({ ...r, [id]: { ...(r[id] || {}), [key]: value } }));
+
     // Counts come from closed trades, so a tracker shows what keeping it has been
     // worth before you decide whether to keep it.
     const statOf = (name) => byTracker.find((t) => t.name === name);
@@ -35,15 +56,33 @@ export default function JournalSettingsModal({ settings, portfolios = [], byTrac
         setDraft('');
     };
 
+    /**
+     * Saves the settings and any rule that changed, in one action.
+     *
+     * A rule only goes up when both halves are filled: half a rule would be
+     * stored with the model's default standing in for the other, which reads as
+     * a decision the user never made.
+     */
     const submit = async () => {
+        const changed = Object.entries(rules || {}).filter(([id, r]) => {
+            if (!r.defaultRiskPct || !r.maxPositionPct) return false;
+            const was = savedRules[id];
+            return !was || was.defaultRiskPct !== r.defaultRiskPct
+                || was.maxPositionPct !== r.maxPositionPct;
+        });
+
         setSaving(true);
         try {
-            const saved = await saveSettings({
-                defaultPortfolioId: book || null,
-                askForBook: ask,
-                trackers
-            });
-            toast.success('Settings saved');
+            const [saved] = await Promise.all([
+                saveSettings({ defaultPortfolioId: book || null, askForBook: ask, trackers }),
+                ...changed.map(([id, r]) => saveRiskProfile(id, {
+                    defaultRiskPct: Number(r.defaultRiskPct),
+                    maxPositionPct: Number(r.maxPositionPct)
+                }))
+            ]);
+            toast.success(changed.length
+                ? `Settings saved, and ${changed.length} rule${changed.length > 1 ? 's' : ''} updated`
+                : 'Settings saved');
             onSaved(saved);
         } catch (error) {
             toast.error(error.response?.data?.message || 'Could not save settings');
@@ -128,23 +167,55 @@ export default function JournalSettingsModal({ settings, portfolios = [], byTrac
                 </Section>
 
                 <Section title="Risk rules, per book"
-                    hint="A trade follows the rules of the book it is logged against. One book being aggressive has nothing to do with another. Set them from the size calculator on the trade form.">
-                    <div className="divide-y divide-hairline/70">
-                        {portfolios.map((p) => (
-                            <div key={p._id} className="flex items-center gap-3 py-2 text-sm">
-                                <span className="font-semibold text-ink truncate">{p.name}</span>
-                                <span className="ml-auto text-xs text-ink-faint tabular-nums whitespace-nowrap">
-                                    {p.risk
-                                        ? `${p.risk.defaultRiskPct}% risk · ${p.risk.maxPositionPct}% max per stock`
-                                        : 'no rules set'}
-                                </span>
+                    hint="A trade follows the rules of the book it is logged against, so one book being aggressive has nothing to do with another. Leave a book blank and it is simply not judged.">
+                    {rules === null ? (
+                        <p className="text-sm text-ink-faint py-2">Loading…</p>
+                    ) : portfolios.length === 0 ? (
+                        <p className="text-sm text-ink-faint py-2">No books yet.</p>
+                    ) : (
+                        <div className="divide-y divide-hairline/70">
+                            <div className="grid grid-cols-[1fr_92px_92px] gap-3 pb-2 text-xs
+                                font-bold uppercase tracking-wider text-ink-faint">
+                                <span>Book</span>
+                                <span className="text-right">Risk %</span>
+                                <span className="text-right">Max %</span>
                             </div>
-                        ))}
-                    </div>
+                            {portfolios.map((p) => {
+                                const r = rules[String(p._id)] || {};
+                                const partial = Boolean(r.defaultRiskPct) !== Boolean(r.maxPositionPct);
+                                return (
+                                    <div key={p._id} className="grid grid-cols-[1fr_92px_92px] gap-3 py-2.5 items-center">
+                                        <span className="text-sm font-semibold text-ink truncate">
+                                            {p.name}
+                                            {partial && (
+                                                <span className="block text-xs font-normal text-amber-600 dark:text-amber-400">
+                                                    needs both to count
+                                                </span>
+                                            )}
+                                        </span>
+                                        <RuleInput value={r.defaultRiskPct} placeholder="1"
+                                            onChange={(v) => setRule(String(p._id), 'defaultRiskPct', v)} />
+                                        <RuleInput value={r.maxPositionPct} placeholder="25"
+                                            onChange={(v) => setRule(String(p._id), 'maxPositionPct', v)} />
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
                 </Section>
 
             </div>
         </Modal>
+    );
+}
+
+/** A percentage. Blank is meaningful — it means this book has no rule. */
+function RuleInput({ value, placeholder, onChange }) {
+    return (
+        <input type="number" step="any" min="0" max="100"
+            value={value || ''} placeholder={placeholder}
+            onChange={(e) => onChange(e.target.value)}
+            className={`${FIELD} text-right tabular-nums px-2.5`} />
     );
 }
 

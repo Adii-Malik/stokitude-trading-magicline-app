@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Calculator, AlertTriangle, Save, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
+import { getRiskProfiles, saveRiskProfile } from '../../services/journal';
 import { sizePosition } from '../../utils/positionSizing';
 import { FIELD as input, choice } from '../../ui/field';
 import { formatCurrency, formatPercent } from '../../utils/portfolioUtils';
@@ -48,10 +49,10 @@ export default function RiskCalculator({ options }) {
     }, [currency, portfolioId]);
 
     useEffect(() => {
-        api.get('/journal/risk-profiles')
-            .then((res) => {
+        getRiskProfiles()
+            .then((list) => {
                 const map = {};
-                for (const p of res.data.data) map[p.portfolioId] = p;
+                for (const p of list) map[p.portfolioId] = p;
                 setProfiles(map);
                 setSaved(Object.fromEntries(Object.entries(map).map(([id, v]) => [id, {
                     defaultRiskPct: v.defaultRiskPct, maxPositionPct: v.maxPositionPct
@@ -81,8 +82,7 @@ export default function RiskCalculator({ options }) {
         }
         setSaving(true);
         try {
-            await api.put(`/journal/risk-profiles/${portfolioId}`,
-                { defaultRiskPct: risk, maxPositionPct: cap });
+            await saveRiskProfile(portfolioId, { defaultRiskPct: risk, maxPositionPct: cap });
             setSaved((v) => ({ ...v, [portfolioId]: { defaultRiskPct: risk, maxPositionPct: cap } }));
             toast.success(`Limits saved for ${book?.name || 'this book'}`);
         } catch (error) {

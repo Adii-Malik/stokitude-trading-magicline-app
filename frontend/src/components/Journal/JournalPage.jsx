@@ -246,6 +246,9 @@ export default function JournalPage() {
                         setSettings(saved);
                         setShowSettings(false);
                         getOptions().then(setOptions).catch(() => { });
+                        // "Size inside your book's rule" is measured against the
+                        // rules just edited, so the strip is wrong until refetched.
+                        load();
                     }}
                 />
             )}

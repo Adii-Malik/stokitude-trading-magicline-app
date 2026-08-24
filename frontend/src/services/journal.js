@@ -14,3 +14,6 @@ export const updateEntry = (id, data) => api.put(`/journal/${id}`, data).then(un
 export const deleteEntry = (id) => api.delete(`/journal/${id}`);
 export const getSettings = () => api.get('/journal/settings').then(unwrap);
 export const saveSettings = (data) => api.put('/journal/settings', data).then(unwrap);
+export const getRiskProfiles = () => api.get('/journal/risk-profiles').then(unwrap);
+export const saveRiskProfile = (portfolioId, data) =>
+    api.put(`/journal/risk-profiles/${portfolioId}`, data).then(unwrap);
