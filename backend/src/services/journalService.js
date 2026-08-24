@@ -168,19 +168,13 @@ export function statsFor(entries) {
         })).sort((a, b) => a.netPnL - b.netPnL);
     };
 
-    // Two of the three checks the main screen reports. Both are read off the
-    // entry, so neither can be true by accident and neither asks anything of the
-    // trader. The third - size against the book's cap - needs the risk profile
-    // and the book's value, so it is assembled in stats() where those can be
-    // loaded.
-    //
-    // A stop is honoured when the trade did not close past it. A gap through the
-    // level still counts against you: the loss did exceed the plan, whatever the
-    // reason, and softening that would make the number worth less than nothing.
+    // Whether a stop existed at all, which is the one thing about a stop this
+    // record can actually answer. Whether it was *honoured* cannot be computed:
+    // knowing that needs the price to have reached the level, and all we store
+    // is where the trade got out. A winner never tests its stop, so counting one
+    // as honoured made the rate true by default - the same fault as the
+    // followedPlan it replaced.
     const withStop = closed.filter(e => e.plannedStop != null);
-    const honoured = withStop.filter(e => (e.direction === 'short'
-        ? e.exitPrice <= e.plannedStop
-        : e.exitPrice >= e.plannedStop));
 
     return {
         totalTrades: entries.length,
@@ -213,7 +207,6 @@ export function statsFor(entries) {
         openWithoutStop: open.filter(e => e.plannedStop == null).length,
 
         stopSet: { n: withStop.length, of: closed.length },
-        stopHonoured: { n: honoured.length, of: withStop.length },
 
         byTracker,
         byExit: group('exitReason'),
@@ -381,7 +374,6 @@ class JournalService {
                 openTrades: all.openTrades,
                 closedTrades: all.closedTrades,
                 stopSet: all.stopSet,
-                stopHonoured: all.stopHonoured,
                 sizeInRule: await sizeInRule(userId, entries),
                 openWithoutStop: all.openWithoutStop,
                 // Counts only. A total here would sum currencies, so money stays

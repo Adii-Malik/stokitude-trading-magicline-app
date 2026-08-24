@@ -191,15 +191,17 @@ describe('aggregate stats', () => {
         assert.equal(s.openWithoutStop, 0);
     });
 
-    test('the stop checks are read off the entries, never from a tag', () => {
+    test('whether a stop existed is read off the entries, never from a tag', () => {
         // DXCM is the only closed trade carrying a stop.
         assert.deepEqual(s.stopSet, { n: 1, of: 6 });
-        assert.deepEqual(s.stopHonoured, { n: 1, of: 1 }, 'exited exactly at the level');
     });
 
-    test('a stop let through counts against you however it happened', () => {
-        const gapped = decorate(trade({ plannedStop: 95, exitPrice: 88 }));
-        assert.deepEqual(statsFor([gapped]).stopHonoured, { n: 0, of: 1 });
+    test('nothing claims to know whether a stop was honoured', () => {
+        // It cannot be known from what is stored. A winner never reaches its
+        // stop, so counting it as honoured made the rate true by default - the
+        // same fault as the followedPlan this replaced.
+        const winnerWithStop = decorate(trade({ plannedStop: 95, exitPrice: 120 }));
+        assert.equal(statsFor([winnerWithStop]).stopHonoured, undefined);
     });
 
     test('trackers are counted and totalled, and nothing more is read into them', () => {
@@ -223,11 +225,12 @@ describe('aggregate stats', () => {
 describe('what the trader is asked for', () => {
     test('a losing trade taken properly is visible without anyone saying so', () => {
         // The whole reason for the tag taxonomy this replaced: a loss can be
-        // well run. The record already knew - the stop was set and honoured.
+        // well run. The record already knew - a stop was set, and the exit was
+        // at it.
         const m = computeMetrics(trade({ exitPrice: 95, plannedStop: 95 }));
         assert.equal(m.outcome, 'loss');
         assert.equal(m.exitReason, 'stop hit');
-        assert.deepEqual(statsFor([decorate(trade({ exitPrice: 95, plannedStop: 95 }))]).stopHonoured,
+        assert.deepEqual(statsFor([decorate(trade({ exitPrice: 95, plannedStop: 95 }))]).stopSet,
             { n: 1, of: 1 });
     });
 

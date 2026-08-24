@@ -146,8 +146,6 @@ export default function JournalPage() {
                     <Tiles book={shown} process={stats?.process} books={books}
                         currency={shown?.currency} onCurrency={setCurrency} />
 
-                    <PlanStrip process={stats?.process} />
-
                     <div className="flex gap-1 border-b border-hairline overflow-x-auto">
                         {TABS.map((t) => (
                             <button key={t.key} onClick={() => setTab(t.key)}
@@ -283,6 +281,9 @@ function Tiles({ book, process, books, currency, onCurrency }) {
                     v={formatCurrency(book.expectancy, book.currency, { signed: true })}
                     color={getPnLColorClass(book.expectancy)}
                     s={`per trade · ${formatPercent(book.winRate, 0)} win${payoff ? ` · ${payoff}` : ''}`} />
+                {/* The caption is the discipline number. It had a card of its own
+                    below these tiles saying "stop set 33% (2 of 6)", which is
+                    this sentence with a bar drawn through it. */}
                 <Tile k="Average R"
                     v={book.avgR != null ? `${book.avgR >= 0 ? '+' : ''}${book.avgR.toFixed(2)}R` : '—'}
                     color={book.avgR != null ? getPnLColorClass(book.avgR) : ''}
@@ -315,52 +316,6 @@ function Tile({ k, v, s, color }) {
             <div className="text-sm font-medium text-ink-faint">{k}</div>
             <div className={`text-2xl font-bold tracking-tight tabular-nums mt-1 ${color || 'text-ink'}`}>{v}</div>
             <div className="text-xs text-ink-faint tabular-nums truncate mt-0.5">{s}</div>
-        </div>
-    );
-}
-
-/**
- * The plan you wrote, against what you did.
- *
- * Three checks, every one read off the entry — no typed word enters any of them,
- * so no wording can split a row in two. A scorecard rather than a ranking of
- * mistakes, because a rate is something you can move with the next trade, and
- * because it can also say you did the right thing.
- */
-function PlanStrip({ process }) {
-    if (!process) return null;
-    const rows = [
-        ['Stop set before you entered', process.stopSet],
-        ['Stop honoured once it was set', process.stopHonoured],
-        ["Size inside your book's rule", process.sizeInRule]
-    ].filter(([, v]) => v?.of > 0);
-
-    if (!rows.length) return null;
-
-    return (
-        <div className="bg-surface rounded-card ring-1 ring-hairline p-5 flex flex-col gap-3">
-            <div className="flex items-baseline gap-3 flex-wrap">
-                <span className="font-semibold text-ink">The plan, and what you did</span>
-                <span className="text-xs text-ink-faint tabular-nums">
-                    {process.closedTrades} closed
-                </span>
-            </div>
-            {rows.map(([label, v]) => {
-                const rate = (v.n / v.of) * 100;
-                const tone = rate >= 80 ? 'good' : rate >= 50 ? 'warn' : 'bad';
-                const bar = { good: 'bg-green-500', warn: 'bg-amber-500', bad: 'bg-red-500' }[tone];
-                const text = { good: 'text-green-600 dark:text-green-400', warn: 'text-amber-600 dark:text-amber-400', bad: 'text-red-600 dark:text-red-400' }[tone];
-                return (
-                    <div key={label} className="grid grid-cols-[1fr_auto_auto] sm:grid-cols-[1fr_140px_52px_64px] gap-3 items-center text-sm">
-                        <span className="text-ink-muted truncate">{label}</span>
-                        <span className="hidden sm:block h-2 rounded-full bg-surface-muted overflow-hidden">
-                            <span className={`block h-full rounded-full ${bar}`} style={{ width: `${rate}%` }} />
-                        </span>
-                        <span className={`text-right font-bold tabular-nums ${text}`}>{Math.round(rate)}%</span>
-                        <span className="text-right text-xs text-ink-faint tabular-nums">{v.n} of {v.of}</span>
-                    </div>
-                );
-            })}
         </div>
     );
 }
