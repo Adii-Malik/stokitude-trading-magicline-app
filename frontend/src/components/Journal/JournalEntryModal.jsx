@@ -423,7 +423,7 @@ export default function JournalEntryModal({ entry, options, trackers = [], onClo
                     An empty tracker list means this section never renders — the
                     app has no vocabulary of its own to push at you. */}
                 {closing && trackers.length > 0 && (
-                    <Section title="2 · Anything you're tracking?"
+                    <Section title="2 · Tags"
                         hint="Tap what applies. Nothing is read into these beyond a count and a total — they are yours, and you keep the list in journal settings.">
                         <div className="flex flex-wrap gap-2">
                             {trackers.map((t) => {
@@ -442,7 +442,7 @@ export default function JournalEntryModal({ entry, options, trackers = [], onClo
                     </Section>
                 )}
 
-                <Section title={trackers.length ? '3 · Worth remembering' : '2 · Worth remembering'}
+                <Section title={trackers.length ? '3 · Lesson' : '2 · Lesson'}
                     hidden={!closing}>
                     <Field label="One line you want to find again">
                         <textarea rows="3" value={form.lesson} className={input} maxLength={500}

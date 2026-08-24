@@ -129,7 +129,7 @@ export default function JournalPane({ entry, portfolioName, onEdit, onDelete, on
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <Fact k="Entry" v={`${num(entry.quantity)} @ ${num(entry.entryPrice)}`} />
                 <Fact k={closed ? 'Exit' : 'Last price'}
-                    v={closed ? num(entry.exitPrice) : entry.lastPrice != null ? num(entry.lastPrice) : 'no quote'}
+                    v={closed ? num(entry.exitPrice) : entry.lastPrice != null ? num(entry.lastPrice) : '—'}
                     faint={!closed && entry.lastPrice == null} />
                 <Fact k="Stop loss"
                     v={entry.plannedStop != null ? num(entry.plannedStop) : 'none set'}
@@ -156,7 +156,7 @@ export default function JournalPane({ entry, portfolioName, onEdit, onDelete, on
             )}
 
             {entry.whatHappened?.length > 0 && (
-                <Section label="Things you tracked">
+                <Section label="Tags">
                     <div className="flex flex-wrap gap-2">
                         {entry.whatHappened.map((t) => (
                             <span key={t} className="px-3 py-1.5 rounded-control text-sm bg-cyan-500 text-white font-medium">
@@ -174,17 +174,17 @@ export default function JournalPane({ entry, portfolioName, onEdit, onDelete, on
                 </a>
             )}
 
-            {/* Two different things written at two different moments, so they
-                are named. Unlabelled, the lesson read as a stray second
-                paragraph of the note. */}
+            {/* Written at two different moments - the note going in, the lesson
+                coming out - so they are named separately. Unlabelled, the lesson
+                read as a stray second paragraph of the note. */}
             {entry.notes && (
-                <Section label={closed ? 'What you wrote' : 'Why this trade'}>
+                <Section label="Notes">
                     <p className="text-sm text-ink-muted whitespace-pre-wrap">{entry.notes}</p>
                 </Section>
             )}
 
             {entry.lesson && (
-                <Section label="Worth remembering">
+                <Section label="Lesson">
                     <p className="text-sm border-l-2 border-cyan-400 pl-3 text-ink italic">{entry.lesson}</p>
                 </Section>
             )}
