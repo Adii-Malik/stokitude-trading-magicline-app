@@ -18,10 +18,12 @@ export default function JournalEntryModal({ entry, options, trackers = [], onClo
     const editing = Boolean(entry?._id);
     const [form, setForm] = useState({
         state: entry?.state || 'open',
-        // A new trade opens on the book the last one used, so the risk panel is
-        // live from the start. Forgetting to pick one leaves the trade with no
-        // capital to be measured against, which saves it ungraded.
-        portfolioId: entry?.portfolioId || options?.lastBook || '',
+        // A new trade opens on your default book so the risk panel is live from
+        // the start. An existing one keeps whatever it has, including nothing:
+        // filling a blank in on edit adopted a book the trade never chose, and a
+        // USD trade quietly picking up a PKR book fails on save with a currency
+        // error nobody asked for.
+        portfolioId: entry?.portfolioId || (entry?._id ? '' : options?.lastBook || ''),
         symbol: entry?.symbol || '',
         exchange: entry?.exchange || 'PSX',
         direction: entry?.direction || 'long',
@@ -95,7 +97,17 @@ export default function JournalEntryModal({ entry, options, trackers = [], onClo
     // letting the server reject it keeps the impossible choice off the screen.
     const currency = (options?.exchangeRules || []).find((x) => x.code === form.exchange)?.currency || 'PKR';
     const bookable = (options?.portfolios || []).filter((p) => (p.currency || 'PKR') === currency);
-    const portfolio = bookable.find((p) => p._id === form.portfolioId);
+    const portfolio = bookable.find((p) => String(p._id) === String(form.portfolioId));
+
+    // A book the trade can no longer be held in has to go, or it stays selected
+    // and unseen until the server refuses the save. One candidate left means
+    // there is no choice to make, so make it.
+    useEffect(() => {
+        if (entryBooked || !options) return;
+        if (form.portfolioId && !portfolio) {
+            set('portfolioId', bookable.length === 1 ? String(bookable[0]._id) : '');
+        }
+    }, [currency, form.portfolioId, portfolio, entryBooked, options]);
 
     // Commission priced the same way the portfolio's own transaction form prices
     // it, so a journalled fill and a hand-entered one cost the same. Priced per
