@@ -45,16 +45,19 @@ export default function Dashboard() {
     wins: t.wins + (c.wins || 0),
     losses: t.losses + (c.losses || 0),
     closed: t.closed + (c.closedTrades || 0),
-    open: t.open + (c.openTrades || 0),
-    planned: t.planned + (c.plannedTrades || 0),
-    cancelled: t.cancelled + (c.cancelledTrades || 0)
-  }), { wins: 0, losses: 0, closed: 0, open: 0, planned: 0, cancelled: 0 });
+    open: t.open + (c.openTrades || 0)
+  }), { wins: 0, losses: 0, closed: 0, open: 0 });
 
   // Over trades that finished, not over everything ever recorded. The old
   // version divided by total plans, which quietly understated the rate.
   const winRate = totals.closed > 0
     ? ((totals.wins / totals.closed) * 100).toFixed(1)
     : 0;
+
+  // Read off the entries, never typed. Null rather than zero when there is
+  // nothing closed, so the line can be left out instead of claiming 0%.
+  const stopSet = stats?.process?.stopSet;
+  const stopRate = stopSet?.of > 0 ? Math.round((stopSet.n / stopSet.of) * 100) : null;
 
   if (loading) {
     return (
@@ -109,7 +112,9 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-500">
-              {totals.planned} level{totals.planned === 1 ? '' : 's'} being watched
+              {stats?.process?.openWithoutStop
+                ? `${stats.process.openWithoutStop} with no stop set`
+                : totals.open ? 'all with a stop set' : 'nothing running'}
             </div>
           </div>
 
@@ -139,7 +144,7 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-500">
-              {Math.round(stats?.process?.followedPlanRate || 0)}% followed the plan
+              {stopRate == null ? 'no closed trades yet' : `${stopRate}% had a stop set`}
             </div>
           </div>
         </div>
@@ -167,17 +172,13 @@ export default function Dashboard() {
             {stats && (
               <div className="p-6">
                 <div className="space-y-3 mb-4">
-                  <div className="flex items-center justify-between p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Watching a level</span>
-                    <span className="text-lg font-bold text-amber-600 dark:text-amber-400">{totals.planned}</span>
-                  </div>
                   <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Open</span>
                     <span className="text-lg font-bold text-blue-600 dark:text-blue-400">{totals.open}</span>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900/40 rounded-lg">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Never triggered</span>
-                    <span className="text-lg font-bold text-gray-600 dark:text-gray-300">{totals.cancelled}</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Closed</span>
+                    <span className="text-lg font-bold text-gray-600 dark:text-gray-300">{totals.closed}</span>
                   </div>
                 </div>
 
@@ -192,13 +193,15 @@ export default function Dashboard() {
                       style={{ width: `${winRate}%` }}
                     ></div>
                   </div>
-                  {/* Outcome and process are separate questions, so both are shown. */}
-                  <div className="flex justify-between text-sm mt-3">
-                    <span className="text-gray-600 dark:text-gray-400">Followed the plan</span>
-                    <span className="font-semibold text-gray-900 dark:text-white">
-                      {Math.round(stats.process?.followedPlanRate || 0)}%
-                    </span>
-                  </div>
+                  {/* Outcome and process are separate questions, so both are
+                      shown. This one is read off the entries rather than from
+                      anything the trader typed, so it cannot be true by default. */}
+                  {stopRate != null && (
+                    <div className="flex justify-between text-sm mt-3">
+                      <span className="text-gray-600 dark:text-gray-400">Had a stop set</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">{stopRate}%</span>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -240,7 +243,7 @@ export default function Dashboard() {
                           <p className="font-medium text-gray-900 dark:text-white">{trade.symbol}</p>
                           {/* The lesson if there is one - it is the reason the entry exists. */}
                           <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {trade.lesson || (trade.followedPlan ? 'Followed the plan' : 'Plan not followed')}
+                            {trade.lesson || trade.exitReason || '—'}
                           </p>
                         </div>
                       </div>

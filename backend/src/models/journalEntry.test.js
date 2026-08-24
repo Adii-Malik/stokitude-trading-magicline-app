@@ -21,19 +21,13 @@ describe('what a trade must have', () => {
         assert.ok(missing.includes('quantity'));
     });
 
-    test('a planned trade needs none of them', () => {
-        // It is a level being watched. Requiring a fill would make the state
-        // impossible to record in the first place.
-        const doc = new JournalEntry({ user, symbol: 'OGDC', state: 'planned', entryFrom: 95, entryTo: 105 });
-        assert.deepEqual(errors(doc), []);
-    });
-
-    test('a cancelled level needs none of them either', () => {
-        // Cancelling a watched level must not demand a fill it never had. This
-        // failed on the real path: state moved off 'planned' and validation
-        // immediately asked for an entry price.
-        const doc = new JournalEntry({ user, symbol: 'OGDC', state: 'cancelled', entryFrom: 95, entryTo: 105 });
-        assert.deepEqual(errors(doc), []);
+    test('there is no state that excuses them', () => {
+        // A journal entry is a position that exists. Watching a level used to be
+        // a fourth state with no fill, no P/L and no R, sitting in the same list
+        // as real trades and making every column mean two things.
+        const doc = new JournalEntry({ user, symbol: 'OGDC', state: 'planned' });
+        assert.deepEqual(errors(doc).sort(), ['entryDate', 'entryPrice', 'quantity', 'state'],
+            'planned is not a state a trade can take, and a trade still needs a fill');
     });
 
     test('a closed trade still needs its entry details', () => {
@@ -49,19 +43,16 @@ describe('what a trade must have', () => {
         // A fixed list put 7 of 8 entries in "other", so the vocabulary is the
         // trader's. No default either: "other" on every ungraded trade is noise
         // that reads like an answer.
-        assert.equal(new JournalEntry({ user, symbol: 'X', state: 'planned' }).setupType, undefined);
-        const doc = new JournalEntry({ user, symbol: 'X', state: 'planned', setupType: '  failed breakdown  ' });
-        assert.deepEqual(errors(doc), []);
+        assert.equal(new JournalEntry({ user, symbol: 'X' }).setupType, undefined);
+        const doc = new JournalEntry({ user, symbol: 'X', setupType: '  failed breakdown  ' });
         assert.equal(doc.setupType, 'failed breakdown', 'trimmed, so the same words are one tag');
     });
 
-    test('what happened is free text, trimmed so it aggregates', () => {
+    test('trackers are trimmed, so the same words stay one row in a total', () => {
         const doc = new JournalEntry({
-            user, symbol: 'X', state: 'planned',
-            whatHappened: ['  chased the gap  ', 'moved my stop']
+            user, symbol: 'X', whatHappened: ['  chased the move  ', 'revenge trade']
         });
-        assert.deepEqual(errors(doc), []);
-        assert.deepEqual(doc.whatHappened.slice(), ['chased the gap', 'moved my stop']);
+        assert.deepEqual(doc.whatHappened.slice(), ['chased the move', 'revenge trade']);
     });
 
     test('a trade defaults to open, so existing callers keep working', () => {
@@ -145,26 +136,6 @@ describe('targets on the wrong side of entry', () => {
             direction: 'long', targets: [{ price: 1100 }, { price: 800 }]
         }));
         assert.equal(bad.price, 800);
-    });
-
-    test('a planned long target must clear the top of the zone', () => {
-        // Inside the band you are still waiting to buy in is not a target.
-        const bad = targetOnWrongSide({
-            state: 'planned', direction: 'long', entryFrom: 95, entryTo: 105, targets: [{ price: 100 }]
-        });
-        assert.equal(bad.price, 100);
-        assert.equal(targetOnWrongSide({
-            state: 'planned', direction: 'long', entryFrom: 95, entryTo: 105, targets: [{ price: 120 }]
-        }), null);
-    });
-
-    test('a planned short target must clear the bottom of the zone', () => {
-        assert.ok(targetOnWrongSide({
-            state: 'planned', direction: 'short', entryFrom: 95, entryTo: 105, targets: [{ price: 100 }]
-        }));
-        assert.equal(targetOnWrongSide({
-            state: 'planned', direction: 'short', entryFrom: 95, entryTo: 105, targets: [{ price: 80 }]
-        }), null);
     });
 
     test('a closed trade is left alone, whatever its targets say', () => {

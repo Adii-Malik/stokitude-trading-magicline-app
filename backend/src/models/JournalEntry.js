@@ -13,69 +13,28 @@ import { EXCHANGE_CODES, DEFAULT_EXCHANGE, currencyOf } from '../config/exchange
 export const SETUP_SUGGESTIONS = ['breakout', 'reversal', 'pullback', 'trend', 'range'];
 
 /**
- * What happened to a trade, in three groups that behave differently.
+ * The few trackers a new journal starts with.
  *
- *   Outcome    how it was got out of. Exactly one is true, so choosing another
- *              replaces it - a trade cannot be both stopped out and target hit.
- *   Behaviour  what the market did. Neutral, and several can be true at once.
- *   Execution  what the trader would rather have done differently. Several can
- *              be true, and these alone count against the plan.
+ * Every one of these is something the app has no way of working out for itself:
+ * whether you were late to the move, whether you were making back a loss,
+ * whether you added to a loser, whether you sat through a result. Anything the
+ * entry already records - no stop, size over the cap, an exit short of a target -
+ * is measured from the data instead of asked for, which is what the long list of
+ * suggestions this replaced got wrong.
  *
- * A stop being hit is the plan working, which is why Outcome sits apart from
- * Execution rather than everything unfamiliar reading as a fault.
- *
- * Suggestions only: anything can still be typed, and whatever has been used
- * before is offered first.
+ * They seed a user's own list and can all be deleted. A tracker means nothing to
+ * the system beyond a count and a total; nothing infers discipline from one.
  */
-export const TAG_GROUPS = [
-    {
-        name: 'Outcome',
-        oneOnly: true,
-        tags: ['target hit', 'stop hit', 'breakeven', 'scaled out',
-            'trailing stop', 'manual exit', 'time exit']
-    },
-    {
-        name: 'What happened',
-        tags: ['thesis played out', 'thesis broken', 'failed breakout',
-            'no follow-through', 'reversal', 'gave back profit']
-    },
-    {
-        name: 'Execution',
-        slip: true,
-        tags: ['lost patience', 'held through events', 'moved stop', 'no stop',
-            'premature exit', 'no profit protection', 'fomo exit', 'oversized']
-    }
+export const SEED_TRACKERS = [
+    'chased the move',
+    'revenge trade',
+    'averaged down',
+    'held through earnings'
 ];
 
-const GROUP_OF = new Map(TAG_GROUPS.flatMap(g => g.tags.map(t => [t, g])));
-const norm = (tag) => String(tag || '').trim().toLowerCase();
-
-/** Only one way out can be true, so picking another displaces it. */
-export function isOutcome(tag) {
-    return GROUP_OF.get(norm(tag))?.oneOnly === true;
-}
-
-/**
- * Whether a tag describes the plan running rather than a slip. A word not in
- * any group counts as a slip: an unfamiliar note about your own discipline
- * should weigh against you rather than quietly pass.
- */
-export function ranToPlan(tag) {
-    const group = GROUP_OF.get(norm(tag));
-    return group ? !group.slip : false;
-}
-
-export const HAPPENED_SUGGESTIONS = TAG_GROUPS.flatMap(g => g.tags);
-
-// The states that mean a fill actually happened, and so require entry details.
-// Planned and cancelled both describe a level that was never entered - demanding
-// an entry price for either makes the state impossible to record.
-const ENTERED = new Set(['open', 'closed']);
 export const EMOTIONS = ['disciplined', 'confident', 'fearful', 'fomo', 'neutral', 'revenge'];
 export const MARKET_CONDITIONS = ['bullish', 'bearish', 'sideways', 'volatile'];
 
-// Process failures, kept separate from outcome. A trade can lose money with none
-// of these set, and win with several.
 /**
  * Orders targets nearest-first and renumbers their levels, so targets[0] is
  * always the one R:R is quoted against. A short's targets sit below its entry,
@@ -93,24 +52,16 @@ export function orderTargets(targets, direction) {
  *
  * A target is a profit objective: above entry on a long, below it on a short.
  * One on the wrong side would be flagged reached by the very next price poll,
- * and a false alert costs more than a rejected typo. Measured against the far
- * edge of a planned zone, since a target inside the band you are still waiting
- * to buy in is not a target either. Closed trades are left alone - history is
- * history, and re-validating it would block editing an old lesson.
+ * and a false alert costs more than a rejected typo. Closed trades are left
+ * alone - history is history, and re-validating it would block editing an old
+ * lesson.
  */
-export function targetOnWrongSide({ state, direction, entryPrice, entryFrom, entryTo, targets }) {
-    if (state === 'closed' || !targets?.length) return null;
-
-    const bounds = [entryFrom, entryTo].filter(n => n != null);
-    const reference = ENTERED.has(state) ? entryPrice
-        : !bounds.length ? null
-            : direction === 'short' ? Math.min(...bounds) : Math.max(...bounds);
-
-    if (reference == null) return null;
+export function targetOnWrongSide({ state, direction, entryPrice, targets }) {
+    if (state === 'closed' || !targets?.length || entryPrice == null) return null;
 
     return targets.find(t => direction === 'short'
-        ? t.price >= reference
-        : t.price <= reference) || null;
+        ? t.price >= entryPrice
+        : t.price <= entryPrice) || null;
 }
 
 const journalEntrySchema = new mongoose.Schema({
@@ -177,56 +128,33 @@ const journalEntrySchema = new mongoose.Schema({
         maxlength: [40, 'Setup name cannot exceed 40 characters']
     },
 
-    // Where the trade is in its life. A planned trade is a level being watched,
-    // not a position: it has no fill yet, so the entry fields below are not
-    // required until it opens.
-    // Cancelled is a level that never triggered, or one you thought better of.
-    // Worth keeping rather than deleting: how often a setup fails to trigger is
-    // the kind of thing only a record can tell you.
+    // Where the trade is in its life. Only two states: a journal entry is a
+    // position that exists. Watching a level was a fourth thing living in the
+    // trade list - no fill, no P/L, no R - and it made every column mean two
+    // things depending on the row. A broker's alerts do that job better.
     state: {
         type: String,
-        enum: ['planned', 'open', 'closed', 'cancelled'],
+        enum: ['open', 'closed'],
         default: 'open',
         index: true
     },
 
     // ----- Entry -----
-    // A price-action level is a band, not a number. Used while planned; the
-    // actual fill lands in entryPrice once the trade opens.
-    entryFrom: {
-        type: Number,
-        min: [0, 'Entry zone cannot be negative']
-    },
-
-    entryTo: {
-        type: Number,
-        min: [0, 'Entry zone cannot be negative']
-    },
-
-    // Set by the price poll when price trades into the zone. A flag, not an
-    // action: whether to actually take the trade stays a decision.
-    entryZoneHit: {
-        type: Boolean,
-        default: false
-    },
-
-    entryZoneHitDate: Date,
-
     entryDate: {
         type: Date,
-        required: [function () { return ENTERED.has(this.state); }, 'Entry date is required'],
+        required: [true, 'Entry date is required'],
         index: true
     },
 
     entryPrice: {
         type: Number,
-        required: [function () { return ENTERED.has(this.state); }, 'Entry price is required'],
+        required: [true, 'Entry price is required'],
         min: [0, 'Entry price cannot be negative']
     },
 
     quantity: {
         type: Number,
-        required: [function () { return ENTERED.has(this.state); }, 'Quantity is required'],
+        required: [true, 'Quantity is required'],
         min: [0, 'Quantity cannot be negative']
     },
 
@@ -298,10 +226,9 @@ const journalEntrySchema = new mongoose.Schema({
     },
 
     /**
-     * What happened, in the trader's own words: how the trade was got out of and
-     * anything they would rather have done differently, in one list. Splitting
-     * the two made a person decide which box a thing belonged in before they
-     * could write it down; ranToPlan tells them apart afterwards.
+     * The trackers ticked on this trade, from the list the user keeps in journal
+     * settings. Named once, then tapped - never retyped, so two spellings of the
+     * same habit can never split into two rows in a total.
      */
     whatHappened: [{
         type: String,
@@ -347,8 +274,7 @@ journalEntrySchema.index({ user: 1, symbol: 1 });
 // The price poll scans by state, ignoring everything already closed.
 journalEntrySchema.index({ state: 1, symbol: 1 });
 
-// The lifecycle is stored, not inferred, because a planned trade looks exactly
-// like an open one from the outside: neither has an exit.
+// Kept as a virtual because every caller reads `status`, not `state`.
 journalEntrySchema.virtual('status').get(function () {
     return this.state;
 });
@@ -370,11 +296,8 @@ journalEntrySchema.virtual('plannedTarget')
     });
 
 journalEntrySchema.pre('save', function (next) {
-    // A stop can't be recorded as placed if there was no stop level.
-
     // An exit price closes the trade, and clearing it reopens one — the
     // behaviour update() has always relied on to correct a mistaken exit.
-    // Planned is the one state an exit cannot coexist with.
     if (this.exitPrice != null) {
         this.state = 'closed';
     } else if (this.state === 'closed') {

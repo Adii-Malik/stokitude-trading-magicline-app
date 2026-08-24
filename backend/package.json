@@ -11,7 +11,8 @@
     "migrate-journal": "node src/scripts/migrateJournalLifecycle.js",
     "test": "node --test src",
     "migrate-journal-vocab": "node src/scripts/migrateJournalVocabulary.js",
-    "migrate-risk-profiles": "node src/scripts/migrateRiskProfiles.js"
+    "migrate-risk-profiles": "node src/scripts/migrateRiskProfiles.js",
+    "migrate-journal-trackers": "node src/scripts/migrateJournalTrackers.js"
   },
   "keywords": [
     "psx",

@@ -8,52 +8,11 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { levelsReached } from './journalLevelHandler.js';
 
-const planned = (o = {}) => ({
-    symbol: 'X', state: 'planned', direction: 'long',
-    entryFrom: 95, entryTo: 100, entryZoneHit: false, ...o
-});
-
 const open = (o = {}) => ({
     symbol: 'X', state: 'open', direction: 'long',
     plannedStop: 90, stopHit: false,
     targets: [{ level: 1, price: 110, isHit: false }, { level: 2, price: 120, isHit: false }],
     ...o
-});
-
-describe('planned entry zones', () => {
-    test('price inside the band reaches the zone', () => {
-        assert.equal(levelsReached(planned(), 97).entryZone, true);
-    });
-
-    test('price either side of the band does not', () => {
-        assert.equal(levelsReached(planned(), 101).entryZone, false);
-        assert.equal(levelsReached(planned(), 94.99).entryZone, false);
-    });
-
-    test('the band is inclusive of both edges', () => {
-        assert.equal(levelsReached(planned(), 95).entryZone, true);
-        assert.equal(levelsReached(planned(), 100).entryZone, true);
-    });
-
-    test('bounds entered in either order describe the same band', () => {
-        assert.equal(levelsReached(planned({ entryFrom: 100, entryTo: 95 }), 97).entryZone, true);
-    });
-
-    test('an already flagged zone is not reported twice', () => {
-        assert.equal(levelsReached(planned({ entryZoneHit: true }), 97).entryZone, false);
-    });
-
-    test('no bounds means nothing to watch', () => {
-        const m = levelsReached(planned({ entryFrom: undefined, entryTo: undefined }), 97);
-        assert.equal(m.entryZone, false);
-    });
-
-    test('a planned trade never reports its stop or targets', () => {
-        // They are hypothetical until the trade is actually entered.
-        const m = levelsReached(planned({ plannedStop: 90, targets: [{ level: 1, price: 110 }] }), 80);
-        assert.equal(m.stop, false);
-        assert.deepEqual(m.targets, []);
-    });
 });
 
 describe('open trade stops', () => {
@@ -109,6 +68,12 @@ describe('what is not watched', () => {
         const m = levelsReached(open({ state: 'closed' }), 1);
         assert.equal(m.stop, false);
         assert.deepEqual(m.targets, []);
+    });
+
+    test('there is no fourth thing to watch', () => {
+        // Watching a level was a state with no fill, no P/L and no R, sitting in
+        // the same list as positions. A broker's alerts do that job better.
+        assert.deepEqual(Object.keys(levelsReached(open(), 0)).sort(), ['stop', 'targets']);
     });
 
     test('a missing price reports nothing rather than treating it as zero', () => {

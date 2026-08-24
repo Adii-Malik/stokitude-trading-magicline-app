@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { Modal } from '../../ui/Modal';
 import { SymbolInput } from '../../ui/SymbolInput';
 import { TagInput } from '../../ui/TagInput';
-import { FIELD } from '../../ui/field';
+import { FIELD, choice } from '../../ui/field';
 import { RiskRail } from './RiskRail';
 import { ResultRail } from './ResultRail';
 import { ChartUpload } from './ChartUpload';
@@ -14,7 +14,7 @@ import { chargesFor } from '../../utils/commission';
 
 const dateValue = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '');
 
-export default function JournalEntryModal({ entry, options, onClose, onSaved }) {
+export default function JournalEntryModal({ entry, options, trackers = [], onClose, onSaved }) {
     const editing = Boolean(entry?._id);
     const [form, setForm] = useState({
         state: entry?.state || 'open',
@@ -26,8 +26,6 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
         exchange: entry?.exchange || 'PSX',
         direction: entry?.direction || 'long',
         setupType: entry?.setupType || 'other',
-        entryFrom: entry?.entryFrom ?? '',
-        entryTo: entry?.entryTo ?? '',
         entryDate: dateValue(entry?.entryDate) || new Date().toISOString().slice(0, 10),
         entryPrice: entry?.entryPrice ?? '',
         quantity: entry?.quantity ?? '',
@@ -68,29 +66,12 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
         };
     })();
 
-    // Groups as the server defines them, with anything already used offered
-    // first. The groups are not tidying: one outcome is true, any number of the
-    // rest can be.
-    const tagGroups = (() => {
-        const groups = options?.tagGroups || [];
-        const known = new Set(groups.flatMap((g) => g.tags));
-        const mine = (options?.whatHappened || []).filter((t) => !known.has(t));
-        return mine.length ? [{ name: 'Yours', tags: mine }, ...groups] : groups;
-    })();
-    const outcomes = new Set(
-        (options?.tagGroups || []).filter((g) => g.oneOnly).flatMap((g) => g.tags)
-    );
-    const slips = new Set(
-        (options?.tagGroups || []).filter((g) => g.slip).flatMap((g) => g.tags)
-    );
-
     /**
-     * The form asks only what its stage can answer. Watching a level has no fill,
-     * being in a trade has no result, and only a finished trade can be reviewed —
-     * so exit prices and "what went wrong" stay out of sight until they mean
-     * something. Everything visible at once was the whole problem.
+     * The form asks only what its stage can answer. Being in a trade has no
+     * result, and only a finished trade can be reviewed — so the exit price and
+     * the review stay out of sight until they mean something. Everything visible
+     * at once was the whole problem.
      */
-    const planning = form.state === 'planned';
     const closing = form.state === 'closed';
     const live = form.state === 'open';
     // Arrived here from an open trade, so this visit is the act of closing it
@@ -99,15 +80,10 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
 
     const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
-    const bounds = [form.entryFrom, form.entryTo].filter((v) => v !== '').map(Number);
-    const entryRef = planning
-        ? (bounds.length ? bounds.reduce((a, b) => a + b, 0) / bounds.length : null)
-        : (form.entryPrice === '' ? null : Number(form.entryPrice));
+    const entryRef = form.entryPrice === '' ? null : Number(form.entryPrice);
     const perShare = entryRef != null && form.plannedStop !== ''
         ? Math.abs(entryRef - Number(form.plannedStop))
         : 0;
-
-    const zoneMissing = planning && bounds.length === 0;
 
     // Which legs the portfolio ledger already owns. Those numbers are read-only
     // here: the transaction is the record, and two editable copies of one fill is
@@ -125,7 +101,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
     // it, so a journalled fill and a hand-entered one cost the same. Priced per
     // leg, and on the correct side: a long pays the buy rate going in and the sell
     // rate coming out.
-    const priceLeg = (price, side) => (portfolio && !planning
+    const priceLeg = (price, side) => (portfolio
         ? chargesFor({
             price, quantity: form.quantity,
             slabs: portfolio.commissionSlabs, charges: portfolio.charges, side
@@ -157,10 +133,10 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
     // The verdict is the server's to give: capital comes from the portfolios and
     // the limits from your profile, so neither is this form's to guess at.
     const [riskCtx, setRiskCtx] = useState(null);
-    const riskKey = [form.portfolioId, currency, form.entryPrice || form.entryFrom,
+    const riskKey = [form.portfolioId, currency, form.entryPrice,
         form.plannedStop, form.quantity, form.targets?.[0]?.price, form.direction].join('|');
     useEffect(() => {
-        if (!form.portfolioId || !form.plannedStop || !(form.entryPrice || form.entryFrom)) {
+        if (!form.portfolioId || !form.plannedStop || !form.entryPrice) {
             setRiskCtx(null); return;
         }
         let live = true;
@@ -170,7 +146,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                     params: {
                         currency,
                         portfolioId: form.portfolioId || undefined,
-                        entryPrice: form.entryPrice || form.entryFrom,
+                        entryPrice: form.entryPrice,
                         stopPrice: form.plannedStop,
                         quantity: form.quantity || undefined,
                         targetPrice: form.targets?.[0]?.price,
@@ -187,10 +163,6 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
 
     const submit = async (e) => {
         e.preventDefault();
-        if (zoneMissing) {
-            toast.error('Give the entry zone a level to watch for');
-            return;
-        }
         // Without a price there is no exit. The model would quietly reopen the
         // trade, which looks like the save silently failed.
         if (closing && form.exitPrice === '') {
@@ -206,8 +178,8 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                 // Ungraded is absent, not an empty string the enum would reject.
                 // Empty means journal-only, not an unparseable ObjectId.
                 portfolioId: form.portfolioId || null,
-                entryFrom: num(form.entryFrom),
-                entryTo: num(form.entryTo),
+                entryPrice: num(form.entryPrice),
+                quantity: num(form.quantity),
                 exitPrice: num(form.exitPrice),
                 fees: num(form.fees) || 0,
                 exitFees: num(form.exitFees) || 0,
@@ -220,17 +192,6 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                 exitDate: form.exitDate || null
             };
 
-            if (planning) {
-                // A planned trade has no fill and no outcome. Sending blanks would
-                // trip the conditional validators the moment it opens.
-                Object.assign(payload, {
-                    entryPrice: null, quantity: null, entryDate: null,
-                    exitPrice: null, exitDate: null
-                });
-            } else {
-                payload.entryPrice = num(form.entryPrice);
-                payload.quantity = num(form.quantity);
-            }
             // Don't send what the ledger owns. The server refuses changes to these
             // anyway; omitting them means an unrelated edit never trips that guard.
             if (entryBooked) {
@@ -287,8 +248,7 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                 />
             )}
             title={closingNow ? `Close ${form.symbol || 'the trade'}`
-                : editing ? (planning ? 'Edit Planned Trade' : 'Edit Trade')
-                    : (planning ? 'Plan a Trade' : 'Journal a Trade')}
+                : editing ? 'Edit Trade' : 'Journal a Trade'}
             footer={
                 <>
                     <button type="button" onClick={onClose}
@@ -301,34 +261,14 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                         className="flex-1 px-4 py-2 bg-cyan-500 text-white rounded-control hover:bg-cyan-600 disabled:opacity-50">
                         {saving ? 'Saving...'
                             : closingNow ? 'Close the trade'
-                                : editing ? 'Save changes'
-                                    : planning ? 'Watch this level' : 'Add to journal'}
+                                : editing ? 'Save changes' : 'Add to journal'}
                     </button>
                 </>
             }
         >
             <form id={FORM_ID} onSubmit={submit} className="space-y-5">
-                {/* A closed trade has a result already; offering to un-enter it
-                    would only invite an inconsistent record. */}
-                {form.state !== 'closed' && (
-                    <div className="flex gap-2 p-1 bg-surface-muted rounded-control">
-                        {[
-                            { key: 'planned', label: 'Watching a level', hint: 'Not in it yet' },
-                            { key: 'open', label: 'In the trade', hint: 'Filled' }
-                        ].map((m) => (
-                            <button key={m.key} type="button" onClick={() => set('state', m.key)}
-                                className={`flex-1 px-3 py-2 rounded-control text-sm transition-colors ${form.state === m.key
-                                    ? 'bg-surface text-ink shadow-card font-medium'
-                                    : 'text-ink-muted hover:text-ink'}`}>
-                                {m.label}
-                                <span className="block text-xs text-ink-faint">{m.hint}</span>
-                            </button>
-                        ))}
-                    </div>
-                )}
-
                 <Section title="1 · What you’re trading" hidden={closing}
-                    when={planning ? null : form.entryDate}
+                    when={form.entryDate}
                     onWhen={(v) => set('entryDate', v)} whenLocked={entryBooked}>
                     <div className={ROW}>
                         <Field label="Symbol *">
@@ -372,34 +312,16 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                 {/* The two that decide the size, together and nothing between them. */}
                 <Section title="2 · Entry and stop" hidden={closing}>
                     <div className={ROW}>
-                        {planning ? (
-                            <>
-                                <Field label="Entry zone from *">
-                                    <input type="number" step="any" value={form.entryFrom} className={input}
-                                        onChange={(e) => set('entryFrom', e.target.value)} />
-                                </Field>
-                                <Field label="to">
-                                    <input type="number" step="any" value={form.entryTo} className={input}
-                                        onChange={(e) => set('entryTo', e.target.value)} />
-                                </Field>
-                            </>
-                        ) : (
-                            <Field label="Entry price *" locked={entryBooked}>
-                                <input type="number" step="any" required value={form.entryPrice} className={input}
-                                    disabled={entryBooked}
-                                    onChange={(e) => { setAutoPriced(false); set('entryPrice', e.target.value); }} />
-                            </Field>
-                        )}
+                        <Field label="Entry price *" locked={entryBooked}>
+                            <input type="number" step="any" required value={form.entryPrice} className={input}
+                                disabled={entryBooked}
+                                onChange={(e) => { setAutoPriced(false); set('entryPrice', e.target.value); }} />
+                        </Field>
                         <Field label="Stop loss">
                             <input type="number" step="any" value={form.plannedStop} className={input}
                                 onChange={(e) => set('plannedStop', e.target.value)} />
                         </Field>
                     </div>
-                    {planning && (
-                        <p className="text-xs text-ink-faint mt-1">
-                            A level is a band, not a number. You&apos;ll be told when price trades into it.
-                        </p>
-                    )}
                     {perShare > 0 && (
                         <p className="text-xs text-ink-faint mt-1 tabular-nums">
                             {perShare.toFixed(2)} a share at risk — the distance that sets the size.
@@ -410,9 +332,8 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                 <Section title="3 · How many" hidden={closing}>
                     <div className={ROW}>
                         <Field label="Shares" locked={entryBooked}>
-                            <input type="number" step="any" required={!planning} value={form.quantity}
+                            <input type="number" step="any" required value={form.quantity}
                                 className={input} disabled={entryBooked}
-                                placeholder={planning ? 'optional' : ''}
                                 onChange={(e) => set('quantity', e.target.value)} />
                         </Field>
                     </div>
@@ -455,11 +376,9 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                             Asking what went wrong on a trade still running invites a
                             made-up answer, so until it closes this is the only prompt. */}
                         {!closing && (
-                            <Field label={planning ? 'Why this level' : 'Why this trade'}>
+                            <Field label="Why this trade">
                                 <textarea rows="3" value={form.notes} className={input} maxLength={2000}
-                                    placeholder={planning
-                                        ? 'What makes this level worth taking?'
-                                        : 'Why did I take this? How will I manage it?'}
+                                    placeholder="Why did I take this? How will I manage it?"
                                     onChange={(e) => set('notes', e.target.value)} />
                             </Field>
                         )}
@@ -488,37 +407,31 @@ export default function JournalEntryModal({ entry, options, onClose, onSaved }) 
                     </p>
                 </Section>
 
-                {/* Held back until the exit price is in, because the price is what
-                    says whether this went well or badly - and the ways out worth
-                    offering are different either way. */}
-                <Section title="2 · What happened" hidden={!closing}
-                    hint={closedMetrics
-                        ? 'How you got out, and anything you would rather have done differently — in the words you would use yourself.'
-                        : 'Put the exit price in first. What it says about the trade decides what is worth suggesting here.'}>
-                    <fieldset disabled={!closedMetrics} className="disabled:opacity-50">
-                        <TagInput
-                            value={form.whatHappened}
-                            suggestions={tagGroups}
-                            placeholder="type it, then Enter"
-                            toneOf={(tag) => (slips.has(tag) ? 'bad' : 'good')}
-                            // A trade has one way out. The rest stack; outcomes replace.
-                            exclusive={(tag) => outcomes.has(tag)}
-                            onChange={(v) => set('whatHappened', v)}
-                        />
-                    </fieldset>
-                    {closedMetrics && (
-                        <p className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-ink-faint mt-2">
-                            <span className="flex items-center gap-1.5">
-                                <i className="w-2 h-2 rounded-sm bg-green-600/60" /> the plan ran
-                            </span>
-                            <span className="flex items-center gap-1.5">
-                                <i className="w-2 h-2 rounded-sm bg-red-500/60" /> something you would do differently
-                            </span>
-                        </p>
-                    )}
-                </Section>
+                {/* Only what you said you wanted counted, and only if you said so.
+                    An empty tracker list means this section never renders — the
+                    app has no vocabulary of its own to push at you. */}
+                {closing && trackers.length > 0 && (
+                    <Section title="2 · Anything you're tracking?"
+                        hint="Tap what applies. Nothing is read into these beyond a count and a total — they are yours, and you keep the list in journal settings.">
+                        <div className="flex flex-wrap gap-2">
+                            {trackers.map((t) => {
+                                const on = form.whatHappened.includes(t);
+                                return (
+                                    <button key={t} type="button"
+                                        onClick={() => set('whatHappened', on
+                                            ? form.whatHappened.filter((x) => x !== t)
+                                            : [...form.whatHappened, t])}
+                                        className={choice(on)}>
+                                        {t}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </Section>
+                )}
 
-                <Section title="3 · Worth remembering" hidden={!closing}>
+                <Section title={trackers.length ? '3 · Worth remembering' : '2 · Worth remembering'}
+                    hidden={!closing}>
                     <Field label="One line you want to find again">
                         <textarea rows="3" value={form.lesson} className={input} maxLength={500}
                             placeholder="What would you tell yourself before the next one?"

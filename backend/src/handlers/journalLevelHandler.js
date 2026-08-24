@@ -4,9 +4,8 @@ import notificationService from '../services/notificationService.js';
 
 /**
  * Journal Level Handler
- * Watches the levels recorded on journal entries against the prices the poll
- * has just written: the entry zone of a planned trade, and the stop and targets
- * of an open one.
+ * Watches the stop and targets of an open trade against the prices the poll has
+ * just written.
  *
  * It never opens or closes a trade. A fill is a real event with a real price and
  * the ledger owns those; this only raises a hand and says the level printed.
@@ -16,27 +15,14 @@ import notificationService from '../services/notificationService.js';
  * Which of an entry's levels the current price has reached, ignoring any already
  * flagged. Pure, so the rules can be tested without a database.
  *
- * @returns {{ entryZone: boolean, stop: boolean, targets: number[] }} targets are
- *          indices into entry.targets.
+ * @returns {{ stop: boolean, targets: number[] }} targets are indices into
+ *          entry.targets.
  */
 export function levelsReached(entry, price) {
-    const out = { entryZone: false, stop: false, targets: [] };
+    const out = { stop: false, targets: [] };
     if (!price) return out;
 
     const long = entry.direction !== 'short';
-
-    if (entry.state === 'planned') {
-        // A planned trade is waiting for price to reach the band it was written
-        // for. Its stop and targets are hypothetical until it is entered.
-        if (entry.entryZoneHit) return out;
-
-        const bounds = [entry.entryFrom, entry.entryTo].filter(n => n != null);
-        // One bound given means an exact level rather than a band.
-        out.entryZone = bounds.length > 0
-            && price >= Math.min(...bounds)
-            && price <= Math.max(...bounds);
-        return out;
-    }
 
     // Only an open trade has levels worth watching. The query in checkLevels
     // already excludes the rest; this keeps the rule true on its own.
@@ -64,11 +50,11 @@ export function levelsReached(entry, price) {
 class JournalLevelHandler {
     async checkLevels() {
         try {
-            const entries = await JournalEntry.find({ state: { $in: ['planned', 'open'] } });
+            const entries = await JournalEntry.find({ state: 'open' });
             if (!entries.length) return { checked: 0, updated: 0 };
 
             // One price lookup covering every symbol involved. Per-entry findOne
-            // was a round trip each, and a watchlist is mostly the same names.
+            // was a round trip each, and open positions repeat their names.
             const symbols = [...new Set(entries.map(e => e.symbol))];
             const stocks = await Stock.find({ symbol: { $in: symbols } })
                 .select('symbol currentPrice').lean();
@@ -122,12 +108,6 @@ class JournalLevelHandler {
                 return false;
             }
         };
-
-        if (reached.entryZone
-            && await told(() => notificationService.notifyJournalEntryZone(entry, price), 'Entry zone reached')) {
-            entry.entryZoneHit = true;
-            entry.entryZoneHitDate = hitAt;
-        }
 
         // Flagged, never acted on: closing the entry here would invent an exit
         // price the broker never gave.

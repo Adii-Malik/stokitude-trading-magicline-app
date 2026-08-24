@@ -219,7 +219,6 @@ router.post('/test-journal-level', authenticate, requireFeature('test'), async (
                     state: after.state,
                     testedAt: price,
                     originalPrice,
-                    entryZoneHit: after.entryZoneHit,
                     stopHit: after.stopHit,
                     targets: after.targets.map(t => ({ level: t.level, price: t.price, isHit: t.isHit })),
                     result

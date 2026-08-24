@@ -212,27 +212,11 @@ class NotificationService {
 
   /**
    * Journal levels. These reuse the trade_plans category because its events are
-   * the same three concepts, and its id is stored on every NotificationPreference
-   * row - renaming it would silently reset everyone's settings.
+   * the same concepts, and its id is stored on every NotificationPreference row -
+   * renaming it would silently reset everyone's settings.
    *
-   * All three go to the entry's owner only. A journal is one person's record.
+   * Both go to the entry's owner only. A journal is one person's record.
    */
-  async notifyJournalEntryZone(entry, price) {
-    const zone = [entry.entryFrom, entry.entryTo]
-      .filter(n => n != null).map(n => n.toFixed(2)).join(' - ');
-
-    return this.send({
-      userId: entry.user,
-      category: 'trade_plans',
-      event: 'buy_level_hit',
-      title: `💰 Entry zone reached: ${entry.symbol}`,
-      message: `${entry.symbol} is at ${price.toFixed(2)}, inside your planned entry zone (${zone}).`,
-      data: { journalEntryId: entry._id, symbol: entry.symbol, price },
-      priority: 'high',
-      actionUrl: '/journal'
-    });
-  }
-
   async notifyJournalTarget(entry, target, price) {
     return this.send({
       userId: entry.user,

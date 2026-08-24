@@ -1,13 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Plus, BookOpen, Search, XCircle, Eye } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Plus, BookOpen, Search, Settings, Flag, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { getEntries, getStats, getOptions, deleteEntry, updateEntry } from '../../services/journal';
-import JournalHeadline from './JournalHeadline';
+import {
+    getEntries, getStats, getOptions, getSettings, deleteEntry
+} from '../../services/journal';
+import { formatCurrency, formatPercent, getPnLColorClass } from '../../utils/portfolioUtils';
+import JournalList, { needsYou } from './JournalList';
+import JournalPane from './JournalPane';
 import JournalStats from './JournalStats';
-import JournalList from './JournalList';
 import JournalEntryModal from './JournalEntryModal';
+import JournalSettingsModal from './JournalSettingsModal';
 import RiskCalculator from './RiskCalculator';
-import { mistakeLabel } from './labels';
 
 const TABS = [
     { key: 'trades', label: 'Trades' },
@@ -15,103 +18,88 @@ const TABS = [
     { key: 'risk', label: 'Size a trade' }
 ];
 
-// Open trades are the ones you can still act on, so they lead. Planned sits
-// beside them because a level about to print needs a decision just as much.
-const STATUS_FILTERS = [
+const STATUS = [
     { key: 'open', label: 'Open' },
-    { key: 'planned', label: 'Watching' },
     { key: 'closed', label: 'Closed' },
-    { key: 'cancelled', label: 'Never triggered' },
     { key: 'all', label: 'All' }
 ];
 
-const SORTS = [
-    { key: 'recent', label: 'Newest first' },
-    { key: 'oldest', label: 'Oldest first' },
-    { key: 'worst', label: 'Biggest losses' },
-    { key: 'best', label: 'Biggest wins' },
-    { key: 'symbol', label: 'Symbol A–Z' }
-];
-
-const PAGE = 25;
-
 export default function JournalPage() {
     const [entries, setEntries] = useState([]);
-    const [total, setTotal] = useState(0);
     const [stats, setStats] = useState(null);
     const [options, setOptions] = useState(null);
+    const [settings, setSettings] = useState(null);
     const [loading, setLoading] = useState(true);
     const [tab, setTab] = useState('trades');
 
     const [status, setStatus] = useState('open');
+    const [flagged, setFlagged] = useState(false);
     const [search, setSearch] = useState('');
     const [query, setQuery] = useState('');
-    const [sort, setSort] = useState('recent');
-    const [mistake, setMistake] = useState('');
-    const [limit, setLimit] = useState(PAGE);
+    const [currency, setCurrency] = useState(null);
 
+    const [selectedId, setSelectedId] = useState(null);
     const [editing, setEditing] = useState(null);
     const [showModal, setShowModal] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
 
     // Debounce typing so each keystroke isn't a request.
     useEffect(() => {
-        const t = setTimeout(() => { setQuery(search); setLimit(PAGE); }, 300);
+        const t = setTimeout(() => setQuery(search), 300);
         return () => clearTimeout(t);
     }, [search]);
 
     const load = useCallback(async () => {
         try {
-            const params = { limit, sort };
-            if (status !== 'all') params.status = status;
+            const params = { limit: 200, sort: 'recent' };
             if (query) params.q = query;
-            if (mistake) params.mistake = mistake;
-
             const [page, s] = await Promise.all([getEntries(params), getStats()]);
             setEntries(page.entries);
-            setTotal(page.total);
             setStats(s);
         } catch {
             toast.error('Failed to load journal');
         } finally {
             setLoading(false);
         }
-    }, [status, query, sort, mistake, limit]);
+    }, [query]);
 
     useEffect(() => { load(); }, [load]);
-    useEffect(() => { getOptions().then(setOptions).catch(() => setOptions(null)); }, []);
+    useEffect(() => {
+        getOptions().then(setOptions).catch(() => setOptions(null));
+        getSettings().then(setSettings).catch(() => setSettings(null));
+    }, []);
 
-    const reset = (fn) => { fn(); setLimit(PAGE); };
+    // Which currency's figures the tiles are showing. PKR and USD never sum, so
+    // one is always chosen; default to the book with the most closed trades.
+    const books = stats?.byCurrency || [];
+    const shown = books.find((b) => b.currency === currency) || books[0] || null;
+    useEffect(() => {
+        if (!currency && books.length) setCurrency(books[0].currency);
+    }, [books, currency]);
 
-    // Promoting a plan to a position. Prefilled from the zone it was waiting for,
-    // but left editable: a fill is rarely exactly the level you drew.
-    const take = (entry) => {
-        const bounds = [entry.entryFrom, entry.entryTo].filter((n) => n != null);
-        setEditing({
-            ...entry,
-            state: 'open',
-            entryPrice: bounds.length ? bounds.reduce((a, b) => a + b, 0) / bounds.length : '',
-            entryDate: new Date().toISOString()
-        });
-        setShowModal(true);
-    };
+    const flaggedCount = useMemo(() => entries.filter(needsYou).length, [entries]);
 
-    // Closing is an action, not a mode to discover. The form then asks for the
-    // exit and the review, which are the only things it does not already know.
+    const visible = useMemo(() => {
+        let list = entries;
+        if (flagged) list = list.filter(needsYou);
+        else if (status !== 'all') list = list.filter((e) => e.status === status);
+        return list;
+    }, [entries, status, flagged]);
+
+    // Open on whatever most wants a decision, then on the newest thing. Never on
+    // an empty pane when there is something to show.
+    useEffect(() => {
+        if (!visible.length) { setSelectedId(null); return; }
+        if (visible.some((e) => e._id === selectedId)) return;
+        setSelectedId((visible.find(needsYou) || visible[0])._id);
+    }, [visible, selectedId]);
+
+    const selected = visible.find((e) => e._id === selectedId) || null;
+    const bookOf = (id) => options?.portfolios?.find((p) => String(p._id) === String(id))?.name;
+
     const close = (entry) => {
         setEditing({ ...entry, state: 'closed', exitDate: new Date().toISOString() });
         setShowModal(true);
-    };
-
-    // A level that never triggered is kept, not deleted. How often your setups
-    // fail to trigger is only answerable if the record survives.
-    const cancel = async (entry) => {
-        try {
-            await updateEntry(entry._id, { state: 'cancelled' });
-            toast.success('Marked as never triggered');
-            load();
-        } catch (error) {
-            toast.error(error.response?.data?.message || 'Failed to update entry');
-        }
     };
 
     const remove = async (entry) => {
@@ -119,39 +107,30 @@ export default function JournalPage() {
         try {
             await deleteEntry(entry._id);
             toast.success('Entry deleted');
+            setSelectedId(null);
             load();
         } catch {
             toast.error('Failed to delete entry');
         }
     };
 
-    // "Open by default" is the resting state, so returning to it counts as clear.
-    const dirty = Boolean(search || mistake || sort !== 'recent' || status !== 'open');
-    const clearFilters = () => {
-        setSearch('');
-        setQuery('');
-        setMistake('');
-        setSort('recent');
-        setStatus('open');
-        setLimit(PAGE);
-    };
-    const filtered = Boolean(query || mistake);
+    const pick = (key) => { setFlagged(false); setStatus(key); };
 
     return (
-        <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-5">
+        <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-5">
             <div className="flex items-center justify-between gap-3">
                 <h1 className="text-2xl font-bold text-ink flex items-center gap-2">
                     <BookOpen className="w-6 h-6 text-cyan-500" />
                     Journal
                 </h1>
                 <div className="flex items-center gap-2 shrink-0">
-                    <button onClick={() => { setEditing({ state: 'planned' }); setShowModal(true); }}
-                        className="px-4 py-2 border border-hairline text-ink-muted rounded-control hover:bg-surface-muted flex items-center gap-2">
-                        <Eye className="w-4 h-4" /> <span className="hidden sm:inline">Watch a level</span>
-                    </button>
                     <button onClick={() => { setEditing(null); setShowModal(true); }}
                         className="px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 flex items-center gap-2">
                         <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Journal a trade</span>
+                    </button>
+                    <button onClick={() => setShowSettings(true)} title="Journal settings"
+                        className="p-2.5 border border-hairline text-ink-faint rounded-control hover:bg-surface-muted hover:text-ink">
+                        <Settings className="w-4 h-4" />
                     </button>
                 </div>
             </div>
@@ -162,7 +141,10 @@ export default function JournalPage() {
                 </div>
             ) : (
                 <>
-                    <JournalHeadline stats={stats} />
+                    <Tiles book={shown} process={stats?.process} books={books}
+                        currency={shown?.currency} onCurrency={setCurrency} />
+
+                    <PlanStrip process={stats?.process} />
 
                     <div className="flex gap-1 border-b border-hairline overflow-x-auto">
                         {TABS.map((t) => (
@@ -176,72 +158,66 @@ export default function JournalPage() {
                     </div>
 
                     {tab === 'trades' && (
-                        <>
-                            <div className="flex flex-col sm:flex-row gap-2">
-                                <div className="relative flex-1">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint" />
-                                    <input value={search} onChange={(e) => setSearch(e.target.value)}
-                                        placeholder="Search symbol, notes or lesson…"
-                                        className="w-full pl-9 pr-3 py-2 text-sm border border-hairline bg-surface text-ink rounded-control focus:ring-2 focus:ring-cyan-500" />
-                                </div>
-                                <select value={sort} onChange={(e) => reset(() => setSort(e.target.value))}
-                                    className="px-3 py-2 text-sm border border-hairline bg-surface text-ink rounded-control">
-                                    {SORTS.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
-                                </select>
-                                <select value={mistake} onChange={(e) => reset(() => setMistake(e.target.value))}
-                                    className="px-3 py-2 text-sm border border-hairline bg-surface text-ink rounded-control">
-                                    <option value="">Any mistake</option>
-                                    {(options?.whatHappened || []).map((m) => (
-                                        <option key={m} value={m}>{mistakeLabel(m)}</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div className="flex items-center justify-between gap-2 flex-wrap">
-                                <div className="flex gap-2">
-                                    {STATUS_FILTERS.map((f) => (
-                                        <button key={f.key} onClick={() => reset(() => setStatus(f.key))}
-                                            className={`px-3 py-1 rounded-lg text-sm ${status === f.key
-                                                ? 'bg-cyan-500 text-white'
-                                                : 'text-ink-muted hover:bg-surface-muted'}`}>
+                        <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-3 items-start">
+                            {/* On a phone the pane replaces the list rather than
+                                stacking under it: a split view that reflows is two
+                                screens pretending to be one. */}
+                            <div className={`bg-surface rounded-card ring-1 ring-hairline overflow-hidden
+                                ${selected ? 'hidden lg:block' : ''}`}>
+                                <div className="flex gap-1 p-2.5 border-b border-hairline flex-wrap">
+                                    {flaggedCount > 0 && (
+                                        <button onClick={() => { setFlagged(!flagged); }}
+                                            className={`px-2.5 py-1.5 rounded-control text-xs font-bold inline-flex items-center gap-1.5 ${flagged
+                                                ? 'bg-amber-500 text-white'
+                                                : 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 ring-1 ring-amber-500/40'}`}>
+                                            <Flag className="w-3 h-3" /> {flaggedCount}
+                                        </button>
+                                    )}
+                                    {STATUS.map((f) => (
+                                        <button key={f.key} onClick={() => pick(f.key)}
+                                            className={`px-2.5 py-1.5 rounded-control text-xs font-bold ${!flagged && status === f.key
+                                                ? 'bg-cyan-500 text-white' : 'text-ink-faint hover:text-ink hover:bg-surface-muted'}`}>
                                             {f.label}
+                                            <span className="ml-1.5 opacity-70 tabular-nums">
+                                                {f.key === 'all' ? entries.length : entries.filter((e) => e.status === f.key).length}
+                                            </span>
                                         </button>
                                     ))}
                                 </div>
-                                <div className="flex items-center gap-3">
-                                    {dirty && (
-                                        <button onClick={clearFilters}
-                                            className="inline-flex items-center gap-1 text-xs text-cyan-600 dark:text-cyan-400 hover:underline">
-                                            <XCircle className="w-3.5 h-3.5" /> Clear filters
-                                        </button>
-                                    )}
-                                    {total > 0 && (
-                                        <span className="text-xs text-ink-faint">
-                                            Showing {entries.length} of {total}
-                                        </span>
-                                    )}
+
+                                <div className="p-2.5 border-b border-hairline">
+                                    <div className="relative">
+                                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-ink-faint" />
+                                        <input value={search} onChange={(e) => setSearch(e.target.value)}
+                                            placeholder="Search symbol, note or lesson…"
+                                            className="w-full pl-8 pr-3 py-1.5 text-xs border border-hairline bg-surface-muted
+                                                text-ink rounded-control focus:ring-2 focus:ring-cyan-500" />
+                                    </div>
+                                </div>
+
+                                <div className="max-h-[70vh] overflow-y-auto">
+                                    <JournalList entries={visible} selectedId={selectedId}
+                                        grouped={status === 'all' && !flagged}
+                                        onSelect={(e) => setSelectedId(e._id)}
+                                        emptyHint={query ? 'Nothing matches that search.'
+                                            : flagged ? 'Nothing has reached a level.'
+                                                : status === 'open' ? 'No open trades. Switch to Closed or All to see your history.'
+                                                    : undefined} />
                                 </div>
                             </div>
 
-                            <JournalList entries={entries}
-                                emptyHint={filtered ? 'Nothing matches those filters.'
-                                    : status === 'open' ? 'No open trades. Switch to Closed or All to see your history.'
-                                        : status === 'planned' ? 'No levels being watched. Add one and you\'ll be told when price reaches it.'
-                                            : status === 'cancelled' ? 'No abandoned levels yet.'
-                                                : undefined}
-                                onEdit={(e) => { setEditing(e); setShowModal(true); }}
-                                onTake={take}
-                                onClose={close}
-                                onCancel={cancel}
-                                onDelete={remove} />
-
-                            {entries.length < total && (
-                                <button onClick={() => setLimit(limit + PAGE)}
-                                    className="w-full py-2 text-sm border border-hairline rounded-control text-ink-muted hover:bg-surface-muted">
-                                    Load {Math.min(PAGE, total - entries.length)} more
-                                </button>
-                            )}
-                        </>
+                            <div className={selected ? '' : 'hidden lg:block'}>
+                                {selected && (
+                                    <button onClick={() => setSelectedId(null)}
+                                        className="lg:hidden mb-2 text-sm text-cyan-600 dark:text-cyan-400 font-semibold inline-flex items-center gap-1">
+                                        <ArrowLeft className="w-4 h-4" /> All trades
+                                    </button>
+                                )}
+                                <JournalPane entry={selected} portfolioName={bookOf(selected?.portfolioId)}
+                                    onEdit={(e) => { setEditing(e); setShowModal(true); }}
+                                    onDelete={remove} onClose={close} />
+                            </div>
+                        </div>
                     )}
 
                     {tab === 'performance' && <JournalStats stats={stats} />}
@@ -254,10 +230,129 @@ export default function JournalPage() {
                 <JournalEntryModal
                     entry={editing}
                     options={options}
+                    trackers={settings?.trackers || []}
                     onClose={() => setShowModal(false)}
                     onSaved={() => { setShowModal(false); load(); }}
                 />
             )}
+
+            {showSettings && (
+                <JournalSettingsModal
+                    settings={settings}
+                    portfolios={options?.portfolios || []}
+                    byTracker={shown?.byTracker?.map((t) => ({ ...t, currency: shown.currency })) || []}
+                    onClose={() => setShowSettings(false)}
+                    onSaved={(saved) => {
+                        setSettings(saved);
+                        setShowSettings(false);
+                        getOptions().then(setOptions).catch(() => { });
+                    }}
+                />
+            )}
+        </div>
+    );
+}
+
+/**
+ * Four numbers about the result.
+ *
+ * Win rate sits inside expectancy's caption rather than on a tile of its own:
+ * alone it is the most misleading figure in trading — you can win seven in ten
+ * and lose money — and it only means something read beside the payoff ratio.
+ */
+function Tiles({ book, process, books, currency, onCurrency }) {
+    if (!book) return null;
+    const payoff = book.payoffRatio != null ? `${book.payoffRatio.toFixed(1)}:1` : null;
+
+    return (
+        <div className="flex items-stretch gap-2.5">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 flex-1 min-w-0">
+                <Tile k={`Net P/L · ${book.currency}`}
+                    v={formatCurrency(book.netPnL, book.currency, { signed: true })}
+                    color={getPnLColorClass(book.netPnL)}
+                    s={`${book.closedTrades} closed${book.bestTrade ? ` · best ${formatCurrency(book.bestTrade, book.currency, { signed: true })}` : ''}`} />
+                <Tile k="Expectancy"
+                    v={formatCurrency(book.expectancy, book.currency, { signed: true })}
+                    color={getPnLColorClass(book.expectancy)}
+                    s={`per trade · ${formatPercent(book.winRate, 0)} win${payoff ? ` · ${payoff}` : ''}`} />
+                <Tile k="Average R"
+                    v={book.avgR != null ? `${book.avgR >= 0 ? '+' : ''}${book.avgR.toFixed(2)}R` : '—'}
+                    color={book.avgR != null ? getPnLColorClass(book.avgR) : ''}
+                    s={`${book.tradesWithR} of ${book.closedTrades} had a stop`} />
+                {/* The only figure here about the present rather than the past,
+                    and the only one that can stop you doing something today. */}
+                <Tile k="At risk right now"
+                    v={book.openRisk ? formatCurrency(book.openRisk, book.currency) : '—'}
+                    color={book.openRisk ? 'text-amber-600 dark:text-amber-400' : ''}
+                    s={`${book.openTrades} open${book.openWithoutStop ? ` · ${book.openWithoutStop} with no stop` : ''}`} />
+            </div>
+            {books.length > 1 && (
+                <div className="flex flex-col gap-1 bg-surface ring-1 ring-hairline rounded-card p-1 justify-center shrink-0">
+                    {books.map((b) => (
+                        <button key={b.currency} onClick={() => onCurrency(b.currency)}
+                            className={`px-2.5 py-1.5 rounded-control text-xs font-bold ${b.currency === currency
+                                ? 'bg-cyan-500 text-white' : 'text-ink-faint hover:text-ink'}`}>
+                            {b.currency}
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function Tile({ k, v, s, color }) {
+    return (
+        <div className="bg-surface rounded-card ring-1 ring-hairline px-3.5 py-3 min-w-0">
+            <div className="text-[11px] font-semibold text-ink-faint">{k}</div>
+            <div className={`text-xl font-extrabold tracking-tight tabular-nums ${color || 'text-ink'}`}>{v}</div>
+            <div className="text-[11px] text-ink-faint tabular-nums truncate">{s}</div>
+        </div>
+    );
+}
+
+/**
+ * The plan you wrote, against what you did.
+ *
+ * Three checks, every one read off the entry — no typed word enters any of them,
+ * so no wording can split a row in two. A scorecard rather than a ranking of
+ * mistakes, because a rate is something you can move with the next trade, and
+ * because it can also say you did the right thing.
+ */
+function PlanStrip({ process }) {
+    if (!process) return null;
+    const rows = [
+        ['Stop set before you entered', process.stopSet],
+        ['Stop honoured once it was set', process.stopHonoured],
+        ["Size inside your book's rule", process.sizeInRule]
+    ].filter(([, v]) => v?.of > 0);
+
+    if (!rows.length) return null;
+
+    return (
+        <div className="bg-surface rounded-card ring-1 ring-hairline px-3.5 py-3 flex flex-col gap-2">
+            <div className="flex items-baseline gap-2.5 flex-wrap">
+                <span className="text-[13px] font-bold text-ink">The plan, and what you did</span>
+                <span className="text-[11px] text-ink-faint tabular-nums">
+                    {process.closedTrades} closed
+                </span>
+            </div>
+            {rows.map(([label, v]) => {
+                const rate = (v.n / v.of) * 100;
+                const tone = rate >= 80 ? 'good' : rate >= 50 ? 'warn' : 'bad';
+                const bar = { good: 'bg-green-500', warn: 'bg-amber-500', bad: 'bg-red-500' }[tone];
+                const text = { good: 'text-green-600 dark:text-green-400', warn: 'text-amber-600 dark:text-amber-400', bad: 'text-red-600 dark:text-red-400' }[tone];
+                return (
+                    <div key={label} className="grid grid-cols-[1fr_auto_auto] sm:grid-cols-[1fr_96px_44px_54px] gap-2.5 items-center text-xs">
+                        <span className="text-ink-muted truncate">{label}</span>
+                        <span className="hidden sm:block h-1.5 rounded-full bg-surface-muted overflow-hidden">
+                            <span className={`block h-full rounded-full ${bar}`} style={{ width: `${rate}%` }} />
+                        </span>
+                        <span className={`text-right font-extrabold tabular-nums ${text}`}>{Math.round(rate)}%</span>
+                        <span className="text-right text-[11px] text-ink-faint tabular-nums">{v.n} of {v.of}</span>
+                    </div>
+                );
+            })}
         </div>
     );
 }

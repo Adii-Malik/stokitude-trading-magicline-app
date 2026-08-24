@@ -3,7 +3,9 @@
  * Derives every metric from the stored decision. Nothing computed here is
  * persisted, so an edited entry can never disagree with its own statistics.
  */
-import JournalEntry, { ranToPlan } from '../models/JournalEntry.js';
+import JournalEntry from '../models/JournalEntry.js';
+import RiskProfile from '../models/RiskProfile.js';
+import { capitalFor } from './riskContext.js';
 
 import { removeChart } from './chartStorage.js';
 import { mintMissing, assertEditable, hydrate } from './journalLedger.js';
@@ -15,60 +17,58 @@ import { escapeRegex } from '../utils/escapeRegex.js';
 const RESERVED = new Set(['user', '_id', 'entryTransactionId', 'exitTransactionId']);
 
 /** Per-entry metrics. Returns nulls rather than guesses when inputs are missing. */
+/**
+ * How a trade ended, worked out rather than asked for.
+ *
+ * The app can see the exit price and the levels that were written down, so the
+ * label is a reading of those two - never a claim the trader made. It is derived
+ * on every read, which means editing a stop months later corrects the label
+ * instead of leaving a stale answer behind.
+ *
+ * Null when neither a stop nor a target was recorded: with nothing to compare
+ * the exit against, "closed early" would be an accusation rather than a fact.
+ */
+export function exitReasonFor(entry) {
+    if (entry.exitPrice == null) return null;
+
+    const long = entry.direction !== 'short';
+    const exit = entry.exitPrice;
+    const stop = entry.plannedStop;
+    const targets = entry.targets || [];
+
+    const past = (level) => (long ? exit <= level : exit >= level);
+    const reached = (level) => (long ? exit >= level : exit <= level);
+
+    if (stop != null && past(stop)) return 'stop hit';
+    if (targets.some(t => reached(t.price))) return 'target hit';
+    if (stop != null || targets.length) return 'closed early';
+    return null;
+}
+
 export function computeMetrics(entry) {
     const sign = entry.direction === 'short' ? -1 : 1;
     // An exit price closes the trade, whatever state says. Entries written before
     // the lifecycle existed get 'open' from the schema default on hydration, so
     // trusting state alone would reopen every historical trade.
-    const state = entry.exitPrice != null ? 'closed'
-        : entry.state === 'planned' || entry.state === 'cancelled' ? entry.state
-            : 'open';
-    const closed = state === 'closed';
+    const closed = entry.exitPrice != null;
 
     // targets[] is the store; plannedTarget is its single-value virtual.
     const target = entry.targets?.length ? entry.targets[0].price : entry.plannedTarget ?? null;
 
-    // A trade never entered has no fill, so risk is measured against the zone it
-    // was waiting for. Midpoint, because that is the honest expectation of a band.
-    // Cancelled included: the R:R it was planned at says what you passed up.
-    const zone = entry.entryFrom != null && entry.entryTo != null
-        ? (entry.entryFrom + entry.entryTo) / 2
-        : entry.entryFrom ?? entry.entryTo ?? null;
-    const reference = state === 'planned' || state === 'cancelled' ? zone : entry.entryPrice;
-
-    const riskPerShare = entry.plannedStop != null && reference != null
-        ? Math.abs(reference - entry.plannedStop)
+    const riskPerShare = entry.plannedStop != null && entry.entryPrice != null
+        ? Math.abs(entry.entryPrice - entry.plannedStop)
         : null;
     const riskAmount = riskPerShare != null && entry.quantity != null
         ? riskPerShare * entry.quantity
         : null;
 
-    // Per-share, so a planned trade with no size still has a meaningful ratio.
-    const rewardPerShare = target != null && reference != null
-        ? Math.abs(target - reference)
+    // Per-share, so the ratio holds whatever size was taken.
+    const rewardPerShare = target != null && entry.entryPrice != null
+        ? Math.abs(target - entry.entryPrice)
         : null;
     const plannedRR = riskPerShare > 0 && rewardPerShare != null ? rewardPerShare / riskPerShare : null;
 
-    // Process is judged on what was controllable, independent of the result.
-    // Premature on a trade that has not been entered yet.
-    const untaken = state === 'planned' || state === 'cancelled';
-    // Nothing named as having gone wrong. Derived rather than asked: a checkbox
-    // saying "I followed my plan" was answered on none of the entries, while the
-    // reasons themselves were filled in - people will name a specific failure
-    // long before they will grade themselves.
-    // The plan held when nothing was recorded against it, or when everything
-    // recorded describes a way out rather than a slip.
-    const followedPlan = untaken
-        ? null
-        : (entry.whatHappened || []).every(ranToPlan);
-
-    if (untaken) {
-        return {
-            status: state, grossPnL: null, netPnL: null, pnlPct: null,
-            rMultiple: null, outcome: null, riskAmount, plannedRR, followedPlan,
-            unrealizedPnL: null, unrealizedPct: null
-        };
-    }
+    const exitReason = exitReasonFor(entry);
 
     if (!closed) {
         // Marked to the last polled price, kept out of realized totals. Read from
@@ -81,7 +81,7 @@ export function computeMetrics(entry) {
         const cost = entry.entryPrice * entry.quantity;
         return {
             status: 'open', grossPnL: null, netPnL: null, pnlPct: null,
-            rMultiple: null, outcome: null, riskAmount, plannedRR, followedPlan,
+            rMultiple: null, outcome: null, riskAmount, plannedRR, exitReason,
             unrealizedPnL: marked,
             unrealizedPct: marked != null && cost > 0 ? (marked / cost) * 100 : null
         };
@@ -104,7 +104,7 @@ export function computeMetrics(entry) {
         outcome: netPnL > 0 ? 'win' : netPnL < 0 ? 'loss' : 'breakeven',
         riskAmount,
         plannedRR,
-        followedPlan,
+        exitReason,
         unrealizedPnL: null,
         unrealizedPct: null
     };
@@ -119,11 +119,8 @@ const pct = (n, d) => (d > 0 ? (n / d) * 100 : 0);
 
 /** Stats for one currency's trades. Mixing PKR and USD into one figure is meaningless. */
 export function statsFor(entries) {
-    // A watched or cancelled level is not a trade taken. Counting either would
-    // dilute every rate below with decisions that were never made.
-    const untaken = (e) => e.status === 'planned' || e.status === 'cancelled';
-    const taken = entries.filter(e => !untaken(e));
-    const closed = taken.filter(e => e.status === 'closed');
+    const closed = entries.filter(e => e.status === 'closed');
+    const open = entries.filter(e => e.status === 'open');
     const wins = closed.filter(e => e.outcome === 'win');
     const losses = closed.filter(e => e.outcome === 'loss');
 
@@ -132,6 +129,9 @@ export function statsFor(entries) {
     const grossLosses = Math.abs(sum(losses, 'netPnL'));
 
     const withR = closed.filter(e => e.rMultiple != null);
+
+    const avgWin = wins.length ? grossWins / wins.length : 0;
+    const avgLoss = losses.length ? grossLosses / losses.length : 0;
 
     // Longest streaks, oldest trade first.
     let bestStreak = 0, worstStreak = 0, run = 0;
@@ -144,16 +144,15 @@ export function statsFor(entries) {
         worstStreak = Math.min(worstStreak, run);
     }
 
-    // Built from what was actually written, not from a list of reasons someone
-    // thought of in advance. Ordered by what each one cost: frequency alone would
-    // rank a habit you do often and survive above the one that empties the account.
-    const byMistake = [...new Set(closed.flatMap(e => e.whatHappened || []))]
-        .filter(tag => !ranToPlan(tag))
-        .map(code => {
-            const hit = closed.filter(e => (e.whatHappened || []).includes(code));
-            return { code, count: hit.length, cost: sum(hit, 'netPnL') };
+    // What the user chose to count about themselves. The system reads no meaning
+    // from these beyond the count and the total - a tracker is a label, not a
+    // judgement, which is exactly what the vocabulary this replaced got wrong.
+    const byTracker = [...new Set(closed.flatMap(e => e.whatHappened || []))]
+        .map(name => {
+            const hit = closed.filter(e => (e.whatHappened || []).includes(name));
+            return { name, count: hit.length, netPnL: sum(hit, 'netPnL') };
         })
-        .sort((a, b) => a.cost - b.cost);
+        .sort((a, b) => a.netPnL - b.netPnL);
 
     const group = (key) => {
         const out = {};
@@ -169,39 +168,23 @@ export function statsFor(entries) {
         })).sort((a, b) => a.netPnL - b.netPnL);
     };
 
-    // Follow-through on levels written down in advance. A planned trade keeps its
-    // zone after it opens, so a recorded zone is what marks an entry as one that
-    // started as a plan rather than an impulse. This is the number that keeping
-    // cancelled levels buys: how selective you actually are, versus how selective
-    // it feels.
-    const fromPlan = entries.filter(e => e.entryFrom != null || e.entryTo != null);
-    const levelsTaken = fromPlan.filter(e => e.status === 'open' || e.status === 'closed').length;
-    const levelsAbandoned = fromPlan.filter(e => e.status === 'cancelled').length;
-    const settled = levelsTaken + levelsAbandoned;
-
-    // The single most expensive habit, and what the account looks like without it.
-    const worst = byMistake[0];
-    const headline = worst ? {
-        mistake: worst.code,
-        count: worst.count,
-        cost: worst.cost,
-        netWithout: closed
-            .filter(e => !(e.whatHappened || []).includes(worst.code))
-            .reduce((t, e) => t + (e.netPnL || 0), 0)
-    } : null;
+    // Two of the three checks the main screen reports. Both are read off the
+    // entry, so neither can be true by accident and neither asks anything of the
+    // trader. The third - size against the book's cap - needs the risk profile
+    // and the book's value, so it is assembled in stats() where those can be
+    // loaded.
+    //
+    // A stop is honoured when the trade did not close past it. A gap through the
+    // level still counts against you: the loss did exceed the plan, whatever the
+    // reason, and softening that would make the number worth less than nothing.
+    const withStop = closed.filter(e => e.plannedStop != null);
+    const honoured = withStop.filter(e => (e.direction === 'short'
+        ? e.exitPrice <= e.plannedStop
+        : e.exitPrice >= e.plannedStop));
 
     return {
-        totalTrades: taken.length,
-        openTrades: taken.length - closed.length,
-        plannedTrades: entries.filter(e => e.status === 'planned').length,
-        // How often a level never triggered. Only a kept record can answer that.
-        cancelledTrades: entries.filter(e => e.status === 'cancelled').length,
-        levelsTaken,
-        levelsAbandoned,
-        // Null rather than 0 when nothing has settled, so the UI can stay quiet
-        // instead of claiming a 0% follow-through on no evidence.
-        triggerRate: settled ? pct(levelsTaken, settled) : null,
-        headline,
+        totalTrades: entries.length,
+        openTrades: open.length,
         closedTrades: closed.length,
         wins: wins.length,
         losses: losses.length,
@@ -210,8 +193,11 @@ export function statsFor(entries) {
         grossWins,
         grossLosses,
         profitFactor: grossLosses > 0 ? grossWins / grossLosses : null,
-        avgWin: wins.length ? grossWins / wins.length : 0,
-        avgLoss: losses.length ? grossLosses / losses.length : 0,
+        avgWin,
+        avgLoss,
+        // How much bigger a winner is than a loser. Null rather than zero when
+        // there is nothing to divide by: one side missing is not a ratio.
+        payoffRatio: avgLoss > 0 && avgWin > 0 ? avgWin / avgLoss : null,
         expectancy: closed.length ? sum(closed, 'netPnL') / closed.length : 0,
         avgR: withR.length ? sum(withR, 'rMultiple') / withR.length : null,
         tradesWithR: withR.length,
@@ -220,18 +206,18 @@ export function statsFor(entries) {
         bestStreak,
         worstStreak: Math.abs(worstStreak),
 
-        // Process, tracked apart from outcome.
-        followedPlanRate: pct(taken.filter(e => e.followedPlan).length, taken.length),
+        // What is at stake right now: entry to stop, times size, over every open
+        // position. The one figure here about the present rather than the past,
+        // and the only one that can stop you doing something today.
+        openRisk: open.reduce((t, e) => t + (e.riskAmount || 0), 0),
+        openWithoutStop: open.filter(e => e.plannedStop == null).length,
 
+        stopSet: { n: withStop.length, of: closed.length },
+        stopHonoured: { n: honoured.length, of: withStop.length },
 
-        // A loss that obeyed the plan is not a mistake; a win that broke it is luck.
-        goodProcessBadOutcome: closed.filter(e => e.followedPlan && e.outcome === 'loss').length,
-        badProcessGoodOutcome: closed.filter(e => !e.followedPlan && e.outcome === 'win').length,
-
-        byMistake,
+        byTracker,
+        byExit: group('exitReason'),
         bySetup: group('setupType'),
-        // Grades recorded before the outcome, so this reads as a calibration check.
-        byQuality: group('setupQuality'),
         byEmotion: group('emotionalState')
     };
 }
@@ -246,6 +232,39 @@ const SORTS = {
     worst: (a, b) => (a.netPnL ?? Infinity) - (b.netPnL ?? Infinity),
     symbol: (a, b) => a.symbol.localeCompare(b.symbol)
 };
+
+/**
+ * How many closed trades were sized within the rule of the book they were logged
+ * against, and how many could be checked at all.
+ *
+ * Only trades naming a portfolio that has a risk profile can be judged; the rest
+ * are left out of both numbers rather than counted as passes, so the ratio never
+ * flatters a book with no rule set. Capital is fetched once per portfolio.
+ */
+async function sizeInRule(userId, entries) {
+    const closed = entries.filter(e => e.status === 'closed' && e.portfolioId && e.riskAmount != null);
+    if (!closed.length) return { n: 0, of: 0 };
+
+    const ids = [...new Set(closed.map(e => String(e.portfolioId)))];
+    const profiles = await RiskProfile.find({ user: userId, portfolioId: { $in: ids } }).lean();
+    const ruleOf = new Map(profiles.map(p => [String(p.portfolioId), p]));
+
+    const capitals = new Map();
+    for (const id of ids) {
+        if (ruleOf.has(id)) capitals.set(id, await capitalFor(userId, id));
+    }
+
+    let n = 0, of = 0;
+    for (const e of closed) {
+        const id = String(e.portfolioId);
+        const rule = ruleOf.get(id);
+        const capital = capitals.get(id);
+        if (!rule || !capital) continue;
+        of++;
+        if ((e.riskAmount / capital) * 100 <= rule.defaultRiskPct) n++;
+    }
+    return { n, of };
+}
 
 class JournalService {
     /** Every match, decorated. Stats need the full set, never a page of it. */
@@ -272,11 +291,8 @@ class JournalService {
         // status/outcome are derived, so they filter after decoration.
         if (filters.status) entries = entries.filter(e => e.status === filters.status);
         if (filters.outcome) entries = entries.filter(e => e.outcome === filters.outcome);
-        if (filters.mistake) entries = entries.filter(e => (e.whatHappened || []).includes(filters.mistake));
-        if (filters.followedPlan != null) {
-            const want = String(filters.followedPlan) === 'true';
-            entries = entries.filter(e => Boolean(e.followedPlan) === want);
-        }
+        if (filters.tracker) entries = entries.filter(e => (e.whatHappened || []).includes(filters.tracker));
+        if (filters.exitReason) entries = entries.filter(e => e.exitReason === filters.exitReason);
 
         return entries.sort(SORTS[filters.sort] || SORTS.recent);
     }
@@ -340,7 +356,14 @@ class JournalService {
         };
     }
 
-    /** Stats split by currency, plus an overall process view that is currency-free. */
+    /**
+     * Stats split by currency, plus the process view, which is currency-free.
+     *
+     * The size check lives here rather than in statsFor because it is the one
+     * that needs the world outside the entry: the book's rule, and what the book
+     * is worth. Capital is today's value, not the value on the day of the trade -
+     * the honest approximation, and stated as such rather than quietly implied.
+     */
     async stats(userId, filters = {}) {
         const entries = await this.findAll(userId, filters);
 
@@ -355,19 +378,17 @@ class JournalService {
             byCurrency,
             process: {
                 totalTrades: all.totalTrades,
+                openTrades: all.openTrades,
                 closedTrades: all.closedTrades,
-                plannedTrades: all.plannedTrades,
-                cancelledTrades: all.cancelledTrades,
-                levelsTaken: all.levelsTaken,
-                levelsAbandoned: all.levelsAbandoned,
-                triggerRate: all.triggerRate,
-                followedPlanRate: all.followedPlanRate,
-                goodProcessBadOutcome: all.goodProcessBadOutcome,
-                badProcessGoodOutcome: all.badProcessGoodOutcome,
-                // Counts only. A cost here would sum currencies, so it lives in byCurrency.
-                byMistake: all.byMistake.map(({ code, count }) => ({ code, count })),
+                stopSet: all.stopSet,
+                stopHonoured: all.stopHonoured,
+                sizeInRule: await sizeInRule(userId, entries),
+                openWithoutStop: all.openWithoutStop,
+                // Counts only. A total here would sum currencies, so money stays
+                // inside byCurrency.
+                byTracker: all.byTracker.map(({ name, count }) => ({ name, count })),
+                byExit: all.byExit.map(({ key, count, winRate }) => ({ key, count, winRate })),
                 bySetup: all.bySetup.map(({ key, count, winRate }) => ({ key, count, winRate })),
-                byQuality: all.byQuality.map(({ key, count, winRate }) => ({ key, count, winRate })),
                 byEmotion: all.byEmotion.map(({ key, count, winRate }) => ({ key, count, winRate }))
             }
         };

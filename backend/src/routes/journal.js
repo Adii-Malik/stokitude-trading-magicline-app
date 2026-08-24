@@ -9,7 +9,8 @@ import RiskProfile from '../models/RiskProfile.js';
 import { contextFor, judge, suggestSize } from '../services/riskContext.js';
 import { chartUpload, URL_PREFIX } from '../services/chartStorage.js';
 import Portfolio from '../models/Portfolio.js';
-import { SETUP_SUGGESTIONS, HAPPENED_SUGGESTIONS, TAG_GROUPS, EMOTIONS, MARKET_CONDITIONS } from '../models/JournalEntry.js';
+import { SETUP_SUGGESTIONS, EMOTIONS, MARKET_CONDITIONS } from '../models/JournalEntry.js';
+import JournalSettings from '../models/JournalSettings.js';
 import JournalEntry from '../models/JournalEntry.js';
 import { EXCHANGE_CODES, EXCHANGES } from '../config/exchanges.js';
 
@@ -47,17 +48,22 @@ router.get('/options', async (req, res) => {
         return rows.map(r => r._id);
     };
     const merge = (mine, seed) => [...mine, ...seed.filter(x => !mine.includes(x))];
-    const [setupsUsed, happenedUsed] = await Promise.all([used('setupType'), used('whatHappened')]);
+    const [setupsUsed, settings] = await Promise.all([
+        used('setupType'),
+        JournalSettings.forUser(req.user._id)
+    ]);
 
-    // The book to open a new trade on: whichever the last one used. Derived
-    // rather than configured, so there is no default to set, none to keep in
-    // step when a book is retired, and it follows you if you change books.
-    // Only a book still open to trade counts - the newest entry here points at
-    // one that is retired.
+    // The book to open a new trade on. The setting wins when one is chosen and
+    // the book is still open to trade; otherwise fall back to whichever book was
+    // used last, so a new user never has to configure anything to get a sensible
+    // pick. "Ask me each time" suppresses both.
     const open = new Set(portfolios.map(p => String(p._id)));
+    const chosen = settings.defaultPortfolioId && String(settings.defaultPortfolioId);
     const recent = await JournalEntry.find({ user: req.user._id, portfolioId: { $ne: null } })
         .select('portfolioId').sort({ createdAt: -1 }).limit(20).lean();
-    const lastBook = recent.map(e => String(e.portfolioId)).find(id => open.has(id))
+    const lastBook = settings.askForBook ? null
+        : (chosen && open.has(chosen) ? chosen : null)
+        || recent.map(e => String(e.portfolioId)).find(id => open.has(id))
         // Nothing journalled yet, and only one book to trade: no choice to make.
         || (portfolios.length === 1 ? String(portfolios[0]._id) : null);
 
@@ -69,10 +75,9 @@ router.get('/options', async (req, res) => {
             setupTypes: merge(setupsUsed, SETUP_SUGGESTIONS),
             emotions: EMOTIONS,
             marketConditions: MARKET_CONDITIONS,
-            whatHappened: merge(happenedUsed, HAPPENED_SUGGESTIONS),
-            // Grouped, so the picker can show them the way they behave: one
-            // outcome, any number of the rest.
-            tagGroups: TAG_GROUPS,
+            // Only what this user chose to count about themselves. An empty list
+            // is a valid answer, and the close form then asks for nothing.
+            trackers: settings.trackers,
             exchanges: EXCHANGE_CODES,
             // Currency and fractional-share rules per market, so sizing matches the venue.
             exchangeRules: Object.values(EXCHANGES).map(x => ({
@@ -132,6 +137,38 @@ router.put('/risk-profiles/:portfolioId', async (req, res) => {
  * Store a chart and hand back its path. Separate from saving the entry so a
  * screenshot can be pasted into a trade that does not exist yet.
  */
+/** The handful of journal-wide answers, created on first read. */
+router.get('/settings', async (req, res) => {
+    try {
+        res.json({ success: true, data: await JournalSettings.forUser(req.user._id) });
+    } catch (error) { fail(res, error); }
+});
+
+/**
+ * Saves the journal-wide settings. Trackers are trimmed, de-duplicated and
+ * capped: a list you can no longer read is one you stop keeping short, and the
+ * whole value of naming them yourself is that there are few of them.
+ */
+router.put('/settings', async (req, res) => {
+    try {
+        const { defaultPortfolioId, askForBook, trackers } = req.body;
+        const settings = await JournalSettings.forUser(req.user._id);
+
+        if (defaultPortfolioId !== undefined) settings.defaultPortfolioId = defaultPortfolioId || undefined;
+        if (askForBook !== undefined) settings.askForBook = Boolean(askForBook);
+        if (Array.isArray(trackers)) {
+            const seen = new Set();
+            settings.trackers = trackers
+                .map(t => String(t || '').trim())
+                .filter(t => t && !seen.has(t.toLowerCase()) && seen.add(t.toLowerCase()))
+                .slice(0, 20);
+        }
+
+        await settings.save();
+        res.json({ success: true, data: settings });
+    } catch (error) { fail(res, error); }
+});
+
 router.post('/chart', (req, res) => {
     chartUpload.single('chart')(req, res, (err) => {
         if (err) return res.status(400).json({ success: false, message: err.message });

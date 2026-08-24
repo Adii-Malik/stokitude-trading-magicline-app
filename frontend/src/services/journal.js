@@ -12,3 +12,5 @@ export const getOptions = () => api.get('/journal/options').then(unwrap);
 export const createEntry = (data) => api.post('/journal', data).then(unwrap);
 export const updateEntry = (id, data) => api.put(`/journal/${id}`, data).then(unwrap);
 export const deleteEntry = (id) => api.delete(`/journal/${id}`);
+export const getSettings = () => api.get('/journal/settings').then(unwrap);
+export const saveSettings = (data) => api.put('/journal/settings', data).then(unwrap);

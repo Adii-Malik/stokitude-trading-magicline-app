@@ -39,7 +39,7 @@ describe('per-trade metrics', () => {
         }));
         assert.equal(Math.round(m.netPnL * 100) / 100, -19.33);
         assert.equal(Math.round(m.rMultiple * 1000) / 1000, -1);
-        assert.equal(m.followedPlan, true, 'a well-run loss still followed the plan');
+        assert.equal(m.exitReason, 'stop hit', 'exited at the level, so the record reads as the plan running');
     });
 
     test('an exit price alone closes a trade, even with no exit date', () => {
@@ -97,36 +97,40 @@ describe('fees on both legs', () => {
     });
 });
 
-describe('followedPlan', () => {
-    const base = { exitPrice: 120, plannedStop: 95 };
-
-    test('nothing named as going wrong means the plan held', () => {
-        // Derived, never asked. The checkbox version was answered on none of the
-        // entries, while the reasons themselves were filled in.
-        assert.equal(computeMetrics(trade(base)).followedPlan, true);
+describe('how a trade ended, derived rather than asked', () => {
+    test('exiting at or through the stop reads as the stop being hit', () => {
+        assert.equal(computeMetrics(trade({ plannedStop: 95, exitPrice: 95 })).exitReason, 'stop hit');
+        assert.equal(computeMetrics(trade({ plannedStop: 95, exitPrice: 91 })).exitReason, 'stop hit',
+            'a gap through the level is still the stop being hit');
     });
 
-    test('a slip disqualifies a winner', () => {
-        const m = computeMetrics(trade({ ...base, whatHappened: ['chased the gap'] }));
-        assert.equal(m.followedPlan, false);
-        assert.equal(m.outcome, 'win', 'still a win - process and outcome are independent');
+    test('reaching a target beats being short of the next one', () => {
+        const m = computeMetrics(trade({
+            plannedStop: 95, targets: [{ level: 1, price: 110 }, { level: 2, price: 130 }], exitPrice: 115
+        }));
+        assert.equal(m.exitReason, 'target hit');
     });
 
-    test('a stop being hit is the plan working, not a slip', () => {
-        // The distinction the single field turns on: how you got out is not a
-        // fault, so it must not count against the discipline figure.
-        const m = computeMetrics(trade({ exitPrice: 95, plannedStop: 95, whatHappened: ['stop hit'] }));
-        assert.equal(m.followedPlan, true);
-        assert.equal(m.outcome, 'loss', 'a loss taken properly is still a loss');
+    test('between the stop and the first target is closing early', () => {
+        const m = computeMetrics(trade({
+            plannedStop: 95, targets: [{ level: 1, price: 130 }], exitPrice: 105
+        }));
+        assert.equal(m.exitReason, 'closed early');
     });
 
-    test('one slip among the ways out is still a slip', () => {
-        const m = computeMetrics(trade({ ...base, whatHappened: ['trailed out', 'moved my stop'] }));
-        assert.equal(m.followedPlan, false);
+    test('a short inverts every comparison', () => {
+        const short = { direction: 'short', quantity: 10, entryPrice: 100 };
+        assert.equal(computeMetrics(trade({ ...short, plannedStop: 105, exitPrice: 107 })).exitReason, 'stop hit');
+        assert.equal(computeMetrics(trade({ ...short, targets: [{ level: 1, price: 90 }], exitPrice: 88 })).exitReason, 'target hit');
     });
 
-    test('a trade never entered is not judged either way', () => {
-        assert.equal(computeMetrics(trade({ state: 'planned', entryPrice: undefined })).followedPlan, null);
+    test('with no levels recorded there is nothing to read', () => {
+        // "Closed early" against nothing would be an accusation, not a fact.
+        assert.equal(computeMetrics(trade({ exitPrice: 105 })).exitReason, null);
+    });
+
+    test('an open trade has not ended', () => {
+        assert.equal(computeMetrics(trade({ plannedStop: 95 })).exitReason, null);
     });
 });
 
@@ -139,15 +143,15 @@ describe('aggregate stats', () => {
         decorate(trade({ symbol: 'SMCI', entryPrice: 42.027, quantity: 3, exitPrice: 50.16 })),
         decorate(trade({
             symbol: 'DXCM', entryPrice: 77.575, quantity: 5, plannedStop: 73.71,
-            exitPrice: 73.71, stopPlaced: true, eventChecked: true
+            exitPrice: 73.71
         })),
         decorate(trade({
             symbol: 'INTC', entryPrice: 131.68, quantity: 3, exitPrice: 108.09,
-            whatHappened: ['no_stop_placed', 'no_profit_protection']
+            whatHappened: ['chased the move']
         })),
         decorate(trade({
-            symbol: 'MAS', entryPrice: 79.47, quantity: 4, markPrice: 71.48,
-            whatHappened: ['no_stop_placed', 'held_through_event']
+            symbol: 'MAS', entryPrice: 79.47, quantity: 4, plannedStop: 74,
+            whatHappened: ['held through earnings']
         }))
     ];
     const s = statsFor(entries);
@@ -173,34 +177,37 @@ describe('aggregate stats', () => {
         assert.equal(Math.round(s.netPnL * 100), Math.round(closedSum * 100));
     });
 
-    test('discipline is measured over every trade, not just closed ones', () => {
-        // Open trades count: a stop moved on a position still held is still a
-        // stop moved. Rate is over taken trades, closed or not.
-        const taken = entries.filter(e => e.status === 'open' || e.status === 'closed');
-        const clean = taken.filter(e => (e.whatHappened || []).every((t) => ['stop hit','target hit','trailed out','thesis broke','took some off','time stop'].includes(t))).length;
-        assert.equal(Math.round(s.followedPlanRate), Math.round((clean / taken.length) * 100));
+    test('the payoff ratio compares the size of a win to the size of a loss', () => {
+        // Win rate alone says nothing: this book wins two thirds of the time and
+        // still loses money, because one loss is bigger than four wins.
+        assert.ok(s.payoffRatio < 1, 'wins are smaller than losses here');
+        assert.equal(Math.round(s.payoffRatio * 1000) / 1000,
+            Math.round((s.avgWin / s.avgLoss) * 1000) / 1000);
     });
 
-    test('separates a well-run loss from a lucky win', () => {
-        // The point of the whole feature: judge the decision, not the result.
-        const closedOnly = entries.filter(e => e.status === 'closed');
-        assert.equal(s.goodProcessBadOutcome,
-            closedOnly.filter(e => e.followedPlan && e.outcome === 'loss').length);
-        assert.equal(s.badProcessGoodOutcome,
-            closedOnly.filter(e => !e.followedPlan && e.outcome === 'win').length);
+    test('open risk counts only what is still at stake', () => {
+        // MAS is the one open trade: 4 shares, 79.47 down to a stop at 74.
+        assert.equal(Math.round(s.openRisk * 100) / 100, 21.88);
+        assert.equal(s.openWithoutStop, 0);
     });
 
-    test('ranks mistakes by what they cost, worst first', () => {
-        assert.equal(s.byMistake[0].code, 'no_stop_placed');
-        assert.ok(s.byMistake[0].cost < 0);
-        // MAS is open, so only INTC contributes a realised cost.
-        assert.equal(s.byMistake[0].count, 1);
+    test('the stop checks are read off the entries, never from a tag', () => {
+        // DXCM is the only closed trade carrying a stop.
+        assert.deepEqual(s.stopSet, { n: 1, of: 6 });
+        assert.deepEqual(s.stopHonoured, { n: 1, of: 1 }, 'exited exactly at the level');
     });
 
-    test('the headline shows the book without its worst habit', () => {
-        assert.equal(s.headline.mistake, 'no_stop_placed');
-        assert.ok(s.headline.netWithout > 0, 'positive once the unstopped loss is removed');
-        assert.ok(s.headline.cost < 0);
+    test('a stop let through counts against you however it happened', () => {
+        const gapped = decorate(trade({ plannedStop: 95, exitPrice: 88 }));
+        assert.deepEqual(statsFor([gapped]).stopHonoured, { n: 0, of: 1 });
+    });
+
+    test('trackers are counted and totalled, and nothing more is read into them', () => {
+        const chased = s.byTracker.find(t => t.name === 'chased the move');
+        assert.equal(chased.count, 1);
+        assert.ok(chased.netPnL < 0);
+        // MAS is open, so its tracker contributes no realised total.
+        assert.equal(s.byTracker.find(t => t.name === 'held through earnings'), undefined);
     });
 
     test('an empty book does not divide by zero', () => {
@@ -208,221 +215,36 @@ describe('aggregate stats', () => {
         assert.equal(empty.winRate, 0);
         assert.equal(empty.profitFactor, null);
         assert.equal(empty.avgR, null);
-        assert.equal(empty.headline, null);
+        assert.equal(empty.payoffRatio, null);
+        assert.equal(empty.openRisk, 0);
     });
 });
 
-describe('planned trades', () => {
-    // A level being watched, with no fill and therefore no size or entry price.
-    const plan = (o = {}) => ({
-        symbol: 'OGDC', currency: 'PKR', direction: 'long', state: 'planned',
-        entryFrom: 95, entryTo: 105, plannedStop: 90,
-        targets: [{ level: 1, price: 120, isHit: false }],
-        whatHappened: [], ...o
-    });
-
-    test('claims no P/L of any kind', () => {
-        const m = computeMetrics(plan());
-        assert.equal(m.status, 'planned');
-        assert.equal(m.netPnL, null);
-        assert.equal(m.unrealizedPnL, null);
-        assert.equal(m.outcome, null);
-    });
-
-    test('risk is measured from the midpoint of the zone it waits for', () => {
-        // Midpoint 100, stop 90, target 120: one unit of risk for two of reward.
-        assert.equal(computeMetrics(plan()).plannedRR, 2);
-    });
-
-    test('R:R survives having no quantity yet', () => {
-        const m = computeMetrics(plan());
-        assert.equal(m.riskAmount, null, 'no size means no rupee risk');
-        assert.equal(m.plannedRR, 2, 'but the ratio still holds');
-    });
-
-    test('a single bound is treated as the whole zone', () => {
-        const m = computeMetrics(plan({ entryFrom: 100, entryTo: undefined }));
-        assert.equal(m.plannedRR, 2);
-    });
-
-    test('discipline is not judged before the trade is taken', () => {
-        assert.equal(computeMetrics(plan()).followedPlan, null);
-    });
-
-    test('no numeric field comes back NaN', () => {
-        // The entry price fields are absent, so every derived number has to
-        // either compute from the zone or return null.
-        const m = computeMetrics(plan());
-        for (const [key, value] of Object.entries(m)) {
-            assert.ok(!Number.isNaN(value), `${key} is NaN`);
-        }
-    });
-
-    test('an exit price beats a stale planned state', () => {
-        // Guards the reverse of the migration hazard: state must never keep a
-        // trade planned once it has a result.
-        assert.equal(computeMetrics(plan({ exitPrice: 120, entryPrice: 100, quantity: 10 })).status, 'closed');
-    });
-});
-
-describe('levels that never triggered', () => {
-    const cancelled = (o = {}) => ({
-        symbol: 'X', currency: 'PKR', direction: 'long', state: 'cancelled',
-        entryFrom: 95, entryTo: 105, plannedStop: 90,
-        targets: [{ level: 1, price: 120, isHit: false }], whatHappened: [], ...o
-    });
-
-    test('report as cancelled rather than quietly reading open', () => {
-        // The schema default is 'open', so anything that forgets cancelled here
-        // turns an abandoned level into a position you think you hold.
-        assert.equal(computeMetrics(cancelled()).status, 'cancelled');
-    });
-
-    test('claim no P/L', () => {
-        const m = computeMetrics(cancelled());
-        assert.equal(m.netPnL, null);
-        assert.equal(m.unrealizedPnL, null);
-        assert.equal(m.outcome, null);
-    });
-
-    test('are not judged on discipline', () => {
-        assert.equal(computeMetrics(cancelled()).followedPlan, null);
-    });
-
-    test('keep the R:R they were planned at', () => {
-        // Worth keeping: it says what you passed up.
-        assert.equal(computeMetrics(cancelled()).plannedRR, 2);
-    });
-
-    test('are counted separately from watched and taken trades', () => {
-        const s = statsFor([
-            decorate(cancelled()),
-            decorate(cancelled({ state: 'planned' })),
-            decorate({
-                symbol: 'A', currency: 'PKR', direction: 'long', quantity: 10,
-                entryPrice: 100, exitPrice: 110, whatHappened: [], state: 'closed'
-            })
-        ]);
-        assert.equal(s.totalTrades, 1, 'only the trade actually taken');
-        assert.equal(s.plannedTrades, 1);
-        assert.equal(s.cancelledTrades, 1);
-        assert.equal(s.openTrades, 0);
-    });
-});
-
-describe('follow-through on levels written in advance', () => {
-    // A trade keeps its entry zone after it opens, so a recorded zone is what marks
-    // an entry as one that started as a plan.
-    const level = (state, o = {}) => decorate({
-        symbol: 'X', currency: 'PKR', direction: 'long', state,
-        entryFrom: 95, entryTo: 105, whatHappened: [], ...o
-    });
-    const taken = (state) => level(state, { entryPrice: 100, quantity: 10, entryDate: '2026-01-01' });
-
-    test('counts planned levels that were entered against those let go', () => {
-        const s = statsFor([
-            taken('open'),
-            taken('closed'),
-            level('cancelled'),
-            level('planned')
-        ]);
-        assert.equal(s.levelsTaken, 2);
-        assert.equal(s.levelsAbandoned, 1);
-        assert.equal(s.plannedTrades, 1, 'still waiting, so not settled either way');
-    });
-
-    test('follow-through counts only settled levels', () => {
-        // Two of three settled were taken. The one still being watched is not
-        // evidence of anything yet.
-        const s = statsFor([taken('open'), taken('closed'), level('cancelled'), level('planned')]);
-        assert.equal(Math.round(s.triggerRate), 67);
-    });
-
-    test('is null rather than zero when nothing has settled', () => {
-        // A 0% follow-through on no evidence would read as a damning statistic.
-        assert.equal(statsFor([level('planned')]).triggerRate, null);
-        assert.equal(statsFor([]).triggerRate, null);
-    });
-
-    test('impulse trades with no recorded zone are not counted', () => {
-        const s = statsFor([decorate({
-            symbol: 'Y', currency: 'PKR', direction: 'long', state: 'closed',
-            entryPrice: 100, quantity: 10, exitPrice: 110, whatHappened: []
-        })]);
-        assert.equal(s.levelsTaken, 0, 'it was never planned, so it cannot be followed through on');
-        assert.equal(s.triggerRate, null);
-    });
-});
-
-describe('setup quality', () => {
-    test('groups closed trades by the grade given before the outcome', () => {
-        const trade = (quality, exitPrice) => decorate({
-            symbol: 'X', currency: 'PKR', direction: 'long', quantity: 10,
-            entryPrice: 100, exitPrice, setupQuality: quality, whatHappened: [], state: 'closed'
-        });
-        const s = statsFor([trade('excellent', 120), trade('poor', 90), trade('poor', 95)]);
-
-        const poor = s.byQuality.find(q => q.key === 'poor');
-        const excellent = s.byQuality.find(q => q.key === 'excellent');
-        assert.equal(poor.count, 2);
-        assert.equal(poor.winRate, 0);
-        assert.equal(excellent.winRate, 100);
-    });
-});
-
-describe('planned trades in the stats', () => {
-    const taken = decorate({
-        symbol: 'A', currency: 'PKR', direction: 'long', quantity: 10, entryPrice: 100,
-        exitPrice: 110, stopPlaced: true, eventChecked: true, whatHappened: [], state: 'closed'
-    });
-    const watching = decorate({
-        symbol: 'B', currency: 'PKR', direction: 'long', state: 'planned',
-        entryFrom: 95, entryTo: 105, whatHappened: []
-    });
-    const s = statsFor([taken, watching]);
-
-    test('are counted apart from trades actually taken', () => {
-        assert.equal(s.totalTrades, 1);
-        assert.equal(s.plannedTrades, 1);
-        assert.equal(s.openTrades, 0, 'watching a level is not holding a position');
-    });
-
-    test('do not dilute the discipline rates', () => {
-        // A watched level is not a trade taken, so it cannot drag the rate to 50%.
-        assert.equal(s.followedPlanRate, 100);
-    });
-});
-
-describe('the three tag groups', () => {
-    test('only Execution counts against the plan', async () => {
-        const { ranToPlan } = await import('../models/JournalEntry.js');
-        // How you got out and what the market did are facts, not faults.
-        for (const t of ['stop hit', 'target hit', 'breakeven', 'reversal', 'thesis broken']) {
-            assert.equal(ranToPlan(t), true, t);
-        }
-        for (const t of ['moved stop', 'no stop', 'lost patience', 'premature exit']) {
-            assert.equal(ranToPlan(t), false, t);
-        }
-    });
-
-    test('a word in no group counts against you rather than passing quietly', async () => {
-        const { ranToPlan } = await import('../models/JournalEntry.js');
-        assert.equal(ranToPlan('chased it like an idiot'), false);
-        assert.equal(ranToPlan(''), false);
-    });
-
-    test('only the outcome group is one-at-a-time', async () => {
-        const { isOutcome } = await import('../models/JournalEntry.js');
-        assert.equal(isOutcome('stop hit'), true);
-        assert.equal(isOutcome('reversal'), false, 'the market can do several things');
-        assert.equal(isOutcome('moved stop'), false, 'and you can slip more than once');
-    });
-
-    test('a losing trade taken properly still reads as the plan holding', () => {
-        const m = computeMetrics(trade({
-            exitPrice: 95, plannedStop: 95, whatHappened: ['stop hit', 'reversal']
-        }));
+describe('what the trader is asked for', () => {
+    test('a losing trade taken properly is visible without anyone saying so', () => {
+        // The whole reason for the tag taxonomy this replaced: a loss can be
+        // well run. The record already knew - the stop was set and honoured.
+        const m = computeMetrics(trade({ exitPrice: 95, plannedStop: 95 }));
         assert.equal(m.outcome, 'loss');
-        assert.equal(m.followedPlan, true);
+        assert.equal(m.exitReason, 'stop hit');
+        assert.deepEqual(statsFor([decorate(trade({ exitPrice: 95, plannedStop: 95 }))]).stopHonoured,
+            { n: 1, of: 1 });
+    });
+
+    test('an untagged trade is not read as anything', () => {
+        // The old followedPlan returned true for every untagged trade, because
+        // [].every() is true - so the rate measured tagging, not discipline.
+        const s = statsFor([decorate(trade({ exitPrice: 120 }))]);
+        assert.equal(s.byTracker.length, 0);
+        assert.deepEqual(s.stopSet, { n: 0, of: 1 }, 'silence is not a pass');
+    });
+
+    test('two trades tapping the same tracker land in one row', () => {
+        const s = statsFor([
+            decorate(trade({ exitPrice: 90, whatHappened: ['revenge trade'] })),
+            decorate(trade({ exitPrice: 95, whatHappened: ['revenge trade'] }))
+        ]);
+        assert.equal(s.byTracker.length, 1);
+        assert.equal(s.byTracker[0].count, 2);
     });
 });

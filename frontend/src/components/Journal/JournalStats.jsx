@@ -1,113 +1,66 @@
-import { ShieldCheck, ShieldAlert, AlertTriangle } from 'lucide-react';
 import { formatCurrency, formatPercent, getPnLColorClass } from '../../utils/portfolioUtils';
-import { mistakeLabel } from './labels';
 
+/**
+ * The deeper read, one tab down from the four figures on the main screen.
+ *
+ * Four panels used to live here reporting on fields that no longer exist — stop
+ * placed, event checked, setup grade, unconfirmed exits — and every one of them
+ * had settled at zero. Nothing here is asked of the trader: how a trade ended is
+ * derived from the exit against the levels, and a tracker is only counted
+ * because they named it themselves.
+ */
 export default function JournalStats({ stats }) {
     if (!stats) return null;
-    const { byCurrency = [], process = {} } = stats;
+    const { byCurrency = [] } = stats;
+
+    if (!byCurrency.length) {
+        return <p className="text-sm text-ink-faint py-8 text-center">Nothing closed yet.</p>;
+    }
 
     return (
         <div className="space-y-4">
             {byCurrency.map((c) => (
-                <div key={c.currency} className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                    <Stat label={`Net P/L (${c.currency})`}
-                        value={formatCurrency(c.netPnL, c.currency, { signed: true })}
-                        color={getPnLColorClass(c.netPnL)} />
-                    <Stat label="Win Rate" value={formatPercent(c.winRate, 0)}
-                        sub={`${c.wins}W / ${c.losses}L`} />
-                    <Stat label="Profit Factor"
-                        value={c.profitFactor != null ? c.profitFactor.toFixed(2) : '—'}
-                        sub={c.profitFactor != null && c.profitFactor < 1 ? 'below breakeven' : ''} />
-                    <Stat label="Avg R"
-                        value={c.avgR != null ? `${c.avgR.toFixed(2)}R` : '—'}
-                        sub={c.tradesWithR ? `${c.tradesWithR} of ${c.closedTrades} with a stop` : 'no stops recorded'} />
-                    <Stat label="Expectancy"
-                        value={formatCurrency(c.expectancy, c.currency, { signed: true })}
-                        sub="per trade" color={getPnLColorClass(c.expectancy)} />
-                </div>
-            ))}
-
-            {/* Process is judged apart from outcome — a loss that followed the plan is not a mistake. */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <Discipline label="Stop actually placed" rate={process.stopPlacedRate} />
-                <Discipline label="Event calendar checked" rate={process.eventCheckedRate} />
-                <Discipline label="Followed the plan" rate={process.followedPlanRate} />
-            </div>
-
-            {/* The levels you wrote down in advance, and what became of them. Only
-                appears once there is something to say. */}
-            {(process.plannedTrades > 0 || process.triggerRate != null) && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <Stat label="Watching now" value={process.plannedTrades || 0}
-                        sub="levels waiting to print" />
-                    <Stat label="Taken" value={process.levelsTaken || 0}
-                        sub="planned, then entered" />
-                    <Stat label="Never triggered" value={process.levelsAbandoned || 0}
-                        sub="watched, then let go" />
-                    <Stat label="Follow-through"
-                        value={process.triggerRate != null ? formatPercent(process.triggerRate, 0) : '—'}
-                        sub={process.triggerRate != null ? 'of settled levels' : 'nothing settled yet'} />
-                </div>
-            )}
-
-            {(process.goodProcessBadOutcome > 0 || process.badProcessGoodOutcome > 0) && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {process.goodProcessBadOutcome > 0 && (
-                        <Callout icon={ShieldCheck} tone="green"
-                            title={`${process.goodProcessBadOutcome} good decision${process.goodProcessBadOutcome > 1 ? 's' : ''}, bad outcome`}
-                            body="Followed the plan and still lost. This is the cost of doing business, not a mistake to fix." />
+                <div key={c.currency} className="space-y-4">
+                    {byCurrency.length > 1 && (
+                        <h3 className="text-[11px] font-extrabold uppercase tracking-[0.09em] text-ink-faint">
+                            {c.currency}
+                        </h3>
                     )}
-                    {process.badProcessGoodOutcome > 0 && (
-                        <Callout icon={ShieldAlert} tone="amber"
-                            title={`${process.badProcessGoodOutcome} lucky win${process.badProcessGoodOutcome > 1 ? 's' : ''}`}
-                            body="Broke the plan and profited anyway. Repeating this eventually pays for itself." />
-                    )}
-                </div>
-            )}
 
-            {process.unconfirmedExits > 0 && (
-                <Callout icon={AlertTriangle} tone="amber"
-                    title={`${process.unconfirmedExits} unconfirmed exit${process.unconfirmedExits > 1 ? 's' : ''}`}
-                    body="These prices came from memory, not a broker fill. Every figure above inherits that uncertainty until confirmed." />
-            )}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <Stat label="Profit factor"
+                            value={c.profitFactor != null ? c.profitFactor.toFixed(2) : '—'}
+                            sub={c.profitFactor != null && c.profitFactor < 1 ? 'below breakeven' : 'gross wins ÷ gross losses'} />
+                        <Stat label="Average win"
+                            value={formatCurrency(c.avgWin, c.currency)}
+                            sub={`${c.wins} win${c.wins === 1 ? '' : 's'}`}
+                            color="text-green-600 dark:text-green-400" />
+                        <Stat label="Average loss"
+                            value={formatCurrency(c.avgLoss, c.currency)}
+                            sub={`${c.losses} loss${c.losses === 1 ? '' : 'es'}`}
+                            color="text-red-600 dark:text-red-400" />
+                        <Stat label="Longest run"
+                            value={`${c.bestStreak}W / ${c.worstStreak}L`}
+                            sub="back to back" />
+                    </div>
 
-            {/* Both graded before the outcome was known, which is what makes them a
-                calibration check rather than hindsight. Counts and win rates only —
-                money would sum across currencies. */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <Grouping title="Did the grade predict it?" rows={process.byQuality}
-                    order={QUALITY_ORDER}
-                    empty="No trades graded yet. Grade a setup when you log it and this compares your judgement against the result." />
-                <Grouping title="By setup" rows={process.bySetup}
-                    empty="No closed trades to group yet." />
-            </div>
+                    {/* Derived from the exit against the stop and targets, so this
+                        groups a fact rather than a claim. Usually the row worth
+                        reading is "closed early". */}
+                    <Grouping title="How trades ended" rows={c.byExit} currency={c.currency}
+                        empty="Nothing closed yet."
+                        labels={{ unknown: 'no levels recorded' }} />
 
-            {/* Costs stay inside a currency; totalling them across markets would be meaningless. */}
-            {byCurrency.filter((c) => c.byMistake?.length).map((c) => (
-                <div key={`cost-${c.currency}`}
-                    className="bg-surface rounded-card p-4 shadow-card ring-1 ring-hairline">
-                    <h3 className="font-semibold text-ink mb-3">
-                        What it cost ({c.currency})
-                    </h3>
-                    <div className="space-y-2">
-                        {c.byMistake.map((m) => {
-                            const worst = Math.abs(c.byMistake[0].cost) || 1;
-                            return (
-                                <div key={m.code} className="flex items-center gap-3">
-                                    <div className="w-40 shrink-0 text-sm text-ink-muted">
-                                        {mistakeLabel(m.code)}
-                                    </div>
-                                    <div className="flex-1 bg-surface-muted rounded h-5 overflow-hidden">
-                                        <div className="bg-red-400 dark:bg-red-500 h-full"
-                                            style={{ width: `${Math.min(100, (Math.abs(m.cost) / worst) * 100)}%` }} />
-                                    </div>
-                                    <div className="w-28 text-right text-sm font-semibold text-red-600 dark:text-red-400">
-                                        {formatCurrency(m.cost, c.currency)}
-                                    </div>
-                                    <div className="w-10 text-right text-xs text-ink-faint">×{m.count}</div>
-                                </div>
-                            );
-                        })}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <Grouping title="By setup" rows={c.bySetup} currency={c.currency}
+                            empty="No closed trades to group yet." />
+                        {/* Only the things this user chose to count about
+                            themselves. Absent entirely when they chose none. */}
+                        {c.byTracker?.length > 0 && (
+                            <Grouping title="What you're tracking" rows={c.byTracker.map(
+                                ({ name, count, netPnL }) => ({ key: name, count, netPnL })
+                            )} currency={c.currency} empty="" />
+                        )}
                     </div>
                 </div>
             ))}
@@ -115,39 +68,36 @@ export default function JournalStats({ stats }) {
     );
 }
 
-// Best to worst, so a run of grades reads as a slope rather than an alphabet.
-// 'unknown' last: it means ungraded, not a grade.
-const QUALITY_ORDER = ['excellent', 'good', 'fair', 'poor', 'unknown'];
-
-const LABELS = { unknown: 'not graded' };
-
 /**
- * A count and win rate per group. Shared because "by grade" and "by setup" are
- * the same question asked of a different column.
+ * A group's count and what it made. Money rather than win rate: a group can win
+ * often and still be where the account leaks, and the whole point of grouping is
+ * to find that.
  */
-function Grouping({ title, rows = [], order, empty }) {
-    const sorted = order
-        ? [...rows].sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key))
-        : [...rows].sort((a, b) => b.count - a.count);
+function Grouping({ title, rows = [], currency, empty, labels = {} }) {
+    if (!rows.length && !empty) return null;
+    const worst = Math.max(...rows.map((r) => Math.abs(r.netPnL || 0)), 1);
 
     return (
         <div className="bg-surface rounded-card p-4 shadow-card ring-1 ring-hairline">
             <h3 className="font-semibold text-ink mb-3">{title}</h3>
-            {sorted.length === 0 ? (
+            {rows.length === 0 ? (
                 <p className="text-sm text-ink-faint">{empty}</p>
             ) : (
                 <div className="space-y-2">
-                    {sorted.map((r) => (
+                    {rows.map((r) => (
                         <div key={r.key} className="flex items-center gap-3">
-                            <div className="w-24 shrink-0 text-sm text-ink-muted capitalize">
-                                {LABELS[r.key] || r.key}
+                            <div className="w-32 shrink-0 text-sm text-ink-muted truncate">
+                                {labels[r.key] || r.key}
                             </div>
                             <div className="flex-1 bg-surface-muted rounded h-5 overflow-hidden">
-                                <div className={`h-full ${r.winRate >= 50 ? 'bg-green-400 dark:bg-green-500' : 'bg-red-400 dark:bg-red-500'}`}
-                                    style={{ width: `${Math.max(2, r.winRate)}%` }} />
+                                <div className={`h-full ${r.netPnL >= 0 ? 'bg-green-400 dark:bg-green-500' : 'bg-red-400 dark:bg-red-500'}`}
+                                    style={{ width: `${Math.max(2, (Math.abs(r.netPnL || 0) / worst) * 100)}%` }} />
                             </div>
-                            <div className="w-16 text-right text-sm font-semibold text-ink">
-                                {formatPercent(r.winRate, 0)}
+                            <div className={`w-28 text-right text-sm font-semibold tabular-nums ${getPnLColorClass(r.netPnL)}`}>
+                                {formatCurrency(r.netPnL, currency, { signed: true })}
+                            </div>
+                            <div className="w-16 text-right text-xs text-ink-faint tabular-nums">
+                                {r.winRate != null ? formatPercent(r.winRate, 0) : ''}
                             </div>
                             <div className="w-10 text-right text-xs text-ink-faint">×{r.count}</div>
                         </div>
@@ -162,41 +112,8 @@ function Stat({ label, value, sub, color }) {
     return (
         <div className="bg-surface rounded-card p-4 shadow-card ring-1 ring-hairline">
             <div className="text-xs text-ink-faint">{label}</div>
-            <div className={`text-xl font-bold ${color || 'text-ink'}`}>{value}</div>
+            <div className={`text-xl font-bold tabular-nums ${color || 'text-ink'}`}>{value}</div>
             {sub && <div className="text-xs text-ink-faint mt-0.5">{sub}</div>}
-        </div>
-    );
-}
-
-function Discipline({ label, rate = 0 }) {
-    const good = rate >= 80;
-    return (
-        <div className="bg-surface rounded-card p-4 shadow-card ring-1 ring-hairline">
-            <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-ink-muted">{label}</span>
-                <span className={`text-sm font-bold ${good ? 'text-green-600' : 'text-red-600'}`}>
-                    {formatPercent(rate, 0)}
-                </span>
-            </div>
-            <div className="bg-surface-muted rounded h-2 overflow-hidden">
-                <div className={`h-full ${good ? 'bg-green-500' : 'bg-red-500'}`} style={{ width: `${rate}%` }} />
-            </div>
-        </div>
-    );
-}
-
-function Callout({ icon: Icon, tone, title, body }) {
-    const tones = {
-        green: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400',
-        amber: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400'
-    };
-    return (
-        <div className={`rounded-card p-4 border flex gap-3 ${tones[tone]}`}>
-            <Icon className="w-5 h-5 shrink-0 mt-0.5" />
-            <div>
-                <div className="font-semibold">{title}</div>
-                <div className="text-sm opacity-90">{body}</div>
-            </div>
         </div>
     );
 }
