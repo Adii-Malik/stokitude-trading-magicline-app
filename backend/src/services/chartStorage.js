@@ -12,8 +12,23 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs/promises';
 import crypto from 'crypto';
+import { fileURLToPath } from 'url';
 
-export const CHART_DIR = path.join(process.cwd(), 'uploads', 'journal');
+/**
+ * Resolved from this file, never from the working directory.
+ *
+ * It was cwd-relative, which is the same directory only by coincidence. `npm
+ * run dev` starts in backend/, so writer and reader agreed and every upload
+ * worked. The container starts in /app and runs `node backend/src/index.js`, so
+ * charts were written to /app/uploads/journal while Express served
+ * /app/backend/uploads - two directories, and the volume mounted on the second.
+ * Every upload succeeded and every one of them 404'd.
+ *
+ * Exported so the static mount uses this same value rather than its own guess.
+ */
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+export const UPLOADS_DIR = path.join(HERE, '..', '..', 'uploads');
+export const CHART_DIR = path.join(UPLOADS_DIR, 'journal');
 export const URL_PREFIX = '/uploads/journal/';
 
 const TYPES = { 'image/png': '.png', 'image/jpeg': '.jpg', 'image/webp': '.webp' };

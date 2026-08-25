@@ -2,7 +2,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'fs/promises';
 import path from 'path';
-import { accepts, extensionFor, removeChart, CHART_DIR, URL_PREFIX, MAX_BYTES } from './chartStorage.js';
+import { accepts, extensionFor, removeChart, CHART_DIR, UPLOADS_DIR, URL_PREFIX, MAX_BYTES } from './chartStorage.js';
 
 describe('what counts as a chart', () => {
     test('images in, anything else out', () => {
@@ -49,5 +49,23 @@ describe('deleting the file behind an entry', () => {
         assert.equal(await removeChart(undefined), false);
         assert.equal(await removeChart(''), false);
         assert.equal(await removeChart(`${URL_PREFIX}never-existed.png`), false);
+    });
+});
+
+describe('where charts are kept', () => {
+    test('resolves from this module, not from the working directory', () => {
+        // It was cwd-relative, and cwd is backend/ under `npm run dev` but /app
+        // in the container - so uploads landed in one directory while Express
+        // served another, and every upload 404'd on production only.
+        assert.ok(CHART_DIR.endsWith(path.join('backend', 'uploads', 'journal')), CHART_DIR);
+        assert.equal(CHART_DIR, path.join(UPLOADS_DIR, 'journal'));
+
+        const here = process.cwd();
+        try {
+            process.chdir('/');
+            assert.equal(CHART_DIR, path.join(UPLOADS_DIR, 'journal'), 'unchanged from anywhere');
+        } finally {
+            process.chdir(here);
+        }
     });
 });

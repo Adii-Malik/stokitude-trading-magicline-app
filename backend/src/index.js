@@ -10,6 +10,7 @@ import config from './config/config.js';
 import { connectDB } from './config/mongodb.js';
 import centralizedPriceService from './services/centralizedPriceService.js';
 import journalLevelHandler from './handlers/journalLevelHandler.js';
+import { UPLOADS_DIR } from './services/chartStorage.js';
 import portfolioHandler from './handlers/portfolioHandler.js';
 import marketHoursService from './services/marketHoursService.js';
 import authRoutes from './routes/auth.js';
@@ -59,8 +60,9 @@ app.use(express.json());
 app.use(cookieParser());
 
 // Uploaded charts. Ahead of the SPA fallback, or the catch-all would answer
-// image requests with index.html.
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads'), {
+// image requests with index.html. The directory comes from the module that
+// writes to it, so the two cannot drift apart again.
+app.use('/uploads', express.static(UPLOADS_DIR, {
     maxAge: '30d',
     // Nothing here is executable, and a stored file must never be run as one.
     setHeaders: (res) => res.setHeader('Content-Security-Policy', "default-src 'none'")
