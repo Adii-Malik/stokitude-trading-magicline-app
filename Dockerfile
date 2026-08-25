@@ -18,6 +18,15 @@ RUN npm ci --omit=dev --prefix backend
 COPY backend/ ./backend/
 COPY --from=frontend /app/frontend/dist ./frontend/dist
 
+# The upload directory has to exist in the image, not only at runtime.
+#
+# Docker seeds a named volume from the image path it is mounted over - but only
+# if that path exists. With nothing there, the volume is created empty and owned
+# by root, the app runs as `app`, and the first chart upload fails on mkdir with
+# a permission error that never reaches a log anyone reads. Creating it here
+# means the volume inherits the directory and its ownership.
+RUN mkdir -p /app/backend/uploads/journal
+
 # Don't run as root.
 RUN addgroup -S app && adduser -S app -G app && chown -R app:app /app
 USER app
