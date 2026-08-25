@@ -6,7 +6,7 @@
  */
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { computeMetrics, decorate, statsFor } from './journalService.js';
+import { computeMetrics, decorate, statsFor, orderByHome, HOME } from './journalService.js';
 
 const trade = (o = {}) => ({
     symbol: 'X', currency: 'USD', direction: 'long', quantity: 10,
@@ -249,5 +249,29 @@ describe('what the trader is asked for', () => {
         ]);
         assert.equal(s.byTracker.length, 1);
         assert.equal(s.byTracker[0].count, 2);
+    });
+});
+
+describe('which market leads', () => {
+    test('home comes first even when every trade was somewhere else', () => {
+        // Six US trades and one PSX trade used to open the journal on USD.
+        const rows = orderByHome([
+            { currency: 'USD', closedTrades: 6 },
+            { currency: 'PKR', closedTrades: 1 },
+            { currency: 'GBP', closedTrades: 3 }
+        ]);
+        assert.deepEqual(rows.map(r => r.currency), ['PKR', 'USD', 'GBP']);
+    });
+
+    test('with home absent the heaviest leads', () => {
+        const rows = orderByHome([
+            { currency: 'GBP', closedTrades: 2 },
+            { currency: 'USD', closedTrades: 9 }
+        ]);
+        assert.deepEqual(rows.map(r => r.currency), ['USD', 'GBP']);
+    });
+
+    test('home is PKR, because the default exchange is PSX', () => {
+        assert.equal(HOME, 'PKR');
     });
 });

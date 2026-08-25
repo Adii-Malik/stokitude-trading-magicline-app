@@ -5,6 +5,7 @@
  */
 import JournalEntry from '../models/JournalEntry.js';
 import RiskProfile from '../models/RiskProfile.js';
+import { DEFAULT_EXCHANGE, currencyOf } from '../config/exchanges.js';
 import { capitalFor } from './riskContext.js';
 
 import { removeChart } from './chartStorage.js';
@@ -116,6 +117,25 @@ export function decorate(entry) {
 }
 
 const pct = (n, d) => (d > 0 ? (n / d) * 100 : 0);
+
+/** The currency this app is built around: PSX settlement, slabs, holding-period CGT. */
+export const HOME = currencyOf(DEFAULT_EXCHANGE);
+
+/**
+ * Home market first, the rest behind it by weight.
+ *
+ * Ordering by weight alone opened the journal on whichever market happened to
+ * have more closed trades that month - so a run of US trades quietly demoted
+ * PSX, which is the book everything else in this app is built for.
+ */
+export function orderByHome(rows) {
+    return [...rows].sort((a, b) => {
+        if (a.currency === b.currency) return 0;
+        if (a.currency === HOME) return -1;
+        if (b.currency === HOME) return 1;
+        return b.closedTrades - a.closedTrades;
+    });
+}
 
 /** Stats for one currency's trades. Mixing PKR and USD into one figure is meaningless. */
 export function statsFor(entries) {
@@ -359,11 +379,11 @@ class JournalService {
     async stats(userId, filters = {}) {
         const entries = await this.findAll(userId, filters);
 
-        const currencies = [...new Set(entries.map(e => e.currency || 'PKR'))];
-        const byCurrency = currencies.map(currency => ({
+        const currencies = [...new Set(entries.map(e => e.currency || HOME))];
+        const byCurrency = orderByHome(currencies.map(currency => ({
             currency,
-            ...statsFor(entries.filter(e => (e.currency || 'PKR') === currency))
-        })).sort((a, b) => b.closedTrades - a.closedTrades);
+            ...statsFor(entries.filter(e => (e.currency || HOME) === currency))
+        })));
 
         const all = statsFor(entries);
         return {
