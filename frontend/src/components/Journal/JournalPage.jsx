@@ -76,14 +76,29 @@ export default function JournalPage() {
         if (!currency && books.length) setCurrency(books[0].currency);
     }, [books, currency]);
 
-    const flaggedCount = useMemo(() => entries.filter(needsYou).length, [entries]);
+    /**
+     * One market at a time.
+     *
+     * PKR and USD cannot be added, so the tiles have always shown one currency -
+     * but the list underneath showed every trade regardless, which made the
+     * figures describe a subset of what was on screen. A PSX book and a US one
+     * are different rules, different tax and different capital; they are two
+     * journals that happen to share a page, and the switch now says which one
+     * you are reading.
+     */
+    const inMarket = useMemo(
+        () => entries.filter((e) => !shown || (e.currency || 'PKR') === shown.currency),
+        [entries, shown]
+    );
+
+    const flaggedCount = useMemo(() => inMarket.filter(needsYou).length, [inMarket]);
 
     const visible = useMemo(() => {
-        let list = entries;
+        let list = inMarket;
         if (flagged) list = list.filter(needsYou);
         else if (status !== 'all') list = list.filter((e) => e.status === status);
         return list;
-    }, [entries, status, flagged]);
+    }, [inMarket, status, flagged]);
 
     // Open on whatever most wants a decision, then on the newest thing. Never on
     // an empty pane when there is something to show.
@@ -141,10 +156,24 @@ export default function JournalPage() {
     return (
         <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
             <div className="flex items-center justify-between gap-3">
-                <h1 className="text-2xl font-bold text-ink flex items-center gap-2">
-                    <BookOpen className="w-6 h-6 text-cyan-500" />
-                    Journal
-                </h1>
+                <div className="flex items-center gap-4 min-w-0">
+                    <h1 className="text-2xl font-bold text-ink flex items-center gap-2">
+                        <BookOpen className="w-6 h-6 text-cyan-500" />
+                        Journal
+                    </h1>
+                    {books.length > 1 && (
+                        <div className="flex gap-1 bg-surface ring-1 ring-hairline rounded-control p-1">
+                            {books.map((b) => (
+                                <button key={b.currency} onClick={() => setCurrency(b.currency)}
+                                    className={`px-3 py-1.5 rounded-control text-sm font-semibold ${b.currency === shown?.currency
+                                        ? 'bg-cyan-500 text-white' : 'text-ink-faint hover:text-ink'}`}>
+                                    {b.currency}
+                                    <span className="ml-1.5 text-xs opacity-70 tabular-nums">{b.totalTrades}</span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
                 <div className="flex items-center gap-2 shrink-0">
                     <button onClick={() => open(null)}
                         className="px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 flex items-center gap-2">
@@ -170,8 +199,7 @@ export default function JournalPage() {
                 </div>
             ) : (
                 <>
-                    <Tiles book={shown} process={stats?.process} books={books}
-                        currency={shown?.currency} onCurrency={setCurrency} />
+                    <Tiles book={shown} />
 
                     <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-5 items-start">
                         {/* On a phone the pane replaces the list rather than
@@ -284,7 +312,7 @@ export default function JournalPage() {
  * alone it is the most misleading figure in trading — you can win seven in ten
  * and lose money — and it only means something read beside the payoff ratio.
  */
-function Tiles({ book, process, books, currency, onCurrency }) {
+function Tiles({ book }) {
     if (!book) return null;
     const payoff = book.payoffRatio != null ? `${book.payoffRatio.toFixed(1)}:1` : null;
 
@@ -297,43 +325,30 @@ function Tiles({ book, process, books, currency, onCurrency }) {
     const rThin = book.avgR != null && rCovers < 0.5;
 
     return (
-        <div className="flex items-stretch gap-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-1 min-w-0">
-                <Tile k={`Net P/L · ${book.currency}`}
-                    v={formatCurrency(book.netPnL, book.currency, { signed: true })}
-                    color={getPnLColorClass(book.netPnL)}
-                    s={`${book.closedTrades} closed${book.bestTrade ? ` · best ${formatCurrency(book.bestTrade, book.currency, { signed: true })}` : ''}`} />
-                <Tile k="Expectancy"
-                    v={formatCurrency(book.expectancy, book.currency, { signed: true })}
-                    color={getPnLColorClass(book.expectancy)}
-                    s={`per trade · ${formatPercent(book.winRate, 0)} win${payoff ? ` · ${payoff}` : ''}`} />
-                {/* The caption is also the discipline number. It had a card of its
-                    own below these tiles saying "stop set 33% (2 of 6)", which is
-                    this sentence with a bar drawn through it. */}
-                <Tile k="Average R"
-                    v={book.avgR != null ? `${book.avgR >= 0 ? '+' : ''}${book.avgR.toFixed(2)}R` : '—'}
-                    color={rThin || book.avgR == null ? '' : getPnLColorClass(book.avgR)}
-                    s={rThin
-                        ? `over ${book.tradesWithR} of ${book.closedTrades} — the rest had no stop`
-                        : `${book.tradesWithR} of ${book.closedTrades} had a stop`} />
-                {/* The only figure here about the present rather than the past,
-                    and the only one that can stop you doing something today. */}
-                <Tile k="At risk right now"
-                    v={book.openRisk ? formatCurrency(book.openRisk, book.currency) : '—'}
-                    color={book.openRisk ? 'text-amber-600 dark:text-amber-400' : ''}
-                    s={`${book.openTrades} open${book.openWithoutStop ? ` · ${book.openWithoutStop} with no stop` : ''}`} />
-            </div>
-            {books.length > 1 && (
-                <div className="flex flex-col gap-1 bg-surface ring-1 ring-hairline rounded-card p-1.5 justify-center shrink-0">
-                    {books.map((b) => (
-                        <button key={b.currency} onClick={() => onCurrency(b.currency)}
-                            className={`px-3 py-2 rounded-control text-sm font-semibold ${b.currency === currency
-                                ? 'bg-cyan-500 text-white' : 'text-ink-faint hover:text-ink'}`}>
-                            {b.currency}
-                        </button>
-                    ))}
-                </div>
-            )}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Tile k={`Net P/L · ${book.currency}`}
+                v={formatCurrency(book.netPnL, book.currency, { signed: true })}
+                color={getPnLColorClass(book.netPnL)}
+                s={`${book.closedTrades} closed${book.bestTrade ? ` · best ${formatCurrency(book.bestTrade, book.currency, { signed: true })}` : ''}`} />
+            <Tile k="Expectancy"
+                v={formatCurrency(book.expectancy, book.currency, { signed: true })}
+                color={getPnLColorClass(book.expectancy)}
+                s={`per trade · ${formatPercent(book.winRate, 0)} win${payoff ? ` · ${payoff}` : ''}`} />
+            {/* The caption is also the discipline number. It had a card of its
+                own below these tiles saying "stop set 33% (2 of 6)", which is
+                this sentence with a bar drawn through it. */}
+            <Tile k="Average R"
+                v={book.avgR != null ? `${book.avgR >= 0 ? '+' : ''}${book.avgR.toFixed(2)}R` : '—'}
+                color={rThin || book.avgR == null ? '' : getPnLColorClass(book.avgR)}
+                s={rThin
+                    ? `over ${book.tradesWithR} of ${book.closedTrades} — the rest had no stop`
+                    : `${book.tradesWithR} of ${book.closedTrades} had a stop`} />
+            {/* The only figure here about the present rather than the past,
+                and the only one that can stop you doing something today. */}
+            <Tile k="At risk right now"
+                v={book.openRisk ? formatCurrency(book.openRisk, book.currency) : '—'}
+                color={book.openRisk ? 'text-amber-600 dark:text-amber-400' : ''}
+                s={`${book.openTrades} open${book.openWithoutStop ? ` · ${book.openWithoutStop} with no stop` : ''}`} />
         </div>
     );
 }
