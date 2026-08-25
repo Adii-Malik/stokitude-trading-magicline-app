@@ -34,6 +34,11 @@ export default function JournalPage() {
     const [selectedId, setSelectedId] = useState(null);
     const [editing, setEditing] = useState(null);
     const [showModal, setShowModal] = useState(false);
+    // Whether this visit is the act of closing a position, which is a task, or
+    // an edit, which is a form. It cannot be read off the entry: closing hands
+    // the dialog a copy already set to 'closed', so asking the copy what state
+    // it came from always answers 'closed'.
+    const [closingTrade, setClosingTrade] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
     const [showSizer, setShowSizer] = useState(false);
 
@@ -91,10 +96,14 @@ export default function JournalPage() {
     const selected = visible.find((e) => e._id === selectedId) || null;
     const bookOf = (id) => options?.portfolios?.find((p) => String(p._id) === String(id))?.name;
 
-    const close = (entry) => {
-        setEditing({ ...entry, state: 'closed', exitDate: new Date().toISOString() });
+    const open = (entry, closingNow = false) => {
+        setEditing(entry);
+        setClosingTrade(closingNow);
         setShowModal(true);
     };
+
+    const close = (entry) =>
+        open({ ...entry, state: 'closed', exitDate: new Date().toISOString() }, true);
 
     const remove = async (entry) => {
         if (!window.confirm(`Delete the ${entry.symbol} entry? This cannot be undone.`)) return;
@@ -118,7 +127,7 @@ export default function JournalPage() {
                     Journal
                 </h1>
                 <div className="flex items-center gap-2 shrink-0">
-                    <button onClick={() => { setEditing(null); setShowModal(true); }}
+                    <button onClick={() => open(null)}
                         className="px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 flex items-center gap-2">
                         <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Journal a trade</span>
                     </button>
@@ -201,7 +210,7 @@ export default function JournalPage() {
                                 </button>
                             )}
                             <JournalPane entry={selected} portfolioName={bookOf(selected?.portfolioId)}
-                                onEdit={(e) => { setEditing(e); setShowModal(true); }}
+                                onEdit={(e) => open(e)}
                                 onDelete={remove} onClose={close} />
                         </div>
                     </div>
@@ -213,6 +222,7 @@ export default function JournalPage() {
                     entry={editing}
                     options={options}
                     trackers={settings?.trackers || []}
+                    closingNow={closingTrade}
                     onClose={() => setShowModal(false)}
                     onSaved={() => { setShowModal(false); load(); }}
                 />

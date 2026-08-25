@@ -14,7 +14,7 @@ import { chargesFor } from '../../utils/commission';
 
 const dateValue = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '');
 
-export default function JournalEntryModal({ entry, options, trackers = [], onClose, onSaved }) {
+export default function JournalEntryModal({ entry, options, trackers = [], closingNow = false, onClose, onSaved }) {
     const editing = Boolean(entry?._id);
     const [form, setForm] = useState({
         state: entry?.state || 'open',
@@ -74,12 +74,13 @@ export default function JournalEntryModal({ entry, options, trackers = [], onClo
      */
     const closing = form.state === 'closed';
     const live = form.state === 'open';
-    // Arrived here from an open trade, so this visit is the act of closing it
-    // rather than revisiting one already finished.
-    const closingNow = entry?.state === 'open' && closing;
-
     /**
      * Closing is a task with three steps. Editing is a form.
+     *
+     * Which one this is comes from the caller, not from the entry. It used to be
+     * read as `entry.state === 'open' && closing`, and the page hands closing a
+     * copy already set to 'closed' - so the test never passed once, the title
+     * always said "Edit Trade" and the button always said "Save changes".
      *
      * These were told apart by state rather than by intent, so a closed trade
      * opened in the closing layout and its entry price, stop, quantity, setup,
