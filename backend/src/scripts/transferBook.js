@@ -13,19 +13,16 @@ import portfolioService from '../services/portfolioService.js';
  * corrected data already exists here; carrying it over is one operation with
  * one thing to check afterwards.
  *
- * Books are matched by name, never by id. The two databases were seeded
+ * The book is matched by name, never by id. The two databases were seeded
  * separately and share no ObjectIds, so an export carrying them would either
- * collide with something unrelated or point at nothing at all. Every reference
- * in the file - a journal entry's book, a default book, a risk profile - is
- * written as a name and resolved on the way in.
+ * collide with something unrelated or point at nothing at all.
  *
  *   node src/scripts/transferBook.js --export="Swing Trade (NASDAQ)" --file=us.json
  *   node src/scripts/transferBook.js --import --file=us.json --dry
  *
- * The import replaces: the named book's entire ledger, and every journal entry
- * belonging to the owner. That is the point - it is a transfer, not a merge -
- * but it means anything logged only on the far side is lost, so --dry lists
- * what would go before anything does.
+ * Scoped to one book throughout: its ledger, its rule, and the journal entries
+ * that name it. Both are replaced on the way in - it is a transfer, not a merge
+ * - and nothing outside that book is read or touched at either end.
  */
 const arg = (name) => {
     const found = process.argv.find(a => a.startsWith(`--${name}=`));
@@ -49,11 +46,11 @@ const exportBook = async (bookName, file) => {
 
     const rule = await db.collection('riskprofiles').findOne({ portfolioId: book._id });
 
-    // Every entry the owner has, not only this book's: the journal is one
-    // record across markets, and carrying half of it over would leave the
-    // figures describing a book that is no longer all of it.
-    const entries = (await db.collection('journalentries').find({ user: book.owner }).toArray())
-        .map(e => ({ ...strip(e), user: undefined, bookName: nameOf.get(String(e.portfolioId)) || null }));
+    // This book's entries and no others. A transfer moves one account; entries
+    // belonging to a different book are that book's to move.
+    const entries = (await db.collection('journalentries')
+        .find({ user: book.owner, portfolioId: book._id }).toArray())
+        .map(e => ({ ...strip(e), user: undefined }));
 
     const settings = await db.collection('journalsettings').findOne({ user: book.owner });
 
@@ -79,7 +76,7 @@ const exportBook = async (bookName, file) => {
     fs.writeFileSync(file, JSON.stringify(payload, null, 2));
     console.log(`${book.name} -> ${file}`);
     console.log(`  ${transactions.length} transactions`);
-    console.log(`  ${entries.length} journal entries (${entries.filter(e => e.bookName).length} naming a book)`);
+    console.log(`  ${entries.length} journal entries`);
     console.log(`  rule ${payload.rule ? `${payload.rule.defaultRiskPct}% / ${payload.rule.maxPositionPct}%` : 'none'}`);
     console.log(`  settings ${settings ? `${settings.setups?.length} setups, ${settings.trackers?.length} trackers` : 'none'}`);
 };
@@ -97,22 +94,14 @@ const importBook = async (file, dry) => {
     console.log(`book "${payload.book.name}": ${book ? 'exists' : 'will be created'}`);
 
     const hadTxns = book ? await db.collection('transactions').countDocuments({ portfolioId: book._id }) : 0;
-    const hadEntries = await db.collection('journalentries').countDocuments({ user: owner });
+    const hadEntries = book
+        ? await db.collection('journalentries').countDocuments({ user: owner, portfolioId: book._id })
+        : 0;
     console.log(`  ledger    ${hadTxns} here -> ${payload.transactions.length} from the file`);
-    console.log(`  journal   ${hadEntries} here -> ${payload.entries.length} from the file`);
+    console.log(`  journal   ${hadEntries} here -> ${payload.entries.length} from the file`
+        + ' (entries naming other books are untouched)');
 
     if (dry) {
-        const names = [...new Set(payload.entries.map(e => e.bookName).filter(Boolean))];
-        const missing = [];
-        for (const n of names) {
-            if (n !== payload.book.name && !(await db.collection('portfolios').findOne({ name: n, owner }))) {
-                missing.push(n);
-            }
-        }
-        if (missing.length) {
-            console.log(`\n  entries name books that do not exist here: ${missing.join(', ')}`);
-            console.log('  those entries would import unlinked. Create the books first to keep the link.');
-        }
         console.log('\nDry run, nothing written.');
         return;
     }
@@ -151,15 +140,14 @@ const importBook = async (file, dry) => {
         return found?._id || null;
     };
 
-    await db.collection('journalentries').deleteMany({ user: owner });
-    for (const entry of payload.entries) {
-        const { bookName, ...rest } = entry;
-        await db.collection('journalentries').insertOne({
-            ...rest, user: owner, portfolioId: await idOf(bookName),
-            entryDate: rest.entryDate ? new Date(rest.entryDate) : undefined,
-            exitDate: rest.exitDate ? new Date(rest.exitDate) : undefined,
+    await db.collection('journalentries').deleteMany({ user: owner, portfolioId: book._id });
+    if (payload.entries.length) {
+        await db.collection('journalentries').insertMany(payload.entries.map(e => ({
+            ...e, user: owner, portfolioId: book._id,
+            entryDate: e.entryDate ? new Date(e.entryDate) : undefined,
+            exitDate: e.exitDate ? new Date(e.exitDate) : undefined,
             createdAt: new Date(), updatedAt: new Date()
-        });
+        })));
     }
 
     if (payload.settings) {
