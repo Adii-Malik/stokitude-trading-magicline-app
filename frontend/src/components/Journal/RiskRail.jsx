@@ -29,7 +29,7 @@ export function RiskRail({
                     value={portfolioId} disabled={locked} className={FIELD}
                     onChange={(e) => onPickBook(e.target.value)}
                 >
-                    <option value="">Journal only — no book</option>
+                    <option value="">{books.length ? 'Journal only — no book' : `No ${currency} book yet`}</option>
                     {books.map((b) => (
                         <option key={b._id} value={b._id}>{b.name} · {b.currency}</option>
                     ))}
@@ -39,6 +39,15 @@ export function RiskRail({
                         <p className="mt-2 text-xl font-bold text-ink tabular-nums">{money(capital)}</p>
                         <p className="text-xs text-ink-faint">Valued now. The risk is measured against this.</p>
                     </>
+                ) : books.length === 0 ? (
+                    /* A book holds one currency, so a trade can only be booked
+                       into one of its own. With none in this currency there is
+                       nothing to pick, and an empty dropdown looks like a fault
+                       rather than a thing you have not made yet. */
+                    <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                        No {currency} book exists yet, so this trade cannot be sized or booked.
+                        Create one under Portfolios and everything below starts working.
+                    </p>
                 ) : (
                     <p className="mt-2 text-xs text-ink-faint">
                         Name a book and its balance becomes the yardstick.

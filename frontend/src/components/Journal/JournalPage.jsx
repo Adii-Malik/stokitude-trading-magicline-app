@@ -288,6 +288,14 @@ function Tiles({ book, process, books, currency, onCurrency }) {
     if (!book) return null;
     const payoff = book.payoffRatio != null ? `${book.payoffRatio.toFixed(1)}:1` : null;
 
+    // R averages only the trades that had a stop, and that is not a sample - it
+    // is the trades where you happened to set one. Six closed, two with a stop,
+    // and the mean of those two printed in green beside a red account reads as a
+    // verdict on the book. Below half coverage it stays uncoloured and says how
+    // little it covers.
+    const rCovers = book.closedTrades ? book.tradesWithR / book.closedTrades : 0;
+    const rThin = book.avgR != null && rCovers < 0.5;
+
     return (
         <div className="flex items-stretch gap-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-1 min-w-0">
@@ -299,13 +307,15 @@ function Tiles({ book, process, books, currency, onCurrency }) {
                     v={formatCurrency(book.expectancy, book.currency, { signed: true })}
                     color={getPnLColorClass(book.expectancy)}
                     s={`per trade · ${formatPercent(book.winRate, 0)} win${payoff ? ` · ${payoff}` : ''}`} />
-                {/* The caption is the discipline number. It had a card of its own
-                    below these tiles saying "stop set 33% (2 of 6)", which is
+                {/* The caption is also the discipline number. It had a card of its
+                    own below these tiles saying "stop set 33% (2 of 6)", which is
                     this sentence with a bar drawn through it. */}
                 <Tile k="Average R"
                     v={book.avgR != null ? `${book.avgR >= 0 ? '+' : ''}${book.avgR.toFixed(2)}R` : '—'}
-                    color={book.avgR != null ? getPnLColorClass(book.avgR) : ''}
-                    s={`${book.tradesWithR} of ${book.closedTrades} had a stop`} />
+                    color={rThin || book.avgR == null ? '' : getPnLColorClass(book.avgR)}
+                    s={rThin
+                        ? `over ${book.tradesWithR} of ${book.closedTrades} — the rest had no stop`
+                        : `${book.tradesWithR} of ${book.closedTrades} had a stop`} />
                 {/* The only figure here about the present rather than the past,
                     and the only one that can stop you doing something today. */}
                 <Tile k="At risk right now"

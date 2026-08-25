@@ -80,7 +80,10 @@ export default function JournalPane({ entry, portfolioName, onEdit, onDelete, on
                     <p className="text-sm text-ink-faint mt-1.5">
                         {[entry.exchange, entry.direction === 'short' ? 'Short' : 'Long',
                             [longDate(entry.entryDate), longDate(entry.exitDate)].filter(Boolean).join(' → '),
-                            held, portfolioName].filter(Boolean).join(' · ')}
+                            held,
+                            // Said either way. Silence read as "no book worth
+                            // naming" rather than "this never reached a ledger".
+                            portfolioName || 'journal only'].filter(Boolean).join(' · ')}
                     </p>
                 </div>
                 <div className="ml-auto text-right">

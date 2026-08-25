@@ -1,3 +1,4 @@
+import { BookMarked } from 'lucide-react';
 import { formatCurrency, getPnLColorClass } from '../../utils/portfolioUtils';
 
 /**
@@ -82,8 +83,19 @@ export default function JournalList({ entries, selectedId, onSelect, emptyHint, 
                                     border-b border-hairline/70 border-l-[3px] items-baseline
                                     hover:bg-surface-muted transition-colors ${edge(e)}
                                     ${selectedId === e._id ? 'bg-cyan-500/10' : ''}`}>
-                                <span className={`font-bold text-base ${selectedId === e._id ? 'text-cyan-600 dark:text-cyan-400' : 'text-ink'}`}>
-                                    {e.symbol}
+                                <span className={`font-bold text-base flex items-center gap-2 min-w-0 ${selectedId === e._id ? 'text-cyan-600 dark:text-cyan-400' : 'text-ink'}`}>
+                                    <span className="truncate">{e.symbol}</span>
+                                    {/* Which market. A PSX trade and a US one are
+                                        different books, different rules and
+                                        different tax, and the row said neither. */}
+                                    <span className="text-[11px] font-semibold text-ink-faint tracking-wide shrink-0">
+                                        {e.exchange}
+                                    </span>
+                                    {/* The ledger owns the numbers on this one. */}
+                                    {e.entryTransactionId && (
+                                        <BookMarked className="w-3.5 h-3.5 text-cyan-500 shrink-0"
+                                            aria-label="booked in a portfolio" />
+                                    )}
                                 </span>
                                 <span className={`text-right font-bold text-sm tabular-nums ${money != null ? getPnLColorClass(money) : 'text-ink-faint'}`}>
                                     {money != null ? formatCurrency(money, e.currency, { signed: true }) : '—'}
