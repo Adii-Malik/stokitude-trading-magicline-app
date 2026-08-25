@@ -8,3 +8,9 @@
 **/*.test.js
 docs
 *.md
+
+# Uploaded charts belong to the volume, not to the image. COPY backend/ was
+# sweeping them in, so they were baked into every build - the image grew with
+# each screenshot, and a fresh volume seeded itself with files the user may
+# have deleted months earlier.
+backend/uploads
