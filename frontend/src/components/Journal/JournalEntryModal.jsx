@@ -3,7 +3,6 @@ import { Plus, Trash2, CheckCircle, Lock, ChevronRight, ChevronDown } from 'luci
 import toast from 'react-hot-toast';
 import { Modal } from '../../ui/Modal';
 import { SymbolInput } from '../../ui/SymbolInput';
-import { TagInput } from '../../ui/TagInput';
 import { FIELD, choice } from '../../ui/field';
 import { RiskRail } from './RiskRail';
 import { ResultRail } from './ResultRail';
@@ -14,7 +13,8 @@ import { chargesFor } from '../../utils/commission';
 
 const dateValue = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '');
 
-export default function JournalEntryModal({ entry, options, trackers = [], closingNow = false, onClose, onSaved }) {
+export default function JournalEntryModal({ entry, options, setups = [], trackers = [],
+    closingNow = false, onAddLabel, onClose, onSaved }) {
     const editing = Boolean(entry?._id);
     const [form, setForm] = useState({
         state: entry?.state || 'open',
@@ -384,14 +384,14 @@ export default function JournalEntryModal({ entry, options, trackers = [], closi
 
                 {showMore && !step && (
                     <div className="flex flex-col gap-4">
-                        <div className={ROW}>
-                            <Field label="Setup">
-                                <TagInput single value={form.setupType ? [form.setupType] : []}
-                                    suggestions={options?.setupTypes || []}
-                                    placeholder="what you call it"
-                                    onChange={(v) => set('setupType', v[0] || '')} />
-                            </Field>
-                        </div>
+                        <Field label="Setup">
+                            {/* One setup a trade, so picking another replaces it.
+                                Tapping the one already on replaces it with nothing,
+                                which is how a setup gets cleared. */}
+                            <Labels list={setups} value={form.setupType ? [form.setupType] : []}
+                                onChange={(v) => set('setupType', v[v.length - 1] || '')}
+                                single onAdd={onAddLabel && ((name) => onAddLabel('setups', name))} />
+                        </Field>
 
                         <Field label="Chart">
                             <ChartUpload value={form.chartUrl} onChange={(v) => set('chartUrl', v)} />
@@ -438,8 +438,9 @@ export default function JournalEntryModal({ entry, options, trackers = [], closi
                 {reviewable && trackers.length > 0 && (
                     <Section title={step ? '2 · Tags' : 'Tags'}
                         hint="Tap what applies. Nothing is read into these beyond a count and a total — they are yours, and you keep the list in journal settings.">
-                        <Trackers list={trackers} value={form.whatHappened}
-                            onChange={(v) => set('whatHappened', v)} />
+                        <Labels list={trackers} value={form.whatHappened}
+                            onChange={(v) => set('whatHappened', v)}
+                            onAdd={onAddLabel && ((name) => onAddLabel('trackers', name))} />
                     </Section>
                 )}
 
@@ -464,11 +465,27 @@ const FORM_ID = 'journal-entry-form';
 const input = FIELD;
 const ROW = 'grid gap-3 grid-cols-[repeat(auto-fit,minmax(150px,1fr))]';
 
-/** The tags this user keeps, as a row of toggles. Never typed here — the list
- *  is authored once in journal settings, which is what keeps it short. */
-function Trackers({ list, value, onChange }) {
+/**
+ * A list this user keeps, as a row of toggles.
+ *
+ * Nothing is typed at the moment of use, which is the whole guarantee: a name
+ * written once and tapped after cannot become two spellings of one thing. New
+ * still goes in from here, because the moment you need a name is the moment you
+ * notice you need it — it just joins the list rather than the trade alone.
+ */
+function Labels({ list, value, onChange, single, onAdd }) {
+    const [adding, setAdding] = useState('');
+
+    const submit = () => {
+        const name = adding.trim();
+        if (!name) return;
+        if (!list.some((t) => t.toLowerCase() === name.toLowerCase())) onAdd(name);
+        onChange(single ? [name] : [...value, name]);
+        setAdding('');
+    };
+
     return (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 items-center">
             {list.map((t) => {
                 const on = value.includes(t);
                 return (
@@ -479,6 +496,15 @@ function Trackers({ list, value, onChange }) {
                     </button>
                 );
             })}
+            {onAdd && (
+                <input value={adding} onChange={(e) => setAdding(e.target.value)}
+                    onBlur={submit} maxLength={40}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submit(); } }}
+                    placeholder="＋ new"
+                    className="px-3 py-1.5 w-28 rounded-control text-sm bg-transparent
+                        ring-1 ring-dashed ring-hairline text-ink placeholder:text-ink-faint
+                        focus:ring-cyan-500 focus:ring-solid" />
+            )}
         </div>
     );
 }

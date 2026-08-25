@@ -9,7 +9,6 @@ import RiskProfile from '../models/RiskProfile.js';
 import { contextFor, judge, suggestSize } from '../services/riskContext.js';
 import { chartUpload, URL_PREFIX } from '../services/chartStorage.js';
 import Portfolio from '../models/Portfolio.js';
-import { SETUP_SUGGESTIONS } from '../models/JournalEntry.js';
 import JournalSettings from '../models/JournalSettings.js';
 import JournalEntry from '../models/JournalEntry.js';
 import { EXCHANGE_CODES, EXCHANGES } from '../config/exchanges.js';
@@ -34,24 +33,7 @@ router.get('/options', async (req, res) => {
         isActive: true
     }).select('name currency commissionSlabs charges').sort({ name: 1 }).lean();
 
-    // Your own words first, most used first, with the seed list filling in behind.
-    // A fixed vocabulary put 7 of 8 trades in "other"; this one is learned.
-    const used = async (field) => {
-        const rows = await JournalEntry.aggregate([
-            { $match: { user: req.user._id } },
-            { $unwind: `$${field}` },
-            { $match: { [field]: { $nin: [null, ''] } } },
-            { $group: { _id: `$${field}`, n: { $sum: 1 } } },
-            { $sort: { n: -1 } },
-            { $limit: 40 }
-        ]);
-        return rows.map(r => r._id);
-    };
-    const merge = (mine, seed) => [...mine, ...seed.filter(x => !mine.includes(x))];
-    const [setupsUsed, settings] = await Promise.all([
-        used('setupType'),
-        JournalSettings.forUser(req.user._id)
-    ]);
+    const settings = await JournalSettings.forUser(req.user._id);
 
     // The book to open a new trade on. The setting wins when one is chosen and
     // the book is still open to trade; otherwise fall back to whichever book was
@@ -72,7 +54,9 @@ router.get('/options', async (req, res) => {
         data: {
             portfolios,
             lastBook,
-            setupTypes: merge(setupsUsed, SETUP_SUGGESTIONS),
+            // Both lists are the user's own, named in settings and tapped after,
+            // so nothing is typed at the moment of use and nothing can drift.
+            setups: settings.setups,
             // Only what this user chose to count about themselves. An empty list
             // is a valid answer, and the close form then asks for nothing.
             trackers: settings.trackers,
@@ -143,24 +127,27 @@ router.get('/settings', async (req, res) => {
 });
 
 /**
- * Saves the journal-wide settings. Trackers are trimmed, de-duplicated and
- * capped: a list you can no longer read is one you stop keeping short, and the
- * whole value of naming them yourself is that there are few of them.
+ * Saves the journal-wide settings.
  */
 router.put('/settings', async (req, res) => {
     try {
-        const { defaultPortfolioId, askForBook, trackers } = req.body;
+        const { defaultPortfolioId, askForBook, setups, trackers } = req.body;
         const settings = await JournalSettings.forUser(req.user._id);
 
         if (defaultPortfolioId !== undefined) settings.defaultPortfolioId = defaultPortfolioId || undefined;
         if (askForBook !== undefined) settings.askForBook = Boolean(askForBook);
-        if (Array.isArray(trackers)) {
+        // Trimmed, de-duplicated case-insensitively and capped: a list you can no
+        // longer read is one you stop keeping short, and the whole value of
+        // naming them yourself is that there are few of them.
+        const tidy = (list) => {
             const seen = new Set();
-            settings.trackers = trackers
+            return list
                 .map(t => String(t || '').trim())
                 .filter(t => t && !seen.has(t.toLowerCase()) && seen.add(t.toLowerCase()))
                 .slice(0, 20);
-        }
+        };
+        if (Array.isArray(setups)) settings.setups = tidy(setups);
+        if (Array.isArray(trackers)) settings.trackers = tidy(trackers);
 
         await settings.save();
         res.json({ success: true, data: settings });

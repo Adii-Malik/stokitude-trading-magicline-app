@@ -2,7 +2,7 @@ import 'dotenv/config';
 import mongoose from 'mongoose';
 import { connectDB } from '../config/mongodb.js';
 import config from '../config/config.js';
-import { SEED_TRACKERS } from '../models/JournalEntry.js';
+import { SEED_TRACKERS, SETUP_SUGGESTIONS } from '../models/JournalEntry.js';
 
 /**
  * Old tags that named something the app now works out for itself.
@@ -147,7 +147,15 @@ const migrate = async () => {
     }
     console.log(`  ${rewritten} entr(ies) with tags the record already answers`);
 
-    // --- 5. each user's tracker list ------------------------------------------
+    // --- 5. "other" is not a setup ---------------------------------------------
+    // An earlier migration defaulted every ungraded entry to "other", which reads
+    // like an answer and groups like one. A trade whose setup was never named
+    // should say so by being blank.
+    const othered = await entries.countDocuments({ setupType: 'other' });
+    console.log(`  ${othered} entr(ies) whose setup is "other"`);
+    if (!dry && othered) await entries.updateMany({ setupType: 'other' }, { $unset: { setupType: '' } });
+
+    // --- 6. each user's lists ------------------------------------------
     // Their own words first, because those are words they chose; the seeds fill
     // in behind. Runs for an existing list too, so a list seeded by an earlier
     // version of this script is pruned rather than left carrying the vocabulary
@@ -164,17 +172,26 @@ const migrate = async () => {
         const chosen = [...new Set([...mine, ...fromList])];
         const trackers = [...chosen, ...SEED_TRACKERS.filter(t => !chosen.includes(t))].slice(0, 20);
 
-        if (existing && existing.trackers?.length === trackers.length
-            && existing.trackers.every((t, i) => t === trackers[i])) continue;
+        // Setups the same way. Anything already typed is kept, misspelling and
+        // all: "reteset" is on a real trade, and dropping the name would orphan
+        // it. It sits in the list where it can be corrected or deleted, which is
+        // more than free text ever offered.
+        const setupsUsed = (await entries.distinct('setupType', { user }))
+            .map(t => String(t || '').trim()).filter(t => t && t !== 'other');
+        const setupsHeld = [...new Set([...setupsUsed, ...(existing?.setups || [])])];
+        const setups = [...setupsHeld, ...SETUP_SUGGESTIONS.filter(t => !setupsHeld.includes(t))].slice(0, 20);
+
+        const same = (a = [], b = []) => a.length === b.length && a.every((t, i) => t === b[i]);
+        if (existing && same(existing.trackers, trackers) && same(existing.setups, setups)) continue;
 
         const dropped = (existing?.trackers || []).filter(t => !trackers.includes(t));
-        console.log(`  ${String(user).slice(-6)}: ${trackers.length} tracker(s)`
+        console.log(`  ${String(user).slice(-6)}: ${setups.length} setup(s), ${trackers.length} tracker(s)`
             + (dropped.length ? `, dropping ${dropped.join(', ')}` : ''));
 
         if (!dry) {
             await settings.updateOne(
                 { user },
-                { $set: { trackers, updatedAt: new Date() },
+                { $set: { setups, trackers, updatedAt: new Date() },
                   $setOnInsert: { user, askForBook: false, createdAt: new Date() } },
                 { upsert: true }
             );
@@ -209,8 +226,8 @@ const migrate = async () => {
     console.log(`  ${openWithReview.length} open trade(s) carrying a review`);
 
     console.log(dry
-        ? `Dry run. Would write ${touched} tracker list(s).`
-        : `Wrote ${touched} tracker list(s).`);
+        ? `Dry run. Would write ${touched} settings row(s).`
+        : `Wrote ${touched} settings row(s).`);
 
     await mongoose.disconnect();
 };

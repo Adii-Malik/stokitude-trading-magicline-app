@@ -9,7 +9,7 @@
  * asking the same question repeatedly.
  */
 import mongoose from 'mongoose';
-import { SEED_TRACKERS } from './JournalEntry.js';
+import { SEED_TRACKERS, SETUP_SUGGESTIONS } from './JournalEntry.js';
 
 const journalSettingsSchema = new mongoose.Schema({
     user: {
@@ -36,6 +36,24 @@ const journalSettingsSchema = new mongoose.Schema({
     },
 
     /**
+     * The setups this user trades, named going in.
+     *
+     * setupType was free text with suggestions, typed at the moment of logging -
+     * and it drifted on the third use: "reteset" sits in the book beside
+     * "pullback" and would be its own row in any grouping forever. Naming them
+     * here and tapping them after is the same guarantee the trackers give,
+     * one moment earlier.
+     */
+    setups: {
+        type: [{
+            type: String,
+            trim: true,
+            maxlength: [40, 'A setup name cannot exceed 40 characters']
+        }],
+        default: () => [...SETUP_SUGGESTIONS]
+    },
+
+    /**
      * The things this user has decided to count about themselves.
      *
      * Named here, then tapped when closing a trade — never retyped, which is the
@@ -53,11 +71,15 @@ const journalSettingsSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
-/** The settings for a user, created with the seed trackers if absent. */
+/** The settings for a user, created with the seed lists if absent. */
 journalSettingsSchema.statics.forUser = async function (userId) {
     return this.findOneAndUpdate(
         { user: userId },
-        { $setOnInsert: { user: userId, trackers: [...SEED_TRACKERS] } },
+        { $setOnInsert: {
+            user: userId,
+            setups: [...SETUP_SUGGESTIONS],
+            trackers: [...SEED_TRACKERS]
+        } },
         { new: true, upsert: true, setDefaultsOnInsert: true }
     );
 };

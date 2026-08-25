@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Plus, BookOpen, Search, Settings, Flag, ArrowLeft, Calculator } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
-    getEntries, getStats, getOptions, getSettings, deleteEntry
+    getEntries, getStats, getOptions, getSettings, saveSettings, deleteEntry
 } from '../../services/journal';
 import { formatCurrency, formatPercent, getPnLColorClass } from '../../utils/portfolioUtils';
 import JournalList, { needsYou } from './JournalList';
@@ -119,6 +119,25 @@ export default function JournalPage() {
 
     const pick = (key) => { setFlagged(false); setStatus(key); };
 
+    /**
+     * A name invented while logging joins the list it belongs to.
+     *
+     * The moment you need a name is the moment you notice you need it, so the
+     * form can add one — but it goes to settings rather than to the trade alone,
+     * which is what keeps it a list of taps instead of a field you type into
+     * twice and spell differently.
+     */
+    const addLabel = async (kind, name) => {
+        const next = { ...settings, [kind]: [...(settings?.[kind] || []), name] };
+        setSettings(next);
+        try {
+            setSettings(await saveSettings({ [kind]: next[kind] }));
+        } catch {
+            toast.error(`Could not save "${name}"`);
+            setSettings(settings);
+        }
+    };
+
     return (
         <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
             <div className="flex items-center justify-between gap-3">
@@ -221,8 +240,10 @@ export default function JournalPage() {
                 <JournalEntryModal
                     entry={editing}
                     options={options}
+                    setups={settings?.setups || []}
                     trackers={settings?.trackers || []}
                     closingNow={closingTrade}
+                    onAddLabel={addLabel}
                     onClose={() => setShowModal(false)}
                     onSaved={() => { setShowModal(false); load(); }}
                 />
@@ -240,6 +261,7 @@ export default function JournalPage() {
                     settings={settings}
                     portfolios={options?.portfolios || []}
                     byTracker={shown?.byTracker?.map((t) => ({ ...t, currency: shown.currency })) || []}
+                    bySetup={shown?.bySetup?.map((g) => ({ name: g.key, count: g.count, netPnL: g.netPnL, currency: shown.currency })) || []}
                     onClose={() => setShowSettings(false)}
                     onSaved={(saved) => {
                         setSettings(saved);

@@ -14,11 +14,11 @@ import { formatCurrency, getPnLColorClass } from '../../utils/portfolioUtils';
  * asking the same question over and over — everything else belongs on the form
  * where it is used, or is worked out from the data.
  */
-export default function JournalSettingsModal({ settings, portfolios = [], byTracker = [], onClose, onSaved }) {
+export default function JournalSettingsModal({ settings, portfolios = [], byTracker = [], bySetup = [], onClose, onSaved }) {
     const [book, setBook] = useState(settings?.defaultPortfolioId || '');
     const [ask, setAsk] = useState(Boolean(settings?.askForBook));
+    const [setups, setSetups] = useState(settings?.setups || []);
     const [trackers, setTrackers] = useState(settings?.trackers || []);
-    const [draft, setDraft] = useState('');
     const [saving, setSaving] = useState(false);
 
     // The rule each book is judged by, keyed on portfolio. Loaded rather than
@@ -46,21 +46,6 @@ export default function JournalSettingsModal({ settings, portfolios = [], byTrac
     const setRule = (id, patch) =>
         setRules((r) => ({ ...r, [id]: { ...(r[id] || {}), ...patch } }));
 
-    // Counts come from closed trades, so a tracker shows what keeping it has been
-    // worth before you decide whether to keep it.
-    const statOf = (name) => byTracker.find((t) => t.name === name);
-
-    const add = () => {
-        const name = draft.trim();
-        if (!name) return;
-        if (trackers.some((t) => t.toLowerCase() === name.toLowerCase())) {
-            toast.error('You are already tracking that');
-            return;
-        }
-        setTrackers([...trackers, name]);
-        setDraft('');
-    };
-
     /**
      * Saves the settings and any rule that changed, in one action.
      *
@@ -79,7 +64,7 @@ export default function JournalSettingsModal({ settings, portfolios = [], byTrac
         setSaving(true);
         try {
             const [saved] = await Promise.all([
-                saveSettings({ defaultPortfolioId: book || null, askForBook: ask, trackers }),
+                saveSettings({ defaultPortfolioId: book || null, askForBook: ask, setups, trackers }),
                 ...changed.map(([id, r]) => saveRiskProfile(id, {
                     defaultRiskPct: Number(r.defaultRiskPct),
                     maxPositionPct: Number(r.maxPositionPct)
@@ -128,48 +113,17 @@ export default function JournalSettingsModal({ settings, portfolios = [], byTrac
                     </label>
                 </Section>
 
-                <Section title="Things you're tracking"
-                    hint="Named here, then tapped when you close a trade — never retyped, so two spellings of one habit can never split into two rows. Delete them all and the close form stops asking.">
-                    {trackers.length === 0 ? (
-                        <p className="text-sm text-ink-faint border border-dashed border-hairline rounded-control px-3 py-4 text-center">
-                            Nothing yet — and that is fine. When you catch yourself doing the same
-                            thing twice, name it here.
-                        </p>
-                    ) : (
-                        <div className="divide-y divide-hairline/70">
-                            {trackers.map((name) => {
-                                const stat = statOf(name);
-                                return (
-                                    <div key={name} className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 py-2 text-sm">
-                                        <span className="text-ink truncate">{name}</span>
-                                        <span className="text-xs text-ink-faint tabular-nums">
-                                            {stat ? `${stat.count} trade${stat.count > 1 ? 's' : ''}` : 'never'}
-                                        </span>
-                                        <span className={`text-sm font-bold tabular-nums text-right w-24 ${stat ? getPnLColorClass(stat.netPnL) : 'text-ink-faint'}`}>
-                                            {stat ? formatCurrency(stat.netPnL, stat.currency, { signed: true }) : '—'}
-                                        </span>
-                                        <button onClick={() => setTrackers(trackers.filter((t) => t !== name))}
-                                            aria-label={`Stop tracking ${name}`}
-                                            className="p-1 text-ink-faint hover:text-red-600 rounded-control">
-                                            <X className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-                    <div className="flex gap-2 mt-2">
-                        <input value={draft} onChange={(e) => setDraft(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
-                            maxLength={40} placeholder="name it in your own words…"
-                            className={FIELD} />
-                        <button onClick={add}
-                            className="px-3 py-2 text-sm border border-hairline rounded-control text-ink-muted
-                                hover:bg-surface-muted flex items-center gap-1 shrink-0">
-                            <Plus className="w-4 h-4" /> Add
-                        </button>
-                    </div>
-                </Section>
+                {/* One list per moment: what you were doing going in, what you
+                    did coming out. Both are named here and tapped on the form,
+                    which is what stops a name drifting into two spellings — the
+                    book already carries a "reteset" beside a "pullback". */}
+                <NamedList title="Setups you trade" items={setups} onChange={setSetups}
+                    stats={bySetup} placeholder="name a setup you take"
+                    hint="Tapped when you log a trade, one to a trade. Empty the list and the form stops asking." />
+
+                <NamedList title="Things you're tracking" items={trackers} onChange={setTrackers}
+                    stats={byTracker} placeholder="name it in your own words"
+                    hint="Tapped when you close one. Nothing is read into these beyond a count and a total." />
 
                 <Section title="Risk rules, per book"
                     hint="A trade follows the rules of the book it is logged against, so one book being aggressive has nothing to do with another. Leave a book alone and it is simply not judged.">
@@ -271,6 +225,71 @@ function RuleEditor({ book, rule, onChange, onDone }) {
                 straight past the stop instead of filling at it.
             </p>
         </div>
+    );
+}
+
+/**
+ * A list the user authors, with what each name has been worth beside it.
+ *
+ * The count and the money come from closed trades, so a name shows what keeping
+ * it has bought before you decide whether to keep it — a setup you have taken
+ * four times for a loss is worth seeing next to the delete button.
+ */
+function NamedList({ title, hint, items, onChange, stats = [], placeholder }) {
+    const [draft, setDraft] = useState('');
+    const statOf = (name) => stats.find((t) => t.name === name);
+
+    const add = () => {
+        const name = draft.trim();
+        if (!name) return;
+        if (items.some((t) => t.toLowerCase() === name.toLowerCase())) {
+            toast.error('That is already on the list');
+            return;
+        }
+        onChange([...items, name]);
+        setDraft('');
+    };
+
+    return (
+        <Section title={title} hint={hint}>
+            {items.length === 0 ? (
+                <p className="text-sm text-ink-faint border border-dashed border-hairline rounded-control px-3 py-4 text-center">
+                    Nothing yet — and that is fine. Name one when you notice you need it.
+                </p>
+            ) : (
+                <div className="divide-y divide-hairline/70">
+                    {items.map((name) => {
+                        const stat = statOf(name);
+                        return (
+                            <div key={name} className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 py-2 text-sm">
+                                <span className="text-ink truncate">{name}</span>
+                                <span className="text-xs text-ink-faint tabular-nums">
+                                    {stat ? `${stat.count} trade${stat.count > 1 ? 's' : ''}` : 'never'}
+                                </span>
+                                <span className={`text-sm font-bold tabular-nums text-right w-24 ${stat ? getPnLColorClass(stat.netPnL) : 'text-ink-faint'}`}>
+                                    {stat ? formatCurrency(stat.netPnL, stat.currency, { signed: true }) : '—'}
+                                </span>
+                                <button onClick={() => onChange(items.filter((t) => t !== name))}
+                                    aria-label={`Remove ${name}`}
+                                    className="p-1 text-ink-faint hover:text-red-600 rounded-control">
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+            <div className="flex gap-2 mt-2">
+                <input value={draft} onChange={(e) => setDraft(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
+                    maxLength={40} placeholder={placeholder} className={FIELD} />
+                <button onClick={add}
+                    className="px-3 py-2 text-sm border border-hairline rounded-control text-ink-muted
+                        hover:bg-surface-muted flex items-center gap-1 shrink-0">
+                    <Plus className="w-4 h-4" /> Add
+                </button>
+            </div>
+        </Section>
     );
 }
 
