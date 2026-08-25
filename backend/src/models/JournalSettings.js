@@ -20,12 +20,21 @@ const journalSettingsSchema = new mongoose.Schema({
         index: true
     },
 
-    // Which book a new trade logs against. Its risk rules are the ones the size
-    // calculator applies, which is why this is not merely a convenience: picking
-    // the wrong book silently sizes the trade against the wrong capital.
-    defaultPortfolioId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Portfolio'
+    /**
+     * Which book a new trade logs against, per currency.
+     *
+     * One field could not answer this. A book holds a single currency, so a
+     * default of "PSX Consolidated" opened every US trade on a book that could
+     * not hold it - the picker then filtered it out and the trade started with
+     * no book at all, which is the state that leaves it unsized and unjudged.
+     *
+     * Keyed by currency because that is what a book is exclusive to, and what
+     * makes two of them incomparable in the first place.
+     */
+    defaultBooks: {
+        type: Map,
+        of: mongoose.Schema.Types.ObjectId,
+        default: () => new Map()
     },
 
     // Set when the user would rather choose per trade. Kept separate from a null

@@ -16,11 +16,14 @@ import { BALANCED } from './presets';
  * the size. What is left is a calculator you can point at any prices you like
  * without changing anything.
  */
-export default function RiskCalculator({ options, onOpenSettings }) {
+export default function RiskCalculator({ options, market, onOpenSettings }) {
     const rules = options?.exchangeRules || [{ code: 'PSX', currency: 'PKR', fractionalShares: false }];
-    // Sizing is against one book, so the book is chosen, not the market. A
-    // portfolio held for investing is not the capital a swing trade risks.
-    const books = options?.portfolios || [];
+    // Sizing is against one book, and a book holds one currency - so offering
+    // every book here let a US trade be sized against PSX capital, in rupees,
+    // with a rule set for a different account. Scoped to the market the journal
+    // is currently reading.
+    const books = (options?.portfolios || [])
+        .filter((b) => !market || (b.currency || 'PKR').toUpperCase() === market);
     const [portfolioId, setPortfolioId] = useState(books[0]?._id || '');
     const [profiles, setProfiles] = useState({});
     const [trade, setTrade] = useState({ entryPrice: '', stopPrice: '', targetPrice: '' });

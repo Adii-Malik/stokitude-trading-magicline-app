@@ -13,17 +13,23 @@ import { chargesFor } from '../../utils/commission';
 
 const dateValue = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '');
 
+/** The book this market opens on, or none when the market has no book yet. */
+function defaultBookFor(entry, options) {
+    const exchange = entry?.exchange || 'PSX';
+    const currency = (options?.exchangeRules || []).find((x) => x.code === exchange)?.currency || 'PKR';
+    return options?.defaultBooks?.[currency] || '';
+}
+
 export default function JournalEntryModal({ entry, options, setups = [], trackers = [],
     closingNow = false, onAddLabel, onClose, onSaved }) {
     const editing = Boolean(entry?._id);
     const [form, setForm] = useState({
         state: entry?.state || 'open',
-        // A new trade opens on your default book so the risk panel is live from
-        // the start. An existing one keeps whatever it has, including nothing:
-        // filling a blank in on edit adopted a book the trade never chose, and a
-        // USD trade quietly picking up a PKR book fails on save with a currency
-        // error nobody asked for.
-        portfolioId: entry?.portfolioId || (entry?._id ? '' : options?.lastBook || ''),
+        // A new trade opens on your default book for its own market, so the risk
+        // panel is live from the start. An existing one keeps whatever it has,
+        // including nothing: filling a blank in on edit adopted a book the trade
+        // never chose.
+        portfolioId: entry?.portfolioId || (entry?._id ? '' : defaultBookFor(entry, options)),
         symbol: entry?.symbol || '',
         exchange: entry?.exchange || 'PSX',
         direction: entry?.direction || 'long',
@@ -120,9 +126,10 @@ export default function JournalEntryModal({ entry, options, setups = [], tracker
     useEffect(() => {
         if (entryBooked || !options) return;
         if (form.portfolioId && !portfolio) {
-            set('portfolioId', bookable.length === 1 ? String(bookable[0]._id) : '');
+            set('portfolioId', options.defaultBooks?.[currency]
+                || (bookable.length === 1 ? String(bookable[0]._id) : ''));
         }
-    }, [currency, form.portfolioId, portfolio, entryBooked, options]);
+    }, [currency, form.portfolioId, portfolio, entryBooked, options, bookable]);
 
     // Commission priced the same way the portfolio's own transaction form prices
     // it, so a journalled fill and a hand-entered one cost the same. Priced per

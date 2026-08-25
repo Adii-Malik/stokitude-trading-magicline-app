@@ -15,11 +15,23 @@ import { formatCurrency, getPnLColorClass } from '../../utils/portfolioUtils';
  * where it is used, or is worked out from the data.
  */
 export default function JournalSettingsModal({ settings, portfolios = [], byTracker = [], bySetup = [], onClose, onSaved }) {
-    const [book, setBook] = useState(settings?.defaultPortfolioId || '');
+    // One book per market. A single default could only ever be right for one of
+    // them, and was silently wrong for the other.
+    const [books, setBooks] = useState(() => ({ ...(settings?.defaultBooks || {}) }));
     const [ask, setAsk] = useState(Boolean(settings?.askForBook));
     const [setups, setSetups] = useState(settings?.setups || []);
     const [trackers, setTrackers] = useState(settings?.trackers || []);
     const [saving, setSaving] = useState(false);
+
+    // Grouped by what a book is exclusive to. PSX first, because that is what
+    // this app is built around.
+    const byMarket = portfolios.reduce((acc, p) => {
+        const c = (p.currency || 'PKR').toUpperCase();
+        (acc[c] = acc[c] || []).push(p);
+        return acc;
+    }, {});
+    const markets = Object.keys(byMarket).sort((a, b) =>
+        a === 'PKR' ? -1 : b === 'PKR' ? 1 : a.localeCompare(b));
 
     // The rule each book is judged by, keyed on portfolio. Loaded rather than
     // read off `options.portfolios`, which carries only what the trade form's
@@ -64,7 +76,7 @@ export default function JournalSettingsModal({ settings, portfolios = [], byTrac
         setSaving(true);
         try {
             const [saved] = await Promise.all([
-                saveSettings({ defaultPortfolioId: book || null, askForBook: ask, setups, trackers }),
+                saveSettings({ defaultBooks: books, askForBook: ask, setups, trackers }),
                 ...changed.map(([id, r]) => saveRiskProfile(id, {
                     defaultRiskPct: Number(r.defaultRiskPct),
                     maxPositionPct: Number(r.maxPositionPct)
@@ -97,16 +109,23 @@ export default function JournalSettingsModal({ settings, portfolios = [], byTrac
             }>
             <div className="flex flex-col gap-6">
 
-                <Section title="Default book"
-                    hint="Which book a new trade logs against. Its risk rules are the ones the size calculator uses, so this is more than a convenience — the wrong book sizes the trade against the wrong capital.">
-                    <select value={book} onChange={(e) => setBook(e.target.value)} disabled={ask}
-                        className={FIELD}>
-                        <option value="">Whichever I used last</option>
-                        {portfolios.map((p) => (
-                            <option key={p._id} value={p._id}>{p.name} ({p.currency})</option>
+                <Section title="Default book, per market"
+                    hint="Which book a new trade logs against. A book holds one currency, so this is answered once per market — and its risk rules are what the size calculator applies, so the wrong one sizes the trade against the wrong capital.">
+                    <div className="flex flex-col gap-3">
+                        {markets.map((m) => (
+                            <label key={m} className="grid grid-cols-[52px_1fr] items-center gap-3">
+                                <span className="text-sm font-bold text-ink-faint tabular-nums">{m}</span>
+                                <select value={books[m] || ''} disabled={ask} className={FIELD}
+                                    onChange={(e) => setBooks({ ...books, [m]: e.target.value })}>
+                                    <option value="">Whichever I used last</option>
+                                    {byMarket[m].map((p) => (
+                                        <option key={p._id} value={p._id}>{p.name}</option>
+                                    ))}
+                                </select>
+                            </label>
                         ))}
-                    </select>
-                    <label className="flex items-center gap-2 text-sm text-ink-muted mt-2 cursor-pointer">
+                    </div>
+                    <label className="flex items-center gap-2 text-sm text-ink-muted mt-1 cursor-pointer">
                         <input type="checkbox" checked={ask} onChange={(e) => setAsk(e.target.checked)}
                             className="w-4 h-4 accent-cyan-500" />
                         Ask me each time instead
@@ -138,28 +157,33 @@ export default function JournalSettingsModal({ settings, portfolios = [], byTrac
                             onChange={(patch) => setRule(editingBook, patch)}
                             onDone={() => setEditingBook(null)} />
                     ) : (
-                        <div className="divide-y divide-hairline/70">
-                            {portfolios.map((p) => {
-                                const id = String(p._id);
-                                const r = rules[id];
-                                const set = r?.defaultRiskPct && r?.maxPositionPct;
-                                return (
-                                    <div key={id} className="flex items-center gap-3 py-2.5">
-                                        <span className={`text-sm font-semibold truncate ${set ? 'text-ink' : 'text-ink-faint'}`}>
-                                            {p.name}
-                                        </span>
-                                        <span className="ml-auto text-sm text-ink-faint tabular-nums whitespace-nowrap">
-                                            {set
-                                                ? `${r.defaultRiskPct}% risk · ${r.maxPositionPct}% max`
-                                                : 'not judged'}
-                                        </span>
-                                        <button onClick={() => setEditingBook(id)}
-                                            className="text-sm font-semibold text-cyan-600 dark:text-cyan-400 hover:underline shrink-0">
-                                            {set ? 'Edit' : 'Set'}
-                                        </button>
+                        <div className="flex flex-col gap-3">
+                            {markets.map((m) => (
+                                <div key={m}>
+                                    <div className="text-xs font-bold text-ink-faint tabular-nums mb-1">{m}</div>
+                                    <div className="divide-y divide-hairline/70">
+                                        {byMarket[m].map((p) => {
+                                            const id = String(p._id);
+                                            const r = rules[id];
+                                            const set = r?.defaultRiskPct && r?.maxPositionPct;
+                                            return (
+                                                <div key={id} className="flex items-center gap-3 py-2.5">
+                                                    <span className={`text-sm font-semibold truncate ${set ? 'text-ink' : 'text-ink-faint'}`}>
+                                                        {p.name}
+                                                    </span>
+                                                    <span className="ml-auto text-sm text-ink-faint tabular-nums whitespace-nowrap">
+                                                        {set ? `${r.defaultRiskPct}% risk · ${r.maxPositionPct}% max` : 'not judged'}
+                                                    </span>
+                                                    <button onClick={() => setEditingBook(id)}
+                                                        className="text-sm font-semibold text-cyan-600 dark:text-cyan-400 hover:underline shrink-0">
+                                                        {set ? 'Edit' : 'Set'}
+                                                    </button>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
-                                );
-                            })}
+                                </div>
+                            ))}
                         </div>
                     )}
                 </Section>

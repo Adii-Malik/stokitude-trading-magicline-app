@@ -35,25 +35,33 @@ router.get('/options', async (req, res) => {
 
     const settings = await JournalSettings.forUser(req.user._id);
 
-    // The book to open a new trade on. The setting wins when one is chosen and
-    // the book is still open to trade; otherwise fall back to whichever book was
-    // used last, so a new user never has to configure anything to get a sensible
-    // pick. "Ask me each time" suppresses both.
-    const open = new Set(portfolios.map(p => String(p._id)));
-    const chosen = settings.defaultPortfolioId && String(settings.defaultPortfolioId);
+    // The book to open a new trade on, per currency. The setting wins when one
+    // is chosen and the book is still open to trade; otherwise fall back to
+    // whichever book of that currency was used last, so nothing has to be
+    // configured to get a sensible pick. "Ask me each time" suppresses both.
+    const liveBooks = new Map(portfolios.map(p => [String(p._id), (p.currency || 'PKR').toUpperCase()]));
     const recent = await JournalEntry.find({ user: req.user._id, portfolioId: { $ne: null } })
-        .select('portfolioId').sort({ createdAt: -1 }).limit(20).lean();
-    const lastBook = settings.askForBook ? null
-        : (chosen && open.has(chosen) ? chosen : null)
-        || recent.map(e => String(e.portfolioId)).find(id => open.has(id))
-        // Nothing journalled yet, and only one book to trade: no choice to make.
-        || (portfolios.length === 1 ? String(portfolios[0]._id) : null);
+        .select('portfolioId').sort({ createdAt: -1 }).limit(40).lean();
+
+    const defaultBooks = {};
+    if (!settings.askForBook) {
+        for (const currency of new Set(liveBooks.values())) {
+            const inCurrency = (id) => liveBooks.get(id) === currency;
+            const chosen = settings.defaultBooks?.get(currency);
+            const ofCurrency = [...liveBooks.keys()].filter(inCurrency);
+            defaultBooks[currency] =
+                (chosen && inCurrency(String(chosen)) ? String(chosen) : null)
+                || recent.map(e => String(e.portfolioId)).find(inCurrency)
+                // Only one book in this currency: no choice to make.
+                || (ofCurrency.length === 1 ? ofCurrency[0] : null);
+        }
+    }
 
     res.json({
         success: true,
         data: {
             portfolios,
-            lastBook,
+            defaultBooks,
             // Both lists are the user's own, named in settings and tapped after,
             // so nothing is typed at the moment of use and nothing can drift.
             setups: settings.setups,
@@ -131,10 +139,16 @@ router.get('/settings', async (req, res) => {
  */
 router.put('/settings', async (req, res) => {
     try {
-        const { defaultPortfolioId, askForBook, setups, trackers } = req.body;
+        const { defaultBooks, askForBook, setups, trackers } = req.body;
         const settings = await JournalSettings.forUser(req.user._id);
 
-        if (defaultPortfolioId !== undefined) settings.defaultPortfolioId = defaultPortfolioId || undefined;
+        // Replaced wholesale rather than merged: a currency whose book was
+        // cleared has to be able to go back to having none.
+        if (defaultBooks && typeof defaultBooks === 'object') {
+            settings.defaultBooks = new Map(
+                Object.entries(defaultBooks).filter(([, id]) => id)
+            );
+        }
         if (askForBook !== undefined) settings.askForBook = Boolean(askForBook);
         // Trimmed, de-duplicated case-insensitively and capped: a list you can no
         // longer read is one you stop keeping short, and the whole value of

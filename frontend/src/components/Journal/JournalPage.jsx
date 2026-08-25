@@ -279,7 +279,7 @@ export default function JournalPage() {
 
             {showSizer && (
                 <Modal title="Size a trade" size="xl" onClose={() => setShowSizer(false)}>
-                    <RiskCalculator options={options}
+                    <RiskCalculator options={options} market={shown?.currency}
                         onOpenSettings={() => { setShowSizer(false); setShowSettings(true); }} />
                 </Modal>
             )}

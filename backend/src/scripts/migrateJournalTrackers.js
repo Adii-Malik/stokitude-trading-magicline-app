@@ -88,8 +88,9 @@ const migrate = async () => {
     await connectDB(config.mongoUri);
     console.log(`Connected${dry ? ' (dry run)' : ''}`);
 
-    const entries = mongoose.connection.db.collection('journalentries');
-    const settings = mongoose.connection.db.collection('journalsettings');
+    const db = mongoose.connection.db;
+    const entries = db.collection('journalentries');
+    const settings = db.collection('journalsettings');
 
     // --- 1. levels that were never trades -------------------------------------
     const watched = await entries.find({ state: { $in: ['planned', 'cancelled'] } })
@@ -147,7 +148,26 @@ const migrate = async () => {
     }
     console.log(`  ${rewritten} entr(ies) with tags the record already answers`);
 
-    // --- 5. "other" is not a setup ---------------------------------------------
+    // --- 5. one default book becomes one per market ----------------------------
+    // A book holds a single currency, so a lone defaultPortfolioId could only
+    // ever be right for one market and was silently wrong for the other - a US
+    // trade opening on a PKR book, filtered out of its own picker, starting with
+    // no book at all.
+    const singles = await settings.find({ defaultPortfolioId: { $exists: true, $ne: null } }).toArray();
+    for (const row of singles) {
+        const book = await db.collection('portfolios').findOne({ _id: row.defaultPortfolioId });
+        const currency = (book?.currency || 'PKR').toUpperCase();
+        console.log(`  default book -> ${currency}: ${book?.name || 'a book that no longer exists'}`);
+        if (!dry) {
+            await settings.updateOne({ _id: row._id }, {
+                $set: book ? { [`defaultBooks.${currency}`]: row.defaultPortfolioId } : {},
+                $unset: { defaultPortfolioId: '' }
+            });
+        }
+    }
+    console.log(`  ${singles.length} settings row(s) with a single default book`);
+
+    // --- 6. "other" is not a setup ---------------------------------------------
     // An earlier migration defaulted every ungraded entry to "other", which reads
     // like an answer and groups like one. A trade whose setup was never named
     // should say so by being blank.
@@ -155,7 +175,7 @@ const migrate = async () => {
     console.log(`  ${othered} entr(ies) whose setup is "other"`);
     if (!dry && othered) await entries.updateMany({ setupType: 'other' }, { $unset: { setupType: '' } });
 
-    // --- 6. each user's lists ------------------------------------------
+    // --- 7. each user's lists ------------------------------------------
     // Their own words first, because those are words they chose; the seeds fill
     // in behind. Runs for an existing list too, so a list seeded by an earlier
     // version of this script is pruned rather than left carrying the vocabulary
@@ -199,7 +219,7 @@ const migrate = async () => {
         touched++;
     }
 
-    // --- 6. a review belongs to a finished trade -------------------------------
+    // --- 8. a review belongs to a finished trade -------------------------------
     // Tags and a lesson are what you write once the trade is over. An open one
     // has an entry, levels and a thesis and nothing to conclude, so the form no
     // longer offers either - which would leave anything already there stranded,
