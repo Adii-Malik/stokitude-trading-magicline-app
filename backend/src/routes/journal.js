@@ -9,7 +9,7 @@ import RiskProfile from '../models/RiskProfile.js';
 import { contextFor, judge, suggestSize } from '../services/riskContext.js';
 import { chartUpload, URL_PREFIX } from '../services/chartStorage.js';
 import Portfolio from '../models/Portfolio.js';
-import { SETUP_SUGGESTIONS, EMOTIONS, MARKET_CONDITIONS } from '../models/JournalEntry.js';
+import { SETUP_SUGGESTIONS } from '../models/JournalEntry.js';
 import JournalSettings from '../models/JournalSettings.js';
 import JournalEntry from '../models/JournalEntry.js';
 import { EXCHANGE_CODES, EXCHANGES } from '../config/exchanges.js';
@@ -73,8 +73,6 @@ router.get('/options', async (req, res) => {
             portfolios,
             lastBook,
             setupTypes: merge(setupsUsed, SETUP_SUGGESTIONS),
-            emotions: EMOTIONS,
-            marketConditions: MARKET_CONDITIONS,
             // Only what this user chose to count about themselves. An empty list
             // is a valid answer, and the close form then asks for nothing.
             trackers: settings.trackers,

@@ -32,8 +32,6 @@ export const SEED_TRACKERS = [
     'held through earnings'
 ];
 
-export const EMOTIONS = ['disciplined', 'confident', 'fearful', 'fomo', 'neutral', 'revenge'];
-export const MARKET_CONDITIONS = ['bullish', 'bearish', 'sideways', 'volatile'];
 
 /**
  * Orders targets nearest-first and renumbers their levels, so targets[0] is
@@ -213,18 +211,6 @@ const journalEntrySchema = new mongoose.Schema({
     }],
 
     // ----- Review -----
-    emotionalState: {
-        type: String,
-        enum: EMOTIONS,
-        default: 'neutral'
-    },
-
-    marketCondition: {
-        type: String,
-        enum: MARKET_CONDITIONS,
-        default: 'sideways'
-    },
-
     /**
      * The trackers ticked on this trade, from the list the user keeps in journal
      * settings. Named once, then tapped - never retyped, so two spellings of the
@@ -244,10 +230,6 @@ const journalEntrySchema = new mongoose.Schema({
         trim: true
     },
 
-    tags: [{
-        type: String,
-        trim: true
-    }],
 
     notes: {
         type: String,

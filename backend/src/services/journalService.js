@@ -210,8 +210,7 @@ export function statsFor(entries) {
 
         byTracker,
         byExit: group('exitReason'),
-        bySetup: group('setupType'),
-        byEmotion: group('emotionalState')
+        bySetup: group('setupType')
     };
 }
 
@@ -273,7 +272,7 @@ class JournalService {
         }
         if (filters.q) {
             const rx = new RegExp(escapeRegex(filters.q.trim()), 'i');
-            query.$or = [{ symbol: rx }, { notes: rx }, { lesson: rx }, { tags: rx }];
+            query.$or = [{ symbol: rx }, { notes: rx }, { lesson: rx }];
         }
 
         // Hydrated from the ledger before anything is derived, or the metrics
@@ -380,8 +379,7 @@ class JournalService {
                 // inside byCurrency.
                 byTracker: all.byTracker.map(({ name, count }) => ({ name, count })),
                 byExit: all.byExit.map(({ key, count, winRate }) => ({ key, count, winRate })),
-                bySetup: all.bySetup.map(({ key, count, winRate }) => ({ key, count, winRate })),
-                byEmotion: all.byEmotion.map(({ key, count, winRate }) => ({ key, count, winRate }))
+                bySetup: all.bySetup.map(({ key, count, winRate }) => ({ key, count, winRate }))
             }
         };
     }

@@ -39,8 +39,6 @@ export default function JournalEntryModal({ entry, options, trackers = [], onClo
         // Copied, not referenced: editing a price must not mutate the loaded
         // entry, and isHit has to survive a save it was not part of.
         targets: (entry?.targets || []).map((t) => ({ ...t })),
-        emotionalState: entry?.emotionalState || 'neutral',
-        marketCondition: entry?.marketCondition || 'sideways',
         whatHappened: entry?.whatHappened || [],
         chartUrl: entry?.chartUrl || '',
         notes: entry?.notes || '',
@@ -453,22 +451,6 @@ export default function JournalEntryModal({ entry, options, trackers = [], onClo
                     </Field>
                 </Section>
 
-                {closing && showMore && !step && (
-                    <div className={ROW}>
-                        <Field label="How I felt">
-                            <select value={form.emotionalState} className={input}
-                                onChange={(e) => set('emotionalState', e.target.value)}>
-                                {(options?.emotions || []).map((x) => <option key={x} value={x}>{x}</option>)}
-                            </select>
-                        </Field>
-                        <Field label="Market condition">
-                            <select value={form.marketCondition} className={input}
-                                onChange={(e) => set('marketCondition', e.target.value)}>
-                                {(options?.marketConditions || []).map((x) => <option key={x} value={x}>{x}</option>)}
-                            </select>
-                        </Field>
-                    </div>
-                )}
             </form>
         </Modal>
     );

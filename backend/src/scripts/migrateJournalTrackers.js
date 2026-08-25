@@ -68,6 +68,9 @@ const carriedForward = (tag) => {
  * null. What survives is a list the user writes themselves, counted and totalled
  * and nothing more.
  *
+ * Also unsets emotionalState, marketCondition and tags[] - two questions asked
+ * on every close and rendered nowhere, and an array no screen ever wrote.
+ *
  * The levels: 'planned' and 'cancelled' described a level being watched, which
  * is not a trade - no fill, no P/L, no R - yet sat in the same list as
  * positions and made every column mean two things. Those rows cannot become
@@ -108,7 +111,23 @@ const migrate = async () => {
     console.log(`  ${carrying} entr(ies) carrying zone fields`);
     if (!dry && carrying) await entries.updateMany({}, { $unset: zoneFields });
 
-    // --- 3. retire the tags the app now works out ------------------------------
+    // --- 3. fields nothing reads ----------------------------------------------
+    // "How I felt" and "Market condition" were asked for on every close and
+    // rendered nowhere - byEmotion was computed on every stats call and thrown
+    // away by the browser, and marketCondition was never even grouped. The enum
+    // behind the first also competed with the trackers: it offered "revenge"
+    // while "revenge trade" is one of the four seeds, so the same fact was asked
+    // twice in two vocabularies, one of them fixed.
+    //
+    // tags[] is a second tag array on the model that no screen has ever written.
+    const deadFields = { emotionalState: '', marketCondition: '', tags: '' };
+    const holding = await entries.countDocuments({
+        $or: Object.keys(deadFields).map(f => ({ [f]: { $exists: true } }))
+    });
+    console.log(`  ${holding} entr(ies) carrying fields nothing reads`);
+    if (!dry && holding) await entries.updateMany({}, { $unset: deadFields });
+
+    // --- 4. retire the tags the app now works out ------------------------------
     const tagged = await entries.find({ whatHappened: { $exists: true, $ne: [] } })
         .project({ symbol: 1, whatHappened: 1, plannedStop: 1 }).toArray();
 
@@ -128,7 +147,7 @@ const migrate = async () => {
     }
     console.log(`  ${rewritten} entr(ies) with tags the record already answers`);
 
-    // --- 4. each user's tracker list ------------------------------------------
+    // --- 5. each user's tracker list ------------------------------------------
     // Their own words first, because those are words they chose; the seeds fill
     // in behind. Runs for an existing list too, so a list seeded by an earlier
     // version of this script is pruned rather than left carrying the vocabulary
@@ -163,7 +182,7 @@ const migrate = async () => {
         touched++;
     }
 
-    // --- 5. a review belongs to a finished trade -------------------------------
+    // --- 6. a review belongs to a finished trade -------------------------------
     // Tags and a lesson are what you write once the trade is over. An open one
     // has an entry, levels and a thesis and nothing to conclude, so the form no
     // longer offers either - which would leave anything already there stranded,

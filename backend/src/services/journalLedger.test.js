@@ -90,8 +90,8 @@ describe('what may be edited once booked', () => {
 
     test('review fields are never locked', () => {
         assert.equal(assertEditable(booked, {
-            lesson: 'sized too big', notes: 'more', mistakes: ['oversized'],
-            emotionalState: 'fomo', plannedStop: 880, targets: [{ price: 1100 }]
+            lesson: 'sized too big', notes: 'more', whatHappened: [],
+            plannedStop: 880, targets: [{ price: 1100 }]
         }), undefined);
     });
 });
