@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Plus, BookOpen, Search, Settings, Flag, ArrowLeft } from 'lucide-react';
+import { Plus, BookOpen, Search, Settings, Flag, ArrowLeft, Calculator } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
     getEntries, getStats, getOptions, getSettings, deleteEntry
@@ -7,18 +7,10 @@ import {
 import { formatCurrency, formatPercent, getPnLColorClass } from '../../utils/portfolioUtils';
 import JournalList, { needsYou } from './JournalList';
 import JournalPane from './JournalPane';
-import JournalStats from './JournalStats';
 import JournalEntryModal from './JournalEntryModal';
 import JournalSettingsModal from './JournalSettingsModal';
 import RiskCalculator from './RiskCalculator';
-
-const TABS = [
-    { key: 'trades', label: 'Trades' },
-    // "Performance" promised a second dashboard; what it holds is the groupings
-    // that say where the money went, which the tiles cannot.
-    { key: 'patterns', label: 'Patterns' },
-    { key: 'risk', label: 'Size a trade' }
-];
+import { Modal } from '../../ui/Modal';
 
 const STATUS = [
     { key: 'open', label: 'Open' },
@@ -32,7 +24,6 @@ export default function JournalPage() {
     const [options, setOptions] = useState(null);
     const [settings, setSettings] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [tab, setTab] = useState('trades');
 
     const [status, setStatus] = useState('open');
     const [flagged, setFlagged] = useState(false);
@@ -44,6 +35,7 @@ export default function JournalPage() {
     const [editing, setEditing] = useState(null);
     const [showModal, setShowModal] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
+    const [showSizer, setShowSizer] = useState(false);
 
     // Debounce typing so each keystroke isn't a request.
     useEffect(() => {
@@ -130,6 +122,13 @@ export default function JournalPage() {
                         className="px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 flex items-center gap-2">
                         <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Journal a trade</span>
                     </button>
+                    {/* A calculator is a thing you reach for, not a place you go,
+                        so it is a control beside the others rather than a third
+                        tab competing with the journal itself. */}
+                    <button onClick={() => setShowSizer(true)} title="Size a trade"
+                        className="p-2.5 border border-hairline text-ink-faint rounded-control hover:bg-surface-muted hover:text-ink">
+                        <Calculator className="w-4 h-4" />
+                    </button>
                     <button onClick={() => setShowSettings(true)} title="Journal settings"
                         className="p-2.5 border border-hairline text-ink-faint rounded-control hover:bg-surface-muted hover:text-ink">
                         <Settings className="w-4 h-4" />
@@ -146,86 +145,66 @@ export default function JournalPage() {
                     <Tiles book={shown} process={stats?.process} books={books}
                         currency={shown?.currency} onCurrency={setCurrency} />
 
-                    <div className="flex gap-1 border-b border-hairline overflow-x-auto">
-                        {TABS.map((t) => (
-                            <button key={t.key} onClick={() => setTab(t.key)}
-                                className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px whitespace-nowrap transition-colors ${tab === t.key
-                                    ? 'border-cyan-500 text-cyan-600 dark:text-cyan-400'
-                                    : 'border-transparent text-ink-faint hover:text-ink'}`}>
-                                {t.label}
-                            </button>
-                        ))}
-                    </div>
-
-                    {tab === 'trades' && (
-                        <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-5 items-start">
-                            {/* On a phone the pane replaces the list rather than
-                                stacking under it: a split view that reflows is two
-                                screens pretending to be one. */}
-                            <div className={`bg-surface rounded-card ring-1 ring-hairline overflow-hidden
-                                ${selected ? 'hidden lg:block' : ''}`}>
-                                <div className="flex gap-1.5 p-3 border-b border-hairline flex-wrap">
-                                    {flaggedCount > 0 && (
-                                        <button onClick={() => { setFlagged(!flagged); }}
-                                            className={`px-3 py-1.5 rounded-control text-sm font-semibold inline-flex items-center gap-1.5 ${flagged
-                                                ? 'bg-amber-500 text-white'
-                                                : 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 ring-1 ring-amber-500/40'}`}>
-                                            <Flag className="w-3.5 h-3.5" /> {flaggedCount}
-                                        </button>
-                                    )}
-                                    {STATUS.map((f) => (
-                                        <button key={f.key} onClick={() => pick(f.key)}
-                                            className={`px-3 py-1.5 rounded-control text-sm font-semibold ${!flagged && status === f.key
-                                                ? 'bg-cyan-500 text-white' : 'text-ink-faint hover:text-ink hover:bg-surface-muted'}`}>
-                                            {f.label}
-                                            <span className="ml-1.5 text-xs opacity-70 tabular-nums">
-                                                {f.key === 'all' ? entries.length : entries.filter((e) => e.status === f.key).length}
-                                            </span>
-                                        </button>
-                                    ))}
-                                </div>
-
-                                <div className="p-3 border-b border-hairline">
-                                    <div className="relative">
-                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint" />
-                                        <input value={search} onChange={(e) => setSearch(e.target.value)}
-                                            placeholder="Search symbol, note or lesson…"
-                                            className="w-full pl-9 pr-3 py-2 text-sm border border-hairline bg-surface-muted
-                                                text-ink rounded-control focus:ring-2 focus:ring-cyan-500" />
-                                    </div>
-                                </div>
-
-                                <div className="max-h-[70vh] overflow-y-auto">
-                                    <JournalList entries={visible} selectedId={selectedId}
-                                        grouped={status === 'all' && !flagged}
-                                        onSelect={(e) => setSelectedId(e._id)}
-                                        emptyHint={query ? 'Nothing matches that search.'
-                                            : flagged ? 'Nothing has reached a level.'
-                                                : status === 'open' ? 'No open trades. Switch to Closed or All to see your history.'
-                                                    : undefined} />
-                                </div>
-                            </div>
-
-                            <div className={selected ? '' : 'hidden lg:block'}>
-                                {selected && (
-                                    <button onClick={() => setSelectedId(null)}
-                                        className="lg:hidden mb-2 text-sm text-cyan-600 dark:text-cyan-400 font-semibold inline-flex items-center gap-1">
-                                        <ArrowLeft className="w-4 h-4" /> All trades
+                    <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-5 items-start">
+                        {/* On a phone the pane replaces the list rather than
+                            stacking under it: a split view that reflows is two
+                            screens pretending to be one. */}
+                        <div className={`bg-surface rounded-card ring-1 ring-hairline overflow-hidden
+                            ${selected ? 'hidden lg:block' : ''}`}>
+                            <div className="flex gap-1.5 p-3 border-b border-hairline flex-wrap">
+                                {flaggedCount > 0 && (
+                                    <button onClick={() => { setFlagged(!flagged); }}
+                                        className={`px-3 py-1.5 rounded-control text-sm font-semibold inline-flex items-center gap-1.5 ${flagged
+                                            ? 'bg-amber-500 text-white'
+                                            : 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 ring-1 ring-amber-500/40'}`}>
+                                        <Flag className="w-3.5 h-3.5" /> {flaggedCount}
                                     </button>
                                 )}
-                                <JournalPane entry={selected} portfolioName={bookOf(selected?.portfolioId)}
-                                    onEdit={(e) => { setEditing(e); setShowModal(true); }}
-                                    onDelete={remove} onClose={close} />
+                                {STATUS.map((f) => (
+                                    <button key={f.key} onClick={() => pick(f.key)}
+                                        className={`px-3 py-1.5 rounded-control text-sm font-semibold ${!flagged && status === f.key
+                                            ? 'bg-cyan-500 text-white' : 'text-ink-faint hover:text-ink hover:bg-surface-muted'}`}>
+                                        {f.label}
+                                        <span className="ml-1.5 text-xs opacity-70 tabular-nums">
+                                            {f.key === 'all' ? entries.length : entries.filter((e) => e.status === f.key).length}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+
+                            <div className="p-3 border-b border-hairline">
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint" />
+                                    <input value={search} onChange={(e) => setSearch(e.target.value)}
+                                        placeholder="Search symbol, note or lesson…"
+                                        className="w-full pl-9 pr-3 py-2 text-sm border border-hairline bg-surface-muted
+                                            text-ink rounded-control focus:ring-2 focus:ring-cyan-500" />
+                                </div>
+                            </div>
+
+                            <div className="max-h-[70vh] overflow-y-auto">
+                                <JournalList entries={visible} selectedId={selectedId}
+                                    grouped={status === 'all' && !flagged}
+                                    onSelect={(e) => setSelectedId(e._id)}
+                                    emptyHint={query ? 'Nothing matches that search.'
+                                        : flagged ? 'Nothing has reached a level.'
+                                            : status === 'open' ? 'No open trades. Switch to Closed or All to see your history.'
+                                                : undefined} />
                             </div>
                         </div>
-                    )}
 
-                    {tab === 'patterns' && <JournalStats stats={stats} />}
-
-                    {tab === 'risk' && (
-                        <RiskCalculator options={options}
-                            onOpenSettings={() => setShowSettings(true)} />
-                    )}
+                        <div className={selected ? '' : 'hidden lg:block'}>
+                            {selected && (
+                                <button onClick={() => setSelectedId(null)}
+                                    className="lg:hidden mb-2 text-sm text-cyan-600 dark:text-cyan-400 font-semibold inline-flex items-center gap-1">
+                                    <ArrowLeft className="w-4 h-4" /> All trades
+                                </button>
+                            )}
+                            <JournalPane entry={selected} portfolioName={bookOf(selected?.portfolioId)}
+                                onEdit={(e) => { setEditing(e); setShowModal(true); }}
+                                onDelete={remove} onClose={close} />
+                        </div>
+                    </div>
                 </>
             )}
 
@@ -237,6 +216,13 @@ export default function JournalPage() {
                     onClose={() => setShowModal(false)}
                     onSaved={() => { setShowModal(false); load(); }}
                 />
+            )}
+
+            {showSizer && (
+                <Modal title="Size a trade" size="xl" onClose={() => setShowSizer(false)}>
+                    <RiskCalculator options={options}
+                        onOpenSettings={() => { setShowSizer(false); setShowSettings(true); }} />
+                </Modal>
             )}
 
             {showSettings && (
