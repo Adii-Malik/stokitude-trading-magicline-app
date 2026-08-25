@@ -46,42 +46,15 @@ router.use(authenticate);
  */
 router.get('/', async (req, res) => {
     try {
-        const userId = req.user._id;
-        const portfolios = await portfolioService.getAccessiblePortfolios(userId);
-
-        // Enrich each portfolio with dashboard data
-        const enrichedPortfolios = await Promise.all(
-            portfolios.map(async (portfolio) => {
-                try {
-                    const dashboard = await portfolioService.getDashboard(portfolio._id, userId);
-                    return {
-                        ...portfolio.toObject(),
-                        dashboardCache: dashboard
-                    };
-                } catch (error) {
-                    // If dashboard fails, return portfolio without cache
-                    console.error(`Failed to get dashboard for ${portfolio._id}:`, error.message);
-                    return {
-                        ...portfolio.toObject(),
-                        dashboardCache: {
-                            totalValue: 0,
-                            totalCost: 0,
-                            totalPnL: 0,
-                            totalPnLPct: 0,
-                            unrealizedPnL: 0,
-                            realizedPnL: 0,
-                            totalDividends: 0,
-                            holdingsCount: 0
-                        }
-                    };
-                }
-            })
-        );
+        // One batched pass, not a dashboard per portfolio. The cards read three
+        // numbers; the dashboard computed tax years, filer status and disposals
+        // for each of them, six sequential queries at a time.
+        const summaries = await portfolioService.summaries(req.user._id);
 
         res.json({
             success: true,
-            count: enrichedPortfolios.length,
-            data: enrichedPortfolios
+            count: summaries.length,
+            data: summaries
         });
     } catch (error) {
         console.error('Error fetching portfolios:', error);

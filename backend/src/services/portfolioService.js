@@ -13,6 +13,56 @@ import User from '../models/User.js';
 import CalculatorRegistry from './portfolio/calculators/CalculatorRegistry.js';
 import { cgtByTaxYear } from '../config/taxConfig.js';
 
+/**
+ * What a book's returns are measured against.
+ *
+ * Only deposits and withdrawals move it, so only those are worth fetching: the
+ * full cash walk needed all 2,076 rows on this account to arrive at one number
+ * per book, and buys and sells cancel out of it entirely. Rows come in oldest
+ * first, because the peak is a running maximum.
+ */
+export function investedBase(movements) {
+    let net = 0, peak = 0, tracked = false;
+    for (const tx of movements) {
+        if (tx.type === 'DEPOSIT') { net += tx.cashAmount || 0; peak = Math.max(peak, net); tracked = true; }
+        else if (tx.type === 'WITHDRAW') { net -= tx.cashAmount || 0; tracked = true; }
+    }
+    return { tracked, peakInvested: Math.round(peak * 100) / 100 };
+}
+
+/** The only fields the cash walk reads. Named once so a batch cannot select less. */
+const CASH_FIELDS = 'type cashAmount quantity price fees otherCharges dividendCash executedAt portfolioId';
+
+/**
+ * Cash, walked from the transactions themselves.
+ *
+ * Pure and shared: the list page needs this for every book at once, and a
+ * second implementation of the same switch is a second thing to keep in step.
+ * Callers hand it rows already sorted oldest first.
+ */
+export function cashFrom(transactions) {
+    let balance = 0, net = 0, peak = 0, charges = 0, tracked = false;
+
+    for (const tx of transactions) {
+        const fees = (tx.fees || 0) + (tx.otherCharges || 0);
+        const cash = tx.cashAmount || 0;
+        charges += fees;
+        switch (tx.type) {
+            case 'DEPOSIT':
+                balance += cash; net += cash; peak = Math.max(peak, net); tracked = true; break;
+            case 'WITHDRAW':
+                balance -= cash; net -= cash; tracked = true; break;
+            case 'BUY': balance -= (tx.quantity * tx.price) + fees; break;
+            case 'SELL': balance += (tx.quantity * tx.price) - fees; break;
+            case 'DIV': balance += tx.dividendCash || 0; break;
+            default: break;
+        }
+    }
+
+    const round = (n) => Math.round(n * 100) / 100;
+    return { balance: round(balance), tracked, peakInvested: round(peak), fees: round(charges) };
+}
+
 class PortfolioService {
     /**
      * FBR filer status lives on the user, not the portfolio - it is a property
@@ -201,35 +251,99 @@ class PortfolioService {
      * be measured against, since the closing net is what is left after
      * withdrawals rather than what was put in.
      */
+    /**
+     * Every accessible book with the three figures the list actually draws.
+     *
+     * The list used to call getDashboard once per book. That computes CGT by tax
+     * year, filer status, disposals, dividends and closed counts - none of which
+     * a card renders - across six sequential queries each. Three books meant
+     * eighteen round trips and 3.6 seconds of waiting, and it grew with every
+     * book added.
+     *
+     * This asks four questions no matter how many books there are, and the
+     * arithmetic afterwards is the same as the dashboard's so the numbers cannot
+     * disagree.
+     */
+    async summaries(userId) {
+        const portfolios = await this.getAccessiblePortfolios(userId);
+        if (!portfolios.length) return [];
+
+        const ids = portfolios.map(p => p._id);
+
+        const [open, booked, movements] = await Promise.all([
+            Position.find({ portfolioId: { $in: ids }, netShares: { $gt: 0 } })
+                .select('portfolioId symbol netShares costBasis').lean(),
+            Position.aggregate([
+                { $match: { portfolioId: { $in: ids.map(id => new mongoose.Types.ObjectId(String(id))) } } },
+                { $group: {
+                    _id: '$portfolioId',
+                    realizedPnL: { $sum: '$realizedPnL' },
+                    dividends: { $sum: '$dividendsReceived' }
+                } }
+            ]),
+            // Only what moves the base. The full walk would carry every buy and
+            // sell across every book to reach the same two figures.
+            Transaction.find({ portfolioId: { $in: ids }, type: { $in: ['DEPOSIT', 'WITHDRAW'] } })
+                .select('portfolioId type cashAmount executedAt').sort({ executedAt: 1 }).lean()
+        ]);
+
+        const stocks = await Stock.find({ symbol: { $in: [...new Set(open.map(p => p.symbol))] } })
+            .select('symbol currentPrice').lean();
+        const priceOf = new Map(stocks.map(s => [s.symbol, s.currentPrice || 0]));
+
+        const group = (rows, key = 'portfolioId') => rows.reduce((acc, row) => {
+            const k = String(row[key]);
+            (acc[k] = acc[k] || []).push(row);
+            return acc;
+        }, {});
+        const positionsOf = group(open);
+        const movementsOf = group(movements);
+        const bookedOf = new Map(booked.map(b => [String(b._id), b]));
+
+        return portfolios.map((portfolio) => {
+            const id = String(portfolio._id);
+            let totalValue = 0, totalCost = 0, unrealizedPnL = 0;
+
+            for (const position of positionsOf[id] || []) {
+                const marketValue = position.netShares * (priceOf.get(position.symbol) || 0);
+                totalValue += marketValue;
+                totalCost += position.costBasis;
+                unrealizedPnL += marketValue - position.costBasis;
+            }
+
+            const realizedPnL = bookedOf.get(id)?.realizedPnL || 0;
+            const totalDividends = bookedOf.get(id)?.dividends || 0;
+            const cash = investedBase(movementsOf[id] || []);
+            const totalPnL = unrealizedPnL + realizedPnL + totalDividends;
+
+            // Same base as the dashboard: realized gains come from positions whose
+            // cost is no longer in totalCost, so dividing by it credits them to
+            // the open holdings.
+            const base = cash.tracked && cash.peakInvested > 0 ? cash.peakInvested : totalCost;
+
+            return {
+                ...portfolio.toObject(),
+                dashboardCache: {
+                    // Holdings only, exactly as the dashboard reports it. Cash is
+                    // a separate figure there and folding it in here would change
+                    // every card's headline while claiming to be a speed-up.
+                    totalValue,
+                    totalCost,
+                    totalPnL,
+                    totalPnLPct: base > 0 ? (totalPnL / base) * 100 : 0,
+                    unrealizedPnL,
+                    realizedPnL,
+                    totalDividends,
+                    holdingsCount: (positionsOf[id] || []).length
+                }
+            };
+        });
+    }
+
     async getCashBalance(portfolioId) {
         const transactions = await Transaction.find({ portfolioId })
-            .select('type cashAmount quantity price fees otherCharges dividendCash executedAt')
-            .sort({ executedAt: 1 }).lean();
-
-        let balance = 0;
-        let tracked = false;
-        let net = 0;
-        let peak = 0;
-        let charges = 0;
-
-        for (const tx of transactions) {
-            const fees = (tx.fees || 0) + (tx.otherCharges || 0);
-            const cash = tx.cashAmount || 0;
-            charges += fees;
-            switch (tx.type) {
-                case 'DEPOSIT':
-                    balance += cash; net += cash; peak = Math.max(peak, net); tracked = true; break;
-                case 'WITHDRAW':
-                    balance -= cash; net -= cash; tracked = true; break;
-                case 'BUY': balance -= (tx.quantity * tx.price) + fees; break;
-                case 'SELL': balance += (tx.quantity * tx.price) - fees; break;
-                case 'DIV': balance += tx.dividendCash || 0; break;
-                default: break;
-            }
-        }
-
-        const round = (n) => Math.round(n * 100) / 100;
-        return { balance: round(balance), tracked, peakInvested: round(peak), fees: round(charges) };
+            .select(CASH_FIELDS).sort({ executedAt: 1 }).lean();
+        return cashFrom(transactions);
     }
 
     /**
