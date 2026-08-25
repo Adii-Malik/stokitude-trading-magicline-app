@@ -29,7 +29,7 @@ const RESERVED = new Set(['user', '_id', 'entryTransactionId', 'exitTransactionI
  * Null when neither a stop nor a target was recorded: with nothing to compare
  * the exit against, "closed early" would be an accusation rather than a fact.
  */
-export function exitReasonFor(entry) {
+function exitReasonFor(entry) {
     if (entry.exitPrice == null) return null;
 
     const long = entry.direction !== 'short';

@@ -8,12 +8,9 @@
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "create-admin": "node src/scripts/createSuperAdmin.js",
-    "migrate-journal": "node src/scripts/migrateJournalLifecycle.js",
     "test": "node --test src",
-    "migrate-journal-vocab": "node src/scripts/migrateJournalVocabulary.js",
-    "migrate-risk-profiles": "node src/scripts/migrateRiskProfiles.js",
-    "migrate-journal-trackers": "node src/scripts/migrateJournalTrackers.js",
-    "clean-journal-prose": "node src/scripts/cleanStaleJournalProse.js"
+    "purge-deleted-portfolios": "node src/scripts/purgeDeletedPortfolios.js",
+    "transfer-book": "node src/scripts/transferBook.js"
   },
   "keywords": [
     "psx",

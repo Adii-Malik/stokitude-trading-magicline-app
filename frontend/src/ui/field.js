@@ -1,10 +1,11 @@
 /**
  * The look of a form field, written once.
  *
- * This string existed three times - in the journal modal, in SymbolInput and in
- * TagInput - and had already drifted: one of them carried text-sm, so a tag field
- * rendered smaller than the input directly above it. The design lint cannot catch
- * that, because every copy uses the right tokens; they were just separate copies.
+ * This string existed three times over - in the journal modal, in SymbolInput and
+ * in the tag input that has since gone - and had already drifted: one copy
+ * carried text-sm, so a field rendered smaller than the input directly above it.
+ * A lint cannot catch that, because every copy used the right tokens; they were
+ * just separate copies.
  *
  * Variants append, never rewrite, so a symbol box stays the same field that
  * happens to uppercase.
