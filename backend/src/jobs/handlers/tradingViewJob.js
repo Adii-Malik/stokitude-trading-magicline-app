@@ -6,6 +6,7 @@
 
 import axios from 'axios';
 import config from '../../config/config.js';
+import { stampPricesFromBars } from '../../services/priceFromBars.js';
 
 export default async function tradingViewJob(context) {
   const { logger, config: jobConfig } = context;
@@ -37,10 +38,16 @@ export default async function tradingViewJob(context) {
 
       logger.info('TradingView update completed', summary);
 
+      // Fetching bars nobody reads the price from would be half a job. The
+      // poller that used to write currentPrice is off, so the close that just
+      // arrived is the price the portfolio should value against.
+      const prices = await stampPricesFromBars();
+      logger.info('Prices taken from the last close', prices);
+
       return {
         success: true,
-        message: `Updated ${timeframes.join(', ')} timeframes successfully`,
-        metadata: summary
+        message: `Updated ${timeframes.join(', ')} timeframes, ${prices.moved} price(s) moved`,
+        metadata: { ...summary, ...prices }
       };
     } else {
       throw new Error(response.data?.message || 'Invalid response from TradingView Core Engine');

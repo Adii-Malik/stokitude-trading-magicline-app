@@ -12,7 +12,8 @@
     "lint": "eslint backend/src frontend/src",
     "lint:errors": "eslint backend/src frontend/src --quiet",
     "lint:fix": "eslint backend/src frontend/src --fix",
-    "test": "npm --prefix backend test && npm --prefix frontend test"
+    "test": "npm --prefix backend test && npm --prefix frontend test",
+    "db:local": "bash deploy/refresh-local.sh"
   },
   "keywords": [
     "psx",
