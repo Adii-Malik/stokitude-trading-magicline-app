@@ -280,3 +280,45 @@ describe('benchmark', () => {
         assert.deepEqual(rebase(series, []), []);
     });
 });
+
+describe('NAV against cash flows', () => {
+    const flat = (dates) => ({ X: dates.map(d => ({ date: new Date(d), close: 100 })) });
+
+    // The old maths worked out the pre-flow NAV as (total - flow) / units. On a
+    // day whose buys were funded by that same day's deposit this leaves a total
+    // the book never held - it read 2,958 against a real 4,985 - and the unit
+    // count then carried that invented loss for the rest of the series.
+    test('a deposit spent the same day does not move NAV', () => {
+        const series = buildSeries([
+            { executedAt: new Date('2025-01-01'), type: 'DEPOSIT', cashAmount: 5000 },
+            { executedAt: new Date('2025-01-02'), type: 'DEPOSIT', cashAmount: 50000 },
+            { executedAt: new Date('2025-01-02'), type: 'BUY', symbol: 'X', quantity: 500, price: 100 }
+        ], flat(['2025-01-01', '2025-01-02']));
+
+        assert.equal(series[0].nav, 100);
+        assert.equal(series[1].nav, 100);
+    });
+
+    test('a withdrawal does not move NAV either', () => {
+        const series = buildSeries([
+            { executedAt: new Date('2025-01-01'), type: 'DEPOSIT', cashAmount: 10000 },
+            { executedAt: new Date('2025-01-02'), type: 'WITHDRAW', cashAmount: 4000 }
+        ], flat(['2025-01-01', '2025-01-02']));
+
+        assert.equal(series[1].nav, 100);
+        assert.equal(series[1].total, 6000);
+    });
+
+    test('a real gain still moves NAV', () => {
+        const series = buildSeries([
+            { executedAt: new Date('2025-01-01'), type: 'DEPOSIT', cashAmount: 10000 },
+            { executedAt: new Date('2025-01-01'), type: 'BUY', symbol: 'X', quantity: 100, price: 100 }
+        ], { X: [
+            { date: new Date('2025-01-01'), close: 100 },
+            { date: new Date('2025-01-02'), close: 110 }
+        ] });
+
+        assert.equal(series[0].nav, 100);
+        assert.equal(series[1].nav, 110);
+    });
+});

@@ -47,7 +47,7 @@ export function buildSeries(transactions, prices = {}) {
     }
 
     const shares = {};
-    let cash = 0, invested = 0, next = 0, units = 0;
+    let cash = 0, invested = 0, next = 0, units = 0, prevNav = 0;
     const series = [];
 
     for (const day of days) {
@@ -110,11 +110,16 @@ export function buildSeries(transactions, prices = {}) {
         const total = value + cash;
         if (units === 0) {
             if (total > 0) units = total / 100;
-        } else if (flow !== 0) {
-            const before = (total - flow) / units;
-            if (before > 0) units += flow / before;
+        } else if (flow !== 0 && prevNav > 0) {
+            // Priced at yesterday's close, not at a same-day figure worked out
+            // by subtracting today's flow. When a day's buys were funded by that
+            // same day's deposit, (total - flow) is a total the book never held -
+            // on 2024-12-12 it read 2,958 against a real 4,985, and the unit
+            // count carried that invented 41% loss for the rest of the series.
+            units += flow / prevNav;
         }
         const nav = units > 0 ? total / units : 0;
+        prevNav = nav;
 
         series.push({
             date: day,
