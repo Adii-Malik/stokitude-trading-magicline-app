@@ -31,6 +31,10 @@ command -v mongodump >/dev/null || {
 # half-dropped database, which is worse than not starting.
 if ! (exec 3<>/dev/tcp/127.0.0.1/27017) 2>/dev/null; then
     echo "localhost:27017 is closed. Start it with:"
+    echo "  mongod --config /usr/local/etc/mongod.conf &"
+    # brew services needs the tap trusted first, and --fork does not work on
+    # macOS any more, so the plain background form is the one that just runs.
+    echo "or, after 'brew trust mongodb/brew':"
     echo "  brew services start mongodb-community"
     exit 1
 fi
@@ -63,7 +67,8 @@ echo "restoring into localhost..."
 mongorestore --uri="$LOCAL_URI" --archive="$ARCHIVE" --gzip --drop --quiet
 
 echo
-LOCAL_URI="$LOCAL_URI" node -e '
+# Run from backend/, which is where the driver is installed.
+(cd "$ROOT/backend" && LOCAL_URI="$LOCAL_URI" node -e '
 const { MongoClient } = require("mongodb");
 (async () => {
     const client = new MongoClient(process.env.LOCAL_URI);
@@ -74,7 +79,7 @@ const { MongoClient } = require("mongodb");
     }
     await client.close();
 })();
-' 2>/dev/null || echo "  (restored - could not count)"
+') || echo "  (restored, but could not read the counts back)"
 
 # Saying so beats leaving you to wonder why the app still shows Atlas data.
 if ! grep -q '^MONGO_URI=mongodb://localhost' "$ROOT/backend/.env" 2>/dev/null; then
