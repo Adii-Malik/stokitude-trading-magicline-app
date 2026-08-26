@@ -56,7 +56,8 @@ export default function StockManagement() {
     symbol: '',
     companyName: '',
     sector: '',
-    shariahCompliant: ''
+    shariahCompliant: '',
+    delisted: false
   });
 
   // Upload state
@@ -137,7 +138,7 @@ export default function StockManagement() {
   };
 
   const handleAdd = () => {
-    setFormData({ symbol: '', companyName: '', sector: '', shariahCompliant: '' });
+    setFormData({ symbol: '', companyName: '', sector: '', shariahCompliant: '', delisted: false });
     setShowAddModal(true);
   };
 
@@ -147,7 +148,8 @@ export default function StockManagement() {
       symbol: stock.symbol,
       companyName: stock.companyName,
       sector: stock.sector || '',
-      shariahCompliant: stock.shariahCompliant || ''
+      shariahCompliant: stock.shariahCompliant || '',
+      delisted: Boolean(stock.delisted)
     });
     setShowEditModal(true);
   };
@@ -454,6 +456,11 @@ export default function StockManagement() {
                       <tr key={stock._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className="font-bold text-cyan-600 dark:text-cyan-400">{stock.symbol}</span>
+                          {stock.delisted && (
+                            <span className="ml-2 px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded border border-gray-300 dark:border-gray-600">
+                              Delisted
+                            </span>
+                          )}
                         </td>
                         <td className="px-6 py-4">
                           <span className="text-gray-900 dark:text-gray-300">{stock.companyName}</span>
@@ -627,6 +634,26 @@ export default function StockManagement() {
                     <option value="No">No</option>
                   </select>
                 </div>
+
+                {showEditModal && (
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.delisted}
+                      onChange={(e) => setFormData({ ...formData, delisted: e.target.checked })}
+                      className="mt-1 w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-cyan-500 focus:ring-2 focus:ring-cyan-500"
+                    />
+                    <span>
+                      <span className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Delisted
+                      </span>
+                      <span className="block text-sm text-gray-500 dark:text-gray-400">
+                        Stops the price and history jobs chasing it. Bars already stored,
+                        and any trades you made, are kept.
+                      </span>
+                    </span>
+                  </label>
+                )}
 
                 <div className="flex gap-2 pt-4">
                   <button

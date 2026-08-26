@@ -39,8 +39,8 @@ export default async function pricePollingJob(context) {
       }
     }
 
-    // Get all stocks
-    const stocks = await Stock.find({}).select('symbol lastUpdated');
+    // Every stock still listed. A delisted one has no price left to poll.
+    const stocks = await Stock.find({ delisted: { $ne: true } }).select('symbol lastUpdated');
 
     if (stocks.length === 0) {
       logger.warn('No stocks found in database');

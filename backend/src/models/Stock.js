@@ -32,6 +32,16 @@ const stockSchema = new mongoose.Schema({
     enum: [null, 'Yes', 'No'],
     default: null
   },
+  // A stock that no longer trades. Its history stays exactly where it is - bars,
+  // transactions, realised P&L - because a closed trade is still a trade you made.
+  // What stops is the chasing: the syncs skip it rather than asking a feed for a
+  // ticker that will never answer again.
+  delisted: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+
   // Centralized price data (single source of truth)
   currentPrice: {
     type: Number,

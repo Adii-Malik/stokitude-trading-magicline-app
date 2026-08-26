@@ -23,7 +23,8 @@ export default async function historicalDataJob(context) {
   try {
     // Get stocks with historical data enabled
     const stocks = await Stock.find({
-      historicalDataStatus: 'available'
+      historicalDataStatus: 'available',
+      delisted: { $ne: true }
     }).select('symbol');
 
     if (stocks.length === 0) {

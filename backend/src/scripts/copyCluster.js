@@ -80,7 +80,7 @@ const restoreFromFile = async (to, file, force) => {
             await to.collection(name).insertMany(docs.slice(i, i + 500), { ordered: false });
         }
         for (const index of indexes) {
-            const { key, name: indexName, v, ...options } = index;
+            const { key, name: indexName, v: _v, ...options } = index;
             await to.collection(name).createIndex(key, { name: indexName, ...options });
         }
     }
@@ -194,7 +194,7 @@ const copy = async () => {
         await flush();
 
         for (const index of indexes) {
-            const { key, name: indexName, v, ...options } = index;
+            const { key, name: indexName, v: _v, ...options } = index;
             await to.collection(name).createIndex(key, { name: indexName, ...options });
         }
 

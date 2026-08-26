@@ -122,7 +122,7 @@ router.get('/search/autocomplete', async (req, res) => {
         { companyName: { $regex: safe, $options: 'i' } }
       ]
     })
-      .select('symbol companyName sector shariahCompliant currentPrice')
+      .select('symbol companyName sector shariahCompliant currentPrice delisted')
       .limit(10)
       .sort({ symbol: 1 });
 
@@ -189,7 +189,7 @@ router.post('/', adminOnly, async (req, res) => {
 // Update a stock (Admin only)
 router.put('/:id', adminOnly, async (req, res) => {
   try {
-    const { symbol, companyName, sector, shariahCompliant } = req.body;
+    const { symbol, companyName, sector, shariahCompliant, delisted } = req.body;
 
     // Validate required fields
     if (!symbol || !companyName) {
@@ -222,6 +222,9 @@ router.put('/:id', adminOnly, async (req, res) => {
     stock.companyName = companyName.trim();
     stock.sector = sector?.trim() || null;
     stock.shariahCompliant = shariahCompliant || null;
+    // Only when the caller says so, so an older client that omits the field
+    // cannot silently re-list a stock.
+    if (delisted !== undefined) stock.delisted = Boolean(delisted);
 
     await stock.save();
 

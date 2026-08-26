@@ -103,7 +103,15 @@ export function SymbolInput({
                                         ${i === active ? 'bg-surface-muted' : ''}`}
                         >
                             <span className="font-semibold text-cyan-600 dark:text-cyan-400">{stock.symbol}</span>
-                            {stock.currentPrice > 0 && (
+                            {/* A delisted name still appears - you may be recording a trade
+                                you already made - but its last price is months stale, so the
+                                tag replaces the number rather than sitting beside it. */}
+                            {stock.delisted ? (
+                                <span className="float-right text-xs uppercase tracking-wide
+                                                 text-ink-faint px-1.5 py-0.5 rounded ring-1 ring-hairline">
+                                    delisted
+                                </span>
+                            ) : stock.currentPrice > 0 && (
                                 <span className="float-right text-sm text-ink-muted tabular-nums">
                                     {stock.currentPrice}
                                 </span>
