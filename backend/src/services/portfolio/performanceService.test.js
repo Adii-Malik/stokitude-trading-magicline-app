@@ -322,3 +322,41 @@ describe('NAV against cash flows', () => {
         assert.equal(series[1].nav, 110);
     });
 });
+
+describe('splits against back-adjusted bars', () => {
+    // Bought at 500 before a 5:1. The bar from that day is already divided by
+    // five, so valuing 10 unsplit shares against it lost 80% on paper the day
+    // the position opened, and never gave it back.
+    const bars = { X: [
+        { date: new Date('2025-01-01'), close: 100 },
+        { date: new Date('2025-01-02'), close: 100 },
+        { date: new Date('2025-01-03'), close: 100 }
+    ] };
+    const ledger = [
+        { executedAt: new Date('2025-01-01'), type: 'DEPOSIT', cashAmount: 5000 },
+        { executedAt: new Date('2025-01-01'), type: 'BUY', symbol: 'X', quantity: 10, price: 500 },
+        { executedAt: new Date('2025-01-03'), type: 'SPLIT', symbol: 'X', ratio: '5:1' }
+    ];
+
+    test('values pre-split days at what the shares were worth', () => {
+        const [day] = buildSeries(ledger, bars);
+        assert.equal(day.value, 5000);
+        assert.equal(day.nav, 100);
+    });
+
+    test('the split day itself does not jump', () => {
+        const series = buildSeries(ledger, bars);
+        const before = series[series.length - 2];
+        const after = series[series.length - 1];
+        assert.equal(before.value, after.value);
+        assert.equal(after.nav, before.nav);
+    });
+
+    test('a symbol that never split is untouched', () => {
+        const [day] = buildSeries([
+            { executedAt: new Date('2025-01-01'), type: 'DEPOSIT', cashAmount: 5000 },
+            { executedAt: new Date('2025-01-01'), type: 'BUY', symbol: 'X', quantity: 10, price: 100 }
+        ], bars);
+        assert.equal(day.value, 1000);
+    });
+});

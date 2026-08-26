@@ -46,6 +46,18 @@ export function buildSeries(transactions, prices = {}) {
         lastClose[symbol] = 0;
     }
 
+    // Bars are back-adjusted for splits: a close from before a 5:1 has already
+    // been divided by five, while the share count recorded back then has not.
+    // Holding the splits still ahead of each day lets the two cancel - without
+    // it SYS, bought at 606 and split 5:1 in June, is valued at 119 from the day
+    // it was bought and shows an 80% loss that never happened.
+    const ahead = {};
+    for (const tx of ledger) {
+        if (tx.type !== 'SPLIT' && tx.type !== 'BONUS') continue;
+        const r = ratio.parseRatio(tx.ratio);
+        if (r > 0) ahead[tx.symbol] = (ahead[tx.symbol] || 1) * r;
+    }
+
     const shares = {};
     let cash = 0, invested = 0, next = 0, units = 0, prevNav = 0;
     const series = [];
@@ -68,9 +80,13 @@ export function buildSeries(transactions, prices = {}) {
                     cash += qty * tx.price - chargesOf(tx);
                     break;
                 case 'SPLIT':
-                case 'BONUS':
-                    shares[symbol] = (shares[symbol] || 0) * ratio.parseRatio(tx.ratio);
+                case 'BONUS': {
+                    const r = ratio.parseRatio(tx.ratio);
+                    shares[symbol] = (shares[symbol] || 0) * r;
+                    // Past it now, so the bars from here on need no undoing.
+                    if (r > 0 && ahead[symbol]) ahead[symbol] /= r;
                     break;
+                }
                 case 'DIV':
                     cash += tx.dividendCash || 0;
                     break;
@@ -99,7 +115,7 @@ export function buildSeries(transactions, prices = {}) {
         let value = 0, held = 0;
         for (const [symbol, qty] of Object.entries(shares)) {
             if (qty <= 0) continue;
-            value += qty * (lastClose[symbol] || 0);
+            value += qty * (lastClose[symbol] || 0) * (ahead[symbol] || 1);
             held++;
         }
 
