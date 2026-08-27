@@ -14,10 +14,20 @@ import { chargesFor } from '../../utils/commission';
 const dateValue = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '');
 
 /** The book this market opens on, or none when the market has no book yet. */
-function defaultBookFor(entry, options) {
-    const exchange = entry?.exchange || 'PSX';
-    const currency = (options?.exchangeRules || []).find((x) => x.code === exchange)?.currency || 'PKR';
-    return options?.defaultBooks?.[currency] || '';
+function defaultBookFor(options) {
+    return options?.defaultBooks?.[options?.currency] || '';
+}
+
+/**
+ * The venue a new trade is recorded at.
+ *
+ * No longer asked for. The app is scoped to a market, so the answer is already
+ * known - PSX in Pakistan - and the picker offered venues the rest of the app
+ * would then hide the trade from. An existing entry keeps whatever it was
+ * recorded at, so a NYSE trade stays a NYSE trade.
+ */
+function venueFor(entry, options) {
+    return entry?.exchange || options?.exchanges?.[0] || 'PSX';
 }
 
 export default function JournalEntryModal({ entry, options, setups = [], trackers = [],
@@ -29,9 +39,8 @@ export default function JournalEntryModal({ entry, options, setups = [], tracker
         // panel is live from the start. An existing one keeps whatever it has,
         // including nothing: filling a blank in on edit adopted a book the trade
         // never chose.
-        portfolioId: entry?.portfolioId || (entry?._id ? '' : defaultBookFor(entry, options)),
+        portfolioId: entry?.portfolioId || (entry?._id ? '' : defaultBookFor(options)),
         symbol: entry?.symbol || '',
-        exchange: entry?.exchange || 'PSX',
         direction: entry?.direction || 'long',
         setupType: entry?.setupType || 'other',
         entryDate: dateValue(entry?.entryDate) || new Date().toISOString().slice(0, 10),
@@ -116,7 +125,7 @@ export default function JournalEntryModal({ entry, options, setups = [], tracker
 
     // Only portfolios in this trade's currency can hold it. Filtering rather than
     // letting the server reject it keeps the impossible choice off the screen.
-    const currency = (options?.exchangeRules || []).find((x) => x.code === form.exchange)?.currency || 'PKR';
+    const currency = options?.currency || 'PKR';
     const bookable = (options?.portfolios || []).filter((p) => (p.currency || 'PKR') === currency);
     const portfolio = bookable.find((p) => String(p._id) === String(form.portfolioId));
 
@@ -209,6 +218,9 @@ export default function JournalEntryModal({ entry, options, setups = [], tracker
             const num = (v) => (v === '' || v == null ? null : parseFloat(v));
             const payload = {
                 ...form,
+                // Derived from the market rather than answered on the form, and
+                // never rewritten on an entry that already names its venue.
+                exchange: venueFor(entry, options),
                 // Ungraded is absent, not an empty string the enum would reject.
                 // Empty means journal-only, not an unparseable ObjectId.
                 portfolioId: form.portfolioId || null,
@@ -301,9 +313,7 @@ export default function JournalEntryModal({ entry, options, setups = [], tracker
             }
         >
             <form id={FORM_ID} onSubmit={submit} className="space-y-5">
-                <Section title="What you’re trading" hidden={step}
-                    when={form.entryDate}
-                    onWhen={(v) => set('entryDate', v)} whenLocked={entryBooked}>
+                <Section title="What you’re trading" hidden={step}>
                     <div className={ROW}>
                         <Field label="Symbol *">
                             <SymbolInput
@@ -327,18 +337,20 @@ export default function JournalEntryModal({ entry, options, setups = [], tracker
                                 }}
                             />
                         </Field>
-                        <Field label="Exchange">
-                            <select value={form.exchange} className={input}
-                                onChange={(e) => set('exchange', e.target.value)}>
-                                {(options?.exchanges || ['PSX']).map((x) => <option key={x}>{x}</option>)}
-                            </select>
-                        </Field>
                         <Field label="Direction">
                             <select value={form.direction} className={input}
                                 onChange={(e) => set('direction', e.target.value)}>
                                 <option value="long">Long</option>
                                 <option value="short">Short</option>
                             </select>
+                        </Field>
+                        {/* Was tucked into the heading row when the venue took
+                            this column. It is asked on every trade, so it reads
+                            better as a field than as a control off to one side. */}
+                        <Field label="Date" locked={entryBooked}>
+                            <input type="date" value={form.entryDate} className={input}
+                                disabled={entryBooked}
+                                onChange={(e) => set('entryDate', e.target.value)} />
                         </Field>
                     </div>
                 </Section>
@@ -419,9 +431,7 @@ export default function JournalEntryModal({ entry, options, setups = [], tracker
                 {/* Closing is a different job: the exit price is the only thing the
                     app cannot already work out, so it and what happened are all
                     that is asked. The rail beside it reports the result. */}
-                <Section title={step ? '1 · How it ended' : 'How it ended'} hidden={!closing}
-                    when={closing ? form.exitDate : null}
-                    onWhen={(v) => set('exitDate', v)} whenLocked={exitBooked}>
+                <Section title={step ? '1 · How it ended' : 'How it ended'} hidden={!closing}>
                     <div className={ROW}>
                         <Field label="Exit price *" locked={exitBooked}>
                             <input type="number" step="any" value={form.exitPrice} className={input}
@@ -431,6 +441,11 @@ export default function JournalEntryModal({ entry, options, setups = [], tracker
                         <Field label="Shares sold">
                             <input type="number" className={input} value={form.quantity} disabled
                                 aria-describedby="sold-note" />
+                        </Field>
+                        <Field label="Date" locked={exitBooked}>
+                            <input type="date" value={form.exitDate} className={input}
+                                disabled={exitBooked}
+                                onChange={(e) => set('exitDate', e.target.value)} />
                         </Field>
                     </div>
                     <p id="sold-note" className="text-xs text-ink-faint mt-1">
@@ -516,24 +531,12 @@ function Labels({ list, value, onChange, single, onAdd }) {
     );
 }
 
-function Section({ title, hint, hidden, when, onWhen, whenLocked, children }) {
+function Section({ title, hint, hidden, children }) {
     if (hidden) return null;
     return (
         <div className="border-t border-hairline pt-5 first:border-t-0 first:pt-0">
             <div className="flex items-center gap-3">
                 <h3 className="font-semibold text-ink">{title}</h3>
-                {/* On the heading row, which had the space going spare. Needed on
-                    every trade and right by default on almost all of them, so it
-                    earns sight without costing a tab stop among the real fields. */}
-                {when !== undefined && when !== null && (
-                    <input
-                        type="date" value={when} disabled={whenLocked}
-                        onChange={(e) => onWhen(e.target.value)}
-                        aria-label="Trade date"
-                        className="ml-auto px-2 py-1 text-xs rounded-control border border-hairline
-                                   bg-surface text-ink-muted tabular-nums disabled:opacity-60"
-                    />
-                )}
             </div>
             {hint && <p className="text-xs text-ink-faint mt-0.5">{hint}</p>}
             {/* Fixed, not conditional on the hint: the gap above the fields was
