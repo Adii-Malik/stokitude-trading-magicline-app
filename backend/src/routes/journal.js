@@ -11,7 +11,7 @@ import { chartUpload, URL_PREFIX } from '../services/chartStorage.js';
 import Portfolio from '../models/Portfolio.js';
 import JournalSettings from '../models/JournalSettings.js';
 import JournalEntry from '../models/JournalEntry.js';
-import { EXCHANGE_CODES, EXCHANGES } from '../config/exchanges.js';
+import { EXCHANGES, getMarket } from '../config/exchanges.js';
 
 const router = express.Router();
 
@@ -28,9 +28,13 @@ router.get('/options', async (req, res) => {
     // picker and price the commission. Deliberately not /api/portfolios, which
     // computes a full dashboard per portfolio - fifteen of those to fill a
     // dropdown is a lot of work for a list of names.
+    const market = getMarket(req.market);
     const portfolios = await Portfolio.find({
         $or: [{ owner: req.user._id }, { 'sharedWith.user': req.user._id }],
-        isActive: true
+        isActive: true,
+        // Scoped like everything else: a US book has no business in a PSX
+        // trade's picker, and the settings screen was listing both.
+        currency: market.currency
     }).select('name currency commissionSlabs charges').sort({ name: 1 }).lean();
 
     const settings = await JournalSettings.forUser(req.user._id);
@@ -68,10 +72,15 @@ router.get('/options', async (req, res) => {
             // Only what this user chose to count about themselves. An empty list
             // is a valid answer, and the close form then asks for nothing.
             trackers: settings.trackers,
-            exchanges: EXCHANGE_CODES,
-            // Currency and fractional-share rules per market, so sizing matches the venue.
-            exchangeRules: Object.values(EXCHANGES).map(x => ({
-                code: x.code, currency: x.currency, fractionalShares: x.fractionalShares
+            market: market.code,
+            currency: market.currency,
+            // Only the venues of this market. Offering NASDAQ while scoped to
+            // Pakistan invites a trade the rest of the app would then hide.
+            exchanges: market.exchanges,
+            // Currency and fractional-share rules per venue, so sizing matches it.
+            exchangeRules: market.exchanges.map(code => ({
+                code, currency: EXCHANGES[code].currency,
+                fractionalShares: EXCHANGES[code].fractionalShares
             }))
         }
     });
@@ -99,10 +108,21 @@ router.get('/risk-context', async (req, res) => {
     }
 });
 
-/** Risk tolerance, one profile per currency. Capital is not stored - see the model. */
+/** Risk tolerance, one profile per book. Capital is not stored - see the model. */
 router.get('/risk-profiles', async (req, res) => {
     try {
-        const profiles = await RiskProfile.find({ user: req.user._id }).lean();
+        // A rule belongs to a book, so it is in whichever market that book is.
+        // Listing all of them put a US rule on a Pakistani settings screen.
+        const books = await Portfolio.find({
+            $or: [{ owner: req.user._id }, { 'sharedWith.user': req.user._id }],
+            isActive: true,
+            currency: getMarket(req.market).currency
+        }).select('_id').lean();
+
+        const profiles = await RiskProfile.find({
+            user: req.user._id,
+            portfolioId: { $in: books.map(b => b._id) }
+        }).lean();
         res.json({ success: true, data: profiles });
     } catch (error) {
         fail(res, error);

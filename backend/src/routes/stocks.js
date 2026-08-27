@@ -5,6 +5,7 @@ import { Readable } from 'stream';
 import Stock from '../models/Stock.js';
 import { adminOnly } from '../middleware/auth.js';
 import { escapeRegex } from '../utils/escapeRegex.js';
+import { getMarket, DEFAULT_EXCHANGE } from '../config/exchanges.js';
 
 const router = express.Router();
 
@@ -116,10 +117,26 @@ router.get('/search/autocomplete', async (req, res) => {
     // '*' built an invalid pattern and returned a 500.
     const safe = escapeRegex(q.trim());
 
+    // Scoped to the market the client is in. This route is public, so it reads
+    // the header the app already sends rather than a user's stored setting -
+    // suggesting OGDC while journalling a NASDAQ trade is how a PSX ticker ends
+    // up on a US entry that every other screen then hides.
+    const market = getMarket(req.market || req.headers['x-market']);
+    const venues = market.exchanges.includes(DEFAULT_EXCHANGE)
+      // Stocks that predate the exchange field carry none. This was a PSX-only
+      // app when they were written, so that is what they are.
+      ? { $or: [{ exchange: { $in: market.exchanges } }, { exchange: { $in: [null] } }, { exchange: { $exists: false } }] }
+      : { exchange: { $in: market.exchanges } };
+
     const stocks = await Stock.find({
-      $or: [
-        { symbol: { $regex: `^${safe}`, $options: 'i' } },
-        { companyName: { $regex: safe, $options: 'i' } }
+      $and: [
+        {
+          $or: [
+            { symbol: { $regex: `^${safe}`, $options: 'i' } },
+            { companyName: { $regex: safe, $options: 'i' } }
+          ]
+        },
+        venues
       ]
     })
       .select('symbol companyName sector shariahCompliant currentPrice delisted')
