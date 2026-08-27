@@ -4,6 +4,7 @@ import { initNative } from './services/native';
 import { lazy, Suspense } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { MarketProvider } from './contexts/MarketContext';
 import { LayoutProvider } from './components/Layout';
 import { FullPageLoader } from './components/common';
 import Dashboard from './components/Dashboard';
@@ -186,6 +187,7 @@ function App() {
   return (
     <Router>
       <AuthProvider>
+        <MarketProvider>
         <Toaster
           position="top-right"
           toastOptions={{
@@ -216,6 +218,7 @@ function App() {
             <DevToolsPanel />
           </Suspense>
         )}
+        </MarketProvider>
       </AuthProvider>
     </Router>
   );

@@ -12,6 +12,7 @@ import User from '../models/User.js';
 
 import CalculatorRegistry from './portfolio/calculators/CalculatorRegistry.js';
 import { cgtByTaxYear } from '../config/taxConfig.js';
+import { currencyOfMarket } from '../config/exchanges.js';
 
 /**
  * What a book's returns are measured against.
@@ -92,14 +93,25 @@ class PortfolioService {
     /**
      * Get portfolios accessible by user
      */
-    async getAccessiblePortfolios(userId) {
-        const portfolios = await Portfolio.find({
+    /**
+     * Books this user can see, in one market.
+     *
+     * The market is passed in rather than worked out here: the caller already
+     * knows it from the request, and a book's currency is a consequence of the
+     * market it trades in, not the other way round. Omit it and every book comes
+     * back, which is what the admin and the internal callers want.
+     */
+    async getAccessiblePortfolios(userId, market = null) {
+        const query = {
             $or: [
                 { owner: userId },
                 { 'sharedWith.user': userId }
             ],
             isActive: true
-        }).populate('owner', 'username email');
+        };
+        if (market) query.currency = currencyOfMarket(market);
+
+        const portfolios = await Portfolio.find(query).populate('owner', 'username email');
 
         return portfolios;
     }
@@ -264,8 +276,8 @@ class PortfolioService {
      * arithmetic afterwards is the same as the dashboard's so the numbers cannot
      * disagree.
      */
-    async summaries(userId) {
-        const portfolios = await this.getAccessiblePortfolios(userId);
+    async summaries(userId, market = null) {
+        const portfolios = await this.getAccessiblePortfolios(userId, market);
         if (!portfolios.length) return [];
 
         const ids = portfolios.map(p => p._id);

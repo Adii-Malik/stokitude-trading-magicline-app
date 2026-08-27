@@ -5,6 +5,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import NotificationBell from './NotificationBell';
+import MarketSwitch from './MarketSwitch';
 import { UserProfileDropdown } from './common';
 
 export default function Header({
@@ -112,6 +113,10 @@ export default function Header({
             {/* User Section */}
             {user ? (
               <>
+                {/* Which market the whole app is scoped to. Hides itself when
+                    there is only one to be in. */}
+                <MarketSwitch className="hidden lg:block" />
+
                 {/* Theme Toggle - Desktop */}
                 <button
                   onClick={toggleTheme}
@@ -137,6 +142,7 @@ export default function Header({
 
                 {/* Mobile: Theme Toggle + Notifications + User Badge + Menu Toggle */}
                 <div className="lg:hidden flex items-center gap-2">
+                  <MarketSwitch />
                   {/* Theme Toggle */}
                   <button
                     onClick={toggleTheme}

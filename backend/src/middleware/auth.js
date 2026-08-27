@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import { getMarket } from '../config/exchanges.js';
 import User from '../models/User.js';
 import config from '../config/config.js';
 
@@ -49,6 +50,11 @@ export const authenticate = async (req, res, next) => {
 
     // Attach user to request
     req.user = user;
+
+    // Resolved once, here, so no service has to work out which market it is in
+    // from a portfolio's currency. A request header can override it for a single
+    // call, which is what lets the client switch without a round trip to save.
+    req.market = getMarket(req.headers['x-market'] || user.activeMarket).code;
     next();
   } catch (error) {
     console.error('Authentication error:', error);

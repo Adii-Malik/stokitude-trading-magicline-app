@@ -178,7 +178,7 @@ router.post('/chart', (req, res) => {
 
 router.get('/stats', async (req, res) => {
     try {
-        res.json({ success: true, data: await journalService.stats(req.user._id, req.query) });
+        res.json({ success: true, data: await journalService.stats(req.user._id, req.query, req.market) });
     } catch (error) {
         fail(res, error);
     }
@@ -186,7 +186,7 @@ router.get('/stats', async (req, res) => {
 
 router.get('/', async (req, res) => {
     try {
-        const { entries, total } = await journalService.list(req.user._id, req.query);
+        const { entries, total } = await journalService.list(req.user._id, req.query, req.market);
         res.json({ success: true, count: entries.length, total, data: entries });
     } catch (error) {
         fail(res, error);

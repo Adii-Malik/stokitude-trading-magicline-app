@@ -94,7 +94,7 @@ export default function JournalSettingsModal({ settings, portfolios = [], byTrac
     };
 
     return (
-        <Modal title="Journal settings" onClose={onClose} size="md"
+        <Modal title="Journal settings" onClose={onClose} size="xl"
             footer={
                 <>
                     <button onClick={onClose}
@@ -107,10 +107,10 @@ export default function JournalSettingsModal({ settings, portfolios = [], byTrac
                     </button>
                 </>
             }>
-            <div className="flex flex-col gap-6">
+            <div className="grid md:grid-cols-2 gap-x-8 gap-y-6 items-start">
 
                 <Section title="Default book, per market"
-                    hint="Which book a new trade logs against. A book holds one currency, so this is answered once per market — and its risk rules are what the size calculator applies, so the wrong one sizes the trade against the wrong capital.">
+                    hint="Which book a new trade logs against, one per market.">
                     <div className="flex flex-col gap-3">
                         {markets.map((m) => (
                             <label key={m} className="grid grid-cols-[52px_1fr] items-center gap-3">
@@ -138,14 +138,10 @@ export default function JournalSettingsModal({ settings, portfolios = [], byTrac
                     book already carries a "reteset" beside a "pullback". */}
                 <NamedList title="Setups you trade" items={setups} onChange={setSetups}
                     stats={bySetup} placeholder="name a setup you take"
-                    hint="Tapped when you log a trade, one to a trade. Empty the list and the form stops asking." />
-
-                <NamedList title="Things you're tracking" items={trackers} onChange={setTrackers}
-                    stats={byTracker} placeholder="name it in your own words"
-                    hint="Tapped when you close one. Nothing is read into these beyond a count and a total." />
+                    hint="Tapped when you log a trade. Empty the list and the form stops asking." />
 
                 <Section title="Risk rules, per book"
-                    hint="A trade follows the rules of the book it is logged against, so one book being aggressive has nothing to do with another. Leave a book alone and it is simply not judged.">
+                    hint="Each book is judged by its own rule. Leave one alone and it is not judged.">
                     {rules === null ? (
                         <p className="text-sm text-ink-faint py-2">Loading…</p>
                     ) : portfolios.length === 0 ? (
@@ -187,6 +183,10 @@ export default function JournalSettingsModal({ settings, portfolios = [], byTrac
                         </div>
                     )}
                 </Section>
+                <NamedList title="Things you're tracking" items={trackers} onChange={setTrackers}
+                    stats={byTracker} placeholder="name it in your own words"
+                    hint="Tapped when you close one." />
+
 
             </div>
         </Modal>

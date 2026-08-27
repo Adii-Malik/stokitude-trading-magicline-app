@@ -6,7 +6,8 @@
  */
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { computeMetrics, decorate, statsFor, orderByHome, HOME } from './journalService.js';
+import { computeMetrics, decorate, statsFor, exchangeScope } from './journalService.js';
+import { marketOfCurrency, marketOfExchange, currencyOfMarket, DEFAULT_MARKET } from '../config/exchanges.js';
 
 const trade = (o = {}) => ({
     symbol: 'X', currency: 'USD', direction: 'long', quantity: 10,
@@ -252,26 +253,54 @@ describe('what the trader is asked for', () => {
     });
 });
 
-describe('which market leads', () => {
-    test('home comes first even when every trade was somewhere else', () => {
-        // Six US trades and one PSX trade used to open the journal on USD.
-        const rows = orderByHome([
-            { currency: 'USD', closedTrades: 6 },
-            { currency: 'PKR', closedTrades: 1 },
-            { currency: 'GBP', closedTrades: 3 }
-        ]);
-        assert.deepEqual(rows.map(r => r.currency), ['PKR', 'USD', 'GBP']);
+describe('the market is a boundary, not a filter', () => {
+    // Ordering PKR ahead of USD was the old answer to two currencies on one
+    // screen. Scoping the app to a market means only one is ever present, so
+    // there is nothing left to order - these cover the registry that replaced it.
+    test('a currency belongs to exactly one market', () => {
+        assert.equal(marketOfCurrency('PKR'), 'PK');
+        assert.equal(marketOfCurrency('USD'), 'US');
     });
 
-    test('with home absent the heaviest leads', () => {
-        const rows = orderByHome([
-            { currency: 'GBP', closedTrades: 2 },
-            { currency: 'USD', closedTrades: 9 }
-        ]);
-        assert.deepEqual(rows.map(r => r.currency), ['USD', 'GBP']);
+    test('both US exchanges are one market', () => {
+        assert.equal(marketOfExchange('NASDAQ'), 'US');
+        assert.equal(marketOfExchange('NYSE'), 'US');
+        assert.equal(marketOfExchange('PSX'), 'PK');
     });
 
-    test('home is PKR, because the default exchange is PSX', () => {
-        assert.equal(HOME, 'PKR');
+    test('an unknown currency falls back to home rather than vanishing', () => {
+        assert.equal(marketOfCurrency('GBP'), 'PK');
+        assert.equal(marketOfExchange('LSE'), 'PK');
+    });
+
+    test('home is Pakistan', () => {
+        assert.equal(DEFAULT_MARKET, 'PK');
+        assert.equal(currencyOfMarket(DEFAULT_MARKET), 'PKR');
+    });
+});
+
+describe('a market cannot be escaped by a query parameter', () => {
+    test('unscoped sees everything', () => {
+        assert.equal(exchangeScope(null), null);
+    });
+
+    test('a market limits to its own exchanges', () => {
+        assert.deepEqual(exchangeScope('PK'), ['PSX']);
+        assert.deepEqual(exchangeScope('US'), ['NASDAQ', 'NYSE']);
+    });
+
+    test('a filter may narrow inside the market', () => {
+        assert.deepEqual(exchangeScope('US', 'nasdaq'), ['NASDAQ']);
+    });
+
+    // The alternative - ignoring the filter and returning the whole market -
+    // would answer a question about the US with Pakistani trades.
+    test('a filter may not reach outside it', () => {
+        assert.deepEqual(exchangeScope('PK', 'NASDAQ'), []);
+        assert.deepEqual(exchangeScope('US', 'PSX'), []);
+    });
+
+    test('without a market the filter still applies', () => {
+        assert.deepEqual(exchangeScope(null, 'PSX'), ['PSX']);
     });
 });

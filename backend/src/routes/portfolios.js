@@ -49,7 +49,7 @@ router.get('/', async (req, res) => {
         // One batched pass, not a dashboard per portfolio. The cards read three
         // numbers; the dashboard computed tax years, filer status and disposals
         // for each of them, six sequential queries at a time.
-        const summaries = await portfolioService.summaries(req.user._id);
+        const summaries = await portfolioService.summaries(req.user._id, req.market);
 
         res.json({
             success: true,

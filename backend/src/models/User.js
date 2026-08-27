@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { MARKET_CODES, DEFAULT_MARKET } from '../config/exchanges.js';
 import bcrypt from 'bcryptjs';
 
 const userSchema = new mongoose.Schema({
@@ -30,6 +31,16 @@ const userSchema = new mongoose.Schema({
   },
   // FBR filer status. Drives holding-period CGT and dividend WHT rates across
   // all of the user's portfolios: filers are taxed more lightly than non-filers.
+  // Which market the app is scoped to. Pakistan and the US share a login and
+  // nothing else, so this is closer to a theme than a filter: it is answered
+  // once and every screen inherits it.
+  activeMarket: {
+    type: String,
+    enum: MARKET_CODES,
+    default: DEFAULT_MARKET,
+    uppercase: true
+  },
+
   filerStatus: {
     type: String,
     enum: ['FILER', 'NON_FILER'],

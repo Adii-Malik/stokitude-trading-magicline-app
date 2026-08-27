@@ -39,14 +39,16 @@ export default function Dashboard() {
     }
   };
 
-  // Counts sum safely across currencies. Money does not, which is why no rupee
-  // or dollar figure appears here - it would silently add PKR to USD.
-  const totals = (stats?.byCurrency || []).reduce((t, c) => ({
-    wins: t.wins + (c.wins || 0),
-    losses: t.losses + (c.losses || 0),
-    closed: t.closed + (c.closedTrades || 0),
-    open: t.open + (c.openTrades || 0)
-  }), { wins: 0, losses: 0, closed: 0, open: 0 });
+  // One market, so these are simply the figures. This used to sum counts across
+  // currencies and keep money out entirely, because adding PKR to USD is not a
+  // number - a problem that stopped existing when the app began being scoped to
+  // one market at a time.
+  const totals = {
+    wins: stats?.wins || 0,
+    losses: stats?.losses || 0,
+    closed: stats?.closedTrades || 0,
+    open: stats?.openTrades || 0
+  };
 
   // Over trades that finished, not over everything ever recorded. The old
   // version divided by total plans, which quietly understated the rate.
@@ -112,8 +114,8 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-500">
-              {stats?.process?.openWithoutStop
-                ? `${stats.process.openWithoutStop} with no stop set`
+              {stats?.openWithoutStop
+                ? `${stats.openWithoutStop} with no stop set`
                 : totals.open ? 'all with a stop set' : 'nothing running'}
             </div>
           </div>

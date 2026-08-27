@@ -5,7 +5,7 @@
  */
 import JournalEntry from '../models/JournalEntry.js';
 import RiskProfile from '../models/RiskProfile.js';
-import { DEFAULT_EXCHANGE, currencyOf } from '../config/exchanges.js';
+import { getMarket, currencyOfMarket } from '../config/exchanges.js';
 import { capitalFor } from './riskContext.js';
 
 import { removeChart } from './chartStorage.js';
@@ -118,26 +118,22 @@ export function decorate(entry) {
 
 const pct = (n, d) => (d > 0 ? (n / d) * 100 : 0);
 
-/** The currency this app is built around: PSX settlement, slabs, holding-period CGT. */
-export const HOME = currencyOf(DEFAULT_EXCHANGE);
-
 /**
- * Home market first, the rest behind it by weight.
+ * Which exchanges a query may see.
  *
- * Ordering by weight alone opened the journal on whichever market happened to
- * have more closed trades that month - so a run of US trades quietly demoted
- * PSX, which is the book everything else in this app is built for.
+ * The market is a boundary, not a filter: a query parameter can narrow inside
+ * it but never reach outside it. Asking for NASDAQ while scoped to Pakistan
+ * returns an empty list rather than the whole market, because "US trades on the
+ * PSX" has no answer and pretending otherwise would leak one market into the
+ * other. Null means unscoped, which is what the internal callers want.
  */
-export function orderByHome(rows) {
-    return [...rows].sort((a, b) => {
-        if (a.currency === b.currency) return 0;
-        if (a.currency === HOME) return -1;
-        if (b.currency === HOME) return 1;
-        return b.closedTrades - a.closedTrades;
-    });
+export function exchangeScope(market, wanted = null) {
+    const allowed = market ? getMarket(market).exchanges : null;
+    const asked = wanted ? [String(wanted).toUpperCase()] : null;
+    if (allowed && asked) return asked.filter(e => allowed.includes(e));
+    return asked || allowed;
 }
 
-/** Stats for one currency's trades. Mixing PKR and USD into one figure is meaningless. */
 export function statsFor(entries) {
     const closed = entries.filter(e => e.status === 'closed');
     const open = entries.filter(e => e.status === 'open');
@@ -280,10 +276,13 @@ async function sizeInRule(userId, entries) {
 
 class JournalService {
     /** Every match, decorated. Stats need the full set, never a page of it. */
-    async findAll(userId, filters = {}) {
+    async findAll(userId, filters = {}, market = null) {
         const query = { user: userId };
         if (filters.symbol) query.symbol = filters.symbol.toUpperCase();
-        if (filters.exchange) query.exchange = filters.exchange.toUpperCase();
+
+        const exchanges = exchangeScope(market, filters.exchange);
+        if (exchanges) query.exchange = { $in: exchanges };
+
         if (filters.setupType) query.setupType = filters.setupType;
         if (filters.from || filters.to) {
             query.entryDate = {};
@@ -310,8 +309,8 @@ class JournalService {
     }
 
     /** A page of entries plus the full match count, so the UI can say "20 of 137". */
-    async list(userId, filters = {}) {
-        const entries = await this.findAll(userId, filters);
+    async list(userId, filters = {}, market = null) {
+        const entries = await this.findAll(userId, filters, market);
         const skip = Math.max(0, parseInt(filters.skip, 10) || 0);
         const limit = Math.min(200, Math.max(1, parseInt(filters.limit, 10) || 25));
         return { total: entries.length, entries: entries.slice(skip, skip + limit) };
@@ -376,31 +375,22 @@ class JournalService {
      * is worth. Capital is today's value, not the value on the day of the trade -
      * the honest approximation, and stated as such rather than quietly implied.
      */
-    async stats(userId, filters = {}) {
-        const entries = await this.findAll(userId, filters);
+    /**
+     * One market, so one set of figures.
+     *
+     * This used to return an array keyed by currency, with the money kept out of
+     * the summary because PKR and USD cannot be added. Scoping the app to a
+     * market removes the question: there is one currency here, so the totals are
+     * simply the totals.
+     */
+    async stats(userId, filters = {}, market = null) {
+        const entries = await this.findAll(userId, filters, market);
 
-        const currencies = [...new Set(entries.map(e => e.currency || HOME))];
-        const byCurrency = orderByHome(currencies.map(currency => ({
-            currency,
-            ...statsFor(entries.filter(e => (e.currency || HOME) === currency))
-        })));
-
-        const all = statsFor(entries);
         return {
-            byCurrency,
-            process: {
-                totalTrades: all.totalTrades,
-                openTrades: all.openTrades,
-                closedTrades: all.closedTrades,
-                stopSet: all.stopSet,
-                sizeInRule: await sizeInRule(userId, entries),
-                openWithoutStop: all.openWithoutStop,
-                // Counts only. A total here would sum currencies, so money stays
-                // inside byCurrency.
-                byTracker: all.byTracker.map(({ name, count }) => ({ name, count })),
-                byExit: all.byExit.map(({ key, count, winRate }) => ({ key, count, winRate })),
-                bySetup: all.bySetup.map(({ key, count, winRate }) => ({ key, count, winRate }))
-            }
+            market: getMarket(market).code,
+            currency: currencyOfMarket(market),
+            ...statsFor(entries),
+            sizeInRule: await sizeInRule(userId, entries)
         };
     }
 }

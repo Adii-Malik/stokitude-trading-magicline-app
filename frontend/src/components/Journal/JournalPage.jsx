@@ -29,7 +29,6 @@ export default function JournalPage() {
     const [flagged, setFlagged] = useState(false);
     const [search, setSearch] = useState('');
     const [query, setQuery] = useState('');
-    const [currency, setCurrency] = useState(null);
 
     const [selectedId, setSelectedId] = useState(null);
     const [editing, setEditing] = useState(null);
@@ -68,28 +67,16 @@ export default function JournalPage() {
         getSettings().then(setSettings).catch(() => setSettings(null));
     }, []);
 
-    // Which currency's figures the tiles are showing. PKR and USD never sum, so
-    // one is always chosen; default to the book with the most closed trades.
-    const books = stats?.byCurrency || [];
-    const shown = books.find((b) => b.currency === currency) || books[0] || null;
-    useEffect(() => {
-        if (!currency && books.length) setCurrency(books[0].currency);
-    }, [books, currency]);
-
     /**
-     * One market at a time.
+     * One market, decided upstream.
      *
-     * PKR and USD cannot be added, so the tiles have always shown one currency -
-     * but the list underneath showed every trade regardless, which made the
-     * figures describe a subset of what was on screen. A PSX book and a US one
-     * are different rules, different tax and different capital; they are two
-     * journals that happen to share a page, and the switch now says which one
-     * you are reading.
+     * This page used to carry its own PKR/USD switch and filter the list to
+     * match, which meant two places could disagree about what you were reading.
+     * The app is now scoped to a market in the header, the request says so, and
+     * everything that arrives here is already the right market.
      */
-    const inMarket = useMemo(
-        () => entries.filter((e) => !shown || (e.currency || 'PKR') === shown.currency),
-        [entries, shown]
-    );
+    const shown = stats || null;
+    const inMarket = entries;
 
     const flaggedCount = useMemo(() => inMarket.filter(needsYou).length, [inMarket]);
 
@@ -161,18 +148,6 @@ export default function JournalPage() {
                         <BookOpen className="w-6 h-6 text-cyan-500" />
                         Journal
                     </h1>
-                    {books.length > 1 && (
-                        <div className="flex gap-1 bg-surface ring-1 ring-hairline rounded-control p-1">
-                            {books.map((b) => (
-                                <button key={b.currency} onClick={() => setCurrency(b.currency)}
-                                    className={`px-3 py-1.5 rounded-control text-sm font-semibold ${b.currency === shown?.currency
-                                        ? 'bg-cyan-500 text-white' : 'text-ink-faint hover:text-ink'}`}>
-                                    {b.currency}
-                                    <span className="ml-1.5 text-xs opacity-70 tabular-nums">{b.totalTrades}</span>
-                                </button>
-                            ))}
-                        </div>
-                    )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                     <button onClick={() => open(null)}

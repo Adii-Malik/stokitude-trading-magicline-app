@@ -1,4 +1,5 @@
 import express from 'express';
+import { MARKET_CODES, MARKETS, marketOfCurrency } from '../config/exchanges.js';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import config from '../config/config.js';
@@ -166,10 +167,26 @@ router.post('/logout', (req, res) => {
 // GET /api/auth/me - Get current user
 router.get('/me', authenticate, async (req, res) => {
   try {
+    // Which markets this user actually trades in, so the client can hide a
+    // switch that has only one option. Derived from the books rather than
+    // stored, because opening a US account is how you gain the US market.
+    const books = await Portfolio.find({
+      $or: [{ owner: req.user._id }, { 'sharedWith.user': req.user._id }],
+      isActive: true
+    }).select('currency').lean();
+
+    const held = [...new Set(books.map(b => marketOfCurrency(b.currency)))];
+
     res.json({
       success: true,
       data: {
-        user: req.user
+        user: req.user,
+        markets: {
+          active: req.market,
+          // The active one is always listed, even before its first book exists.
+          held: MARKET_CODES.filter(code => held.includes(code) || code === req.market)
+            .map(code => ({ code, name: MARKETS[code].name, currency: MARKETS[code].currency }))
+        }
       }
     });
   } catch (error) {
@@ -183,6 +200,34 @@ router.get('/me', authenticate, async (req, res) => {
 });
 
 // GET /api/auth/check - Quick auth check (no user data)
+/**
+ * Which market the app is scoped to.
+ *
+ * Stored on the user rather than held in the browser, so the choice survives a
+ * new device and the server can scope a request without being told twice. Also
+ * reports which markets the user actually holds books in - a switch with one
+ * option is a switch worth hiding.
+ */
+router.put('/market', authenticate, async (req, res) => {
+  try {
+    const wanted = String(req.body.market || '').toUpperCase();
+    if (!MARKET_CODES.includes(wanted)) {
+      return res.status(400).json({
+        success: false,
+        message: `Unknown market. Expected one of ${MARKET_CODES.join(', ')}.`
+      });
+    }
+
+    req.user.activeMarket = wanted;
+    await req.user.save();
+
+    res.json({ success: true, data: { activeMarket: wanted } });
+  } catch (error) {
+    console.error('Set market error:', error);
+    res.status(500).json({ success: false, message: 'Failed to change market' });
+  }
+});
+
 router.get('/check', authenticate, (req, res) => {
   res.json({
     success: true,
