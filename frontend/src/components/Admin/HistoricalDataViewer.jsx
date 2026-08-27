@@ -142,10 +142,10 @@ export default function HistoricalDataViewer() {
           <div className="flex items-center gap-3 mb-2">
             <BarChart3 className="w-8 h-8 text-cyan-500 dark:text-cyan-400" />
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+              <h1 className="text-3xl font-bold text-ink">
                 Historical Data: {symbol}
               </h1>
-              <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
+              <p className="text-ink-muted text-sm mt-1">
                 View and download OHLCV data
               </p>
             </div>
@@ -154,7 +154,7 @@ export default function HistoricalDataViewer() {
 
         {/* Message Banner */}
         {message && (
-          <div className={`mb-6 p-4 rounded-lg border flex items-start gap-3 transition-all ${message.type === 'success'
+          <div className={`mb-6 p-4 rounded-control border flex items-start gap-3 transition-all ${message.type === 'success'
             ? 'bg-green-50 dark:bg-green-500/10 border-green-200 dark:border-green-500/50 text-green-700 dark:text-green-400'
             : 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/50 text-red-700 dark:text-red-400'
             }`}>
@@ -169,7 +169,7 @@ export default function HistoricalDataViewer() {
         )}
 
         {/* Controls */}
-        <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-lg p-6 mb-6 shadow-md">
+        <div className="bg-surface/50 backdrop-blur-sm border border-hairline rounded-control p-6 mb-6 shadow-card-hover">
           <div className="flex flex-col gap-6">
 
             {/* Top Row: Timeframe & Download */}
@@ -177,7 +177,7 @@ export default function HistoricalDataViewer() {
               <div className="flex flex-col sm:flex-row gap-4">
                 {/* Timeframe Selector */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-sm font-medium text-ink-muted mb-2">
                     Timeframe
                   </label>
                   <div className="flex gap-2">
@@ -185,9 +185,9 @@ export default function HistoricalDataViewer() {
                       <button
                         key={tf}
                         onClick={() => handleTimeframeChange(tf)}
-                        className={`px-4 py-2 rounded-lg font-medium transition-all ${timeframe === tf
-                          ? 'bg-cyan-500 text-white shadow-lg'
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                        className={`px-4 py-2 rounded-control font-medium transition-all ${timeframe === tf
+                          ? 'bg-cyan-500 text-white shadow-card-hover'
+                          : 'bg-surface-muted text-ink-muted hover:bg-hairline dark:hover:bg-gray-600'
                           }`}
                       >
                         {tf.charAt(0).toUpperCase() + tf.slice(1)}
@@ -201,7 +201,7 @@ export default function HistoricalDataViewer() {
               <button
                 onClick={handleDownloadCSV}
                 disabled={downloading || data.length === 0}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white font-medium rounded-control transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-card-hover hover:shadow-dialog"
               >
                 <Download className="w-4 h-4" />
                 {downloading ? 'Downloading...' : 'Download CSV'}
@@ -209,10 +209,10 @@ export default function HistoricalDataViewer() {
             </div>
 
             {/* Bottom Row: Date Range Filters */}
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+            <div className="border-t border-hairline pt-4">
               <div className="flex flex-col md:flex-row md:items-end gap-4">
                 <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                  <label className="block text-sm font-medium text-ink-muted mb-2 flex items-center gap-2">
                     <Calendar className="w-4 h-4" />
                     From Date
                   </label>
@@ -224,13 +224,13 @@ export default function HistoricalDataViewer() {
                       setPagination(prev => ({ ...prev, page: 1 }));
                     }}
                     max={endDate || new Date().toISOString().split('T')[0]}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    className="w-full px-4 py-2 border border-hairline rounded-control bg-surface text-ink focus:outline-none focus:ring-2 focus:ring-cyan-500"
                     placeholder="Optional"
                   />
                 </div>
 
                 <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                  <label className="block text-sm font-medium text-ink-muted mb-2 flex items-center gap-2">
                     <Calendar className="w-4 h-4" />
                     To Date
                   </label>
@@ -243,7 +243,7 @@ export default function HistoricalDataViewer() {
                     }}
                     min={startDate}
                     max={new Date().toISOString().split('T')[0]}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    className="w-full px-4 py-2 border border-hairline rounded-control bg-surface text-ink focus:outline-none focus:ring-2 focus:ring-cyan-500"
                     placeholder="Optional"
                   />
                 </div>
@@ -251,7 +251,7 @@ export default function HistoricalDataViewer() {
                 <div className="flex gap-2">
                   {/* Quick filters */}
                   <div className="flex flex-col gap-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-sm font-medium text-ink-muted mb-1">
                       Quick Filter
                     </label>
                     <div className="flex gap-2">
@@ -263,7 +263,7 @@ export default function HistoricalDataViewer() {
                           setEndDate(new Date().toISOString().split('T')[0]);
                           setPagination(prev => ({ ...prev, page: 1 }));
                         }}
-                        className="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
+                        className="px-3 py-2 bg-surface-muted hover:bg-hairline dark:hover:bg-gray-600 text-ink-muted text-sm font-medium rounded-control transition-colors whitespace-nowrap"
                       >
                         1 Year
                       </button>
@@ -275,7 +275,7 @@ export default function HistoricalDataViewer() {
                           setEndDate(new Date().toISOString().split('T')[0]);
                           setPagination(prev => ({ ...prev, page: 1 }));
                         }}
-                        className="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
+                        className="px-3 py-2 bg-surface-muted hover:bg-hairline dark:hover:bg-gray-600 text-ink-muted text-sm font-medium rounded-control transition-colors whitespace-nowrap"
                       >
                         5 Years
                       </button>
@@ -284,12 +284,12 @@ export default function HistoricalDataViewer() {
 
                   {(startDate || endDate) && (
                     <div className="flex flex-col gap-2">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 opacity-0">
+                      <label className="block text-sm font-medium text-ink-muted mb-1 opacity-0">
                         Clear
                       </label>
                       <button
                         onClick={handleClearFilters}
-                        className="px-4 py-2 bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/50 text-red-700 dark:text-red-300 font-medium rounded-lg transition-colors whitespace-nowrap"
+                        className="px-4 py-2 bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/50 text-red-700 dark:text-red-300 font-medium rounded-control transition-colors whitespace-nowrap"
                       >
                         Clear All
                       </button>
@@ -299,7 +299,7 @@ export default function HistoricalDataViewer() {
               </div>
 
               {(startDate || endDate) && (
-                <div className="mt-3 flex items-center gap-2 text-sm text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/30 rounded-lg p-2">
+                <div className="mt-3 flex items-center gap-2 text-sm text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/30 rounded-control p-2">
                   <CheckCircle className="w-4 h-4" />
                   <span>
                     {startDate && endDate
@@ -315,16 +315,16 @@ export default function HistoricalDataViewer() {
         </div>
 
         {/* Data Table */}
-        <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden shadow-md">
+        <div className="bg-surface/50 backdrop-blur-sm border border-hairline rounded-control overflow-hidden shadow-card-hover">
           {loading ? (
             <ContentLoader message="Loading historical data..." />
           ) : data.length === 0 ? (
             <div className="p-12 text-center">
-              <BarChart3 className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
+              <BarChart3 className="w-16 h-16 text-ink-faint mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-ink-muted mb-2">
                 No Data Available
               </h3>
-              <p className="text-gray-500 dark:text-gray-400">
+              <p className="text-ink-muted">
                 No historical data found for {symbol} in {timeframe} timeframe
               </p>
             </div>
@@ -332,43 +332,43 @@ export default function HistoricalDataViewer() {
             <>
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700">
+                  <thead className="bg-surface-muted border-b border-hairline">
                     <tr>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-6 py-4 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">
                         Date
                       </th>
-                      <th className="px-6 py-4 text-right text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-6 py-4 text-right text-xs font-medium text-ink-muted uppercase tracking-wider">
                         Open
                       </th>
-                      <th className="px-6 py-4 text-right text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-6 py-4 text-right text-xs font-medium text-ink-muted uppercase tracking-wider">
                         High
                       </th>
-                      <th className="px-6 py-4 text-right text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-6 py-4 text-right text-xs font-medium text-ink-muted uppercase tracking-wider">
                         Low
                       </th>
-                      <th className="px-6 py-4 text-right text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-6 py-4 text-right text-xs font-medium text-ink-muted uppercase tracking-wider">
                         Close
                       </th>
-                      <th className="px-6 py-4 text-right text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-6 py-4 text-right text-xs font-medium text-ink-muted uppercase tracking-wider">
                         Volume
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                  <tbody className="divide-y divide-hairline">
                     {data.map((row, idx) => (
-                      <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                      <tr key={idx} className="hover:bg-hairline dark:hover:bg-gray-700/30 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="font-medium text-gray-900 dark:text-gray-300">
+                          <span className="font-medium text-ink">
                             {new Date(row.date).toLocaleDateString()}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-gray-900 dark:text-gray-300">
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-ink">
                           {row.open ? parseFloat(row.open).toFixed(2) : '-'}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-gray-900 dark:text-gray-300">
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-ink">
                           {row.high ? parseFloat(row.high).toFixed(2) : '-'}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-gray-900 dark:text-gray-300">
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-ink">
                           {row.low ? parseFloat(row.low).toFixed(2) : '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right">
@@ -376,7 +376,7 @@ export default function HistoricalDataViewer() {
                             {row.close ? parseFloat(row.close).toFixed(2) : '-'}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-gray-600 dark:text-gray-400 text-sm">
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-ink-muted text-sm">
                           {row.volume ? row.volume.toLocaleString() : '-'}
                         </td>
                       </tr>
@@ -386,23 +386,23 @@ export default function HistoricalDataViewer() {
               </div>
 
               {/* Pagination */}
-              <div className="px-6 py-4 bg-gray-50 dark:bg-gray-900/30 border-t border-gray-200 dark:border-gray-700">
+              <div className="px-6 py-4 bg-surface-muted border-t border-hairline">
                 <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
                   {/* Left: Info & Rows per page */}
                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                    <div className="text-sm text-ink-muted">
                       Showing {data.length > 0 ? ((pagination.page - 1) * pagination.limit) + 1 : 0} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} records
                     </div>
 
                     {/* Rows per page */}
                     <div className="flex items-center gap-2">
-                      <label className="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                      <label className="text-sm text-ink-muted whitespace-nowrap">
                         Rows per page:
                       </label>
                       <select
                         value={pagination.limit}
                         onChange={(e) => handlePageSizeChange(e.target.value)}
-                        className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 font-medium"
+                        className="px-3 py-1.5 border border-hairline rounded-control bg-surface text-ink text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 font-medium"
                       >
                         <option value="25">25</option>
                         <option value="50">50</option>
@@ -418,7 +418,7 @@ export default function HistoricalDataViewer() {
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
                       {/* Jump to page */}
                       <form onSubmit={handleJumpToPage} className="flex items-center gap-2">
-                        <span className="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">Go to:</span>
+                        <span className="text-sm text-ink-muted whitespace-nowrap">Go to:</span>
                         <input
                           type="number"
                           min="1"
@@ -426,12 +426,12 @@ export default function HistoricalDataViewer() {
                           value={jumpToPage}
                           onChange={(e) => setJumpToPage(e.target.value)}
                           placeholder={`${pagination.page}`}
-                          className="w-20 px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                          className="w-20 px-3 py-1.5 border border-hairline rounded-control bg-surface text-ink text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
                         />
                         <button
                           type="submit"
                           disabled={!jumpToPage || parseInt(jumpToPage) < 1 || parseInt(jumpToPage) > pagination.pages}
-                          className="px-3 py-1.5 bg-cyan-500 hover:bg-cyan-600 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="px-3 py-1.5 bg-cyan-500 hover:bg-cyan-600 text-white text-sm font-medium rounded-control transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           Go
                         </button>
@@ -442,7 +442,7 @@ export default function HistoricalDataViewer() {
                         <button
                           onClick={() => setPagination(prev => ({ ...prev, page: 1 }))}
                           disabled={pagination.page === 1}
-                          className="p-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="p-2 bg-surface-muted hover:bg-hairline dark:hover:bg-gray-600 text-ink-muted rounded-control transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           title="First page"
                         >
                           <ChevronsLeft className="w-4 h-4" />
@@ -450,18 +450,18 @@ export default function HistoricalDataViewer() {
                         <button
                           onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
                           disabled={pagination.page === 1}
-                          className="p-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="p-2 bg-surface-muted hover:bg-hairline dark:hover:bg-gray-600 text-ink-muted rounded-control transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           title="Previous page"
                         >
                           <ChevronLeft className="w-4 h-4" />
                         </button>
-                        <span className="px-4 py-2 text-gray-700 dark:text-gray-300 font-medium text-sm flex items-center">
+                        <span className="px-4 py-2 text-ink-muted font-medium text-sm flex items-center">
                           {pagination.page} / {pagination.pages}
                         </span>
                         <button
                           onClick={() => setPagination(prev => ({ ...prev, page: Math.min(pagination.pages, prev.page + 1) }))}
                           disabled={pagination.page >= pagination.pages}
-                          className="p-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="p-2 bg-surface-muted hover:bg-hairline dark:hover:bg-gray-600 text-ink-muted rounded-control transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           title="Next page"
                         >
                           <ChevronRight className="w-4 h-4" />
@@ -469,7 +469,7 @@ export default function HistoricalDataViewer() {
                         <button
                           onClick={() => setPagination(prev => ({ ...prev, page: pagination.pages }))}
                           disabled={pagination.page >= pagination.pages}
-                          className="p-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="p-2 bg-surface-muted hover:bg-hairline dark:hover:bg-gray-600 text-ink-muted rounded-control transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           title="Last page"
                         >
                           <ChevronsRight className="w-4 h-4" />

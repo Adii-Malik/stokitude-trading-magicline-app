@@ -121,7 +121,7 @@ export default function CreateJobModal({ onClose, onCreated }) {
             onChange={(e) => handleConfigChange(param.name, parseInt(e.target.value) || 0)}
             min={param.min}
             max={param.max}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-hairline rounded-control focus:outline-none focus:ring-2 focus:ring-blue-500"
             required={param.required}
           />
         );
@@ -133,9 +133,9 @@ export default function CreateJobModal({ onClose, onCreated }) {
               type="checkbox"
               checked={value || false}
               onChange={(e) => handleConfigChange(param.name, e.target.checked)}
-              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              className="w-4 h-4 text-blue-600 border-hairline rounded focus:ring-blue-500"
             />
-            <span className="ml-2 text-sm text-gray-700">{param.helpText}</span>
+            <span className="ml-2 text-sm text-ink">{param.helpText}</span>
           </label>
         );
 
@@ -145,7 +145,7 @@ export default function CreateJobModal({ onClose, onCreated }) {
             type="text"
             value={value || ''}
             onChange={(e) => handleConfigChange(param.name, e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-hairline rounded-control focus:outline-none focus:ring-2 focus:ring-blue-500"
             required={param.required}
           />
         );
@@ -155,7 +155,7 @@ export default function CreateJobModal({ onClose, onCreated }) {
           <select
             value={value || ''}
             onChange={(e) => handleConfigChange(param.name, e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-hairline rounded-control focus:outline-none focus:ring-2 focus:ring-blue-500"
             required={param.required}
           >
             {param.options.map(opt => (
@@ -181,9 +181,9 @@ export default function CreateJobModal({ onClose, onCreated }) {
                       : currentValue.filter(v => v !== opt.value);
                     handleConfigChange(param.name, newValue);
                   }}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  className="w-4 h-4 text-blue-600 border-hairline rounded focus:ring-blue-500"
                 />
-                <span className="ml-2 text-sm text-gray-700">{opt.label}</span>
+                <span className="ml-2 text-sm text-ink">{opt.label}</span>
               </label>
             ))}
           </div>
@@ -195,7 +195,7 @@ export default function CreateJobModal({ onClose, onCreated }) {
             type="text"
             value={value || ''}
             onChange={(e) => handleConfigChange(param.name, e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-hairline rounded-control focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         );
     }
@@ -203,18 +203,18 @@ export default function CreateJobModal({ onClose, onCreated }) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-surface rounded-control shadow-dialog max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+        <div className="sticky top-0 bg-surface border-b border-hairline px-6 py-4 flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-800">Create New Job</h2>
-            <p className="text-sm text-gray-600 mt-1">
+            <h2 className="text-2xl font-bold text-ink">Create New Job</h2>
+            <p className="text-sm text-ink-muted mt-1">
               Step {step} of 2: {step === 1 ? 'Select Job Type' : 'Configure Job'}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+            className="text-ink-faint hover:text-ink text-2xl leading-none"
           >
             ×
           </button>
@@ -223,7 +223,7 @@ export default function CreateJobModal({ onClose, onCreated }) {
         {/* Content */}
         <div className="p-6">
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-control mb-6">
               {error}
             </div>
           )}
@@ -241,14 +241,14 @@ export default function CreateJobModal({ onClose, onCreated }) {
                     key={type.type}
                     onClick={() => handleTypeSelect(type)}
                     disabled={type.constraints?.deprecated}
-                    className={`p-6 border-2 rounded-lg text-left transition-all hover:shadow-lg ${type.constraints?.deprecated
-                        ? 'border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed'
-                        : 'border-gray-200 hover:border-blue-500'
+                    className={`p-6 border-2 rounded-control text-left transition-all hover:shadow-card-hover ${type.constraints?.deprecated
+                        ? 'border-hairline bg-surface-muted opacity-50 cursor-not-allowed'
+                        : 'border-hairline hover:border-blue-500'
                       }`}
                   >
                     <div className="text-4xl mb-3">{type.icon}</div>
-                    <h3 className="font-bold text-lg text-gray-800 mb-2">{type.name}</h3>
-                    <p className="text-sm text-gray-600 mb-3">{type.description}</p>
+                    <h3 className="font-bold text-lg text-ink mb-2">{type.name}</h3>
+                    <p className="text-sm text-ink-muted mb-3">{type.description}</p>
                     <div className="flex items-center justify-between">
                       <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
                         {type.category}
@@ -268,31 +268,31 @@ export default function CreateJobModal({ onClose, onCreated }) {
             <div className="space-y-6">
               {/* Job Name */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-ink mb-2">
                   Job Name
                 </label>
                 <input
                   type="text"
                   value={jobName}
                   onChange={(e) => setJobName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-hairline rounded-control focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Enter job name"
                 />
               </div>
 
               {/* Parameters */}
               <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Configuration</h3>
+                <h3 className="text-lg font-semibold text-ink mb-4">Configuration</h3>
                 <div className="space-y-4">
                   {selectedType.parameters.map(param => (
                     <div key={param.name}>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-ink mb-2">
                         {param.label}
                         {param.required && <span className="text-red-500 ml-1">*</span>}
                       </label>
                       {renderParameterInput(param)}
                       {param.description && (
-                        <p className="text-xs text-gray-500 mt-1">{param.description}</p>
+                        <p className="text-xs text-ink-muted mt-1">{param.description}</p>
                       )}
                     </div>
                   ))}
@@ -301,7 +301,7 @@ export default function CreateJobModal({ onClose, onCreated }) {
 
               {/* Schedule - Universal SFCC-Style */}
               <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Schedule</h3>
+                <h3 className="text-lg font-semibold text-ink mb-4">Schedule</h3>
                 <div className="space-y-4">
                   {/* Recurrence Toggle */}
                   <div>
@@ -316,8 +316,8 @@ export default function CreateJobModal({ onClose, onCreated }) {
                         className="w-5 h-5 text-blue-600 rounded"
                       />
                       <span className="ml-3">
-                        <span className="text-sm font-medium text-gray-900">Enable Automatic Recurrence</span>
-                        <p className="text-xs text-gray-500">Uncheck for manual trigger only (Run Now button)</p>
+                        <span className="text-sm font-medium text-ink">Enable Automatic Recurrence</span>
+                        <p className="text-xs text-ink-muted">Uncheck for manual trigger only (Run Now button)</p>
                       </span>
                     </label>
                   </div>
@@ -325,13 +325,13 @@ export default function CreateJobModal({ onClose, onCreated }) {
                   {schedule.recurring?.enabled ? (
                     <>
                       {/* Recurrence Settings */}
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-4">
+                      <div className="bg-blue-50 border border-blue-200 rounded-control p-4 space-y-4">
                         <div className="font-medium text-blue-900">Run Every:</div>
 
                         {/* Amount & Interval */}
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className="block text-sm font-medium text-ink mb-2">
                               Amount *
                             </label>
                             <input
@@ -342,11 +342,11 @@ export default function CreateJobModal({ onClose, onCreated }) {
                                 ...prev,
                                 recurring: { ...prev.recurring, amount: parseInt(e.target.value) || 1 }
                               }))}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              className="w-full px-3 py-2 border border-hairline rounded-control focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className="block text-sm font-medium text-ink mb-2">
                               Interval *
                             </label>
                             <select
@@ -355,7 +355,7 @@ export default function CreateJobModal({ onClose, onCreated }) {
                                 ...prev,
                                 recurring: { ...prev.recurring, interval: e.target.value }
                               }))}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              className="w-full px-3 py-2 border border-hairline rounded-control focus:outline-none focus:ring-2 focus:ring-blue-500"
                             >
                               <option value="minutes">Minutes</option>
                               <option value="hours">Hours</option>
@@ -368,8 +368,8 @@ export default function CreateJobModal({ onClose, onCreated }) {
 
                         {/* Days of Week */}
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Run Only On These Days: <span className="text-xs text-gray-500">(Empty = All days)</span>
+                          <label className="block text-sm font-medium text-ink mb-2">
+                            Run Only On These Days: <span className="text-xs text-ink-muted">(Empty = All days)</span>
                           </label>
                           <div className="flex gap-2 flex-wrap">
                             {[
@@ -396,9 +396,9 @@ export default function CreateJobModal({ onClose, onCreated }) {
                                       recurring: { ...prev.recurring, daysOfWeek: newDays }
                                     }));
                                   }}
-                                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${isSelected
+                                  className={`px-4 py-2 rounded-control font-medium transition-colors ${isSelected
                                       ? 'bg-blue-600 text-white'
-                                      : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                                      : 'bg-surface border border-hairline text-ink hover:bg-hairline'
                                     }`}
                                 >
                                   {day.label}
@@ -410,8 +410,8 @@ export default function CreateJobModal({ onClose, onCreated }) {
 
                         {/* Specific Time */}
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            At Specific Time: <span className="text-xs text-gray-500">(Optional, 24-hour format)</span>
+                          <label className="block text-sm font-medium text-ink mb-2">
+                            At Specific Time: <span className="text-xs text-ink-muted">(Optional, 24-hour format)</span>
                           </label>
                           <input
                             type="time"
@@ -420,15 +420,15 @@ export default function CreateJobModal({ onClose, onCreated }) {
                               ...prev,
                               recurring: { ...prev.recurring, time: e.target.value }
                             }))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-3 py-2 border border-hairline rounded-control focus:outline-none focus:ring-2 focus:ring-blue-500"
                           />
-                          <p className="text-xs text-gray-500 mt-1">
+                          <p className="text-xs text-ink-muted mt-1">
                             Leave empty to run throughout the day
                           </p>
                         </div>
 
                         {/* Summary */}
-                        <div className="bg-white rounded p-3 text-sm">
+                        <div className="bg-surface rounded p-3 text-sm">
                           <strong>Summary:</strong> Runs every{' '}
                           <strong>{schedule.recurring?.amount || 1}</strong>{' '}
                           <strong>{schedule.recurring?.interval || 'days'}</strong>
@@ -443,12 +443,12 @@ export default function CreateJobModal({ onClose, onCreated }) {
                     </>
                   ) : (
                     /* Manual Only */
-                    <div className="bg-gray-50 border border-gray-300 rounded-lg p-4">
+                    <div className="bg-surface-muted border border-hairline rounded-control p-4">
                       <div className="flex items-start gap-3">
                         <div className="text-3xl">👆</div>
                         <div>
-                          <h4 className="font-medium text-gray-900 mb-1">Manual Trigger Only</h4>
-                          <p className="text-sm text-gray-600">
+                          <h4 className="font-medium text-ink mb-1">Manual Trigger Only</h4>
+                          <p className="text-sm text-ink-muted">
                             This job will NOT run automatically. Use the <strong>"Run Now"</strong> button
                             to execute it manually whenever needed.
                           </p>
@@ -463,19 +463,19 @@ export default function CreateJobModal({ onClose, onCreated }) {
         </div>
 
         {/* Footer */}
-        <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex items-center justify-between">
+        <div className="sticky bottom-0 bg-surface-muted border-t border-hairline px-6 py-4 flex items-center justify-between">
           {step === 2 ? (
             <>
               <button
                 onClick={() => setStep(1)}
-                className="px-6 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium transition-colors"
+                className="px-6 py-2 text-ink hover:bg-hairline rounded-control font-medium transition-colors"
               >
                 ← Back
               </button>
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-control font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting ? 'Creating...' : 'Create Job'}
               </button>
@@ -483,7 +483,7 @@ export default function CreateJobModal({ onClose, onCreated }) {
           ) : (
             <button
               onClick={onClose}
-              className="ml-auto px-6 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium transition-colors"
+              className="ml-auto px-6 py-2 text-ink hover:bg-hairline rounded-control font-medium transition-colors"
             >
               Cancel
             </button>

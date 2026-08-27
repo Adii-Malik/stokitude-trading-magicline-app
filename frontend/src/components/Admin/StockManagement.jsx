@@ -307,29 +307,29 @@ export default function StockManagement() {
             <div className="flex items-center gap-3">
               <Database className="w-8 h-8 text-cyan-500 dark:text-cyan-400" />
               <div>
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Stock Management</h1>
-                <p className="text-gray-600 dark:text-gray-400">Manage PSX stock symbols and company data</p>
+                <h1 className="text-3xl font-bold text-ink">Stock Management</h1>
+                <p className="text-ink-muted">Manage PSX stock symbols and company data</p>
               </div>
             </div>
 
             <div className="flex gap-2">
               <button
                 onClick={handleAdd}
-                className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white font-medium rounded-lg transition-colors duration-200 flex items-center gap-2"
+                className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white font-medium rounded-control transition-colors duration-200 flex items-center gap-2"
               >
                 <Plus className="w-4 h-4" />
                 <span className="hidden sm:inline">Add Stock</span>
               </button>
               <button
                 onClick={() => setShowUploadModal(true)}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200 flex items-center gap-2"
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-control transition-colors duration-200 flex items-center gap-2"
               >
                 <Upload className="w-4 h-4" />
                 <span className="hidden sm:inline">Upload CSV</span>
               </button>
               <button
                 onClick={() => setShowScrapeModal(true)}
-                className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white font-medium rounded-lg transition-colors duration-200 flex items-center gap-2"
+                className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white font-medium rounded-control transition-colors duration-200 flex items-center gap-2"
               >
                 <Download className="w-4 h-4" />
                 <span className="hidden sm:inline">Scrape Data</span>
@@ -339,7 +339,7 @@ export default function StockManagement() {
 
           {/* Message Banner */}
           {message && (
-            <div className={`p-4 rounded-lg mb-4 flex items-start gap-3 ${message.type === 'success'
+            <div className={`p-4 rounded-control mb-4 flex items-start gap-3 ${message.type === 'success'
               ? 'bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/50 text-green-700 dark:text-green-400'
               : 'bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/50 text-red-700 dark:text-red-400'
               }`}>
@@ -356,17 +356,17 @@ export default function StockManagement() {
           )}
 
           {/* Search and Filters */}
-          <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+          <div className="bg-surface/50 backdrop-blur-sm border border-hairline rounded-control p-4">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="md:col-span-2">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-ink-faint" />
                   <input
                     type="text"
                     placeholder="Search by symbol or company name..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition"
+                    className="w-full pl-10 pr-4 py-2 bg-surface-muted border border-hairline text-ink placeholder-gray-500 dark:placeholder-gray-400 rounded-control focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition"
                   />
                 </div>
               </div>
@@ -374,7 +374,7 @@ export default function StockManagement() {
               <select
                 value={sectorFilter}
                 onChange={(e) => setSectorFilter(e.target.value)}
-                className="px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition"
+                className="px-4 py-2 bg-surface-muted border border-hairline text-ink rounded-control focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition"
               >
                 <option value="">All Sectors</option>
                 {sectors.map(sector => (
@@ -385,7 +385,7 @@ export default function StockManagement() {
               <select
                 value={shariahFilter}
                 onChange={(e) => setShariahFilter(e.target.value)}
-                className="px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition"
+                className="px-4 py-2 bg-surface-muted border border-hairline text-ink rounded-control focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition"
               >
                 <option value="">Shariah: All</option>
                 <option value="Yes">Yes</option>
@@ -396,17 +396,17 @@ export default function StockManagement() {
         </div>
 
         {/* Stocks Table */}
-        <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden shadow-md">
+        <div className="bg-surface/50 backdrop-blur-sm border border-hairline rounded-control overflow-hidden shadow-card-hover">
           {loading ? (
             <div className="p-12 text-center">
               <div className="animate-spin w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full mx-auto"></div>
-              <p className="mt-4 text-gray-600 dark:text-gray-400">Loading stocks...</p>
+              <p className="mt-4 text-ink-muted">Loading stocks...</p>
             </div>
           ) : stocks.length === 0 ? (
             <div className="p-12 text-center">
-              <Database className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">No Stocks Found</h3>
-              <p className="text-gray-500 dark:text-gray-400 mb-4">
+              <Database className="w-16 h-16 text-ink-faint mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-ink-muted mb-2">No Stocks Found</h3>
+              <p className="text-ink-muted mb-4">
                 {searchQuery || sectorFilter || shariahFilter
                   ? 'No stocks match your filters'
                   : 'Add stocks or upload a CSV file to get started'
@@ -419,7 +419,7 @@ export default function StockManagement() {
                     setSectorFilter('');
                     setShariahFilter('');
                   }}
-                  className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg transition-colors"
+                  className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-control transition-colors"
                 >
                   Clear Filters
                 </button>
@@ -429,49 +429,49 @@ export default function StockManagement() {
             <>
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50 dark:bg-gray-900/50">
+                  <thead className="bg-surface-muted">
                     <tr>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-6 py-4 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">
                         Symbol
                       </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-6 py-4 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">
                         Company Name
                       </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-6 py-4 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">
                         Sector
                       </th>
-                      <th className="px-6 py-4 text-center text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-6 py-4 text-center text-xs font-medium text-ink-muted uppercase tracking-wider">
                         Shariah
                       </th>
-                      <th className="px-6 py-4 text-center text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-6 py-4 text-center text-xs font-medium text-ink-muted uppercase tracking-wider">
                         Historical Data
                       </th>
-                      <th className="px-6 py-4 text-right text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-6 py-4 text-right text-xs font-medium text-ink-muted uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                  <tbody className="divide-y divide-hairline">
                     {stocks.map((stock) => (
-                      <tr key={stock._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                      <tr key={stock._id} className="hover:bg-hairline dark:hover:bg-gray-700/30 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className="font-bold text-cyan-600 dark:text-cyan-400">{stock.symbol}</span>
                           {stock.delisted && (
-                            <span className="ml-2 px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded border border-gray-300 dark:border-gray-600">
+                            <span className="ml-2 px-2 py-1 text-xs bg-surface-muted text-ink-muted rounded border border-hairline">
                               Delisted
                             </span>
                           )}
                         </td>
                         <td className="px-6 py-4">
-                          <span className="text-gray-900 dark:text-gray-300">{stock.companyName}</span>
+                          <span className="text-ink">{stock.companyName}</span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {stock.sector ? (
-                            <span className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded">
+                            <span className="px-2 py-1 text-xs bg-surface-muted text-ink-muted rounded">
                               {stock.sector}
                             </span>
                           ) : (
-                            <span className="text-gray-400 dark:text-gray-500 text-sm">-</span>
+                            <span className="text-ink-faint text-sm">-</span>
                           )}
                         </td>
                         <td className="px-6 py-4 text-center whitespace-nowrap">
@@ -484,7 +484,7 @@ export default function StockManagement() {
                               No
                             </span>
                           ) : (
-                            <span className="text-gray-400 dark:text-gray-500 text-sm">-</span>
+                            <span className="text-ink-faint text-sm">-</span>
                           )}
                         </td>
                         <td className="px-6 py-4 text-center whitespace-nowrap">
@@ -494,7 +494,7 @@ export default function StockManagement() {
                               Available
                             </span>
                           ) : (
-                            <span className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded border border-gray-300 dark:border-gray-600 flex items-center justify-center gap-1 w-fit mx-auto">
+                            <span className="px-2 py-1 text-xs bg-surface-muted text-ink-muted rounded border border-hairline flex items-center justify-center gap-1 w-fit mx-auto">
                               <AlertCircle className="w-3 h-3" />
                               No Data
                             </span>
@@ -504,21 +504,21 @@ export default function StockManagement() {
                           <div className="flex items-center justify-end gap-2">
                             <button
                               onClick={() => navigate(`/admin/historical/${stock.symbol}`)}
-                              className="p-2 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-500/20 rounded-lg transition"
+                              className="p-2 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-500/20 rounded-control transition"
                               title="View Historical Data"
                             >
                               <BarChart3 className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleEdit(stock)}
-                              className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/20 rounded-lg transition"
+                              className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/20 rounded-control transition"
                               title="Edit"
                             >
                               <Edit2 className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleDelete(stock)}
-                              className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/20 rounded-lg transition"
+                              className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/20 rounded-control transition"
                               title="Delete"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -533,25 +533,25 @@ export default function StockManagement() {
 
               {/* Pagination */}
               {pagination.pages > 1 && (
-                <div className="px-6 py-4 bg-gray-50 dark:bg-gray-900/30 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                <div className="px-6 py-4 bg-surface-muted border-t border-hairline flex items-center justify-between">
+                  <div className="text-sm text-ink-muted">
                     Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} stocks
                   </div>
                   <div className="flex gap-2">
                     <button
                       onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
                       disabled={pagination.page === 1}
-                      className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-4 py-2 bg-surface-muted hover:bg-hairline dark:hover:bg-gray-600 text-ink-muted rounded-control transition disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Previous
                     </button>
-                    <span className="px-4 py-2 text-gray-700 dark:text-gray-300">
+                    <span className="px-4 py-2 text-ink-muted">
                       Page {pagination.page} of {pagination.pages}
                     </span>
                     <button
                       onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
                       disabled={pagination.page === pagination.pages}
-                      className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-4 py-2 bg-surface-muted hover:bg-hairline dark:hover:bg-gray-600 text-ink-muted rounded-control transition disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Next
                     </button>
@@ -565,9 +565,9 @@ export default function StockManagement() {
         {/* Add/Edit Modal */}
         {(showAddModal || showEditModal) && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full border border-gray-200 dark:border-gray-700">
-              <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+            <div className="bg-surface rounded-control shadow-dialog max-w-md w-full border border-hairline">
+              <div className="p-6 border-b border-hairline flex items-center justify-between">
+                <h2 className="text-xl font-bold text-ink">
                   {showAddModal ? 'Add New Stock' : 'Edit Stock'}
                 </h2>
                 <button
@@ -575,7 +575,7 @@ export default function StockManagement() {
                     setShowAddModal(false);
                     setShowEditModal(false);
                   }}
-                  className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                  className="text-ink-muted hover:text-gray-700 dark:hover:text-gray-200"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -583,51 +583,51 @@ export default function StockManagement() {
 
               <form onSubmit={showAddModal ? handleSubmitAdd : handleSubmitEdit} className="p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-ink-muted mb-1">
                     Symbol <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={formData.symbol}
                     onChange={(e) => setFormData({ ...formData, symbol: e.target.value.toUpperCase() })}
-                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition"
+                    className="w-full px-4 py-2 bg-surface-muted border border-hairline text-ink rounded-control focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-ink-muted mb-1">
                     Company Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={formData.companyName}
                     onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition"
+                    className="w-full px-4 py-2 bg-surface-muted border border-hairline text-ink rounded-control focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-ink-muted mb-1">
                     Sector
                   </label>
                   <input
                     type="text"
                     value={formData.sector}
                     onChange={(e) => setFormData({ ...formData, sector: e.target.value })}
-                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition"
+                    className="w-full px-4 py-2 bg-surface-muted border border-hairline text-ink rounded-control focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-ink-muted mb-1">
                     Shariah Compliant
                   </label>
                   <select
                     value={formData.shariahCompliant}
                     onChange={(e) => setFormData({ ...formData, shariahCompliant: e.target.value })}
-                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition"
+                    className="w-full px-4 py-2 bg-surface-muted border border-hairline text-ink rounded-control focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition"
                   >
                     <option value="">Not Specified</option>
                     <option value="Yes">Yes</option>
@@ -641,13 +641,13 @@ export default function StockManagement() {
                       type="checkbox"
                       checked={formData.delisted}
                       onChange={(e) => setFormData({ ...formData, delisted: e.target.checked })}
-                      className="mt-1 w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-cyan-500 focus:ring-2 focus:ring-cyan-500"
+                      className="mt-1 w-4 h-4 rounded border-hairline text-cyan-500 focus:ring-2 focus:ring-cyan-500"
                     />
                     <span>
-                      <span className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      <span className="block text-sm font-medium text-ink-muted">
                         Delisted
                       </span>
-                      <span className="block text-sm text-gray-500 dark:text-gray-400">
+                      <span className="block text-sm text-ink-muted">
                         Stops the price and history jobs chasing it. Bars already stored,
                         and any trades you made, are kept.
                       </span>
@@ -658,7 +658,7 @@ export default function StockManagement() {
                 <div className="flex gap-2 pt-4">
                   <button
                     type="submit"
-                    className="flex-1 px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white font-medium rounded-lg transition-colors"
+                    className="flex-1 px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white font-medium rounded-control transition-colors"
                   >
                     {showAddModal ? 'Add Stock' : 'Update Stock'}
                   </button>
@@ -668,7 +668,7 @@ export default function StockManagement() {
                       setShowAddModal(false);
                       setShowEditModal(false);
                     }}
-                    className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg transition-colors"
+                    className="px-4 py-2 bg-surface-muted hover:bg-hairline dark:hover:bg-gray-600 text-ink-muted font-medium rounded-control transition-colors"
                   >
                     Cancel
                   </button>
@@ -681,24 +681,24 @@ export default function StockManagement() {
         {/* Upload CSV Modal */}
         {showUploadModal && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full border border-gray-200 dark:border-gray-700">
-              <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Upload Stocks CSV</h2>
+            <div className="bg-surface rounded-control shadow-dialog max-w-lg w-full border border-hairline">
+              <div className="p-6 border-b border-hairline flex items-center justify-between">
+                <h2 className="text-xl font-bold text-ink">Upload Stocks CSV</h2>
                 <button
                   onClick={() => {
                     setShowUploadModal(false);
                     setUploadResult(null);
                     setUploadFile(null);
                   }}
-                  className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                  className="text-ink-muted hover:text-gray-700 dark:hover:text-gray-200"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               <form onSubmit={handleFileUpload} className="p-6 space-y-4">
-                <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center">
-                  <FileText className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-3" />
+                <div className="border-2 border-dashed border-hairline rounded-control p-6 text-center">
+                  <FileText className="w-12 h-12 text-ink-faint mx-auto mb-3" />
                   <input
                     type="file"
                     accept=".csv"
@@ -708,13 +708,13 @@ export default function StockManagement() {
                   />
                   <label
                     htmlFor="csv-upload"
-                    className="inline-block px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg cursor-pointer transition"
+                    className="inline-block px-4 py-2 bg-surface-muted hover:bg-hairline dark:hover:bg-gray-600 text-ink-muted rounded-control cursor-pointer transition"
                   >
                     {uploadFile ? uploadFile.name : 'Choose CSV File'}
                   </label>
                 </div>
 
-                <div className="bg-cyan-50 dark:bg-cyan-500/10 border border-cyan-200 dark:border-cyan-500/30 rounded-lg p-4">
+                <div className="bg-cyan-50 dark:bg-cyan-500/10 border border-cyan-200 dark:border-cyan-500/30 rounded-control p-4">
                   <h4 className="font-semibold text-cyan-900 dark:text-cyan-400 mb-2">Expected Format:</h4>
                   <code className="text-sm text-cyan-800 dark:text-cyan-300">
                     Symbol,CompanyName,Sector,ShariahCompliant
@@ -726,7 +726,7 @@ export default function StockManagement() {
                 </div>
 
                 {uploadResult && (
-                  <div className="bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/50 rounded-lg p-4">
+                  <div className="bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/50 rounded-control p-4">
                     <h4 className="font-semibold text-green-900 dark:text-green-400 mb-2">Upload Result:</h4>
                     <div className="text-sm text-green-800 dark:text-green-300 space-y-1">
                       <p>Total: {uploadResult.total}</p>
@@ -740,7 +740,7 @@ export default function StockManagement() {
                   <button
                     type="submit"
                     disabled={!uploadFile}
-                    className="flex-1 px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white font-medium rounded-control transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Upload CSV
                   </button>
@@ -751,7 +751,7 @@ export default function StockManagement() {
                       setUploadResult(null);
                       setUploadFile(null);
                     }}
-                    className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg transition-colors"
+                    className="px-4 py-2 bg-surface-muted hover:bg-hairline dark:hover:bg-gray-600 text-ink-muted font-medium rounded-control transition-colors"
                   >
                     Close
                   </button>
@@ -764,14 +764,14 @@ export default function StockManagement() {
         {/* Scrape Historical Data Modal */}
         {showScrapeModal && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full border border-gray-200 dark:border-gray-700">
-              <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+            <div className="bg-surface rounded-control shadow-dialog max-w-md w-full border border-hairline">
+              <div className="p-6 border-b border-hairline flex items-center justify-between">
+                <h2 className="text-xl font-bold text-ink">
                   Scrape Historical Data
                 </h2>
                 <button
                   onClick={() => setShowScrapeModal(false)}
-                  className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                  className="text-ink-muted hover:text-gray-700 dark:hover:text-gray-200"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -779,7 +779,7 @@ export default function StockManagement() {
 
               <form className="p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-sm font-medium text-ink-muted mb-2">
                     Select Symbols <span className="text-red-500">*</span>
                   </label>
 
@@ -812,7 +812,7 @@ export default function StockManagement() {
                       type="button"
                       onClick={() => setScrapeDropdownOpen(!scrapeDropdownOpen)}
                       disabled={isScraping}
-                      className="w-full px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition disabled:opacity-50 text-left flex items-center justify-between"
+                      className="w-full px-4 py-2 bg-surface border border-hairline text-ink rounded-control focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition disabled:opacity-50 text-left flex items-center justify-between"
                     >
                       <span>{selectedSymbols.length > 0 ? `${selectedSymbols.length} selected` : 'Search and select symbols...'}</span>
                       <svg className={`w-5 h-5 transition-transform ${scrapeDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -822,15 +822,15 @@ export default function StockManagement() {
 
                     {/* Dropdown menu */}
                     {scrapeDropdownOpen && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg z-10">
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-surface border border-hairline rounded-control shadow-card-hover z-10">
                         {/* Search input */}
-                        <div className="p-2 border-b border-gray-200 dark:border-gray-700">
+                        <div className="p-2 border-b border-hairline">
                           <input
                             type="text"
                             placeholder="Search symbols..."
                             value={scrapeSymbolSearch}
                             onChange={(e) => handleScrapeSymbolSearch(e.target.value)}
-                            className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition"
+                            className="w-full px-3 py-2 bg-surface-muted border border-hairline text-ink placeholder-gray-500 dark:placeholder-gray-400 rounded-control focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition"
                             autoFocus
                           />
                         </div>
@@ -840,20 +840,20 @@ export default function StockManagement() {
                           {scrapeSearchLoading ? (
                             <div className="text-center py-4">
                               <div className="w-4 h-4 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                              <p className="text-sm text-gray-500 dark:text-gray-400">Searching...</p>
+                              <p className="text-sm text-ink-muted">Searching...</p>
                             </div>
                           ) : (scrapeSearchResults.length === 0 && scrapeSymbolSearch.trim() !== '') ? (
-                            <p className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">No symbols found</p>
+                            <p className="px-4 py-3 text-sm text-ink-muted">No symbols found</p>
                           ) : (
                             <>
                               {/* Show selected symbols first */}
                               {selectedSymbols.length > 0 && (
                                 <>
-                                  <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700 sticky top-0">
+                                  <div className="px-4 py-2 text-xs font-semibold text-ink-muted bg-surface-muted sticky top-0">
                                     SELECTED
                                   </div>
                                   {selectedSymbolsData.map(stock => (
-                                    <label key={stock._id} className="flex items-center gap-3 px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition bg-cyan-50 dark:bg-cyan-900/20">
+                                    <label key={stock._id} className="flex items-center gap-3 px-4 py-2 hover:bg-hairline dark:hover:bg-gray-700 cursor-pointer transition bg-cyan-50 dark:bg-cyan-900/20">
                                       <input
                                         type="checkbox"
                                         checked={true}
@@ -863,23 +863,23 @@ export default function StockManagement() {
                                         className="w-4 h-4 cursor-pointer accent-cyan-500"
                                       />
                                       <div className="flex-1">
-                                        <div className="font-medium text-gray-900 dark:text-white">{stock.symbol}</div>
-                                        <div className="text-xs text-gray-500 dark:text-gray-400">{stock.companyName}</div>
+                                        <div className="font-medium text-ink">{stock.symbol}</div>
+                                        <div className="text-xs text-ink-muted">{stock.companyName}</div>
                                       </div>
                                     </label>
                                   ))}
-                                  <div className="border-t border-gray-200 dark:border-gray-700"></div>
+                                  <div className="border-t border-hairline"></div>
                                 </>
                               )}
 
                               {/* Show search results or all stocks */}
-                              <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700 sticky top-0">
+                              <div className="px-4 py-2 text-xs font-semibold text-ink-muted bg-surface-muted sticky top-0">
                                 {scrapeSymbolSearch.trim() ? 'SEARCH RESULTS' : 'ALL SYMBOLS'}
                               </div>
                               {(scrapeSearchResults.length > 0 ? scrapeSearchResults : stocks)
                                 .filter(stock => !selectedSymbols.includes(stock._id))
                                 .map(stock => (
-                                  <label key={stock._id} className="flex items-center gap-3 px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition">
+                                  <label key={stock._id} className="flex items-center gap-3 px-4 py-2 hover:bg-hairline dark:hover:bg-gray-700 cursor-pointer transition">
                                     <input
                                       type="checkbox"
                                       checked={false}
@@ -889,8 +889,8 @@ export default function StockManagement() {
                                       className="w-4 h-4 cursor-pointer accent-cyan-500"
                                     />
                                     <div className="flex-1">
-                                      <div className="font-medium text-gray-900 dark:text-white">{stock.symbol}</div>
-                                      <div className="text-xs text-gray-500 dark:text-gray-400">{stock.companyName}</div>
+                                      <div className="font-medium text-ink">{stock.symbol}</div>
+                                      <div className="text-xs text-ink-muted">{stock.companyName}</div>
                                     </div>
                                   </label>
                                 ))}
@@ -902,7 +902,7 @@ export default function StockManagement() {
                   </div>
                 </div>
 
-                <div className="bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-500/10 dark:to-blue-500/10 border border-cyan-200 dark:border-cyan-500/30 rounded-lg p-4">
+                <div className="bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-500/10 dark:to-blue-500/10 border border-cyan-200 dark:border-cyan-500/30 rounded-control p-4">
                   <div className="flex items-start gap-3">
                     <BarChart3 className="w-5 h-5 text-cyan-600 dark:text-cyan-400 mt-0.5 flex-shrink-0" />
                     <div>
@@ -926,7 +926,7 @@ export default function StockManagement() {
                     type="button"
                     onClick={handleStartScraping}
                     disabled={isScraping || selectedSymbols.length === 0}
-                    className="flex-1 px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="flex-1 px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white font-medium rounded-control transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {isScraping ? (
                       <>
@@ -947,7 +947,7 @@ export default function StockManagement() {
                       setScrapeDropdownOpen(false);
                     }}
                     disabled={isScraping}
-                    className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg transition-colors disabled:opacity-50"
+                    className="px-4 py-2 bg-surface-muted hover:bg-hairline dark:hover:bg-gray-600 text-ink-muted font-medium rounded-control transition-colors disabled:opacity-50"
                   >
                     Cancel
                   </button>

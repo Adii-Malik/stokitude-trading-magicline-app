@@ -137,17 +137,17 @@ export default function SignalDashboard() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+          <h2 className="text-2xl font-bold text-ink flex items-center gap-2">
             <Sparkles className="w-8 h-8 text-cyan-600" />
             Signal Dashboard
           </h2>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
+          <p className="text-ink-muted mt-1">
             Real-time trading signals from your active strategies
           </p>
         </div>
         <button
           onClick={() => setShowFilters(!showFilters)}
-          className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 border border-hairline text-ink-muted rounded-control hover:bg-hairline dark:hover:bg-gray-700 transition-colors"
         >
           <Filter className="w-5 h-5" />
           Filters
@@ -156,13 +156,13 @@ export default function SignalDashboard() {
 
       {/* Filters */}
       {showFilters && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+        <div className="bg-surface rounded-control shadow-card-hover p-6">
+          <h3 className="text-lg font-semibold text-ink mb-4">
             Filter Signals
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-ink-muted mb-2">
                 Symbol
               </label>
               <input
@@ -170,18 +170,18 @@ export default function SignalDashboard() {
                 value={filters.symbol}
                 onChange={(e) => setFilters(prev => ({ ...prev, symbol: e.target.value }))}
                 placeholder="e.g., OGDC"
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 dark:bg-gray-700 dark:text-white"
+                className="w-full px-4 py-2 border border-hairline rounded-control focus:ring-2 focus:ring-cyan-500 dark:bg-gray-700 dark:text-white"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-ink-muted mb-2">
                 Signal Type
               </label>
               <select
                 value={filters.signalType}
                 onChange={(e) => setFilters(prev => ({ ...prev, signalType: e.target.value }))}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 dark:bg-gray-700 dark:text-white"
+                className="w-full px-4 py-2 border border-hairline rounded-control focus:ring-2 focus:ring-cyan-500 dark:bg-gray-700 dark:text-white"
               >
                 <option value="">All Types</option>
                 <option value="BUY">BUY</option>
@@ -190,13 +190,13 @@ export default function SignalDashboard() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-ink-muted mb-2">
                 Status
               </label>
               <select
                 value={filters.isExecuted}
                 onChange={(e) => setFilters(prev => ({ ...prev, isExecuted: e.target.value }))}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 dark:bg-gray-700 dark:text-white"
+                className="w-full px-4 py-2 border border-hairline rounded-control focus:ring-2 focus:ring-cyan-500 dark:bg-gray-700 dark:text-white"
               >
                 <option value="">All Status</option>
                 <option value="false">Pending</option>
@@ -205,26 +205,26 @@ export default function SignalDashboard() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-ink-muted mb-2">
                 From Date
               </label>
               <input
                 type="date"
                 value={filters.dateFrom}
                 onChange={(e) => setFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 dark:bg-gray-700 dark:text-white"
+                className="w-full px-4 py-2 border border-hairline rounded-control focus:ring-2 focus:ring-cyan-500 dark:bg-gray-700 dark:text-white"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-ink-muted mb-2">
                 To Date
               </label>
               <input
                 type="date"
                 value={filters.dateTo}
                 onChange={(e) => setFilters(prev => ({ ...prev, dateTo: e.target.value }))}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 dark:bg-gray-700 dark:text-white"
+                className="w-full px-4 py-2 border border-hairline rounded-control focus:ring-2 focus:ring-cyan-500 dark:bg-gray-700 dark:text-white"
               />
             </div>
 
@@ -238,7 +238,7 @@ export default function SignalDashboard() {
                   dateFrom: '',
                   dateTo: ''
                 })}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                className="w-full px-4 py-2 border border-hairline text-ink-muted rounded-control hover:bg-hairline dark:hover:bg-gray-700 transition-colors"
               >
                 Clear Filters
               </button>
@@ -249,11 +249,11 @@ export default function SignalDashboard() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+        <div className="bg-surface rounded-control shadow-card-hover p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Total Signals</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+              <p className="text-sm text-ink-muted">Total Signals</p>
+              <p className="text-2xl font-bold text-ink mt-1">
                 {filteredSignals.length}
               </p>
             </div>
@@ -261,10 +261,10 @@ export default function SignalDashboard() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+        <div className="bg-surface rounded-control shadow-card-hover p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Buy Signals</p>
+              <p className="text-sm text-ink-muted">Buy Signals</p>
               <p className="text-2xl font-bold text-green-600 dark:text-green-400 mt-1">
                 {filteredSignals.filter(s => s.signalType === 'BUY').length}
               </p>
@@ -273,10 +273,10 @@ export default function SignalDashboard() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+        <div className="bg-surface rounded-control shadow-card-hover p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Sell Signals</p>
+              <p className="text-sm text-ink-muted">Sell Signals</p>
               <p className="text-2xl font-bold text-red-600 dark:text-red-400 mt-1">
                 {filteredSignals.filter(s => s.signalType === 'SELL').length}
               </p>
@@ -285,11 +285,11 @@ export default function SignalDashboard() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+        <div className="bg-surface rounded-control shadow-card-hover p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Executed</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+              <p className="text-sm text-ink-muted">Executed</p>
+              <p className="text-2xl font-bold text-ink mt-1">
                 {filteredSignals.filter(s => s.isExecuted).length}
               </p>
             </div>
@@ -301,15 +301,15 @@ export default function SignalDashboard() {
       {/* Signals List */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+          <div className="bg-surface rounded-control shadow-card-hover p-6">
+            <h3 className="text-lg font-semibold text-ink mb-4">
               Recent Signals
             </h3>
 
             {filteredSignals.length === 0 ? (
               <div className="text-center py-12">
-                <Bell className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600 dark:text-gray-400">
+                <Bell className="w-16 h-16 text-ink-faint mx-auto mb-4" />
+                <p className="text-ink-muted">
                   No signals found. Activate strategies to start receiving signals.
                 </p>
               </div>
@@ -318,16 +318,16 @@ export default function SignalDashboard() {
                 {filteredSignals.map((signal) => (
                   <div
                     key={signal._id}
-                    className={`border rounded-lg p-4 cursor-pointer transition-all ${
+                    className={`border rounded-control p-4 cursor-pointer transition-all ${
                       selectedSignal?._id === signal._id
                         ? 'border-cyan-500 bg-cyan-50 dark:bg-cyan-900/20'
-                        : 'border-gray-200 dark:border-gray-700 hover:border-cyan-300 dark:hover:border-cyan-700'
+                        : 'border-hairline hover:border-cyan-300 dark:hover:border-cyan-700'
                     }`}
                     onClick={() => setSelectedSignal(signal)}
                   >
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-lg ${
+                        <div className={`p-2 rounded-control ${
                           signal.signalType === 'BUY'
                             ? 'bg-green-100 dark:bg-green-900'
                             : 'bg-red-100 dark:bg-red-900'
@@ -339,26 +339,26 @@ export default function SignalDashboard() {
                           )}
                         </div>
                         <div>
-                          <h4 className="font-semibold text-gray-900 dark:text-white">
+                          <h4 className="font-semibold text-ink">
                             {signal.symbol}
                           </h4>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                          <p className="text-sm text-ink-muted">
                             {signal.strategyName}
                           </p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-lg font-bold text-gray-900 dark:text-white">
+                        <p className="text-lg font-bold text-ink">
                           PKR {formatPrice(signal.price)}
                         </p>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                        <p className="text-xs text-ink-muted">
                           {formatDate(signal.date)}
                         </p>
                       </div>
                     </div>
 
                     {signal.reasoning && (
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                      <p className="text-sm text-ink-muted mb-2">
                         {signal.reasoning}
                       </p>
                     )}
@@ -368,7 +368,7 @@ export default function SignalDashboard() {
                         {Object.entries(signal.indicators).map(([key, value]) => (
                           <span
                             key={key}
-                            className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs text-gray-700 dark:text-gray-300"
+                            className="px-2 py-1 bg-surface-muted rounded text-xs text-ink-muted"
                           >
                             {key}: {typeof value === 'number' ? value.toFixed(2) : value}
                           </span>
@@ -385,7 +385,7 @@ export default function SignalDashboard() {
                             handleMarkExecuted(signal._id, parseFloat(executedPrice));
                           }
                         }}
-                        className="w-full mt-2 px-3 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors text-sm"
+                        className="w-full mt-2 px-3 py-2 bg-cyan-600 text-white rounded-control hover:bg-cyan-700 transition-colors text-sm"
                       >
                         Mark as Executed
                       </button>
@@ -409,10 +409,10 @@ export default function SignalDashboard() {
           {selectedSignal ? (
             <SignalChart signal={selectedSignal} />
           ) : (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 h-full flex items-center justify-center">
+            <div className="bg-surface rounded-control shadow-card-hover p-6 h-full flex items-center justify-center">
               <div className="text-center">
-                <Bell className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600 dark:text-gray-400">
+                <Bell className="w-16 h-16 text-ink-faint mx-auto mb-4" />
+                <p className="text-ink-muted">
                   Select a signal to view details
                 </p>
               </div>

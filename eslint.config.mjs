@@ -80,7 +80,7 @@ export default [
      * Scoped to the areas that are migrated. Widen the files list as others move
      * over; src/ui is exempt because it defines them.
      */
-    files: ['frontend/src/components/{Portfolio,Journal}/**/*.jsx'],
+    files: ['frontend/src/components/{Portfolio,Journal,Admin}/**/*.jsx'],
     rules: {
       'no-restricted-syntax': ['error',
         {

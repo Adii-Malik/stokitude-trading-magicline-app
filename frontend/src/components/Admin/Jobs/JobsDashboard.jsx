@@ -147,10 +147,10 @@ export default function JobsDashboard() {
   const getStatusColor = (status) => {
     switch (status) {
       case 'running': return 'bg-green-100 text-green-800';
-      case 'stopped': return 'bg-gray-100 text-gray-800';
+      case 'stopped': return 'bg-surface-muted text-ink';
       case 'paused': return 'bg-yellow-100 text-yellow-800';
       case 'error': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      default: return 'bg-surface-muted text-ink';
     }
   };
 
@@ -191,12 +191,12 @@ export default function JobsDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Job Management</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">Manage and monitor all automated jobs</p>
+          <h1 className="text-3xl font-bold text-ink">Job Management</h1>
+          <p className="text-ink-muted mt-1">Manage and monitor all automated jobs</p>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-control font-medium transition-colors"
         >
           + Create Job
         </button>
@@ -205,27 +205,27 @@ export default function JobsDashboard() {
       {/* Statistics */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white p-4 rounded-lg shadow">
-            <div className="text-sm text-gray-600">Total Jobs</div>
-            <div className="text-2xl font-bold text-gray-800">{stats.jobs?.total || 0}</div>
+          <div className="bg-surface p-4 rounded-control shadow">
+            <div className="text-sm text-ink-muted">Total Jobs</div>
+            <div className="text-2xl font-bold text-ink">{stats.jobs?.total || 0}</div>
           </div>
-          <div className="bg-white p-4 rounded-lg shadow">
-            <div className="text-sm text-gray-600">Running</div>
+          <div className="bg-surface p-4 rounded-control shadow">
+            <div className="text-sm text-ink-muted">Running</div>
             <div className="text-2xl font-bold text-green-600">{stats.jobs?.running || 0}</div>
           </div>
-          <div className="bg-white p-4 rounded-lg shadow">
-            <div className="text-sm text-gray-600">Executions (24h)</div>
+          <div className="bg-surface p-4 rounded-control shadow">
+            <div className="text-sm text-ink-muted">Executions (24h)</div>
             <div className="text-2xl font-bold text-blue-600">{stats.executions?.last24h || stats.executions?.total || 0}</div>
           </div>
-          <div className="bg-white p-4 rounded-lg shadow">
-            <div className="text-sm text-gray-600">Stopped</div>
-            <div className="text-2xl font-bold text-gray-600">{stats.jobs?.stopped || 0}</div>
+          <div className="bg-surface p-4 rounded-control shadow">
+            <div className="text-sm text-ink-muted">Stopped</div>
+            <div className="text-2xl font-bold text-ink-muted">{stats.jobs?.stopped || 0}</div>
           </div>
         </div>
       )}
 
       {/* Filters */}
-      <div className="bg-white p-4 rounded-lg shadow mb-6">
+      <div className="bg-surface p-4 rounded-control shadow mb-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           {/* Category Filter */}
           <div className="flex gap-2 overflow-x-auto">
@@ -233,9 +233,9 @@ export default function JobsDashboard() {
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${selectedCategory === cat
+                className={`px-4 py-2 rounded-control font-medium whitespace-nowrap transition-colors ${selectedCategory === cat
                   ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  : 'bg-surface-muted text-ink hover:bg-hairline'
                   }`}
               >
                 {cat === 'all' ? 'All' : cat === 'data' ? '📊 Data' : cat === 'trading' ? '🎯 Trading' : '🧹 Maintenance'}
@@ -249,28 +249,28 @@ export default function JobsDashboard() {
             placeholder="🔍 Search jobs..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 md:w-80"
+            className="px-4 py-2 border border-hairline rounded-control focus:outline-none focus:ring-2 focus:ring-blue-500 md:w-80"
           />
         </div>
       </div>
 
       {/* Error Message */}
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-control mb-6">
           {error}
         </div>
       )}
 
       {/* Jobs Grid */}
       {loading ? (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+        <div className="bg-surface rounded-control shadow">
           <ContentLoader message="Loading jobs..." />
         </div>
       ) : filteredJobs.length === 0 ? (
-        <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg shadow">
+        <div className="text-center py-12 bg-surface rounded-control shadow">
           <div className="text-6xl mb-4">📋</div>
-          <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">No jobs found</h3>
-          <p className="text-gray-600 dark:text-gray-400">
+          <h3 className="text-xl font-semibold text-ink-muted mb-2">No jobs found</h3>
+          <p className="text-ink-muted">
             {searchQuery || selectedCategory !== 'all'
               ? 'Try adjusting your filters'
               : 'Create your first job to get started'}
@@ -279,14 +279,14 @@ export default function JobsDashboard() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {filteredJobs.map(job => (
-            <div key={job.id} className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+            <div key={job.id} className="bg-surface rounded-control shadow-card-hover p-6 hover:shadow-card-hover transition-shadow">
               {/* Job Header */}
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <div className="text-4xl">{job.icon}</div>
                   <div>
-                    <h3 className="text-lg font-bold text-gray-800">{job.name}</h3>
-                    <p className="text-sm text-gray-600">{job.description || job.jobType}</p>
+                    <h3 className="text-lg font-bold text-ink">{job.name}</h3>
+                    <p className="text-sm text-ink-muted">{job.description || job.jobType}</p>
                   </div>
                 </div>
                 <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(job.status)}`}>
@@ -297,32 +297,32 @@ export default function JobsDashboard() {
               {/* Job Info */}
               <div className="space-y-2 mb-4 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Schedule:</span>
-                  <span className="text-gray-800 font-medium">
+                  <span className="text-ink-muted">Schedule:</span>
+                  <span className="text-ink font-medium">
                     {job.schedule.recurring?.enabled
                       ? `Every ${job.schedule.recurring.amount === 1 ? '' : job.schedule.recurring.amount + ' '}${job.schedule.recurring.amount === 1 ? job.schedule.recurring.interval.replace(/s$/, '') : job.schedule.recurring.interval}${job.schedule.recurring.time ? ` at ${formatTime12Hour(job.schedule.recurring.time)}` : ''}`
                       : 'Manual Only'}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Last Run:</span>
-                  <span className="text-gray-800">{getTimeAgo(job.lastRun)}</span>
+                  <span className="text-ink-muted">Last Run:</span>
+                  <span className="text-ink">{getTimeAgo(job.lastRun)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Next Run:</span>
-                  <span className="text-gray-800">{job.nextScheduledRun ? formatDate(job.nextScheduledRun) : 'N/A'}</span>
+                  <span className="text-ink-muted">Next Run:</span>
+                  <span className="text-ink">{job.nextScheduledRun ? formatDate(job.nextScheduledRun) : 'N/A'}</span>
                 </div>
               </div>
 
               {/* Configuration */}
               {job.config && Object.keys(job.config).length > 0 && (
-                <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-200">
-                  <div className="text-xs font-semibold text-gray-600 mb-2">Configuration:</div>
+                <div className="mb-4 p-3 bg-surface-muted rounded border border-hairline">
+                  <div className="text-xs font-semibold text-ink-muted mb-2">Configuration:</div>
                   <div className="space-y-1">
                     {Object.entries(job.config).map(([key, value]) => (
                       <div key={key} className="flex justify-between text-xs">
-                        <span className="text-gray-600 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
-                        <span className="text-gray-800 font-medium">
+                        <span className="text-ink-muted capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                        <span className="text-ink font-medium">
                           {Array.isArray(value) ? value.join(', ') : String(value)}
                         </span>
                       </div>
@@ -339,14 +339,14 @@ export default function JobsDashboard() {
                     {job.status === 'running' ? (
                       <button
                         onClick={() => handleStopJob(job.id, job.name)}
-                        className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                        className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-control text-sm font-medium transition-colors"
                       >
                         Stop
                       </button>
                     ) : (
                       <button
                         onClick={() => handleStartJob(job.id, job.name)}
-                        className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                        className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-control text-sm font-medium transition-colors"
                       >
                         Start
                       </button>
@@ -355,19 +355,19 @@ export default function JobsDashboard() {
                 )}
                 <button
                   onClick={() => handleExecuteJob(job.id, job.name)}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-control text-sm font-medium transition-colors"
                 >
                   Run Now
                 </button>
                 <button
                   onClick={() => handleViewHistory(job)}
-                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                  className="bg-surface-muted hover:bg-hairline text-ink px-4 py-2 rounded-control text-sm font-medium transition-colors"
                 >
                   History
                 </button>
                 <button
                   onClick={() => handleDeleteJob(job.id, job.name)}
-                  className="bg-gray-100 hover:bg-gray-200 text-red-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                  className="bg-surface-muted hover:bg-hairline text-red-600 px-4 py-2 rounded-control text-sm font-medium transition-colors"
                 >
                   Delete
                 </button>

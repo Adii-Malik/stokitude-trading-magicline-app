@@ -125,7 +125,7 @@ export default function UserManagement() {
     <div>
       {/* Message Banner */}
       {message && (
-        <div className={`p-4 rounded-lg mb-4 flex items-start gap-3 ${
+        <div className={`p-4 rounded-control mb-4 flex items-start gap-3 ${
           message.type === 'success'
             ? 'bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/50 text-green-700 dark:text-green-400'
             : 'bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/50 text-red-700 dark:text-red-400'
@@ -145,30 +145,30 @@ export default function UserManagement() {
       {/* Stats Cards */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-lg p-6">
+          <div className="bg-surface/50 backdrop-blur-sm border border-hairline rounded-control p-6">
             <div className="flex items-center justify-between mb-2">
-              <div className="text-gray-600 dark:text-gray-400 text-sm">Total Users</div>
-              <Users className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+              <div className="text-ink-muted text-sm">Total Users</div>
+              <Users className="w-5 h-5 text-ink-faint" />
             </div>
-            <div className="text-3xl font-bold text-gray-900 dark:text-white">{stats.totalUsers}</div>
+            <div className="text-3xl font-bold text-ink">{stats.totalUsers}</div>
           </div>
-          <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-green-200 dark:border-green-500/30 rounded-lg p-6">
+          <div className="bg-surface/50 backdrop-blur-sm border border-green-200 dark:border-green-500/30 rounded-control p-6">
             <div className="flex items-center justify-between mb-2">
-              <div className="text-gray-600 dark:text-gray-400 text-sm">Active Users</div>
+              <div className="text-ink-muted text-sm">Active Users</div>
               <UserCheck className="w-5 h-5 text-green-500 dark:text-green-400" />
             </div>
             <div className="text-3xl font-bold text-green-600 dark:text-green-400">{stats.activeUsers}</div>
           </div>
-          <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-yellow-200 dark:border-yellow-500/30 rounded-lg p-6">
+          <div className="bg-surface/50 backdrop-blur-sm border border-yellow-200 dark:border-yellow-500/30 rounded-control p-6">
             <div className="flex items-center justify-between mb-2">
-              <div className="text-gray-600 dark:text-gray-400 text-sm">Pending Approval</div>
+              <div className="text-ink-muted text-sm">Pending Approval</div>
               <UserX className="w-5 h-5 text-yellow-500 dark:text-yellow-400" />
             </div>
             <div className="text-3xl font-bold text-yellow-600 dark:text-yellow-400">{stats.pendingUsers}</div>
           </div>
-          <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-cyan-200 dark:border-cyan-500/30 rounded-lg p-6">
+          <div className="bg-surface/50 backdrop-blur-sm border border-cyan-200 dark:border-cyan-500/30 rounded-control p-6">
             <div className="flex items-center justify-between mb-2">
-              <div className="text-gray-600 dark:text-gray-400 text-sm">Admins</div>
+              <div className="text-ink-muted text-sm">Admins</div>
               <ShieldCheck className="w-5 h-5 text-cyan-500 dark:text-cyan-400" />
             </div>
             <div className="text-3xl font-bold text-cyan-600 dark:text-cyan-400">{stats.adminUsers}</div>
@@ -177,20 +177,20 @@ export default function UserManagement() {
       )}
 
       {/* Filter and Search */}
-      <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-lg p-4 mb-6">
+      <div className="bg-surface/50 backdrop-blur-sm border border-hairline rounded-control p-4 mb-6">
         <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
           {/* Filter Buttons */}
           <div className="flex items-center gap-2 flex-wrap">
-            <Filter className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Filter:</span>
+            <Filter className="w-4 h-4 text-ink-muted" />
+            <span className="text-sm font-medium text-ink-muted">Filter:</span>
             {['all', 'active', 'pending', 'admins'].map(f => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                className={`px-4 py-2 rounded-control text-sm font-medium transition-all ${
                   filter === f
-                    ? 'bg-cyan-600 text-white shadow-md'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    ? 'bg-cyan-600 text-white shadow-card-hover'
+                    : 'bg-surface-muted text-ink-muted hover:bg-hairline dark:hover:bg-gray-600'
                 }`}
               >
                 {f.charAt(0).toUpperCase() + f.slice(1)}
@@ -200,47 +200,47 @@ export default function UserManagement() {
 
           {/* Search */}
           <div className="relative w-full md:w-64">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-ink-faint" />
             <input
               type="text"
               placeholder="Search users..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-cyan-500"
+              className="w-full pl-10 pr-4 py-2 border border-hairline rounded-control bg-surface text-ink focus:ring-2 focus:ring-cyan-500"
             />
           </div>
         </div>
       </div>
 
       {/* Users Table */}
-      <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden shadow-md">
+      <div className="bg-surface/50 backdrop-blur-sm border border-hairline rounded-control overflow-hidden shadow-card-hover">
         {loading ? (
           <div className="p-12 text-center">
             <div className="animate-spin w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full mx-auto"></div>
-            <p className="mt-4 text-gray-600 dark:text-gray-400">Loading users...</p>
+            <p className="mt-4 text-ink-muted">Loading users...</p>
           </div>
         ) : filteredUsers.length === 0 ? (
           <div className="p-12 text-center">
-            <Users className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">No Users Found</h3>
-            <p className="text-gray-500 dark:text-gray-400">
+            <Users className="w-16 h-16 text-ink-faint mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-ink-muted mb-2">No Users Found</h3>
+            <p className="text-ink-muted">
               {searchQuery || filter !== 'all' ? 'No users match your filters' : 'No users in the system yet'}
             </p>
           </div>
         ) : (
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-800/80">
+          <table className="min-w-full divide-y divide-hairline">
+            <thead className="bg-surface-muted">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">User</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Role</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Joined</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">User</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">Role</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">Joined</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-ink-muted uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
-            <tbody className="bg-white dark:bg-gray-800/50 divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody className="bg-surface/50 divide-y divide-hairline">
               {filteredUsers.map((user) => (
-                <tr key={user._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                <tr key={user._id} className="hover:bg-hairline dark:hover:bg-gray-700/50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-full bg-cyan-100 dark:bg-cyan-900/30">
@@ -249,8 +249,8 @@ export default function UserManagement() {
                         </span>
                       </div>
                       <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">{user.username}</div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">{user.email}</div>
+                        <div className="text-sm font-medium text-ink">{user.username}</div>
+                        <div className="text-sm text-ink-muted">{user.email}</div>
                       </div>
                     </div>
                   </td>
@@ -260,7 +260,7 @@ export default function UserManagement() {
                         ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
                         : user.role === 'admin'
                         ? 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400'
-                        : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                        : 'bg-surface-muted text-ink-muted'
                     }`}>
                       {user.role === 'super_admin' ? '👑 Super Admin' : user.role === 'admin' ? '🛡️ Admin' : '👤 User'}
                     </span>
@@ -274,7 +274,7 @@ export default function UserManagement() {
                       {user.isActive ? '✓ Active' : '⏳ Pending'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-ink-muted">
                     {new Date(user.createdAt).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">

@@ -36,7 +36,7 @@ export default function AdminDashboard({ onBackToMain = () => {} }) {
   if (!isAdmin()) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4">
-        <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/50 rounded-lg p-6 max-w-md">
+        <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/50 rounded-control p-6 max-w-md">
           <h2 className="text-xl font-bold text-red-700 dark:text-red-400 mb-2">Access Denied</h2>
           <p className="text-red-600 dark:text-red-300">You do not have admin privileges.</p>
         </div>

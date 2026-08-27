@@ -91,8 +91,8 @@ export default function SignalChart({ signal }) {
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+    <div className="bg-surface rounded-control shadow-card-hover p-6">
+      <h3 className="text-lg font-semibold text-ink mb-4">
         {signal.symbol} - Signal Details
       </h3>
       
@@ -100,8 +100,8 @@ export default function SignalChart({ signal }) {
 
       {/* Signal Info */}
       <div className="space-y-3">
-        <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-          <span className="text-sm text-gray-600 dark:text-gray-400">Signal Type</span>
+        <div className="flex justify-between items-center p-3 bg-surface-muted rounded-control">
+          <span className="text-sm text-ink-muted">Signal Type</span>
           <span className={`px-3 py-1 rounded-full text-sm font-medium ${
             signal.signalType === 'BUY'
               ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
@@ -111,30 +111,30 @@ export default function SignalChart({ signal }) {
           </span>
         </div>
 
-        <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-          <span className="text-sm text-gray-600 dark:text-gray-400">Price</span>
-          <span className="text-sm font-semibold text-gray-900 dark:text-white">
+        <div className="flex justify-between items-center p-3 bg-surface-muted rounded-control">
+          <span className="text-sm text-ink-muted">Price</span>
+          <span className="text-sm font-semibold text-ink">
             PKR {signal.price.toFixed(2)}
           </span>
         </div>
 
-        <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-          <span className="text-sm text-gray-600 dark:text-gray-400">Strategy</span>
-          <span className="text-sm font-semibold text-gray-900 dark:text-white">
+        <div className="flex justify-between items-center p-3 bg-surface-muted rounded-control">
+          <span className="text-sm text-ink-muted">Strategy</span>
+          <span className="text-sm font-semibold text-ink">
             {signal.strategyName}
           </span>
         </div>
 
         {signal.indicators && Object.keys(signal.indicators).length > 0 && (
-          <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Indicators</p>
+          <div className="p-3 bg-surface-muted rounded-control">
+            <p className="text-sm text-ink-muted mb-2">Indicators</p>
             <div className="space-y-1">
               {Object.entries(signal.indicators).map(([key, value]) => (
                 <div key={key} className="flex justify-between text-xs">
-                  <span className="text-gray-600 dark:text-gray-400">
+                  <span className="text-ink-muted">
                     {key.toUpperCase()}
                   </span>
-                  <span className="font-medium text-gray-900 dark:text-white">
+                  <span className="font-medium text-ink">
                     {typeof value === 'number' ? value.toFixed(2) : value}
                   </span>
                 </div>
@@ -144,9 +144,9 @@ export default function SignalChart({ signal }) {
         )}
 
         {signal.reasoning && (
-          <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Reasoning</p>
-            <p className="text-sm text-gray-900 dark:text-white">
+          <div className="p-3 bg-surface-muted rounded-control">
+            <p className="text-sm text-ink-muted mb-1">Reasoning</p>
+            <p className="text-sm text-ink">
               {signal.reasoning}
             </p>
           </div>
