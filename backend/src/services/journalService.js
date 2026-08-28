@@ -316,8 +316,15 @@ class JournalService {
         return { total: entries.length, entries: entries.slice(skip, skip + limit) };
     }
 
-    async get(id, userId) {
-        const entry = await JournalEntry.findOne({ _id: id, user: userId });
+    async get(id, userId, market = null) {
+        const query = { _id: id, user: userId };
+        // An entry belongs to a market through its venue. Asking for one by id
+        // while scoped elsewhere is not a different view of it - here, it is not
+        // there at all.
+        const exchanges = exchangeScope(market);
+        if (exchanges) query.exchange = { $in: exchanges };
+
+        const entry = await JournalEntry.findOne(query);
         if (!entry) throw new Error('Journal entry not found');
         const [hydrated] = await hydrate([entry.toObject()]);
         return decorate(hydrated);

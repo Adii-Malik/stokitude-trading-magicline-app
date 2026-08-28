@@ -131,6 +131,16 @@ router.get('/risk-profiles', async (req, res) => {
 
 router.put('/risk-profiles/:portfolioId', async (req, res) => {
     try {
+        // Same boundary as the books themselves: a rule for a book in another
+        // market is not a rule this market may write.
+        const book = await Portfolio.findById(req.params.portfolioId).select('currency').lean();
+        if (book && (book.currency || 'PKR').toUpperCase() !== getMarket(req.market).currency) {
+            return res.status(404).json({
+                success: false, code: 'WRONG_MARKET',
+                message: 'That book belongs to another market.'
+            });
+        }
+
         const { defaultRiskPct, maxPositionPct } = req.body;
         const profile = await RiskProfile.findOneAndUpdate(
             { user: req.user._id, portfolioId: req.params.portfolioId },
@@ -224,7 +234,7 @@ router.post('/', async (req, res) => {
 
 router.get('/:id', async (req, res) => {
     try {
-        res.json({ success: true, data: await journalService.get(req.params.id, req.user._id) });
+        res.json({ success: true, data: await journalService.get(req.params.id, req.user._id, req.market) });
     } catch (error) {
         fail(res, error);
     }

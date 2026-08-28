@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import api from '../services/api';
+import { landingFor } from '../utils/market';
 
 /**
  * Which market the app is in.
@@ -84,7 +85,10 @@ export const MarketProvider = ({ children }) => {
             // Kept locally regardless: the switch is about what you are looking
             // at now, and a failed save is not a reason to snap the view back.
         }
-        window.location.reload();
+        // A page about one book cannot survive the switch - that book is not in
+        // the new market, and the server now answers 404 for it. Land on the
+        // list instead of reloading onto a page that just stopped existing.
+        window.location.assign(landingFor(window.location.pathname));
     }, [market]);
 
     const value = {
