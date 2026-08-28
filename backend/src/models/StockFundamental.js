@@ -9,7 +9,8 @@ const stockFundamentalSchema = new mongoose.Schema({
     symbol: {
         type: String,
         required: true,
-        unique: true,
+        // Unique per market, not globally - see the compound index below.
+        unique: false,
         uppercase: true,
         trim: true,
         index: true
@@ -76,6 +77,9 @@ const stockFundamentalSchema = new mongoose.Schema({
 });
 
 // Indexes for efficient querying (on nested metrics fields)
+// A symbol identifies a company only within a market. PSX and NASDAQ can both
+// list one, and they are not the same company.
+stockFundamentalSchema.index({ market: 1, symbol: 1 }, { unique: true });
 stockFundamentalSchema.index({ 'metrics.sector': 1 });
 stockFundamentalSchema.index({ 'metrics.shariahCompliant': 1 });
 stockFundamentalSchema.index({ lastUpdated: -1 });
