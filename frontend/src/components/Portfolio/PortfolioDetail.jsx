@@ -199,11 +199,13 @@ export default function PortfolioDetail() {
                                     onClick={() => setActiveTab('transactions')}
                                     label="Transactions"
                                 />
-                                <TabButton
-                                    active={activeTab === 'tax'}
-                                    onClick={() => setActiveTab('tax')}
-                                    label="Tax"
-                                />
+                                {dashboard?.filerStatus != null && (
+                                    <TabButton
+                                        active={activeTab === 'tax'}
+                                        onClick={() => setActiveTab('tax')}
+                                        label="Tax"
+                                    />
+                                )}
                                 <TabButton
                                     active={activeTab === 'allocation'}
                                     onClick={() => setActiveTab('allocation')}
@@ -391,7 +393,7 @@ function Summary({ dashboard, currency }) {
         unrealizedPnL = 0, realizedPnL = 0, totalDividends = 0,
         totalPnL = 0, totalPnLPct = 0, totalFees = 0,
         capitalGainsTax = 0, netRealizedPnL = 0, taxRatePct = 15,
-        cgtMethod = 'FLAT', filerStatus = 'FILER'
+        cgtMethod = 'FLAT', filerStatus = null
     } = dashboard;
 
     const money = (v, opts) => formatCurrency(v, currency, opts);
@@ -402,6 +404,9 @@ function Summary({ dashboard, currency }) {
     // FIFO portfolios get holding-period CGT (PSX tiers by holding length +
     // filer status); everything else falls back to the flat rate. Label the
     // row so the figure is not mistaken for a single blanket percentage.
+    // No tax model for this market, so there is no tax to show. filerStatus
+    // comes back null rather than a default, which is what says so.
+    const taxed = filerStatus != null;
     const tiered = cgtMethod === 'HOLDING_PERIOD';
     const cgtLabel = tiered
         ? `Capital gains tax (holding-period, ${filerStatus === 'NON_FILER' ? 'non-filer' : 'filer'})`
@@ -441,10 +446,10 @@ function Summary({ dashboard, currency }) {
                     note={bite !== null
                         ? `${bite.toFixed(0)}% of realised gains — already taken off`
                         : 'already taken off'} />
-                <Line label={cgtLabel} value={money(capitalGainsTax)} />
+                {taxed && <Line label={cgtLabel} value={money(capitalGainsTax)} />}
 
                 <Line label="In hand from sales" value={money(netRealizedPnL, { signed: true })}
-                    note="realised, less tax" strong />
+                    note={taxed ? 'realised, less tax' : 'realised, after commission'} strong />
             </Panel>
         </div>
     );

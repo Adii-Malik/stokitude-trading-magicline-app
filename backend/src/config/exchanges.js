@@ -42,8 +42,11 @@ export const DEFAULT_EXCHANGE = 'PSX';
  * Grouped by country, not by exchange: NASDAQ and NYSE are one experience.
  */
 export const MARKETS = {
-    PK: { code: 'PK', name: 'Pakistan', currency: 'PKR', exchanges: ['PSX'] },
-    US: { code: 'US', name: 'United States', currency: 'USD', exchanges: ['NASDAQ', 'NYSE'] }
+    // capitalGains says whether this app knows how to tax a disposal here. PSX
+    // it does - NCCPL's holding-period tiers and filer status. The US it does
+    // not, and a book there is better showing no tax than a Pakistani one.
+    PK: { code: 'PK', name: 'Pakistan', currency: 'PKR', exchanges: ['PSX'], capitalGains: true },
+    US: { code: 'US', name: 'United States', currency: 'USD', exchanges: ['NASDAQ', 'NYSE'], capitalGains: false }
 };
 
 export const MARKET_CODES = Object.keys(MARKETS);

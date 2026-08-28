@@ -12,6 +12,7 @@ import User from '../models/User.js';
 
 import CalculatorRegistry from './portfolio/calculators/CalculatorRegistry.js';
 import { cgtByTaxYear } from '../config/taxConfig.js';
+import { getMarket } from '../config/exchanges.js';
 
 /**
  * What a book's returns are measured against.
@@ -857,14 +858,25 @@ class PortfolioService {
         // the disposals have to be gathered before the tax can be worked out.
         // Summing each position's own cgtTax taxed gross gains and ignored every
         // loss, which on a book that churns overstates the bill several times over.
-        const withDisposals = await Position.find({ portfolioId, 'disposals.0': { $exists: true } })
-            .select('disposals').lean();
+        //
+        // Only where this app has a tax model. A US book showed no tax purely
+        // because AVERAGE_COST records no disposals - switch it to FIFO, which
+        // does track lots, and it would have started charging Pakistani NCCPL
+        // rates on US trades without anything saying so. The market decides now,
+        // rather than whichever calculator happened to be selected.
+        const taxed = getMarket(portfolio.market).capitalGains;
+
+        const withDisposals = taxed
+            ? await Position.find({ portfolioId, 'disposals.0': { $exists: true } })
+                .select('disposals').lean()
+            : [];
         const disposals = withDisposals.flatMap(p => p.disposals || []);
-        const cgtYears = cgtByTaxYear(disposals);
+        const cgtYears = taxed ? cgtByTaxYear(disposals) : [];
         const holdingPeriodCGT = Math.round(cgtYears.reduce((sum, y) => sum + y.tax, 0) * 100) / 100;
 
         const cash = await this.getCashBalance(portfolioId);
-        const filerStatus = await this.getOwnerFilerStatus(portfolio);
+        // Filer status is a Pakistani thing; it means nothing on a US book.
+        const filerStatus = taxed ? await this.getOwnerFilerStatus(portfolio) : null;
         const totalPnL = unrealizedPnL + realizedPnL + totalDividends;
 
         // Realized P/L comes from positions no longer held, whose cost is not in
@@ -881,10 +893,10 @@ class PortfolioService {
         // PSX's 12-month/24-month tiers and filer status. When lots are tracked
         // the tiered figure is the accurate one - NCCPL deducts it per disposal
         // at settlement - so it drives the net; otherwise fall back to flat.
-        const taxRatePct = portfolio.taxRatePct ?? 15;
-        const flatCGT = realizedPnL > 0 ? (realizedPnL * taxRatePct) / 100 : 0;
+        const taxRatePct = taxed ? (portfolio.taxRatePct ?? 15) : null;
+        const flatCGT = realizedPnL > 0 ? (realizedPnL * (taxRatePct ?? 0)) / 100 : 0;
         const usesLotTax = disposals.length > 0;
-        const capitalGainsTax = usesLotTax ? holdingPeriodCGT : flatCGT;
+        const capitalGainsTax = taxed ? (usesLotTax ? holdingPeriodCGT : flatCGT) : 0;
         const netRealizedPnL = realizedPnL - capitalGainsTax;
 
         // Top 5 holdings by market value

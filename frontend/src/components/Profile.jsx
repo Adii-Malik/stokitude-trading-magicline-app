@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useMarket } from '../contexts/MarketContext';
 import { User, Mail, Shield, Lock, Save, AlertCircle, CheckCircle, Bell } from 'lucide-react';
 import * as authService from '../services/auth';
 import NotificationPreferences from './NotificationPreferences';
 
 export default function Profile() {
   const { user, setUser } = useAuth();
+  const { market } = useMarket();
   const [activeTab, setActiveTab] = useState('profile'); // 'profile', 'security', 'notifications'
 
   // Profile form
@@ -231,9 +233,12 @@ export default function Profile() {
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Email cannot be changed for security reasons</p>
                   </div>
 
-                  <div>
+                  {/* A Pakistani tax status, so it only appears in that market.
+                      There is no US tax model here yet, and offering an FBR
+                      setting beside US trades would imply one. */}
+                  <div className={market === 'PK' ? '' : 'hidden'}>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      FBR Filer Status
+                      FBR filer status
                     </label>
                     <div className="relative">
                       <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -248,7 +253,7 @@ export default function Profile() {
                         <option value="NON_FILER">Non-Filer</option>
                       </select>
                     </div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Drives capital gains tax and dividend withholding rates across your portfolios</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Drives capital gains tax and dividend withholding on your PSX books</p>
                   </div>
 
                   <div>
