@@ -118,7 +118,9 @@ class PortfolioService {
         const portfolio = await Portfolio.findById(portfolioId).populate('owner', 'username email');
 
         if (!portfolio) {
-            throw new Error('Portfolio not found');
+            // 404 rather than 500: a book that is not here - deleted, someone
+            // else's, or in the other market - is a missing page, not a failure.
+            throw Object.assign(new Error('Portfolio not found'), { status: 404 });
         }
 
         if (!portfolio.hasAccess(userId)) {
@@ -637,7 +639,9 @@ class PortfolioService {
         // Get portfolio to determine calculation method
         const portfolio = await Portfolio.findById(portfolioId);
         if (!portfolio) {
-            throw new Error('Portfolio not found');
+            // 404 rather than 500: a book that is not here - deleted, someone
+            // else's, or in the other market - is a missing page, not a failure.
+            throw Object.assign(new Error('Portfolio not found'), { status: 404 });
         }
 
         // Get all transactions for this symbol

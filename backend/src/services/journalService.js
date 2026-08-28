@@ -5,7 +5,8 @@
  */
 import JournalEntry from '../models/JournalEntry.js';
 import RiskProfile from '../models/RiskProfile.js';
-import { getMarket, currencyOfMarket } from '../config/exchanges.js';
+import { currencyOfMarket, DEFAULT_MARKET } from '../config/exchanges.js';
+import { currentMarket } from '../config/marketStore.js';
 import { capitalFor } from './riskContext.js';
 
 import { removeChart } from './chartStorage.js';
@@ -117,22 +118,6 @@ export function decorate(entry) {
 }
 
 const pct = (n, d) => (d > 0 ? (n / d) * 100 : 0);
-
-/**
- * Which exchanges a query may see.
- *
- * The market is a boundary, not a filter: a query parameter can narrow inside
- * it but never reach outside it. Asking for NASDAQ while scoped to Pakistan
- * returns an empty list rather than the whole market, because "US trades on the
- * PSX" has no answer and pretending otherwise would leak one market into the
- * other. Null means unscoped, which is what the internal callers want.
- */
-export function exchangeScope(market, wanted = null) {
-    const allowed = market ? getMarket(market).exchanges : null;
-    const asked = wanted ? [String(wanted).toUpperCase()] : null;
-    if (allowed && asked) return asked.filter(e => allowed.includes(e));
-    return asked || allowed;
-}
 
 export function statsFor(entries) {
     const closed = entries.filter(e => e.status === 'closed');
@@ -276,12 +261,14 @@ async function sizeInRule(userId, entries) {
 
 class JournalService {
     /** Every match, decorated. Stats need the full set, never a page of it. */
-    async findAll(userId, filters = {}, market = null) {
+    async findAll(userId, filters = {}) {
         const query = { user: userId };
         if (filters.symbol) query.symbol = filters.symbol.toUpperCase();
 
-        const exchanges = exchangeScope(market, filters.exchange);
-        if (exchanges) query.exchange = { $in: exchanges };
+        // The model is scoped, so only the caller's own narrowing is left. A
+        // venue outside this market simply matches nothing, which is the honest
+        // answer rather than a silently widened result.
+        if (filters.exchange) query.exchange = filters.exchange.toUpperCase();
 
         if (filters.setupType) query.setupType = filters.setupType;
         if (filters.from || filters.to) {
@@ -309,22 +296,15 @@ class JournalService {
     }
 
     /** A page of entries plus the full match count, so the UI can say "20 of 137". */
-    async list(userId, filters = {}, market = null) {
-        const entries = await this.findAll(userId, filters, market);
+    async list(userId, filters = {}) {
+        const entries = await this.findAll(userId, filters);
         const skip = Math.max(0, parseInt(filters.skip, 10) || 0);
         const limit = Math.min(200, Math.max(1, parseInt(filters.limit, 10) || 25));
         return { total: entries.length, entries: entries.slice(skip, skip + limit) };
     }
 
-    async get(id, userId, market = null) {
-        const query = { _id: id, user: userId };
-        // An entry belongs to a market through its venue. Asking for one by id
-        // while scoped elsewhere is not a different view of it - here, it is not
-        // there at all.
-        const exchanges = exchangeScope(market);
-        if (exchanges) query.exchange = { $in: exchanges };
-
-        const entry = await JournalEntry.findOne(query);
+    async get(id, userId) {
+        const entry = await JournalEntry.findOne({ _id: id, user: userId });
         if (!entry) throw new Error('Journal entry not found');
         const [hydrated] = await hydrate([entry.toObject()]);
         return decorate(hydrated);
@@ -390,12 +370,12 @@ class JournalService {
      * market removes the question: there is one currency here, so the totals are
      * simply the totals.
      */
-    async stats(userId, filters = {}, market = null) {
-        const entries = await this.findAll(userId, filters, market);
+    async stats(userId, filters = {}) {
+        const entries = await this.findAll(userId, filters);
 
         return {
-            market: getMarket(market).code,
-            currency: currencyOfMarket(market),
+            market: currentMarket() || DEFAULT_MARKET,
+            currency: currencyOfMarket(currentMarket()),
             ...statsFor(entries),
             sizeInRule: await sizeInRule(userId, entries)
         };

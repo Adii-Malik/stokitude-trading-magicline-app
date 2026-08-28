@@ -3,9 +3,8 @@ import multer from 'multer';
 import csv from 'csv-parser';
 import { Readable } from 'stream';
 import Stock from '../models/Stock.js';
-import { adminOnly } from '../middleware/auth.js';
+import { adminOnly, authenticate } from '../middleware/auth.js';
 import { escapeRegex } from '../utils/escapeRegex.js';
-import { getMarket, DEFAULT_EXCHANGE } from '../config/exchanges.js';
 
 const router = express.Router();
 
@@ -102,7 +101,9 @@ router.get('/:id', async (req, res) => {
 });
 
 // Search/Autocomplete for stock symbols (for trade plans)
-router.get('/search/autocomplete', async (req, res) => {
+// Signed in, because the suggestions are scoped to the market you are in and a
+// request with no user has no market. It is only ever called from inside the app.
+router.get('/search/autocomplete', authenticate, async (req, res) => {
   try {
     const { q } = req.query;
 
@@ -117,26 +118,12 @@ router.get('/search/autocomplete', async (req, res) => {
     // '*' built an invalid pattern and returned a 500.
     const safe = escapeRegex(q.trim());
 
-    // Scoped to the market the client is in. This route is public, so it reads
-    // the header the app already sends rather than a user's stored setting -
-    // suggesting OGDC while journalling a NASDAQ trade is how a PSX ticker ends
-    // up on a US entry that every other screen then hides.
-    const market = getMarket(req.market || req.headers['x-market']);
-    const venues = market.exchanges.includes(DEFAULT_EXCHANGE)
-      // Stocks that predate the exchange field carry none. This was a PSX-only
-      // app when they were written, so that is what they are.
-      ? { $or: [{ exchange: { $in: market.exchanges } }, { exchange: { $in: [null] } }, { exchange: { $exists: false } }] }
-      : { exchange: { $in: market.exchanges } };
-
+    // No market filter here any more - the model carries one, so this returns
+    // the stocks of whichever market the request is in.
     const stocks = await Stock.find({
-      $and: [
-        {
-          $or: [
-            { symbol: { $regex: `^${safe}`, $options: 'i' } },
-            { companyName: { $regex: safe, $options: 'i' } }
-          ]
-        },
-        venues
+      $or: [
+        { symbol: { $regex: `^${safe}`, $options: 'i' } },
+        { companyName: { $regex: safe, $options: 'i' } }
       ]
     })
       .select('symbol companyName sector shariahCompliant currentPrice delisted')

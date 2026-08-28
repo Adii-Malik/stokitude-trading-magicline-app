@@ -49,9 +49,16 @@ export function scopeNow(store, options = {}) {
     return { market: store.market };
 }
 
-export function marketScoped({ from }) {
-    const derive = DERIVE[from];
-    if (!derive) throw new Error(`marketScoped: unknown source '${from}'`);
+/**
+ * @param from  Which field the market is derived from on write, or null when the
+ *              model has no such field and its writer sets the market instead.
+ *              RiskProfile is the only case: it carries nothing but a user and a
+ *              portfolio id, and is written in exactly one place, which already
+ *              loads the book it belongs to.
+ */
+export function marketScoped({ from = null }) {
+    const derive = from === null ? null : DERIVE[from];
+    if (from !== null && !derive) throw new Error(`marketScoped: unknown source '${from}'`);
 
     return function plugin(schema) {
         schema.add({
@@ -61,7 +68,7 @@ export function marketScoped({ from }) {
         // Stamped from the venue, never typed, so the column cannot drift from
         // the field it is derived from or be left off by a new code path.
         const stamp = (doc) => {
-            if (doc && !doc.market) {
+            if (derive && doc && !doc.market) {
                 const market = derive(doc);
                 if (market) doc.market = market;
             }

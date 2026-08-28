@@ -4,6 +4,7 @@
  * Data sourced from multiple providers (PSX, scrapers, manual)
  */
 import mongoose from 'mongoose';
+import { marketScoped } from './plugins/marketScoped.js';
 
 const stockFundamentalSchema = new mongoose.Schema({
     symbol: {
@@ -132,5 +133,8 @@ stockFundamentalSchema.statics.findStale = function (maxAgeHours = 24) {
         ]
     });
 };
+
+// Scoped with the stock it describes.
+stockFundamentalSchema.plugin(marketScoped({ from: 'exchange' }));
 
 export default mongoose.model('StockFundamental', stockFundamentalSchema);

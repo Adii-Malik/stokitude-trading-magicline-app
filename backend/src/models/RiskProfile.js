@@ -14,6 +14,7 @@
  * them instead.
  */
 import mongoose from 'mongoose';
+import { marketScoped } from './plugins/marketScoped.js';
 
 const riskProfileSchema = new mongoose.Schema({
     user: {
@@ -50,5 +51,11 @@ const riskProfileSchema = new mongoose.Schema({
 });
 
 riskProfileSchema.index({ user: 1, portfolioId: 1 }, { unique: true });
+
+// Listed per user rather than per book, so it needs a market of its own to be
+// filtered by. It carries no currency or exchange to derive one from - only a
+// portfolio id - so the route that writes it sets the market from the book it
+// already loaded. That is the one place a rule is ever created.
+riskProfileSchema.plugin(marketScoped({ from: null }));
 
 export default mongoose.model('RiskProfile', riskProfileSchema);

@@ -22,6 +22,18 @@ import Transaction from '../models/Transaction.js';
 
 const router = express.Router();
 
+/**
+ * An error's own status, or ours.
+ *
+ * Every catch here used to answer 500, which called a missing book a server
+ * failure - and after the market boundary moved into the models, "not in this
+ * market" arrived by the same path. The thrower knows which it is.
+ */
+const fail = (res, error) => res
+    .status(error.status || 500)
+    .json({ success: false, message: error.message });
+
+
 // Configure multer for CSV upload
 const storage = multer.memoryStorage();
 const upload = multer({
@@ -59,10 +71,7 @@ router.get('/', async (req, res) => {
         });
     } catch (error) {
         console.error('Error fetching portfolios:', error);
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        fail(res, error);
     }
 });
 
@@ -107,10 +116,7 @@ router.post('/', async (req, res) => {
         });
     } catch (error) {
         console.error('Error creating portfolio:', error);
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        fail(res, error);
     }
 });
 
@@ -185,10 +191,7 @@ router.delete('/:id', async (req, res) => {
             data: portfolio
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        fail(res, error);
     }
 });
 
@@ -222,10 +225,7 @@ router.post('/:id/share', async (req, res) => {
             data: portfolio
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        fail(res, error);
     }
 });
 
@@ -247,10 +247,7 @@ router.delete('/:id/share/:userId', async (req, res) => {
             data: portfolio
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        fail(res, error);
     }
 });
 
@@ -281,10 +278,7 @@ router.get('/:id/transactions', async (req, res) => {
             data: transactions
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        fail(res, error);
     }
 });
 
@@ -350,10 +344,7 @@ router.put('/:portfolioId/transactions/:transactionId', async (req, res) => {
             data: transaction
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        fail(res, error);
     }
 });
 
@@ -370,10 +361,7 @@ router.delete('/:portfolioId/transactions/:transactionId', async (req, res) => {
             message: 'Transaction deleted successfully'
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        fail(res, error);
     }
 });
 
@@ -568,10 +556,7 @@ router.get('/:id/holdings', async (req, res) => {
             data: holdings
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        fail(res, error);
     }
 });
 
@@ -589,10 +574,7 @@ router.get('/:id/dashboard', async (req, res) => {
             data: dashboard
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        fail(res, error);
     }
 });
 
@@ -634,10 +616,7 @@ router.post('/:id/rebuild', async (req, res) => {
             data: results
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        fail(res, error);
     }
 });
 
@@ -688,10 +667,7 @@ router.get('/fundamentals/:symbol', async (req, res) => {
             data: fundamental
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        fail(res, error);
     }
 });
 
@@ -725,10 +701,7 @@ router.post('/fundamentals/batch-refresh', async (req, res) => {
             data: results
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        fail(res, error);
     }
 });
 
@@ -766,10 +739,7 @@ router.put('/fundamentals/:symbol', async (req, res) => {
             data: fundamental
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        fail(res, error);
     }
 });
 
@@ -790,10 +760,7 @@ router.get('/fundamentals/stale/list', async (req, res) => {
             data: staleSymbols
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        fail(res, error);
     }
 });
 
@@ -812,10 +779,7 @@ router.get('/calculators/available', async (req, res) => {
             data: calculators
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        fail(res, error);
     }
 });
 
@@ -834,10 +798,7 @@ router.get('/:id/policy', async (req, res) => {
             data: policy
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        fail(res, error);
     }
 });
 
@@ -858,10 +819,7 @@ router.put('/:id/policy', async (req, res) => {
             data: policy
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        fail(res, error);
     }
 });
 
@@ -881,10 +839,7 @@ router.delete('/:id/policy', async (req, res) => {
             message: 'Policy and recommendations deleted'
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        fail(res, error);
     }
 });
 
@@ -901,10 +856,7 @@ router.get('/:id/sip-plan', async (req, res) => {
             data: plan
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        fail(res, error);
     }
 });
 
@@ -925,10 +877,7 @@ router.put('/:id/sip-plan', async (req, res) => {
             data: plan
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        fail(res, error);
     }
 });
 
@@ -945,10 +894,7 @@ router.delete('/:id/sip-plan', async (req, res) => {
             message: 'SIP plan deleted'
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        fail(res, error);
     }
 });
 
@@ -979,10 +925,7 @@ router.post('/:id/recommendations/generate', async (req, res) => {
             data: recommendation
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        fail(res, error);
     }
 });
 
@@ -1002,10 +945,7 @@ router.get('/:id/recommendations', async (req, res) => {
             data: recommendations
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        fail(res, error);
     }
 });
 
@@ -1025,10 +965,7 @@ router.get('/:id/recommendations/:month', async (req, res) => {
             data: recommendation
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        fail(res, error);
     }
 });
 
@@ -1061,10 +998,7 @@ router.patch('/:id/recommendations/:month/approve', authenticate, async (req, re
             data: recommendation
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        fail(res, error);
     }
 });
 
@@ -1127,10 +1061,7 @@ router.patch('/:id/recommendations/:month/execute', authenticate, async (req, re
     } catch (error) {
         console.error('❌ Error executing recommendation:', error);
         console.error('Stack:', error.stack);
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        fail(res, error);
     }
 });
 
@@ -1147,10 +1078,7 @@ router.get('/:id/drift', async (req, res) => {
             data: drift
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        fail(res, error);
     }
 });
 

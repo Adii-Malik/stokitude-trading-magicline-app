@@ -4,6 +4,7 @@
  * doesn't own (e.g. a broker outside this app); P/L is always derived, never stored.
  */
 import mongoose from 'mongoose';
+import { marketScoped } from './plugins/marketScoped.js';
 import { EXCHANGE_CODES, DEFAULT_EXCHANGE, currencyOf } from '../config/exchanges.js';
 
 // Starting suggestions, not a constraint. Both of these are free text: a closed
@@ -297,5 +298,8 @@ journalEntrySchema.pre('save', function (next) {
 
     next();
 });
+
+// Scoped to one market, from the venue the trade was made on.
+journalEntrySchema.plugin(marketScoped({ from: 'exchange' }));
 
 export default mongoose.model('JournalEntry', journalEntrySchema);

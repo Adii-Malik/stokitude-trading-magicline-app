@@ -31,10 +31,7 @@ router.get('/options', async (req, res) => {
     const market = getMarket(req.market);
     const portfolios = await Portfolio.find({
         $or: [{ owner: req.user._id }, { 'sharedWith.user': req.user._id }],
-        isActive: true,
-        // Scoped like everything else: a US book has no business in a PSX
-        // trade's picker, and the settings screen was listing both.
-        currency: market.currency
+        isActive: true
     }).select('name currency commissionSlabs charges').sort({ name: 1 }).lean();
 
     const settings = await JournalSettings.forUser(req.user._id);
@@ -111,18 +108,7 @@ router.get('/risk-context', async (req, res) => {
 /** Risk tolerance, one profile per book. Capital is not stored - see the model. */
 router.get('/risk-profiles', async (req, res) => {
     try {
-        // A rule belongs to a book, so it is in whichever market that book is.
-        // Listing all of them put a US rule on a Pakistani settings screen.
-        const books = await Portfolio.find({
-            $or: [{ owner: req.user._id }, { 'sharedWith.user': req.user._id }],
-            isActive: true,
-            currency: getMarket(req.market).currency
-        }).select('_id').lean();
-
-        const profiles = await RiskProfile.find({
-            user: req.user._id,
-            portfolioId: { $in: books.map(b => b._id) }
-        }).lean();
+        const profiles = await RiskProfile.find({ user: req.user._id }).lean();
         res.json({ success: true, data: profiles });
     } catch (error) {
         fail(res, error);
@@ -131,10 +117,11 @@ router.get('/risk-profiles', async (req, res) => {
 
 router.put('/risk-profiles/:portfolioId', async (req, res) => {
     try {
-        // Same boundary as the books themselves: a rule for a book in another
-        // market is not a rule this market may write.
-        const book = await Portfolio.findById(req.params.portfolioId).select('currency').lean();
-        if (book && (book.currency || 'PKR').toUpperCase() !== getMarket(req.market).currency) {
+        // The book is already scoped, so finding none means it is not in this
+        // market - and it also carries the market this rule has to be stamped
+        // with, since a rule has no venue of its own to derive one from.
+        const book = await Portfolio.findById(req.params.portfolioId).select('market').lean();
+        if (!book) {
             return res.status(404).json({
                 success: false, code: 'WRONG_MARKET',
                 message: 'That book belongs to another market.'
@@ -144,7 +131,8 @@ router.put('/risk-profiles/:portfolioId', async (req, res) => {
         const { defaultRiskPct, maxPositionPct } = req.body;
         const profile = await RiskProfile.findOneAndUpdate(
             { user: req.user._id, portfolioId: req.params.portfolioId },
-            { defaultRiskPct, maxPositionPct },
+            // Stamped from the book, because a rule has no venue of its own.
+            { defaultRiskPct, maxPositionPct, market: book.market },
             { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true }
         );
         res.json({ success: true, data: profile });
@@ -208,7 +196,7 @@ router.post('/chart', (req, res) => {
 
 router.get('/stats', async (req, res) => {
     try {
-        res.json({ success: true, data: await journalService.stats(req.user._id, req.query, req.market) });
+        res.json({ success: true, data: await journalService.stats(req.user._id, req.query) });
     } catch (error) {
         fail(res, error);
     }
@@ -216,7 +204,7 @@ router.get('/stats', async (req, res) => {
 
 router.get('/', async (req, res) => {
     try {
-        const { entries, total } = await journalService.list(req.user._id, req.query, req.market);
+        const { entries, total } = await journalService.list(req.user._id, req.query);
         res.json({ success: true, count: entries.length, total, data: entries });
     } catch (error) {
         fail(res, error);
@@ -234,7 +222,7 @@ router.post('/', async (req, res) => {
 
 router.get('/:id', async (req, res) => {
     try {
-        res.json({ success: true, data: await journalService.get(req.params.id, req.user._id, req.market) });
+        res.json({ success: true, data: await journalService.get(req.params.id, req.user._id) });
     } catch (error) {
         fail(res, error);
     }

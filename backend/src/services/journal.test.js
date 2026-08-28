@@ -6,7 +6,7 @@
  */
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { computeMetrics, decorate, statsFor, exchangeScope } from './journalService.js';
+import { computeMetrics, decorate, statsFor } from './journalService.js';
 import { marketOfCurrency, marketOfExchange, currencyOfMarket, DEFAULT_MARKET } from '../config/exchanges.js';
 
 const trade = (o = {}) => ({
@@ -276,31 +276,5 @@ describe('the market is a boundary, not a filter', () => {
     test('home is Pakistan', () => {
         assert.equal(DEFAULT_MARKET, 'PK');
         assert.equal(currencyOfMarket(DEFAULT_MARKET), 'PKR');
-    });
-});
-
-describe('a market cannot be escaped by a query parameter', () => {
-    test('unscoped sees everything', () => {
-        assert.equal(exchangeScope(null), null);
-    });
-
-    test('a market limits to its own exchanges', () => {
-        assert.deepEqual(exchangeScope('PK'), ['PSX']);
-        assert.deepEqual(exchangeScope('US'), ['NASDAQ', 'NYSE']);
-    });
-
-    test('a filter may narrow inside the market', () => {
-        assert.deepEqual(exchangeScope('US', 'nasdaq'), ['NASDAQ']);
-    });
-
-    // The alternative - ignoring the filter and returning the whole market -
-    // would answer a question about the US with Pakistani trades.
-    test('a filter may not reach outside it', () => {
-        assert.deepEqual(exchangeScope('PK', 'NASDAQ'), []);
-        assert.deepEqual(exchangeScope('US', 'PSX'), []);
-    });
-
-    test('without a market the filter still applies', () => {
-        assert.deepEqual(exchangeScope(null, 'PSX'), ['PSX']);
     });
 });

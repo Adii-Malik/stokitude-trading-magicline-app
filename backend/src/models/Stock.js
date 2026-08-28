@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { marketScoped } from './plugins/marketScoped.js';
 import { EXCHANGE_CODES, DEFAULT_EXCHANGE } from '../config/exchanges.js';
 
 const stockSchema = new mongoose.Schema({
@@ -116,6 +117,9 @@ const stockSchema = new mongoose.Schema({
 // Text index for search/autocomplete
 stockSchema.index({ exchange: 1, symbol: 1 }, { unique: true });
 stockSchema.index({ symbol: 'text', companyName: 'text' });
+
+// Scoped to one market. A symbol names a company only within one.
+stockSchema.plugin(marketScoped({ from: 'exchange' }));
 
 const Stock = mongoose.model('Stock', stockSchema);
 
