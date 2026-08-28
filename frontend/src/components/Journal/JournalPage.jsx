@@ -259,7 +259,12 @@ export default function JournalPage() {
                 </Modal>
             )}
 
-            {showSettings && (
+            {/* Not until the settings are here. The modal copies them into state
+                once, on mount, so opening it early showed empty lists - and Save
+                would have written those empties back over your setups and
+                trackers. Clicking the gear before they land simply opens it when
+                they do. */}
+            {showSettings && settings && (
                 <JournalSettingsModal
                     settings={settings}
                     portfolios={options?.portfolios || []}

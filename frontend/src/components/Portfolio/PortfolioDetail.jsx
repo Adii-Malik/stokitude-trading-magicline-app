@@ -431,11 +431,20 @@ function Summary({ dashboard, currency }) {
             <Panel icon={Receipt} tint="amber" title="What it cost"
                 value={money(totalFees + capitalGainsTax)}
                 tone="text-amber-600 dark:text-amber-400">
+                {/* Both are costs, but they land at different moments, and the
+                    column did not say so: commission is taken out when the sale
+                    is booked, tax comes off afterwards. Read straight down it
+                    looked like realised minus both, which is not the figure at
+                    the bottom - and anyone checking the arithmetic concluded the
+                    number was wrong rather than the labelling. */}
                 <Line label="Commission" value={money(totalFees)}
-                    note={bite !== null ? `${bite.toFixed(0)}% of realised gains` : null} />
+                    note={bite !== null
+                        ? `${bite.toFixed(0)}% of realised gains — already taken off`
+                        : 'already taken off'} />
                 <Line label={cgtLabel} value={money(capitalGainsTax)} />
 
-                <Line label="In hand from sales" value={money(netRealizedPnL, { signed: true })} strong />
+                <Line label="In hand from sales" value={money(netRealizedPnL, { signed: true })}
+                    note="realised, less tax" strong />
             </Panel>
         </div>
     );

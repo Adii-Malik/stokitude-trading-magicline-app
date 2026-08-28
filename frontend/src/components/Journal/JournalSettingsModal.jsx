@@ -107,7 +107,8 @@ export default function JournalSettingsModal({ settings, portfolios = [], byTrac
                     </button>
                 </>
             }>
-            <div className="grid md:grid-cols-2 gap-x-8 gap-y-6 items-start">
+            <div className="flex flex-col md:flex-row gap-x-8 gap-y-6">
+                <div className="flex-1 min-w-0 flex flex-col gap-6">
 
                 <Section title="Default book, per market"
                     hint="Which book a new trade logs against, one per market.">
@@ -183,11 +184,15 @@ export default function JournalSettingsModal({ settings, portfolios = [], byTrac
                         </div>
                     )}
                 </Section>
+                </div>
+
+                <div className="flex-1 min-w-0 flex flex-col gap-6">
                 <NamedList title="Things you're tracking" items={trackers} onChange={setTrackers}
                     stats={byTracker} placeholder="name it in your own words"
                     hint="Tapped when you close one." />
 
 
+                </div>
             </div>
         </Modal>
     );
