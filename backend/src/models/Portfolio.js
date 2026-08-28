@@ -4,6 +4,7 @@
  * Supports multiple portfolios per user, sharing, and flexible P/L calculation methods
  */
 import mongoose from 'mongoose';
+import { marketScoped } from './plugins/marketScoped.js';
 
 const portfolioSchema = new mongoose.Schema({
     name: {
@@ -184,5 +185,9 @@ portfolioSchema.methods.hasAccess = function (userId, requiredRole = 'viewer') {
 portfolioSchema.methods.canEdit = function (userId) {
     return this.isOwnedBy(userId) || this.hasAccess(userId, 'editor');
 };
+
+// Scoped to one market, from its currency. Books are listed without a portfolio
+// id, so this is filtered rather than inherited.
+portfolioSchema.plugin(marketScoped({ from: 'currency' }));
 
 export default mongoose.model('Portfolio', portfolioSchema);

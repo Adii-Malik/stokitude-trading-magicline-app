@@ -173,7 +173,7 @@ router.get('/me', authenticate, async (req, res) => {
     const books = await Portfolio.find({
       $or: [{ owner: req.user._id }, { 'sharedWith.user': req.user._id }],
       isActive: true
-    }).select('currency').lean();
+    }).select('currency').unscoped().lean();
 
     const held = [...new Set(books.map(b => marketOfCurrency(b.currency)))];
 

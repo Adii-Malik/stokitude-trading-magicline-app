@@ -19,8 +19,6 @@ import PortfolioPolicy from '../models/PortfolioPolicy.js';
 import SIPPlan from '../models/SIPPlan.js';
 import Recommendation from '../models/Recommendation.js';
 import Transaction from '../models/Transaction.js';
-import Portfolio from '../models/Portfolio.js';
-import { currencyOfMarket } from '../config/exchanges.js';
 
 const router = express.Router();
 
@@ -40,43 +38,6 @@ const upload = multer({
 // All routes require authentication
 router.use(authenticate);
 
-/**
- * A book belongs to a market, and so does every page about it.
- *
- * Scoping the list was not enough: a link to a Pakistani book still opened while
- * scoped to the US, because the id was asked for directly and nothing checked
- * which market it was in. The page then rendered rupees under a US flag.
- *
- * Written as router.param rather than a check inside each handler - there are
- * twenty-eight routes here that take an id, and a rule that has to be remembered
- * twenty-eight times is a rule that will be missed once.
- *
- * Answers 404 rather than 403: in this market that book does not exist. The
- * client reads the code and sends you back to the list.
- */
-const guardMarket = async (req, res, next, id) => {
-    try {
-        if (!mongoose.isValidObjectId(id)) return next();
-
-        const book = await Portfolio.findById(id).select('currency').lean();
-        // Missing is the route's own 404 to give, not ours.
-        if (!book) return next();
-
-        if ((book.currency || 'PKR').toUpperCase() !== currencyOfMarket(req.market)) {
-            return res.status(404).json({
-                success: false,
-                code: 'WRONG_MARKET',
-                message: 'That book belongs to another market.'
-            });
-        }
-        next();
-    } catch (error) {
-        next(error);
-    }
-};
-
-router.param('id', guardMarket);
-router.param('portfolioId', guardMarket);
 
 // ===== Portfolio CRUD =====
 
@@ -89,7 +50,7 @@ router.get('/', async (req, res) => {
         // One batched pass, not a dashboard per portfolio. The cards read three
         // numbers; the dashboard computed tax years, filer status and disposals
         // for each of them, six sequential queries at a time.
-        const summaries = await portfolioService.summaries(req.user._id, req.market);
+        const summaries = await portfolioService.summaries(req.user._id);
 
         res.json({
             success: true,

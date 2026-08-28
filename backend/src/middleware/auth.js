@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { getMarket } from '../config/exchanges.js';
+import { marketStore } from '../config/marketStore.js';
 import User from '../models/User.js';
 import config from '../config/config.js';
 
@@ -55,7 +56,11 @@ export const authenticate = async (req, res, next) => {
     // from a portfolio's currency. A request header can override it for a single
     // call, which is what lets the client switch without a round trip to save.
     req.market = getMarket(req.headers['x-market'] || user.activeMarket).code;
-    next();
+
+    // Everything downstream runs inside the market, so no route or service has
+    // to be handed it. This is scoping, not authorization - who owns a record is
+    // still checked separately, and must stay that way.
+    marketStore.run({ market: req.market }, next);
   } catch (error) {
     console.error('Authentication error:', error);
     

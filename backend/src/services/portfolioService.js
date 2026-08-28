@@ -12,7 +12,6 @@ import User from '../models/User.js';
 
 import CalculatorRegistry from './portfolio/calculators/CalculatorRegistry.js';
 import { cgtByTaxYear } from '../config/taxConfig.js';
-import { currencyOfMarket } from '../config/exchanges.js';
 
 /**
  * What a book's returns are measured against.
@@ -94,24 +93,20 @@ class PortfolioService {
      * Get portfolios accessible by user
      */
     /**
-     * Books this user can see, in one market.
+     * Books this user can see.
      *
-     * The market is passed in rather than worked out here: the caller already
-     * knows it from the request, and a book's currency is a consequence of the
-     * market it trades in, not the other way round. Omit it and every book comes
-     * back, which is what the admin and the internal callers want.
+     * No market here on purpose. The model is scoped, so this returns the books
+     * of whichever market the request is in - and outside a request, all of them,
+     * which is what jobs and scripts want.
      */
-    async getAccessiblePortfolios(userId, market = null) {
-        const query = {
+    async getAccessiblePortfolios(userId) {
+        const portfolios = await Portfolio.find({
             $or: [
                 { owner: userId },
                 { 'sharedWith.user': userId }
             ],
             isActive: true
-        };
-        if (market) query.currency = currencyOfMarket(market);
-
-        const portfolios = await Portfolio.find(query).populate('owner', 'username email');
+        }).populate('owner', 'username email');
 
         return portfolios;
     }
@@ -276,8 +271,8 @@ class PortfolioService {
      * arithmetic afterwards is the same as the dashboard's so the numbers cannot
      * disagree.
      */
-    async summaries(userId, market = null) {
-        const portfolios = await this.getAccessiblePortfolios(userId, market);
+    async summaries(userId) {
+        const portfolios = await this.getAccessiblePortfolios(userId);
         if (!portfolios.length) return [];
 
         const ids = portfolios.map(p => p._id);
