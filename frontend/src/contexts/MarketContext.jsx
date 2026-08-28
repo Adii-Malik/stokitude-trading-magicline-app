@@ -1,6 +1,7 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
 import { landingFor } from '../utils/market';
+import { useAuth } from './AuthContext';
 
 /**
  * Which market the app is in.
@@ -40,18 +41,19 @@ export const MarketProvider = ({ children }) => {
             setAvailable(markets.held || []);
             setMarketState(markets.active || null);
         } catch {
-            // Signed out, or offline. The stored value still scopes the session.
+            // Signed out, or offline. Nothing to scope until there is a user.
         }
     }, []);
 
-    // Once, on mount. `refresh` closes over `market` only to avoid a redundant
-    // set, so re-running it whenever that changes would just re-fetch on switch.
-    const first = useRef(true);
+    // Whenever the signed-in user changes, not only on mount. Logging in as
+    // somebody else without a page load would otherwise leave the previous
+    // market on screen. The data would still be right - the server reads the
+    // market from the account - but the flag would be lying about it.
+    const { user } = useAuth();
     useEffect(() => {
-        if (!first.current) return;
-        first.current = false;
-        refresh();
-    }, [refresh]);
+        if (user) refresh();
+        else setAvailable([]);
+    }, [user, refresh]);
 
     /**
      * Switch, then start again.
