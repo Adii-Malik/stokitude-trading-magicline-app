@@ -188,6 +188,9 @@ portfolioSchema.methods.canEdit = function (userId) {
 
 // Scoped to one market, from its currency. Books are listed without a portfolio
 // id, so this is filtered rather than inherited.
+// Tenant first: every list of books starts by narrowing to one market.
+portfolioSchema.index({ market: 1, owner: 1, isActive: 1 });
+
 portfolioSchema.plugin(marketScoped({ from: 'currency' }));
 
 export default mongoose.model('Portfolio', portfolioSchema);

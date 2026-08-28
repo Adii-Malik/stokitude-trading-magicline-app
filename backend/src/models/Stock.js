@@ -119,6 +119,8 @@ stockSchema.index({ exchange: 1, symbol: 1 }, { unique: true });
 stockSchema.index({ symbol: 'text', companyName: 'text' });
 
 // Scoped to one market. A symbol names a company only within one.
+stockSchema.index({ market: 1, symbol: 1 });
+
 stockSchema.plugin(marketScoped({ from: 'exchange' }));
 
 const Stock = mongoose.model('Stock', stockSchema);

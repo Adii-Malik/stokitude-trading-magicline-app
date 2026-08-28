@@ -11,10 +11,10 @@ import { landingFor } from '../utils/market';
  * each having to get it right separately, the app is scoped to one market the
  * way it is scoped to one theme.
  *
- * The value lives on the user so it survives a new device, and in localStorage
- * so the first request of a session already carries it. `api` reads that key
- * directly and sends it as X-Market on every call, which is why no screen below
- * this ever passes a market or a currency to anything.
+ * The value lives on the user and nowhere else. There is no browser copy: the
+ * server reads the market from the account, so the two cannot disagree, and a
+ * stale value cannot survive a logout into somebody else's session. No screen
+ * below this passes a market or a currency to anything.
  */
 const MarketContext = createContext();
 
@@ -26,17 +26,11 @@ export const useMarket = () => {
     return context;
 };
 
-const HOME = 'PK';
-
 export const MarketProvider = ({ children }) => {
-    const [market, setMarketState] = useState(() => localStorage.getItem('market') || HOME);
+    const [market, setMarketState] = useState(null);
     // Only the markets this user actually holds books in. One of them means the
     // switch has nothing to offer, so it does not appear at all.
     const [available, setAvailable] = useState([]);
-
-    useEffect(() => {
-        localStorage.setItem('market', market);
-    }, [market]);
 
     const refresh = useCallback(async () => {
         try {
@@ -44,14 +38,11 @@ export const MarketProvider = ({ children }) => {
             const markets = data?.data?.markets;
             if (!markets) return;
             setAvailable(markets.held || []);
-            // The server is the record. A stale localStorage value - a market
-            // whose last book was closed, say - is corrected here rather than
-            // quietly scoping every query to nothing.
-            if (markets.active && markets.active !== market) setMarketState(markets.active);
+            setMarketState(markets.active || null);
         } catch {
             // Signed out, or offline. The stored value still scopes the session.
         }
-    }, [market]);
+    }, []);
 
     // Once, on mount. `refresh` closes over `market` only to avoid a redundant
     // set, so re-running it whenever that changes would just re-fetch on switch.
@@ -65,25 +56,23 @@ export const MarketProvider = ({ children }) => {
     /**
      * Switch, then start again.
      *
-     * Every screen is scoped at load - the market goes out as a header on the
-     * first request each page makes - so changing scope means loading again.
+     * Every screen is scoped at load, so changing scope means loading again.
      * The alternative is each page subscribing to a market change and
      * remembering to refetch, which is the per-screen bookkeeping this whole
      * design exists to delete: one screen forgetting would show Pakistani
      * holdings under a US flag.
-     *
-     * Written to localStorage before the reload, so the very first request of
-     * the new page already carries the new market.
      */
     const setMarket = useCallback(async (next) => {
         if (!next || next === market) return;
-        localStorage.setItem('market', next);
-        setMarketState(next);
         try {
+            // The save has to land first: the server reads the market from the
+            // account, so the reloaded page must ask as the new market from its
+            // very first request.
             await api.put('/auth/market', { market: next });
         } catch {
-            // Kept locally regardless: the switch is about what you are looking
-            // at now, and a failed save is not a reason to snap the view back.
+            // Nothing was stored, so nothing is inconsistent - the app stays in
+            // the market it was already in.
+            return;
         }
         // A page about one book cannot survive the switch - that book is not in
         // the new market, and the server now answers 404 for it. Land on the
@@ -95,7 +84,7 @@ export const MarketProvider = ({ children }) => {
         market,
         setMarket,
         available,
-        currency: available.find((m) => m.code === market)?.currency || (market === 'PK' ? 'PKR' : 'USD'),
+        currency: available.find((m) => m.code === market)?.currency || null,
         // A switch with one option is a switch worth hiding.
         canSwitch: available.length > 1,
         refresh

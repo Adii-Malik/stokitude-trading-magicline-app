@@ -55,7 +55,11 @@ export const authenticate = async (req, res, next) => {
     // Resolved once, here, so no service has to work out which market it is in
     // from a portfolio's currency. A request header can override it for a single
     // call, which is what lets the client switch without a round trip to save.
-    req.market = getMarket(req.headers['x-market'] || user.activeMarket).code;
+    // From the user record only. It used to accept an X-Market header so a switch
+    // took effect before the save landed, but the switch reloads the page anyway -
+    // so the header bought nothing and cost a second source of truth that could
+    // disagree with the first, and survive a logout into someone else's session.
+    req.market = getMarket(user.activeMarket).code;
 
     // Everything downstream runs inside the market, so no route or service has
     // to be handed it. This is scoping, not authorization - who owns a record is

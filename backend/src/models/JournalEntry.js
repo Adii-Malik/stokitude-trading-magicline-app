@@ -300,6 +300,8 @@ journalEntrySchema.pre('save', function (next) {
 });
 
 // Scoped to one market, from the venue the trade was made on.
+journalEntrySchema.index({ market: 1, user: 1, entryDate: -1 });
+
 journalEntrySchema.plugin(marketScoped({ from: 'exchange' }));
 
 export default mongoose.model('JournalEntry', journalEntrySchema);

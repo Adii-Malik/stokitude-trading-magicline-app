@@ -27,14 +27,6 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // Which market the app is scoped to, sent on every request so the server
-    // never has to guess and a switch takes effect before the save round-trips.
-    // Read here rather than passed by each caller - the whole point is that a
-    // screen carries no opinion about market or currency.
-    const market = localStorage.getItem('market');
-    if (market) {
-      config.headers['X-Market'] = market;
-    }
 
     return config;
   },
