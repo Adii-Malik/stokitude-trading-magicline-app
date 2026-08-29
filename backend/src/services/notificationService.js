@@ -2,6 +2,7 @@ import Notification from '../models/Notification.js';
 import NotificationPreference from '../models/NotificationPreference.js';
 import User from '../models/User.js';
 import emailService from './emailService.js';
+import pushService from './pushService.js';
 import { isValidCategory, isValidEvent, isAdminOnly } from '../config/notificationConfig.js';
 
 class NotificationService {
@@ -144,12 +145,14 @@ class NotificationService {
         });
       }
 
-      // TODO: Send push notification if enabled
-      // if (prefs.shouldSendNotification(category, 'push')) {
-      //   this.sendPushNotification(notification, user).catch(err => {
-      //     console.error(`❌ Failed to send push notification: ${err.message}`);
-      //   });
-      // }
+      // Send push if enabled. Not awaited, for the same reason email is not:
+      // the notification is already saved, and a push service being slow must
+      // not hold up the price poll that raised the alert.
+      if (prefs.shouldSendNotification(category, 'push')) {
+        this.sendPush(notification, user).catch(err => {
+          console.error(`❌ Failed to send push notification: ${err.message}`);
+        });
+      }
 
       return notification;
     } catch (error) {
@@ -186,6 +189,34 @@ class NotificationService {
       await notification.save();
       throw error;
     }
+  }
+
+  /**
+   * Send push notification
+   *
+   * A device that has gone away is not a failure - pushService deletes it and
+   * says so. The notification only counts as pushed if at least one device took
+   * it, so `sent: 0` leaves the record honest rather than claiming delivery.
+   */
+  async sendPush(notification, user) {
+    const result = await pushService.sendToUser(user._id, {
+      title: notification.title,
+      body: notification.message,
+      actionUrl: notification.actionUrl,
+      priority: notification.priority,
+      notificationId: String(notification._id)
+    });
+
+    if (result.sent > 0) {
+      notification.channels.push.sent = true;
+      notification.channels.push.sentAt = new Date();
+    } else if (result.failed > 0) {
+      notification.channels.push.error = `${result.failed} device(s) failed`;
+    }
+    await notification.save();
+
+    const dropped = result.gone ? `, ${result.gone} expired device(s) removed` : '';
+    console.log(`\ud83d\udcf1 Push sent to ${result.sent} device(s) for ${user.username}${dropped}`);
   }
 
   /**

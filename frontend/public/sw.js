@@ -52,3 +52,53 @@ self.addEventListener('fetch', (e) => {
             .catch(() => caches.match(request).then((hit) => hit || caches.match('/')))
     );
 });
+
+/**
+ * Web Push.
+ *
+ * This is the only part of the app that runs when the app is shut, which is the
+ * entire point: a stop being reached at 11am is worth nothing if it needs the
+ * tab to be open to be seen.
+ */
+self.addEventListener('push', (e) => {
+    // A push with no payload still has to show something. Browsers may drop a
+    // subscription that receives a push and shows no notification.
+    let payload = { title: 'Financial Reading', body: 'You have a new alert.' };
+    try {
+        if (e.data) payload = { ...payload, ...e.data.json() };
+    } catch {
+        if (e.data) payload.body = e.data.text();
+    }
+
+    e.waitUntil(self.registration.showNotification(payload.title, {
+        body: payload.body,
+        icon: '/icon-192.png',
+        badge: '/icon-192.png',
+        // Urgent means a stop. Let it interrupt rather than arrive silently.
+        requireInteraction: payload.priority === 'urgent',
+        // One tag per notification, so two alerts on different symbols do not
+        // replace one another in the tray.
+        tag: payload.notificationId || undefined,
+        data: { actionUrl: payload.actionUrl || '/' }
+    }));
+});
+
+self.addEventListener('notificationclick', (e) => {
+    e.notification.close();
+    const target = e.notification.data?.actionUrl || '/';
+
+    // Focus the app if it is already open rather than stacking another copy of
+    // it - on iOS the Home Screen app is a single window and opening again
+    // would lose whatever was on screen.
+    e.waitUntil((async () => {
+        const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        for (const client of clients) {
+            if (new URL(client.url).origin === self.location.origin) {
+                await client.focus();
+                if ('navigate' in client) await client.navigate(target);
+                return;
+            }
+        }
+        await self.clients.openWindow(target);
+    })());
+});

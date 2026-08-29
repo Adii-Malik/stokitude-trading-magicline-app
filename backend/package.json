@@ -38,7 +38,8 @@
     "nodemailer": "^7.0.10",
     "resend": "^6.5.2",
     "socket.io": "^4.6.2",
-    "uuid": "^13.0.0"
+    "uuid": "^13.0.0",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"

@@ -3,6 +3,8 @@ import Notification from '../models/Notification.js';
 import NotificationPreference from '../models/NotificationPreference.js';
 import { authenticate } from '../middleware/auth.js';
 import { getUserControllableFeatures } from '../config/notificationConfig.js';
+import pushService from '../services/pushService.js';
+import PushSubscription from '../models/PushSubscription.js';
 
 const router = express.Router();
 
@@ -278,6 +280,93 @@ router.get('/features', authenticate, async (req, res) => {
       message: 'Failed to fetch notification features',
       error: error.message
     });
+  }
+});
+
+/**
+ * Web Push.
+ *
+ * The public VAPID key is deliberately public - it is what the browser encrypts
+ * to, and it is useless without the private half that never leaves the server.
+ */
+
+// GET /api/notifications/push/key - the key the browser subscribes with
+router.get('/push/key', authenticate, (req, res) => {
+  res.json({
+    success: true,
+    data: { publicKey: pushService.vapidPublicKey(), configured: pushService.isConfigured }
+  });
+});
+
+// GET /api/notifications/push/devices - what is registered, to show in settings
+router.get('/push/devices', authenticate, async (req, res) => {
+  try {
+    const devices = await PushSubscription.find({ userId: req.user._id })
+      .select('platform userAgent lastSeenAt createdAt')
+      .sort({ lastSeenAt: -1 })
+      .lean();
+    res.json({ success: true, data: { devices } });
+  } catch (error) {
+    console.error('Error listing push devices:', error);
+    res.status(500).json({ success: false, message: 'Failed to list devices', error: error.message });
+  }
+});
+
+// POST /api/notifications/push/subscribe - register this browser
+router.post('/push/subscribe', authenticate, async (req, res) => {
+  try {
+    await pushService.subscribe(req.user._id, req.body.subscription || {}, req.get('user-agent'));
+
+    // Granting permission is the consent. Making the user then find a toggle to
+    // turn the channel on would mean allowing push and still getting nothing.
+    const prefs = await NotificationPreference.getOrCreate(req.user._id);
+    if (!prefs.channels.push.enabled) {
+      prefs.channels.push.enabled = true;
+      await prefs.save();
+    }
+
+    res.json({ success: true, message: 'Push notifications enabled on this device' });
+  } catch (error) {
+    const status = error.status || 500;
+    if (status === 500) console.error('Error subscribing to push:', error);
+    res.status(status).json({ success: false, message: error.message });
+  }
+});
+
+// DELETE /api/notifications/push/subscribe - unregister this browser
+router.delete('/push/subscribe', authenticate, async (req, res) => {
+  try {
+    const removed = await pushService.unsubscribe(req.user._id, req.body.endpoint);
+
+    // The channel flag is global but the subscriptions are per device, so it is
+    // only switched off once the last one has gone.
+    const left = await PushSubscription.countDocuments({ userId: req.user._id });
+    if (left === 0) {
+      const prefs = await NotificationPreference.getOrCreate(req.user._id);
+      prefs.channels.push.enabled = false;
+      await prefs.save();
+    }
+
+    res.json({ success: true, data: { removed, remaining: left } });
+  } catch (error) {
+    console.error('Error unsubscribing from push:', error);
+    res.status(500).json({ success: false, message: 'Failed to unsubscribe', error: error.message });
+  }
+});
+
+// POST /api/notifications/push/test - prove the whole path end to end
+router.post('/push/test', authenticate, async (req, res) => {
+  try {
+    const result = await pushService.sendToUser(req.user._id, {
+      title: '\ud83d\udd14 Push is working',
+      body: 'This is what a stop or target alert will look like.',
+      actionUrl: '/journal',
+      priority: 'high'
+    });
+    res.json({ success: result.sent > 0, data: result });
+  } catch (error) {
+    console.error('Error sending test push:', error);
+    res.status(500).json({ success: false, message: 'Failed to send test push', error: error.message });
   }
 });
 

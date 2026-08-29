@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Bell, Save, Clock, Mail, Monitor } from 'lucide-react';
+import { Bell, Save, Clock, Mail, Monitor, Smartphone } from 'lucide-react';
 import { getPreferences, updatePreferences, getNotificationFeatures } from '../services/notifications';
 import toast from 'react-hot-toast';
+import PushChannel from './PushChannel';
 
 export default function NotificationPreferences() {
   const [preferences, setPreferences] = useState(null);
@@ -170,23 +171,10 @@ export default function NotificationPreferences() {
             </label>
           </div>
 
-          {/* Push (Coming Soon) */}
-          <div className="flex items-center justify-between py-3 opacity-50">
-            <div className="flex items-center gap-3">
-              <Monitor className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-              <div>
-                <label className="font-medium text-gray-900 dark:text-white">
-                  Push Notifications
-                </label>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Browser push notifications (Coming Soon)
-                </p>
-              </div>
-            </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded">
-              Coming Soon
-            </div>
-          </div>
+          {/* Push. Owns its own state: it is the one channel that is a property
+              of this device rather than of the account, so it cannot be part of
+              the preferences blob that Save writes. */}
+          <PushChannel icon={<Smartphone className="w-5 h-5 text-gray-600 dark:text-gray-400" />} />
         </div>
       </div>
 
