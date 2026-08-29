@@ -117,6 +117,41 @@ export function fitLabel(text, pixels, fontSize) {
 }
 
 /**
+ * Gainers on the left, decliners on the right.
+ *
+ * Size has to mean capitalisation - the sectors holding the money are the ones
+ * that move the index - but a plain treemap then orders by size alone, and the
+ * biggest tile lands top-left whether it rose or fell. Reading left-to-right,
+ * that puts a sector that is down at the front of a board about performance.
+ *
+ * Sorting the whole map by performance instead would wreck it: squarified
+ * packing needs descending weight to keep tiles square, so a sector holding a
+ * quarter of the board arriving late would be crushed into whatever strip was
+ * left. Splitting the board in two costs nothing - each side is still laid out
+ * by weight, so the largest gainer leads the left and the largest decliner
+ * leads the right, and neither can jump the other.
+ *
+ * Each side takes the share of width its own weight deserves, so area stays
+ * proportional across the whole map rather than only within a half.
+ */
+export function squarifyByDirection(items, width, height, gutter = 6) {
+    const up = items.filter((i) => (i.value ?? 0) >= 0 && i.weight > 0);
+    const down = items.filter((i) => (i.value ?? 0) < 0 && i.weight > 0);
+    if (!up.length) return squarify(down, width, height);
+    if (!down.length) return squarify(up, width, height);
+
+    const sum = (list) => list.reduce((a, i) => a + i.weight, 0);
+    const upShare = sum(up) / (sum(up) + sum(down));
+    const usable = width - gutter;
+    const upWidth = usable * upShare;
+
+    return [
+        ...squarify(up, upWidth, height),
+        ...squarify(down, usable - upWidth, height).map((t) => ({ ...t, x: t.x + upWidth + gutter }))
+    ];
+}
+
+/**
  * Market cap, flattened enough to draw.
  *
  * Weighting by capitalisation is right - the sectors holding the money are the
@@ -134,4 +169,4 @@ export function tileWeight(marketCap) {
     return marketCap > 0 ? Math.pow(marketCap, FLATTEN) : 0;
 }
 
-export default { squarify, colorStop, scaleFor, fitLabel, tileWeight };
+export default { squarify, squarifyByDirection, colorStop, scaleFor, fitLabel, tileWeight };

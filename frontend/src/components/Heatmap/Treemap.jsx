@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { squarify, colorStop, scaleFor, fitLabel, tileWeight } from './treemapLayout';
+import { squarifyByDirection, colorStop, scaleFor, fitLabel, tileWeight } from './treemapLayout';
 
 const WIDTH = 1000;
 const HEIGHT = 460;
@@ -29,7 +29,7 @@ export default function Treemap({ items, dark, onSelect, height = HEIGHT }) {
         const weighted = items
             .map((i) => ({ ...i, weight: tileWeight(i.weight) }))
             .filter((i) => i.weight > 0);
-        return squarify(weighted, WIDTH, height)
+        return squarifyByDirection(weighted, WIDTH, height)
             .map((t) => ({ ...t, item: weighted.find((i) => i.key === t.key) }));
     }, [items, height]);
 

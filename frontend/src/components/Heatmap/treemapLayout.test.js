@@ -5,7 +5,7 @@
  */
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { squarify, colorStop, scaleFor, fitLabel, tileWeight } from './treemapLayout.js';
+import { squarify, squarifyByDirection, colorStop, scaleFor, fitLabel, tileWeight } from './treemapLayout.js';
 
 const items = [
     { key: 'a', weight: 40 }, { key: 'b', weight: 25 }, { key: 'c', weight: 20 },
@@ -131,5 +131,48 @@ describe('tileWeight', () => {
     test('a sector with no cap gets no area rather than NaN', () => {
         assert.equal(tileWeight(0), 0);
         assert.equal(tileWeight(null), 0);
+    });
+});
+
+describe('squarifyByDirection', () => {
+    const mixed = [
+        { key: 'bigLoser', weight: 100, value: -2 },
+        { key: 'smallWinner', weight: 5, value: 20 },
+        { key: 'midWinner', weight: 30, value: 4 },
+        { key: 'midLoser', weight: 20, value: -6 }
+    ];
+
+    // The whole point: the biggest sector on the board is down, and it must not
+    // take the leading position on a map about performance.
+    test('no decliner starts left of any gainer', () => {
+        const tiles = squarifyByDirection(mixed, 400, 300);
+        const at = (k) => tiles.find((t) => t.key === k);
+        const winnersRight = Math.max(at('smallWinner').x + at('smallWinner').width,
+            at('midWinner').x + at('midWinner').width);
+        const losersLeft = Math.min(at('bigLoser').x, at('midLoser').x);
+        assert.ok(losersLeft >= winnersRight - 0.01,
+            'a decliner started before a gainer ended');
+    });
+
+    test('within a side, the bigger sector still leads', () => {
+        const tiles = squarifyByDirection(mixed, 400, 300);
+        const big = tiles.find((t) => t.key === 'bigLoser');
+        const mid = tiles.find((t) => t.key === 'midLoser');
+        assert.ok(big.width * big.height > mid.width * mid.height,
+            'weight must still decide area');
+    });
+
+    test('every item is laid out exactly once', () => {
+        const tiles = squarifyByDirection(mixed, 400, 300);
+        assert.equal(tiles.length, mixed.length);
+        assert.equal(new Set(tiles.map((t) => t.key)).size, mixed.length);
+    });
+
+    // A day where nothing fell, or nothing rose, must not leave half the map blank.
+    test('a one-sided board uses the whole width', () => {
+        const allUp = mixed.map((i) => ({ ...i, value: Math.abs(i.value) }));
+        const tiles = squarifyByDirection(allUp, 400, 300);
+        const right = Math.max(...tiles.map((t) => t.x + t.width));
+        assert.ok(right > 399, `only reached ${right} of 400`);
     });
 });
