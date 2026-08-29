@@ -5,7 +5,7 @@
  */
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { squarify, stripLayout, colorStop, scaleFor, fitLabel, tileWeight } from './treemapLayout.js';
+import { squarify, stripLayout, colorStop, scaleFor, fitLabel, tileWeight, withFloor } from './treemapLayout.js';
 
 const items = [
     { key: 'a', weight: 40 }, { key: 'b', weight: 25 }, { key: 'c', weight: 20 },
@@ -203,5 +203,41 @@ describe('stripLayout', () => {
         assert.deepEqual(stripLayout([], 600, 400), []);
         assert.deepEqual(stripLayout(ranked, 0, 400), []);
         assert.deepEqual(stripLayout([{ key: 'z', weight: 0 }], 600, 400), []);
+    });
+});
+
+describe('withFloor', () => {
+    // Woollen came out 4.9 units wide against a 1000-unit board, which reads as
+    // a scratch rather than a sector.
+    const lopsided = [
+        { key: 'giant', weight: 10000 },
+        { key: 'normal', weight: 500 },
+        { key: 'speck', weight: 1 }
+    ];
+
+    test('the speck ends up big enough to see', () => {
+        const out = withFloor(lopsided);
+        const total = out.reduce((a, i) => a + i.weight, 0);
+        const share = out.find((i) => i.key === 'speck').weight / total;
+        assert.ok(share > 0.005, `speck still only ${(share * 100).toFixed(2)}% of the board`);
+    });
+
+    test('tiles already above the floor are left exactly alone', () => {
+        const out = withFloor(lopsided);
+        assert.equal(out.find((i) => i.key === 'giant').weight, 10000);
+        assert.equal(out.find((i) => i.key === 'normal').weight, 500);
+    });
+
+    test('order and relative size survive', () => {
+        const out = withFloor(lopsided);
+        const w = (k) => out.find((i) => i.key === k).weight;
+        assert.ok(w('giant') > w('normal'));
+        assert.ok(w('normal') > w('speck'));
+        assert.deepEqual(out.map((i) => i.key), lopsided.map((i) => i.key));
+    });
+
+    test('an empty board does not divide by zero', () => {
+        assert.deepEqual(withFloor([]), []);
+        assert.deepEqual(withFloor([{ key: 'z', weight: 0 }]), [{ key: 'z', weight: 0 }]);
     });
 });

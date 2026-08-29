@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { stripLayout, colorStop, scaleFor, fitLabel, tileWeight } from './treemapLayout';
+import { stripLayout, colorStop, scaleFor, fitLabel, tileWeight, withFloor } from './treemapLayout';
 
 const WIDTH = 1000;
 const HEIGHT = 460;
@@ -35,10 +35,10 @@ export default function Treemap({ items, dark, onSelect, height = HEIGHT }) {
          * given, so the best performer leads and the worst trails, while the
          * tiles still say which sectors carry the money.
          */
-        const weighted = items
+        const weighted = withFloor(items
             .map((i) => ({ ...i, weight: tileWeight(i.weight) }))
             .filter((i) => i.weight > 0)
-            .sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
+            .sort((a, b) => (b.value ?? 0) - (a.value ?? 0)));
         return stripLayout(weighted, WIDTH, height)
             .map((t) => ({ ...t, item: weighted.find((i) => i.key === t.key) }));
     }, [items, height]);
@@ -53,10 +53,24 @@ export default function Treemap({ items, dark, onSelect, height = HEIGHT }) {
                 const stop = colorStop(value, max);
                 const fill = shade(stop, dark);
                 const text = ink(stop, dark);
+                /**
+                 * Three shapes, three treatments.
+                 *
+                 * A tall tile stacks its name over its number. A wide flat one -
+                 * the last row of a strip layout is usually flat - has no room
+                 * for two lines but plenty for one, and dropping to a bare "-4%"
+                 * there loses the name off the widest tiles on the board. A
+                 * narrow one gets the number alone, because a tile wide enough
+                 * to click is wide enough to say something.
+                 */
                 const roomy = t.width > 74 && t.height > 34;
-                const tight = t.width > 40 && t.height > 18;
+                const flat = !roomy && t.width > 110 && t.height > 15;
+                const tight = !roomy && !flat && t.width > 33 && t.height > 18;
                 const clip = `c-${t.key.replace(/[^a-zA-Z0-9]/g, '')}`;
                 const label = roomy ? fitLabel(t.item.label, t.width - 10, 11.5) : null;
+                const oneLine = flat
+                    ? fitLabel(`${t.item.label}  ${value >= 0 ? '+' : ''}${value.toFixed(1)}%`, t.width - 10, 11)
+                    : null;
                 return (
                     <g key={t.key} onClick={() => onSelect?.(t.item)}
                         style={{ cursor: onSelect ? 'pointer' : 'default' }}>
@@ -79,7 +93,11 @@ export default function Treemap({ items, dark, onSelect, height = HEIGHT }) {
                                     </text>
                                 </>
                             )}
-                            {!label && tight && (
+                            {oneLine && (
+                                <text x={t.x + t.width / 2} y={t.y + t.height / 2 + 4} fill={text}
+                                    textAnchor="middle" fontSize="11" fontWeight="600">{oneLine}</text>
+                            )}
+                            {tight && (
                                 <text x={t.x + t.width / 2} y={t.y + t.height / 2 + 4} fill={text}
                                     textAnchor="middle" fontSize="10.5" fontWeight="700">
                                     {value >= 0 ? '+' : ''}{value.toFixed(0)}%

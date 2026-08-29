@@ -196,4 +196,24 @@ export function tileWeight(marketCap) {
     return marketCap > 0 ? Math.pow(marketCap, FLATTEN) : 0;
 }
 
-export default { squarify, stripLayout, colorStop, scaleFor, fitLabel, tileWeight };
+/**
+ * A floor under the smallest tiles, so none of them reads as a rendering fault.
+ *
+ * Weighting by capitalisation is right, but taken literally it draws Woollen as
+ * a five-pixel line and Modarabas - second best on the board that month - as a
+ * sliver beside Refinery. A tile nobody can see or click is not information
+ * about a small sector, it is a scratch on the screen.
+ *
+ * Every tile is given at least `minShare` of the area. Raising the small ones
+ * raises the total, so the guarantee is approximate and the large tiles give up
+ * a couple of percent between them - which is invisible, where the sliver was
+ * not. Order and relative size are untouched.
+ */
+export function withFloor(items, minShare = 0.011) {
+    const total = items.reduce((a, i) => a + i.weight, 0);
+    if (!total) return items;
+    const floor = total * minShare;
+    return items.map((i) => (i.weight < floor ? { ...i, weight: floor } : i));
+}
+
+export default { squarify, stripLayout, colorStop, scaleFor, fitLabel, tileWeight, withFloor };
