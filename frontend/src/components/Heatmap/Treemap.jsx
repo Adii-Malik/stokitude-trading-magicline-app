@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { squarifyByDirection, colorStop, scaleFor, fitLabel, tileWeight } from './treemapLayout';
+import { stripLayout, colorStop, scaleFor, fitLabel, tileWeight } from './treemapLayout';
 
 const WIDTH = 1000;
 const HEIGHT = 460;
@@ -26,10 +26,20 @@ const ink = (stop, dark) => (Math.abs(stop - 0.5) > 0.22 ? '#fff' : dark ? '#e5e
  */
 export default function Treemap({ items, dark, onSelect, height = HEIGHT }) {
     const tiles = useMemo(() => {
+        /**
+         * Best first, then read like text.
+         *
+         * Area is capitalisation and order is performance - the two used to
+         * fight, because a squarified map orders by size and put the heaviest
+         * sector first whatever it did. A strip layout keeps the order it is
+         * given, so the best performer leads and the worst trails, while the
+         * tiles still say which sectors carry the money.
+         */
         const weighted = items
             .map((i) => ({ ...i, weight: tileWeight(i.weight) }))
-            .filter((i) => i.weight > 0);
-        return squarifyByDirection(weighted, WIDTH, height)
+            .filter((i) => i.weight > 0)
+            .sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
+        return stripLayout(weighted, WIDTH, height)
             .map((t) => ({ ...t, item: weighted.find((i) => i.key === t.key) }));
     }, [items, height]);
 

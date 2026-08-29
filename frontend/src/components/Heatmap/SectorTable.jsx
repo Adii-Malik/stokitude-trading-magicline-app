@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChevronRight, ArrowUpDown } from 'lucide-react';
+import { ArrowUpDown } from 'lucide-react';
 
 const pct = (v, dp = 1) => (v == null ? '—' : `${v >= 0 ? '+' : ''}${v.toFixed(dp)}%`);
 const tone = (v) => (v == null ? 'text-gray-400'
@@ -55,7 +55,7 @@ export default function SectorTable({ data, period, onPeriodChange, onOpen }) {
                 <thead className="text-[11px] uppercase tracking-wide text-gray-400 dark:text-gray-500 border-b border-gray-200 dark:border-gray-700">
                     <tr>
                         <th className="px-4 py-2 text-left font-medium">Sector</th>
-                        {head('count', 'Cos.', 'text-right')}
+                        {head('count', 'Companies', 'text-right')}
                         {head('breadth', 'Up', 'text-right')}
                         <th className="px-2 py-2 text-right font-medium whitespace-nowrap">A/D</th>
                         {data.periods.map((p) => head(p.id, p.short, 'text-right'))}
@@ -67,10 +67,11 @@ export default function SectorTable({ data, period, onPeriodChange, onOpen }) {
                         return (
                             <tr key={s.sector} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
                                     <td className="px-4 py-2">
+                                        {/* A link, because it goes somewhere. The chevron here
+                                            said "expand", which is what it used to do. */}
                                         <button type="button" onClick={() => onOpen(s.sector)}
-                                            className="flex items-center gap-2 text-left hover:text-cyan-600 dark:hover:text-cyan-400">
-                                            <ChevronRight className="w-4 h-4 shrink-0 text-gray-400" />
-                                            <span className="text-gray-800 dark:text-gray-200">{s.sector}</span>
+                                            className="text-left font-medium text-cyan-700 underline-offset-2 hover:underline dark:text-cyan-400">
+                                            {s.sector}
                                         </button>
                                     </td>
                                     <td className="px-2 py-2 text-right tabular-nums text-gray-500 dark:text-gray-400">{s.count}</td>

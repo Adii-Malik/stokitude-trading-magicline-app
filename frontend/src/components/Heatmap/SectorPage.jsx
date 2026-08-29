@@ -38,6 +38,7 @@ export default function SectorPage() {
     const { sector: slug } = useParams();
     const navigate = useNavigate();
     const { market } = useMarket();
+    const currency = market === 'PK' ? 'PKR' : market === 'US' ? 'USD' : null;
     const { theme } = useTheme();
     const { data, error } = useSectors(market);
     const [period, setPeriod] = useState(DEFAULTS.timeframe);
@@ -47,16 +48,27 @@ export default function SectorPage() {
     const sector = data?.sectors.find((s) => s.sector === name);
     const label = TIMEFRAMES.find((t) => t.id === period)?.label;
 
-    const back = (
-        <button type="button" onClick={() => navigate('/heatmap')}
-            className="flex items-center gap-2 text-sm text-gray-500 hover:text-cyan-600 dark:text-gray-400 dark:hover:text-cyan-400">
-            <ArrowLeft className="h-4 w-4" /> All sectors
-        </button>
+    /** Where you are, and the way back, in one line rather than a stray button. */
+    const crumbs = (here) => (
+        <nav className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400">
+            <button type="button" onClick={() => navigate('/heatmap')}
+                className="flex items-center gap-1.5 rounded px-1 py-0.5 hover:text-cyan-600 dark:hover:text-cyan-400">
+                <ArrowLeft className="h-3.5 w-3.5" /> Sector Heatmap
+            </button>
+            <span className="text-gray-300 dark:text-gray-600">/</span>
+            <span className="font-medium text-gray-700 dark:text-gray-300">{here}</span>
+        </nav>
     );
 
-    if (error) return <div className="space-y-4">{back}<div className="rounded-lg border border-gray-200 bg-white p-6 text-sm text-rose-600 dark:border-gray-700 dark:bg-gray-800 dark:text-rose-400">{error}</div></div>;
-    if (!data) return <div className="space-y-4">{back}<div className="rounded-lg border border-gray-200 bg-white p-6 text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">Reading the board…</div></div>;
-    if (!sector) return <div className="space-y-4">{back}<div className="rounded-lg border border-gray-200 bg-white p-6 text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">No sector called “{name}” on this market.</div></div>;
+    const shell = (body, here = name) => (
+        <div className="space-y-4">
+            <div className="rounded-lg border border-gray-200 bg-white px-6 py-4 dark:border-gray-700 dark:bg-gray-800">{crumbs(here)}</div>
+            <div className="rounded-lg border border-gray-200 bg-white p-6 text-sm dark:border-gray-700 dark:bg-gray-800">{body}</div>
+        </div>
+    );
+    if (error) return shell(<span className="text-rose-600 dark:text-rose-400">{error}</span>);
+    if (!data) return shell(<span className="text-gray-500 dark:text-gray-400">Reading the board…</span>);
+    if (!sector) return shell(<span className="text-gray-500 dark:text-gray-400">No sector called “{name}” on this market.</span>);
 
     const stat = sector.periods[period];
     const items = sector.stocks.map((s) => ({
@@ -67,7 +79,11 @@ export default function SectorPage() {
         note: `${s.symbol} — ${s.name}\n${pct(s.perf[period])} over ${label?.toLowerCase()}`
     }));
 
-    const value = (s, key) => (key === 'weight' ? (s.marketCap || 0) : s.perf[key] ?? null);
+    const value = (s, key) => {
+        if (key === 'weight') return s.marketCap || 0;
+        if (key === 'close') return s.close ?? null;
+        return s.perf[key] ?? null;
+    };
     const rows = [...sector.stocks].sort((a, b) => {
         const av = value(a, sort.key), bv = value(b, sort.key);
         if (av == null) return 1;
@@ -84,10 +100,9 @@ export default function SectorPage() {
 
     return (
         <div className="space-y-4">
-            {back}
-
             <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{sector.sector}</h1>
+                {crumbs(sector.sector)}
+                <h1 className="mt-3 text-2xl font-bold text-gray-900 dark:text-white">{sector.sector}</h1>
                 <div className="mt-2 flex flex-wrap items-baseline gap-x-6 gap-y-1 text-sm text-gray-500 dark:text-gray-400">
                     <span><span className={`text-lg font-semibold ${tone(stat?.median)}`}>{pct(stat?.median)}</span> typical over {label?.toLowerCase()}</span>
                     <span>{sector.count} companies</span>
@@ -114,7 +129,8 @@ export default function SectorPage() {
                             <tr>
                                 <th className="px-4 py-2 text-left font-medium">Symbol</th>
                                 <th className="px-2 py-2 text-left font-medium">Name</th>
-                                {head('weight', 'Size', 'text-right')}
+                                {head('close', `Price${currency ? ` (${currency})` : ''}`, 'text-right')}
+                                {head('weight', 'Market cap', 'text-right')}
                                 {TIMEFRAMES.map((t) => head(t.id, t.label.replace('Year so far', 'YTD'), 'text-right'))}
                             </tr>
                         </thead>
@@ -123,6 +139,9 @@ export default function SectorPage() {
                                 <tr key={s.symbol} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
                                     <td className="whitespace-nowrap px-4 py-2 font-medium text-gray-800 dark:text-gray-200">{s.symbol}</td>
                                     <td className="max-w-xs truncate px-2 py-2 text-xs text-gray-500 dark:text-gray-400">{s.name}</td>
+                                    <td className="px-2 py-2 text-right font-medium tabular-nums text-gray-800 dark:text-gray-200">
+                                        {s.close == null ? '—' : s.close.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                    </td>
                                     <td className="px-2 py-2 text-right tabular-nums text-gray-500 dark:text-gray-400">{money(s.marketCap)}</td>
                                     {TIMEFRAMES.map((t) => (
                                         <td key={t.id}

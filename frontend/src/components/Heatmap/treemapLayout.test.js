@@ -5,7 +5,7 @@
  */
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { squarify, squarifyByDirection, colorStop, scaleFor, fitLabel, tileWeight } from './treemapLayout.js';
+import { squarify, stripLayout, colorStop, scaleFor, fitLabel, tileWeight } from './treemapLayout.js';
 
 const items = [
     { key: 'a', weight: 40 }, { key: 'b', weight: 25 }, { key: 'c', weight: 20 },
@@ -134,45 +134,74 @@ describe('tileWeight', () => {
     });
 });
 
-describe('squarifyByDirection', () => {
-    const mixed = [
-        { key: 'bigLoser', weight: 100, value: -2 },
-        { key: 'smallWinner', weight: 5, value: 20 },
-        { key: 'midWinner', weight: 30, value: 4 },
-        { key: 'midLoser', weight: 20, value: -6 }
+
+describe('stripLayout', () => {
+    // Ordered best to worst. The point of this layout over the squarified one:
+    // the order given is the order laid out, so the best performer leads even
+    // when a heavier sector did worse.
+    const ranked = [
+        { key: 'bestButSmall', weight: 5 },
+        { key: 'goodAndHuge', weight: 100 },
+        { key: 'flatMidsize', weight: 30 },
+        { key: 'worstAndBig', weight: 60 }
     ];
 
-    // The whole point: the biggest sector on the board is down, and it must not
-    // take the leading position on a map about performance.
-    test('no decliner starts left of any gainer', () => {
-        const tiles = squarifyByDirection(mixed, 400, 300);
-        const at = (k) => tiles.find((t) => t.key === k);
-        const winnersRight = Math.max(at('smallWinner').x + at('smallWinner').width,
-            at('midWinner').x + at('midWinner').width);
-        const losersLeft = Math.min(at('bigLoser').x, at('midLoser').x);
-        assert.ok(losersLeft >= winnersRight - 0.01,
-            'a decliner started before a gainer ended');
+    test('the first item given is the first laid out', () => {
+        const tiles = stripLayout(ranked, 600, 400);
+        const first = tiles[0];
+        assert.equal(first.key, 'bestButSmall');
+        assert.equal(first.x, 0);
+        assert.equal(first.y, 0);
     });
 
-    test('within a side, the bigger sector still leads', () => {
-        const tiles = squarifyByDirection(mixed, 400, 300);
-        const big = tiles.find((t) => t.key === 'bigLoser');
-        const mid = tiles.find((t) => t.key === 'midLoser');
-        assert.ok(big.width * big.height > mid.width * mid.height,
-            'weight must still decide area');
+    test('order is preserved reading left to right, top to bottom', () => {
+        const tiles = stripLayout(ranked, 600, 400);
+        for (let i = 1; i < tiles.length; i++) {
+            const prev = tiles[i - 1], cur = tiles[i];
+            const laterRow = cur.y > prev.y + 0.01;
+            const sameRowFurtherRight = Math.abs(cur.y - prev.y) < 0.01 && cur.x >= prev.x - 0.01;
+            assert.ok(laterRow || sameRowFurtherRight,
+                `${cur.key} was placed before ${prev.key}`);
+        }
     });
 
-    test('every item is laid out exactly once', () => {
-        const tiles = squarifyByDirection(mixed, 400, 300);
-        assert.equal(tiles.length, mixed.length);
-        assert.equal(new Set(tiles.map((t) => t.key)).size, mixed.length);
+    test('area is still proportional to weight', () => {
+        const tiles = stripLayout(ranked, 600, 400);
+        const total = ranked.reduce((a, i) => a + i.weight, 0);
+        for (const tile of tiles) {
+            const item = ranked.find((i) => i.key === tile.key);
+            const expected = (item.weight / total) * 600 * 400;
+            const actual = tile.width * tile.height;
+            assert.ok(Math.abs(actual - expected) / expected < 0.02,
+                `${tile.key}: expected ~${expected.toFixed(0)}, got ${actual.toFixed(0)}`);
+        }
     });
 
-    // A day where nothing fell, or nothing rose, must not leave half the map blank.
-    test('a one-sided board uses the whole width', () => {
-        const allUp = mixed.map((i) => ({ ...i, value: Math.abs(i.value) }));
-        const tiles = squarifyByDirection(allUp, 400, 300);
-        const right = Math.max(...tiles.map((t) => t.x + t.width));
-        assert.ok(right > 399, `only reached ${right} of 400`);
+    test('nothing escapes the box and nothing overlaps', () => {
+        const tiles = stripLayout(ranked, 600, 400);
+        for (const t of tiles) {
+            assert.ok(t.x >= -0.01 && t.x + t.width <= 600.01, `${t.key} off the side`);
+            assert.ok(t.y >= -0.01 && t.y + t.height <= 400.01, `${t.key} off the bottom`);
+        }
+        for (let i = 0; i < tiles.length; i++) {
+            for (let j = i + 1; j < tiles.length; j++) {
+                const a = tiles[i], b = tiles[j];
+                const apart = a.x + a.width <= b.x + 0.01 || b.x + b.width <= a.x + 0.01
+                    || a.y + a.height <= b.y + 0.01 || b.y + b.height <= a.y + 0.01;
+                assert.ok(apart, `${a.key} overlaps ${b.key}`);
+            }
+        }
+    });
+
+    test('everything is laid out exactly once', () => {
+        const tiles = stripLayout(ranked, 600, 400);
+        assert.equal(tiles.length, ranked.length);
+        assert.equal(new Set(tiles.map((t) => t.key)).size, ranked.length);
+    });
+
+    test('degenerate input produces nothing rather than NaN', () => {
+        assert.deepEqual(stripLayout([], 600, 400), []);
+        assert.deepEqual(stripLayout(ranked, 0, 400), []);
+        assert.deepEqual(stripLayout([{ key: 'z', weight: 0 }], 600, 400), []);
     });
 });

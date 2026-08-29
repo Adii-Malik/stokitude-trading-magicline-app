@@ -117,38 +117,65 @@ export function fitLabel(text, pixels, fontSize) {
 }
 
 /**
- * Gainers on the left, decliners on the right.
+ * A layout that keeps the order it is given.
  *
- * Size has to mean capitalisation - the sectors holding the money are the ones
- * that move the index - but a plain treemap then orders by size alone, and the
- * biggest tile lands top-left whether it rose or fell. Reading left-to-right,
- * that puts a sector that is down at the front of a board about performance.
+ * Squarified packing sorts by weight, so the biggest tile leads whatever it did
+ * - Commercial Banks led a performance board while down 1.5%, and inside the
+ * gainers Refinery at +23.8% sat below Oil & Gas at +4.8% because its
+ * capitalisation is smaller. Reordering the queue does not help: squarified
+ * packing depends on descending weight, and a heavy tile arriving late gets
+ * crushed into whatever strip is left.
  *
- * Sorting the whole map by performance instead would wreck it: squarified
- * packing needs descending weight to keep tiles square, so a sector holding a
- * quarter of the board arriving late would be crushed into whatever strip was
- * left. Splitting the board in two costs nothing - each side is still laid out
- * by weight, so the largest gainer leads the left and the largest decliner
- * leads the right, and neither can jump the other.
+ * A strip layout is the one that does both. Items are laid in the order given,
+ * left to right and top to bottom the way text is read, and only the height of
+ * each row is chosen - to keep the tiles in it as square as they can be. So the
+ * order is performance and the area is still capitalisation.
  *
- * Each side takes the share of width its own weight deserves, so area stays
- * proportional across the whole map rather than only within a half.
+ * Bederson, Shneiderman and Wattenberg, "Ordered and Quantum Treemaps" (2002).
  */
-export function squarifyByDirection(items, width, height, gutter = 6) {
-    const up = items.filter((i) => (i.value ?? 0) >= 0 && i.weight > 0);
-    const down = items.filter((i) => (i.value ?? 0) < 0 && i.weight > 0);
-    if (!up.length) return squarify(down, width, height);
-    if (!down.length) return squarify(up, width, height);
+function averageRatio(row, rowWidth, scale) {
+    const area = row.reduce((a, i) => a + i.weight, 0) * scale;
+    if (!area) return Infinity;
+    const height = area / rowWidth;
+    const ratios = row.map((i) => {
+        const w = (i.weight * scale) / height;
+        return Math.max(w / height, height / w);
+    });
+    return ratios.reduce((a, b) => a + b, 0) / ratios.length;
+}
 
-    const sum = (list) => list.reduce((a, i) => a + i.weight, 0);
-    const upShare = sum(up) / (sum(up) + sum(down));
-    const usable = width - gutter;
-    const upWidth = usable * upShare;
+export function stripLayout(items, width, height) {
+    const usable = items.filter((i) => i.weight > 0);
+    if (!usable.length || width <= 0 || height <= 0) return [];
 
-    return [
-        ...squarify(up, upWidth, height),
-        ...squarify(down, usable - upWidth, height).map((t) => ({ ...t, x: t.x + upWidth + gutter }))
-    ];
+    const total = usable.reduce((a, i) => a + i.weight, 0);
+    const scale = (width * height) / total;
+
+    const out = [];
+    let y = 0;
+    let i = 0;
+    while (i < usable.length) {
+        const row = [usable[i]];
+        let j = i + 1;
+        // Take the next item while it makes the row's tiles rounder on average.
+        while (j < usable.length
+            && averageRatio([...row, usable[j]], width, scale) <= averageRatio(row, width, scale)) {
+            row.push(usable[j]);
+            j++;
+        }
+
+        const rowHeight = (row.reduce((a, r) => a + r.weight, 0) * scale) / width;
+        let x = 0;
+        for (const item of row) {
+            const w = (item.weight * scale) / rowHeight;
+            out.push({ key: item.key, x, y, width: w, height: rowHeight });
+            x += w;
+        }
+        y += rowHeight;
+        i = j;
+    }
+
+    return out;
 }
 
 /**
@@ -169,4 +196,4 @@ export function tileWeight(marketCap) {
     return marketCap > 0 ? Math.pow(marketCap, FLATTEN) : 0;
 }
 
-export default { squarify, squarifyByDirection, colorStop, scaleFor, fitLabel, tileWeight };
+export default { squarify, stripLayout, colorStop, scaleFor, fitLabel, tileWeight };

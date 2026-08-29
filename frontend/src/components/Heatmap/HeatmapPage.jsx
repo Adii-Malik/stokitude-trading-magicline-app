@@ -59,8 +59,8 @@ export default function HeatmapPage() {
                         Sector Heatmap
                     </h1>
                     <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                        {board.label} — gainers on the left, decliners on the right, each sized by what
-                        the sector is worth. Over {label?.toLowerCase()}. Click one to open it.
+                        {board.label} — best to worst over {label?.toLowerCase()}, reading left to right.
+                        Tile size is what the sector is worth. Click one to open it.
                     </p>
                 </div>
                 <button type="button" onClick={reload}
