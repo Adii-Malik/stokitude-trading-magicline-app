@@ -1,5 +1,5 @@
 # Builds the image so the VM never has to; it only pulls.
-# arm64 only: the Oracle Ampere box is the only target.
+# arm64 only, on an arm64 runner: the Oracle Ampere box is the only target.
 
 name: Build image
 
@@ -26,14 +26,17 @@ jobs:
 
   build:
     needs: test
-    runs-on: ubuntu-latest
+    # An arm64 runner, because the image is arm64. On an x86 runner every
+    # instruction of two npm installs and a Vite build goes through QEMU, which
+    # turned a three minute build into fifteen. Free on public repositories.
+    runs-on: ubuntu-24.04-arm
     permissions:
       contents: read
       packages: write
     steps:
       - uses: actions/checkout@v4
 
-      - uses: docker/setup-qemu-action@v3
+      # No setup-qemu-action: the runner is already the target architecture.
       - uses: docker/setup-buildx-action@v3
 
       - uses: docker/login-action@v3
