@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { LayoutGrid, Info } from 'lucide-react';
+import { LayoutGrid } from 'lucide-react';
 import { useMarket } from '../../contexts/MarketContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import TradingViewHeatmap from './TradingViewHeatmap';
+import SectorRanking from './SectorRanking';
 import { BOARDS, TIMEFRAMES, GROUPINGS, SIZES, DEFAULTS } from './heatmapConfig';
 
 /** One row of choices. Buttons rather than a select: there are few enough to
@@ -51,8 +52,8 @@ export default function HeatmapPage() {
                     Market Heatmap
                 </h1>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    {board.label} — green is up over {period?.label.toLowerCase()}, red is down.
-                    Bigger tiles are bigger companies.
+                    {board.label} — how every sector has moved over {period?.label.toLowerCase()},
+                    and which stocks moved it.
                 </p>
             </div>
 
@@ -62,23 +63,11 @@ export default function HeatmapPage() {
                 <Choice label="Tile size" options={SIZES} value={size} onChange={setSize} />
             </div>
 
-            {/* Only on PSX. The grouping is the one thing here that will not match
-                how you think about that market - TradingView files Lucky under
-                Non-Energy Minerals and puts fertiliser, sugar and textile in one
-                bucket called Process Industries. On US boards its sectors are the
-                ordinary reference and there is nothing to warn about, so saying
-                this there would be noise about a market you are not looking at. */}
-            {market === 'PK' && (
-                <div className="flex gap-3 rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/30 p-4">
-                    <Info className="w-5 h-5 shrink-0 text-amber-600 dark:text-amber-500" />
-                    <p className="text-sm text-amber-800 dark:text-amber-300">
-                        These are TradingView's sectors, not PSX's. Cement sits under
-                        <em> Non-Energy Minerals</em>, and <em>Process Industries</em> holds fertiliser,
-                        sugar, chemicals and textile together. Good for spotting where money is
-                        moving; not the sector names on your own books.
-                    </p>
-                </div>
-            )}
+            <SectorRanking period={timeframe} periodLabel={period?.label} />
+
+            <div className="px-1 pt-2 text-sm text-gray-500 dark:text-gray-400">
+                Every stock on the board. Grouped by TradingView's own sectors here, not PSX's, and sized by company — so the giants dominate. Use it to drill in, not to compare sectors.
+            </div>
 
             {/* Keyed so a filter change builds a new container rather than
                 mutating one the widget already replaced with its iframe. */}
