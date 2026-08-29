@@ -20,17 +20,14 @@ export const TIMEFRAMES = [
     { id: 'Perf.3M', label: '3 months' },
     { id: 'Perf.6M', label: '6 months' },
     { id: 'Perf.YTD', label: 'Year so far' },
-    { id: 'Perf.Y', label: '12 months' }
+    { id: 'Perf.Y', label: '12 months' },
+    { id: 'Perf.5Y', label: '5 years' }
 ];
 
-export const GROUPINGS = [
-    { id: 'sector', label: 'By sector' },
-    { id: 'no_group', label: 'Every stock' }
-];
-
-export const SIZES = [
-    { id: 'market_cap_basic', label: 'Company size' },
-    { id: 'volume', label: 'Volume traded' }
+/** What gives a sector its area on the map. */
+export const TILE_WEIGHTS = [
+    { id: 'count', label: 'Number of companies' },
+    { id: 'marketCap', label: 'Sector size' }
 ];
 
 /** A month is long enough to be a trend and short enough to still be tradeable. */
