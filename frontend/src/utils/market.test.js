@@ -27,3 +27,14 @@ describe('landingFor', () => {
         assert.equal(landingFor('/'), '/');
     });
 });
+
+describe('a sector page after a market switch', () => {
+    test('lands on the board, not on a sector the other market does not have', () => {
+        assert.equal(landingFor('/heatmap/CEMENT'), '/heatmap');
+        assert.equal(landingFor('/heatmap/OIL%20%26%20GAS'), '/heatmap');
+    });
+
+    test('the board itself survives', () => {
+        assert.equal(landingFor('/heatmap'), '/heatmap');
+    });
+});

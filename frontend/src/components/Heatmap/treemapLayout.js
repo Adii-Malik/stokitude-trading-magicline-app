@@ -116,4 +116,22 @@ export function fitLabel(text, pixels, fontSize) {
     return text.slice(0, fits - 1).trimEnd() + '\u2026';
 }
 
-export default { squarify, colorStop, scaleFor, fitLabel };
+/**
+ * Market cap, flattened enough to draw.
+ *
+ * Weighting by capitalisation is right - the sectors holding the money are the
+ * ones that move the index - but raw cap is unusable as area: Commercial Banks
+ * alone is 26% of PSX and the largest sector is eight thousand times the
+ * smallest, which leaves most of the board as unreadable crumbs.
+ *
+ * Raising to a power below one keeps the order and the sense of weight while
+ * pulling the extremes in. At 0.6 the banks fall from 26% of the map to 14% -
+ * still plainly the biggest tile, no longer the only one.
+ */
+const FLATTEN = 0.6;
+
+export function tileWeight(marketCap) {
+    return marketCap > 0 ? Math.pow(marketCap, FLATTEN) : 0;
+}
+
+export default { squarify, colorStop, scaleFor, fitLabel, tileWeight };

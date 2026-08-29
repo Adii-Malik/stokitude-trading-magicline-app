@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
-import { squarify, colorStop, scaleFor, fitLabel } from './treemap';
+import { squarify, colorStop, scaleFor, fitLabel, tileWeight } from './treemapLayout';
 
 const WIDTH = 1000;
-const HEIGHT = 480;
+const HEIGHT = 460;
 
 /** Red through neutral to green, mixed in RGB so the middle stays readable. */
 function shade(stop, dark) {
@@ -18,67 +18,58 @@ function shade(stop, dark) {
 const ink = (stop, dark) => (Math.abs(stop - 0.5) > 0.22 ? '#fff' : dark ? '#e5e7eb' : '#111827');
 
 /**
- * A treemap whose tiles are sectors, not companies.
+ * One treemap for both levels.
  *
- * That is the whole point of building it. The borrowed widget draws one tile per
- * company sized by market cap, so a sector is only as visible as its largest
- * member - Modarabas has nineteen companies and no market cap between them, and
- * disappears. Here every sector gets area, so every sector can be read.
+ * Sectors on the board, stocks inside a sector - the same picture either way,
+ * because the question is the same one: what is big, and what is moving. Items
+ * arrive already reduced to { key, label, value, weight, note }.
  */
-export default function SectorTreemap({ sectors, period, sizeBy, dark, onSelect }) {
+export default function Treemap({ items, dark, onSelect, height = HEIGHT }) {
     const tiles = useMemo(() => {
-        const items = sectors
-            .map((s) => ({
-                key: s.sector,
-                weight: sizeBy === 'count' ? s.count : (s.marketCap || 0),
-                sector: s
-            }))
+        const weighted = items
+            .map((i) => ({ ...i, weight: tileWeight(i.weight) }))
             .filter((i) => i.weight > 0);
-        const laid = squarify(items, WIDTH, HEIGHT);
-        return laid.map((t) => ({ ...t, sector: items.find((i) => i.key === t.key).sector }));
-    }, [sectors, sizeBy]);
+        return squarify(weighted, WIDTH, height)
+            .map((t) => ({ ...t, item: weighted.find((i) => i.key === t.key) }));
+    }, [items, height]);
 
-    const max = scaleFor(sectors.map((s) => s.periods[period]?.median));
+    const max = scaleFor(items.map((i) => i.value));
 
     return (
-        <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full h-auto" role="img"
-            aria-label="Sector performance treemap, tile area by sector size and colour by performance">
+        <svg viewBox={`0 0 ${WIDTH} ${height}`} className="w-full h-auto" role="img"
+            aria-label="Treemap: area by size, colour by performance">
             {tiles.map((t) => {
-                const stat = t.sector.periods[period];
-                const value = stat?.median ?? 0;
+                const value = t.item.value ?? 0;
                 const stop = colorStop(value, max);
                 const fill = shade(stop, dark);
                 const text = ink(stop, dark);
-                // Below this a label is unreadable, so the tile carries only its
-                // colour and its tooltip rather than clipped nonsense.
-                const roomy = t.width > 78 && t.height > 36;
+                const roomy = t.width > 74 && t.height > 34;
                 const tight = t.width > 40 && t.height > 18;
-                const clip = `clip-${t.key.replace(/[^a-zA-Z0-9]/g, '')}`;
+                const clip = `c-${t.key.replace(/[^a-zA-Z0-9]/g, '')}`;
+                const label = roomy ? fitLabel(t.item.label, t.width - 10, 11.5) : null;
                 return (
-                    <g key={t.key} onClick={() => onSelect?.(t.key)} style={{ cursor: 'pointer' }}>
-                        <title>{`${t.key} — ${value >= 0 ? '+' : ''}${value.toFixed(1)}% · ${t.sector.count} companies · ${stat?.up ?? 0} up`}</title>
-                        {/* Clipped to its own tile. Estimating how many characters
-                            fit from the width was wrong often enough to push labels
-                            over their neighbours. */}
+                    <g key={t.key} onClick={() => onSelect?.(t.item)}
+                        style={{ cursor: onSelect ? 'pointer' : 'default' }}>
+                        <title>{t.item.note}</title>
+                        {/* Clipped as a backstop. The label is cut to fit first,
+                            because clipping a centred label eats its front. */}
                         <clipPath id={clip}>
                             <rect x={t.x + 3} y={t.y} width={Math.max(0, t.width - 6)} height={t.height} />
                         </clipPath>
                         <rect x={t.x} y={t.y} width={t.width} height={t.height}
                             fill={fill} stroke={dark ? '#111827' : '#fff'} strokeWidth="1.5" />
                         <g clipPath={`url(#${clip})`}>
-                            {roomy && (
+                            {label && (
                                 <>
                                     <text x={t.x + t.width / 2} y={t.y + t.height / 2 - 5} fill={text}
-                                        textAnchor="middle" fontSize="11.5" fontWeight="600">
-                                        {fitLabel(t.key, t.width - 10, 11.5)}
-                                    </text>
+                                        textAnchor="middle" fontSize="11.5" fontWeight="600">{label}</text>
                                     <text x={t.x + t.width / 2} y={t.y + t.height / 2 + 12} fill={text}
                                         textAnchor="middle" fontSize="13" fontWeight="700">
                                         {value >= 0 ? '+' : ''}{value.toFixed(1)}%
                                     </text>
                                 </>
                             )}
-                            {!roomy && tight && (
+                            {!label && tight && (
                                 <text x={t.x + t.width / 2} y={t.y + t.height / 2 + 4} fill={text}
                                     textAnchor="middle" fontSize="10.5" fontWeight="700">
                                     {value >= 0 ? '+' : ''}{value.toFixed(0)}%

@@ -6,7 +6,11 @@
  * the bug - the page came back showing rupees under a US flag.
  */
 export function landingFor(path) {
-    return /^\/portfolios\/[^/]+/.test(path) ? '/portfolios' : path;
+    if (/^\/portfolios\/[^/]+/.test(path)) return '/portfolios';
+    // Same reasoning for a sector: PSX's CEMENT has no counterpart on a US
+    // board, and the page would sit there asking for a sector that is not there.
+    if (/^\/heatmap\/[^/]+/.test(path)) return '/heatmap';
+    return path;
 }
 
 export default { landingFor };

@@ -1,30 +1,10 @@
-import { useState, useEffect, Fragment } from 'react';
-import { ChevronDown, ChevronRight, ArrowUpDown } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ChevronRight, ArrowUpDown } from 'lucide-react';
 
 const pct = (v, dp = 1) => (v == null ? '—' : `${v >= 0 ? '+' : ''}${v.toFixed(dp)}%`);
 const tone = (v) => (v == null ? 'text-gray-400'
     : v > 0 ? 'text-emerald-600 dark:text-emerald-400'
         : v < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-gray-500 dark:text-gray-400');
-
-/** The stocks behind a sector, which is the reason for looking at one. */
-function Constituents({ stocks, period }) {
-    const ranked = [...stocks].sort((a, b) => (b.perf[period] ?? -Infinity) - (a.perf[period] ?? -Infinity));
-    return (
-        <tr>
-            <td colSpan={99} className="bg-gray-50 dark:bg-gray-900/50 px-4 py-3">
-                <div className="grid gap-x-6 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
-                    {ranked.map((s) => (
-                        <div key={s.symbol} className="flex items-baseline justify-between gap-3 text-sm">
-                            <span className="font-medium text-gray-800 dark:text-gray-200">{s.symbol}</span>
-                            <span className="flex-1 truncate text-xs text-gray-400 dark:text-gray-500">{s.name}</span>
-                            <span className={`tabular-nums font-medium ${tone(s.perf[period])}`}>{pct(s.perf[period])}</span>
-                        </div>
-                    ))}
-                </div>
-            </td>
-        </tr>
-    );
-}
 
 /**
  * Every sector, every period, side by side.
@@ -34,7 +14,7 @@ function Constituents({ stocks, period }) {
  * different trade from one red on both, and switching a filter back and forth
  * hides exactly that.
  */
-export default function SectorTable({ data, period, onPeriodChange, openSector, onToggle }) {
+export default function SectorTable({ data, period, onPeriodChange, onOpen }) {
     const [sort, setSort] = useState({ key: period, dir: 'desc' });
 
     /**
@@ -84,15 +64,12 @@ export default function SectorTable({ data, period, onPeriodChange, openSector, 
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
                     {rows.map((s) => {
                         const stat = s.periods[period];
-                        const open = openSector === s.sector;
                         return (
-                            <Fragment key={s.sector}>
-                                <tr className={open ? 'bg-gray-50 dark:bg-gray-700/30' : ''}>
+                            <tr key={s.sector} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
                                     <td className="px-4 py-2">
-                                        <button type="button" onClick={() => onToggle(open ? null : s.sector)}
+                                        <button type="button" onClick={() => onOpen(s.sector)}
                                             className="flex items-center gap-2 text-left hover:text-cyan-600 dark:hover:text-cyan-400">
-                                            {open ? <ChevronDown className="w-4 h-4 shrink-0 text-gray-400" />
-                                                : <ChevronRight className="w-4 h-4 shrink-0 text-gray-400" />}
+                                            <ChevronRight className="w-4 h-4 shrink-0 text-gray-400" />
                                             <span className="text-gray-800 dark:text-gray-200">{s.sector}</span>
                                         </button>
                                     </td>
@@ -116,9 +93,7 @@ export default function SectorTable({ data, period, onPeriodChange, openSector, 
                                             </td>
                                         );
                                     })}
-                                </tr>
-                                {open && <Constituents stocks={s.stocks} period={period} />}
-                            </Fragment>
+                            </tr>
                         );
                     })}
                 </tbody>

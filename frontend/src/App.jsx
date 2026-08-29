@@ -21,6 +21,7 @@ import PortfolioDetail from './components/Portfolio/PortfolioDetail';
 import SymbolDetail from './components/Portfolio/SymbolDetail';
 import JournalPage from './components/Journal/JournalPage';
 import HeatmapPage from './components/Heatmap/HeatmapPage';
+import SectorPage from './components/Heatmap/SectorPage';
 import featureFlags from './config/featureFlags';
 
 // Conditionally import dev tools only in development
@@ -146,6 +147,14 @@ function AppContent() {
         <ProtectedRoute>
           <LayoutProvider currentPage="heatmap">
             <HeatmapPage />
+          </LayoutProvider>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/heatmap/:sector" element={
+        <ProtectedRoute>
+          <LayoutProvider currentPage="heatmap">
+            <SectorPage />
           </LayoutProvider>
         </ProtectedRoute>
       } />

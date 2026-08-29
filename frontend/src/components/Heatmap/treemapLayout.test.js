@@ -5,7 +5,7 @@
  */
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { squarify, colorStop, scaleFor, fitLabel } from './treemap.js';
+import { squarify, colorStop, scaleFor, fitLabel, tileWeight } from './treemapLayout.js';
 
 const items = [
     { key: 'a', weight: 40 }, { key: 'b', weight: 25 }, { key: 'c', weight: 20 },
@@ -111,5 +111,25 @@ describe('fitLabel', () => {
 
     test('a tile too small for any word gets no label at all', () => {
         assert.equal(fitLabel('CEMENT', 10, 11.5), null);
+    });
+});
+
+describe('tileWeight', () => {
+    test('order is preserved', () => {
+        assert.ok(tileWeight(900) > tileWeight(100));
+        assert.ok(tileWeight(100) > tileWeight(1));
+    });
+
+    // The point of flattening: PSX's largest sector is ~8000x the smallest, and
+    // at that ratio everything but the banks is a crumb.
+    test('the spread is pulled in hard', () => {
+        const raw = 8000;
+        assert.ok(tileWeight(raw) / tileWeight(1) < raw / 8,
+            'an 8000x cap gap must not stay an 8000x area gap');
+    });
+
+    test('a sector with no cap gets no area rather than NaN', () => {
+        assert.equal(tileWeight(0), 0);
+        assert.equal(tileWeight(null), 0);
     });
 });

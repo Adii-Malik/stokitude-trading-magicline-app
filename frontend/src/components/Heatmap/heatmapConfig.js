@@ -1,16 +1,14 @@
 /**
  * What the heatmap can be asked for, in words rather than field names.
  *
- * TradingView's own controls say "Perf.1M" and "market_cap_basic". These are
- * the same choices phrased the way you would ask the question, which is why the
- * widget's top bar is switched off and this drives it instead.
+ * TradingView names these Perf.1M and Perf.YTD. These are the same choices
+ * phrased the way you would ask the question.
  */
 
-/** Which board each market looks at. A wrong id here is the dangerous case:
- *  the widget does not error on one, it quietly renders the S&P 500 instead. */
+/** The board each market is looking at, for the sentence under the title. */
 export const BOARDS = {
-    PK: { dataSource: 'AllPK', label: 'Pakistan Stock Exchange' },
-    US: { dataSource: 'SPX500', label: 'S&P 500' }
+    PK: { label: 'Pakistan Stock Exchange' },
+    US: { label: 'the US market' }
 };
 
 export const TIMEFRAMES = [
@@ -24,11 +22,5 @@ export const TIMEFRAMES = [
     { id: 'Perf.5Y', label: '5 years' }
 ];
 
-/** What gives a sector its area on the map. */
-export const TILE_WEIGHTS = [
-    { id: 'count', label: 'Number of companies' },
-    { id: 'marketCap', label: 'Sector size' }
-];
-
 /** A month is long enough to be a trend and short enough to still be tradeable. */
-export const DEFAULTS = { timeframe: 'Perf.1M', grouping: 'sector', size: 'market_cap_basic' };
+export const DEFAULTS = { timeframe: 'Perf.1M' };
