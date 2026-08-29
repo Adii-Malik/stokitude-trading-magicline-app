@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  TrendingUp, Shield, Sun, Moon, Menu, X, Home, Briefcase, BookOpen
+  TrendingUp, Shield, Sun, Moon, Menu, X, Home, Briefcase, BookOpen, LayoutGrid
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -17,6 +17,7 @@ export default function Header({
   onNavigateToTradingBot,
   onNavigateToPortfolios,
   onNavigateToJournal,
+  onNavigateToHeatmap,
   onNavigateToAdmin,
   onNavigateToSettings,
   onNavigateToProfile,
@@ -81,6 +82,17 @@ export default function Header({
               >
                 <BookOpen className="w-4 h-4" />
                 <span>Journal</span>
+              </button>
+
+              <button
+                onClick={() => handleNavigation(onNavigateToHeatmap)}
+                className={`px-3 py-2 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${currentPage === 'heatmap'
+                  ? 'bg-cyan-500 text-white'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                  }`}
+              >
+                <LayoutGrid className="w-4 h-4" />
+                <span>Heatmap</span>
               </button>
 
               {isAdmin() && (
@@ -262,6 +274,17 @@ export default function Header({
             >
               <BookOpen className="w-5 h-5" />
               <span>Journal</span>
+            </button>
+
+            <button
+              onClick={() => handleNavigation(onNavigateToHeatmap)}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${currentPage === 'heatmap'
+                ? 'bg-cyan-500 text-white'
+                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                }`}
+            >
+              <LayoutGrid className="w-5 h-5" />
+              <span>Heatmap</span>
             </button>
 
             {isAdmin() && (
