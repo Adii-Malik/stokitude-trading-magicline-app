@@ -298,20 +298,6 @@ router.get('/push/key', authenticate, (req, res) => {
   });
 });
 
-// GET /api/notifications/push/devices - what is registered, to show in settings
-router.get('/push/devices', authenticate, async (req, res) => {
-  try {
-    const devices = await PushSubscription.find({ userId: req.user._id })
-      .select('platform userAgent lastSeenAt createdAt')
-      .sort({ lastSeenAt: -1 })
-      .lean();
-    res.json({ success: true, data: { devices } });
-  } catch (error) {
-    console.error('Error listing push devices:', error);
-    res.status(500).json({ success: false, message: 'Failed to list devices', error: error.message });
-  }
-});
-
 // POST /api/notifications/push/subscribe - register this browser
 router.post('/push/subscribe', authenticate, async (req, res) => {
   try {

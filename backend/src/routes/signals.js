@@ -103,26 +103,4 @@ router.put('/:id/execute', authenticate, async (req, res) => {
   }
 });
 
-/**
- * GET /api/signals/pending
- * Get pending (unexecuted) signals
- */
-router.get('/pending', authenticate, async (req, res) => {
-  try {
-    const signals = await TradingSignal.getPendingSignals(req.user.userId);
-
-    res.json({
-      success: true,
-      signals
-    });
-  } catch (error) {
-    console.error('Error fetching pending signals:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch pending signals',
-      error: error.message
-    });
-  }
-});
-
 export default router;

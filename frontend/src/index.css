@@ -29,7 +29,7 @@
     @apply bg-gray-50 text-gray-900;
   }
 
-  /* Installed as a PWA or running in Capacitor, the web view starts at y=0,
+  /* Installed as a PWA, the web view starts at y=0,
      so a sticky top-0 header lands under the Dynamic Island. Pad the header
      itself rather than the body - padding the body would move the viewport
      the header sticks to and leave the gap unpainted. */

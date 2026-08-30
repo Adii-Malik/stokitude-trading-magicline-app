@@ -87,13 +87,6 @@ tradingSignalSchema.statics.getRecentSignals = function(userId, limit = 50) {
     .populate('strategyId', 'name pythonStrategy');
 };
 
-// Static method to get pending signals
-tradingSignalSchema.statics.getPendingSignals = function(userId) {
-  return this.find({ userId, isExecuted: false })
-    .sort({ createdAt: -1 })
-    .populate('strategyId', 'name pythonStrategy');
-};
-
 // Static method to check if signal exists for today
 tradingSignalSchema.statics.signalExistsToday = async function(userId, strategyId, symbol) {
   const today = new Date();

@@ -1,6 +1,4 @@
-import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { initNative } from './services/native';
 import { lazy, Suspense } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -57,7 +55,6 @@ function AppContent() {
   const navigate = useNavigate();
 
   // No-op in a browser; wires the status bar and Android back button in the app.
-  useEffect(() => { initNative(navigate); }, [navigate]);
 
   // Loading state
   if (loading) {

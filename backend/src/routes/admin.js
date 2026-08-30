@@ -31,30 +31,6 @@ router.get('/users', async (req, res) => {
   }
 });
 
-// GET /api/admin/users/pending - Get pending users (not active)
-router.get('/users/pending', async (req, res) => {
-  try {
-    const users = await User.find({ isActive: false })
-      .select('-password')
-      .sort({ createdAt: -1 });
-
-    res.json({
-      success: true,
-      data: {
-        users,
-        count: users.length
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching pending users:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch pending users',
-      error: error.message
-    });
-  }
-});
-
 // PUT /api/admin/users/:userId/activate - Activate user
 router.put('/users/:userId/activate', async (req, res) => {
   try {
