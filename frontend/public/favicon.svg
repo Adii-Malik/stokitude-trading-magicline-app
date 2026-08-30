@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-label="Financial Reading">
+  <!-- Traced from icon-192.png so the tab, the home screen and the manifest all
+       carry the same mark: bar geometry and both colours are the measured
+       values, not an approximation. -->
+  <rect width="192" height="192" fill="#0f172a"/>
+  <g fill="#22d3ee">
+    <rect x="43" y="87" width="30" height="79"/>
+    <rect x="81" y="54" width="31" height="112"/>
+    <rect x="120" y="20" width="30" height="146"/>
+  </g>
+</svg>
