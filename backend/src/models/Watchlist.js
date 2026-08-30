@@ -138,6 +138,18 @@ const watchlistSchema = new mongoose.Schema({
     journalEntryId: { type: mongoose.Schema.Types.ObjectId, ref: 'JournalEntry' },
 
     /**
+     * When you last put a settled name back on the queue.
+     *
+     * The clock runs from your last look, which for a revived name is whenever
+     * you last opened it - so a name you passed on in March came back overdue by
+     * a hundred days the instant you asked to watch it again. Putting it back is
+     * itself a fresh look: you decided just now that it was worth your time.
+     * Kept apart from noticedAt because that date anchors perfWhenNoticed, and
+     * moving it would make the drift lie.
+     */
+    resumedAt: { type: Date },
+
+    /**
      * What the watcher saw, and when.
      *
      * The price is kept alongside the date because the notification is the only
@@ -211,8 +223,8 @@ watchlistSchema.methods.isLive = function () {
 
 /** When you last put eyes on it, or when you flagged it if you never have. */
 watchlistSchema.virtual('lastLookAt').get(function () {
-    if (!this.looks?.length) return this.noticedAt;
-    return this.looks[this.looks.length - 1].at;
+    const last = this.looks?.length ? this.looks[this.looks.length - 1].at : this.noticedAt;
+    return this.resumedAt && this.resumedAt > last ? this.resumedAt : last;
 });
 
 watchlistSchema.set('toJSON', { virtuals: true });

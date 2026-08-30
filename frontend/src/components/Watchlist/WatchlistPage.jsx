@@ -570,18 +570,29 @@ function QueueRow({ item, open, setOpen, onLook, onDrop, onOpen, onTrade }) {
 }
 
 /**
- * A name the watcher closed for you.
+ * Anything you have finished with, in one shape.
  *
- * This row exists because the notification links here. Being told an idea died
- * and finding nothing on the screen is worse than not being told, so the verdict
- * lands where you can read it, with the number that caused it and the thread
- * that led up to it still attached.
+ * History used to draw a closed idea as a full row with its own data panel and
+ * everything else as a one-liner, so scrolling it meant meeting two different
+ * kinds of card with no rule for which was which. One shape, and the difference
+ * between them lives where it belongs: in the sentence saying what happened.
+ *
+ * No price panel here. A panel is for a decision you are still making; a name
+ * you passed on in March does not need today's quote in a bordered column.
  */
-function DeadRow({ item, onRevive, onOpen }) {
+function PastRow({ item, onOpen, onRevive, onJournal }) {
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState(null);
+    const kind = kindOf(item);
     const level = item.looks?.slice().reverse().find((l) => l.invalidation)?.invalidation
         || item.invalidation;
+
+    const BADGE = {
+        dead: 'bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300',
+        passed: 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-300',
+        traded: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
+    };
+    const LABEL = { dead: 'Idea closed', passed: 'Passed on', traded: 'Became a trade' };
 
     const revive = async () => {
         setBusy(true);
@@ -595,100 +606,63 @@ function DeadRow({ item, onRevive, onOpen }) {
     };
 
     return (
-        <div className={ROW}>
-            <span className="absolute inset-y-0 left-0 w-1 bg-rose-500" />
+        <div className="relative border-t border-gray-200 px-5 py-4 first:border-t-0 dark:border-gray-700 sm:pl-6">
+            {kind === 'dead' && <span className="absolute inset-y-0 left-0 w-1 bg-rose-500" />}
 
-            <div className={MAIN}>
-                <Head item={item} onOpen={onOpen} />
-                <Status item={item} onOpen={onOpen} tone="late" label="Idea closed"
-                    extra={item.invalidatedAt ? ago(daysSince(item.invalidatedAt)) : null} />
-
-                <p className="mt-3 text-[15px] text-gray-600 dark:text-gray-300">
-                    <span className="font-mono font-semibold tabular-nums">{money(item.invalidatedPrice)}</span>
-                    {level
-                        ? <> printed {level.dir === 'above' ? 'up through' : 'through'} the <span className="font-mono tabular-nums">{money(level.price)}</span> you said would kill it</>
-                        : ' printed through the level you said would kill it'}
-                </p>
-
-                {error && <p className="mt-1.5 text-[13px] text-rose-600 dark:text-rose-400">{error}</p>}
-
-                <div className="mt-3.5 flex flex-wrap items-center gap-2">
-                    <button type="button" onClick={revive} disabled={busy} className={`${OUTLINE} disabled:opacity-60`}>
-                        <Undo2 className="h-4 w-4" /> {busy ? 'Putting it back…' : 'I still like it'}
-                    </button>
-                    <ThreadToggle looks={item.looks || []} label="Why I liked it" />
-                </div>
-                <p className="mt-2 text-[12.5px] text-gray-400 dark:text-gray-500">
-                    Putting it back clears that level — you name a new one on the next look.
-                </p>
-            </div>
-
-            <Panel item={item}>
-                {/* The level, not the price it printed at - the sentence beside
-                    this already says that one, and a panel that repeats the row
-                    is width spent on nothing. */}
-                {level && (
-                    <div>
-                        <div className={PN_LABEL}>The level you named</div>
-                        <div className="mt-1 font-mono text-[15px] font-semibold tabular-nums text-rose-600 dark:text-rose-400">
-                            {money(level.price)} <span className="font-sans text-[12.5px] font-normal text-gray-400 dark:text-gray-500">{level.dir}</span>
-                        </div>
-                    </div>
-                )}
-            </Panel>
-        </div>
-    );
-}
-
-/** What you passed on, and what you bought. Read, not worked. */
-function PastRow({ item, onOpen, onRevive, onJournal }) {
-    const traded = item.state === 'traded';
-    return (
-        <div className="border-t border-gray-200 px-5 py-3.5 first:border-t-0 dark:border-gray-700">
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                 <button type="button" onClick={() => onOpen(item)}
                     className="font-mono text-[17px] font-semibold tracking-tight text-gray-900 hover:text-cyan-600 dark:text-white dark:hover:text-cyan-400">
                     {item.symbol}
                 </button>
                 <span className="min-w-0 flex-1 truncate text-[14px] text-gray-500 dark:text-gray-400">{item.name}</span>
-                <span className={`rounded-full px-3 py-[3px] text-[12.5px] font-semibold ${traded
-                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
-                    : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'}`}>
-                    {traded ? 'Became a trade' : 'Passed on'}
+                <span className={`rounded-full px-3 py-[3px] text-[12.5px] font-semibold ${BADGE[kind]}`}>
+                    {LABEL[kind]}
                 </span>
             </div>
+
             <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
                 <Origin item={item} onOpen={onOpen} />
                 {item.settledAt && (
-                    <span className="text-[13px] text-gray-400 dark:text-gray-500">{ago(daysSince(item.settledAt))}</span>
+                    <span className="text-[13px] text-gray-400 dark:text-gray-500">{when(item.settledAt)}</span>
                 )}
-                {traded && item.journalEntryId ? (
-                    <button type="button" onClick={() => onJournal(item)} className={QUIET}>Open in the journal</button>
-                ) : (
-                    <button type="button" onClick={() => onRevive(item)} className={QUIET}>Watch it again</button>
-                )}
+            </div>
+
+            {/* The one line that says what actually happened. It is the only
+                thing that differs between a closed idea and a passed one, so it
+                is the only thing allowed to differ. */}
+            {kind === 'dead' && (
+                <p className="mt-2.5 text-[14px] text-gray-600 dark:text-gray-300">
+                    <span className="font-mono font-semibold tabular-nums">{money(item.invalidatedPrice)}</span>
+                    {level
+                        ? <> printed {level.dir === 'above' ? 'up through' : 'through'} the <span className="font-mono tabular-nums">{money(level.price)}</span> you said would kill it</>
+                        : ' printed through the level you said would kill it'}
+                </p>
+            )}
+
+            {error && <p className="mt-1.5 text-[13px] text-rose-600 dark:text-rose-400">{error}</p>}
+
+            <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                {traded(item)
+                    ? <button type="button" onClick={() => onJournal(item)} className={QUIET}>Open in the journal</button>
+                    : (
+                        <button type="button" onClick={revive} disabled={busy} className={QUIET}>
+                            <Undo2 className="h-3.5 w-3.5" />
+                            {busy ? 'Putting it back…' : kind === 'dead' ? 'I still like it' : 'Watch it again'}
+                        </button>
+                    )}
                 <ThreadToggle looks={item.looks || []} label="What I thought" />
             </div>
+
+            {kind === 'dead' && (
+                <p className="mt-2 text-[12.5px] text-gray-400 dark:text-gray-500">
+                    Putting it back clears that level — you name a new one on the next look.
+                </p>
+            )}
         </div>
     );
 }
 
-/** One tab. Absent rather than zero: an empty tab is a thing to rule out. */
-function Tab({ id, label, count, active, onClick, tone: t }) {
-    return (
-        <button type="button" onClick={() => onClick(id)} aria-current={active}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-                active
-                    ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white'
-                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-            }`}>
-            {label}
-            <span className={`rounded-full px-1.5 text-[11px] tabular-nums ${t || 'bg-gray-200 text-gray-600 dark:bg-gray-600 dark:text-gray-200'}`}>
-                {count}
-            </span>
-        </button>
-    );
-}
+const traded = (item) => item.state === 'traded' && item.journalEntryId;
 
 /** How a name ended, as a filter inside history. Absent when nothing ended that way. */
 const KINDS = [
@@ -852,10 +826,6 @@ export default function WatchlistPage() {
                         tab === 'queue' ? (
                             <QueueRow key={item.id} item={item} open={open} setOpen={setOpen}
                                 onLook={onLook} onDrop={onDrop} onOpen={onOpen} onTrade={onTrade} />
-                        ) : kindOf(item) === 'dead' ? (
-                            // A closed idea keeps the fuller row: it has to say
-                            // what happened, which a one-line history entry cannot.
-                            <DeadRow key={item.id} item={item} onRevive={onRevive} onOpen={onOpen} />
                         ) : (
                             <PastRow key={item.id} item={item} onOpen={onOpen}
                                 onRevive={onRevive} onJournal={onJournal} />

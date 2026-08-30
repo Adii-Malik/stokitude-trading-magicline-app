@@ -86,6 +86,15 @@ async function priorsFor(userId, symbols) {
     return priors;
 }
 
+/**
+ * When you last put eyes on it. The lean documents this route reads do not carry
+ * the model's virtual, so the rule lives here too - and the two have to agree.
+ */
+function lastLookOf(doc) {
+    const last = doc.looks?.length ? doc.looks[doc.looks.length - 1].at : doc.noticedAt;
+    return doc.resumedAt && doc.resumedAt > last ? doc.resumedAt : last;
+}
+
 const shape = (doc, quote, prior) => ({
     id: doc._id,
     symbol: doc.symbol,
@@ -111,7 +120,7 @@ const shape = (doc, quote, prior) => ({
         trigger: l.trigger || null,
         invalidation: l.invalidation || null
     })),
-    lastLookAt: doc.looks?.length ? doc.looks[doc.looks.length - 1].at : doc.noticedAt,
+    lastLookAt: lastLookOf(doc),
     tag: doc.tag,
     // When this one stopped being live. Only history reads it, and only to say
     // how long ago you settled the question.
@@ -289,6 +298,10 @@ router.patch('/:id', async (req, res) => {
             update.invalidation = null;
             update.invalidatedAt = null;
             update.invalidatedPrice = null;
+            // Deciding it is worth watching again is itself a look at it.
+            // Without this the name returns already overdue by however long it
+            // sat in history - the screen scolding you for the pause it offered.
+            update.resumedAt = new Date();
         } else if (state !== undefined) {
             return res.status(400).json({ success: false, message: 'state must be watching or dropped' });
         }
