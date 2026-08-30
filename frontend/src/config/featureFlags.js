@@ -14,14 +14,6 @@ export const featureFlags = {
     devMode: isDevelopment
 };
 
-export function isFeatureEnabled(featureName) {
-    return isDevelopment;
-}
-
-export function useFeatureFlag(featureName) {
-    return isDevelopment;
-}
-
 export function getFeatureFlagsSummary() {
     return {
         mode: import.meta.env.MODE,

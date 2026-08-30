@@ -15,11 +15,6 @@ import { AsyncLocalStorage } from 'node:async_hooks';
  */
 export const marketStore = new AsyncLocalStorage();
 
-/** Runs `fn` with the market attached to everything it awaits. */
-export function withMarket(market, fn) {
-    return marketStore.run({ market }, fn);
-}
-
 /** The active market, or null outside a request. */
 export function currentMarket() {
     return marketStore.getStore()?.market ?? null;

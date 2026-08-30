@@ -109,28 +109,7 @@ export const requireAdmin = (req, res, next) => {
   next();
 };
 
-// Check if user is super_admin
-export const requireSuperAdmin = (req, res, next) => {
-  if (!req.user) {
-    return res.status(401).json({
-      success: false,
-      message: 'Authentication required'
-    });
-  }
-
-  if (req.user.role !== 'super_admin') {
-    return res.status(403).json({
-      success: false,
-      message: 'Access denied. Super Admin privileges required.'
-    });
-  }
-
-  next();
-};
-
 // Combined middleware: authenticate + requireAdmin
 export const adminOnly = [authenticate, requireAdmin];
 
-// Combined middleware: authenticate + requireSuperAdmin  
-export const superAdminOnly = [authenticate, requireSuperAdmin];
 

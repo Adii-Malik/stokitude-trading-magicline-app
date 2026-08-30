@@ -42,27 +42,3 @@ export const connectDB = async (mongoUri) => {
   }
 };
 
-export const disconnectDB = async () => {
-  if (!isConnected) {
-    return;
-  }
-
-  try {
-    await mongoose.connection.close();
-    isConnected = false;
-    console.log('👋 MongoDB disconnected');
-  } catch (error) {
-    console.error('❌ Error disconnecting from MongoDB:', error);
-    throw error;
-  }
-};
-
-export const getConnectionStatus = () => {
-  return {
-    isConnected,
-    readyState: mongoose.connection.readyState,
-    // 0 = disconnected, 1 = connected, 2 = connecting, 3 = disconnecting
-    status: ['disconnected', 'connected', 'connecting', 'disconnecting'][mongoose.connection.readyState]
-  };
-};
-

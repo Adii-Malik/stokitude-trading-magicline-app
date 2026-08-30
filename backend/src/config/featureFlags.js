@@ -1,20 +1,12 @@
 /**
- * Feature Flags - Simple Approach
- * 
- * Just set NODE_ENV:
- * - development = All test features enabled
- * - production = All test features disabled
+ * One gate, for the development-only test routes.
+ *
+ * There is no flag store and no per-feature switch: NODE_ENV is the whole
+ * decision. The summary endpoint and the unused `isFeatureEnabled` helper that
+ * used to sit here reported on a system that never had more than this line.
  */
 
 const isDevelopment = process.env.NODE_ENV === 'development';
-
-export const featureFlags = {
-    devMode: isDevelopment
-};
-
-export function isFeatureEnabled(featureName) {
-    return isDevelopment;
-}
 
 export function requireFeature(featureName) {
     return (req, res, next) => {
@@ -28,24 +20,4 @@ export function requireFeature(featureName) {
     };
 }
 
-export function requireDevFeatures(req, res, next) {
-    if (!isDevelopment) {
-        return res.status(403).json({
-            success: false,
-            message: 'Development features are disabled in production'
-        });
-    }
-    next();
-}
-
-export function getFeatureFlagsSummary() {
-    return {
-        environment: process.env.NODE_ENV,
-        devMode: isDevelopment,
-        message: isDevelopment
-            ? 'All test features enabled (development mode)'
-            : 'All test features disabled (production mode)'
-    };
-}
-
-export default featureFlags;
+export default { requireFeature };

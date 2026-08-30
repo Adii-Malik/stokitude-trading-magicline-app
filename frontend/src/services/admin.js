@@ -6,12 +6,6 @@ export const getAllUsers = async () => {
   return response.data;
 };
 
-// Get pending users
-export const getPendingUsers = async () => {
-  const response = await api.get('/admin/users/pending');
-  return response.data;
-};
-
 // Activate user
 export const activateUser = async (userId) => {
   const response = await api.put(`/admin/users/${userId}/activate`);

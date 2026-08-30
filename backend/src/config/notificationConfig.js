@@ -109,49 +109,6 @@ export function getUserControllableFeatures() {
 }
 
 /**
- * Get all notification features for admins
- * @returns {Array} List of all features including admin-only
- */
-export function getAllFeatures() {
-    return Object.values(NOTIFICATION_CATEGORIES).map(cat => ({
-        id: cat.id,
-        label: cat.label,
-        description: cat.description,
-        icon: cat.icon,
-        userControllable: cat.userControllable,
-        adminOnly: cat.adminOnly || false,
-        defaultEnabled: cat.defaultEnabled
-    }));
-}
-
-/**
- * Get notification features based on user role
- * @param {String} userRole - User role (user, admin, super_admin)
- * @returns {Array} List of features available to this user
- */
-export function getFeaturesForUser(userRole) {
-    const isAdmin = userRole === 'admin' || userRole === 'super_admin';
-
-    return Object.values(NOTIFICATION_CATEGORIES)
-        .filter(cat => {
-            // Include user-controllable features
-            if (cat.userControllable) return true;
-            // Include admin features for admins
-            if (cat.adminOnly && isAdmin) return true;
-            return false;
-        })
-        .map(cat => ({
-            id: cat.id,
-            label: cat.label,
-            description: cat.description,
-            icon: cat.icon,
-            userControllable: cat.userControllable,
-            adminOnly: cat.adminOnly || false,
-            defaultEnabled: cat.defaultEnabled
-        }));
-}
-
-/**
  * Validate if a category exists
  * @param {String} category - Category ID
  * @returns {Boolean}
@@ -173,25 +130,6 @@ export function isValidEvent(category, event) {
 }
 
 /**
- * Get category configuration
- * @param {String} category - Category ID
- * @returns {Object|null}
- */
-export function getCategoryConfig(category) {
-    return NOTIFICATION_CATEGORIES[category] || null;
-}
-
-/**
- * Check if category should always be enabled
- * @param {String} category - Category ID
- * @returns {Boolean}
- */
-export function isAlwaysEnabled(category) {
-    const cat = NOTIFICATION_CATEGORIES[category];
-    return cat && cat.userControllable === false;
-}
-
-/**
  * Check if category is admin-only
  * @param {String} category - Category ID
  * @returns {Boolean}
@@ -204,11 +142,7 @@ export function isAdminOnly(category) {
 export default {
     NOTIFICATION_CATEGORIES,
     getUserControllableFeatures,
-    getAllFeatures,
-    getFeaturesForUser,
     isValidCategory,
     isValidEvent,
-    getCategoryConfig,
-    isAlwaysEnabled,
     isAdminOnly
 };

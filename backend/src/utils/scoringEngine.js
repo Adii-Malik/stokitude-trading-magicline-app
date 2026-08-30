@@ -164,34 +164,6 @@ export function scoreGrowth(stockData) {
     return totalScore;
 }
 
-/**
- * Group stocks by sector for percentile ranking
- */
-export function groupBySector(stocks) {
-    const sectors = {};
-
-    for (const stock of stocks) {
-        const sector = stock.sector || 'Unknown';
-        if (!sectors[sector]) {
-            sectors[sector] = [];
-        }
-        sectors[sector].push(stock);
-    }
-
-    return sectors;
-}
-
-/**
- * Calculate percentile rank within sector
- */
-export function calculatePercentileRank(value, values) {
-    if (!values || values.length === 0) return 50;
-
-    const sorted = [...values].sort((a, b) => a - b);
-    const rank = sorted.filter(v => v <= value).length;
-    return (rank / sorted.length) * 100;
-}
-
 export default {
     calculateOverallScore,
     scoreComponent,
@@ -200,7 +172,5 @@ export default {
     scoreQuality,
     scoreGrowth,
     applyTierScoring,
-    applyLinearScaling,
-    groupBySector,
-    calculatePercentileRank
+    applyLinearScaling
 };

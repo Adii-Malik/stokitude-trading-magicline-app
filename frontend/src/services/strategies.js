@@ -12,21 +12,9 @@ export const getAvailableStrategies = async () => {
   return response.data;
 };
 
-// Get a specific strategy by ID
-export const getStrategyById = async (id) => {
-  const response = await api.get(`/strategies/${id}`);
-  return response.data;
-};
-
 // Create a new strategy
 export const createStrategy = async (strategyData) => {
   const response = await api.post('/strategies', strategyData);
-  return response.data;
-};
-
-// Update a strategy
-export const updateStrategy = async (id, strategyData) => {
-  const response = await api.put(`/strategies/${id}`, strategyData);
   return response.data;
 };
 

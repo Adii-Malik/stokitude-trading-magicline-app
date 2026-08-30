@@ -32,7 +32,6 @@ export function slabFor(price, slabs = []) {
  * Treating sales tax as a percentage of traded value happens to fit one note
  * and breaks the moment the brokerage rate changes, so the basis matters.
  */
-export const CHARGE_BASES = ['PERCENT_OF_BROKERAGE', 'PERCENT_OF_VALUE', 'PER_SHARE', 'FIXED'];
 
 /** Verified against PSX contract notes from two brokers, August 2026. */
 export const DEFAULT_PSX_CHARGES = [
