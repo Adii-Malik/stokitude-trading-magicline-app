@@ -5,7 +5,7 @@ import { useWatchlist } from '../../contexts/WatchlistContext';
 import { ChartUpload } from '../common/ChartUpload';
 import { pct, tone, toSlug } from '../Heatmap/heatmapData';
 import { TIMEFRAMES } from '../Heatmap/heatmapConfig';
-import { order, dueText, daysSince, lastLookAt } from './horizons';
+import { order, dueText, daysSince, lastLookAt, meterFor } from './horizons';
 
 const labelOf = (period) => TIMEFRAMES.find((t) => t.id === period)?.label || period;
 
@@ -42,6 +42,37 @@ function Drift({ item }) {
     );
 }
 
+/**
+ * Where price is between the price that kills the idea and the price you are
+ * waiting for.
+ *
+ * Only drawn when both are set, which will be the minority of names. The point
+ * of the picture is the case where price has walked past one end: a pin at the
+ * edge in red says "this went the wrong way and kept going" faster than any
+ * number does.
+ */
+function Meter({ item }) {
+    const m = meterFor(item);
+    if (!m) return null;
+
+    const colour = m.past === 'invalidation' ? 'bg-rose-500'
+        : m.past === 'trigger' ? 'bg-cyan-500' : 'bg-amber-500';
+
+    return (
+        <div className="mt-2 max-w-md">
+            <div className="relative h-1.5 rounded-full bg-gray-100 dark:bg-gray-700">
+                <span className={`absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-white dark:ring-gray-800 ${colour}`}
+                    style={{ left: `${m.at * 100}%` }} />
+            </div>
+            <div className="mt-1 flex justify-between font-mono text-[10px] text-gray-400 dark:text-gray-500">
+                <span>{m.lo.price.toFixed(2)} {m.lo.label}</span>
+                <span className="text-gray-500 dark:text-gray-400">now {m.now.toFixed(2)}</span>
+                <span>{m.hi.price.toFixed(2)} {m.hi.label}</span>
+            </div>
+        </div>
+    );
+}
+
 /** Everything you thought about this name, newest first, with the charts. */
 function Thread({ looks }) {
     if (!looks.length) {
@@ -71,6 +102,13 @@ function Thread({ looks }) {
                         <p className="text-sm text-gray-700 dark:text-gray-300">
                             {look.note || <span className="italic text-gray-400 dark:text-gray-500">looked, wrote nothing</span>}
                         </p>
+                        {(look.trigger || look.invalidation) && (
+                            <p className="mt-0.5 font-mono text-[11px] text-gray-400 dark:text-gray-500">
+                                {look.trigger && `wake me ${look.trigger.dir} ${look.trigger.price.toFixed(2)}`}
+                                {look.trigger && look.invalidation && ' · '}
+                                {look.invalidation && `dead ${look.invalidation.dir} ${look.invalidation.price.toFixed(2)}`}
+                            </p>
+                        )}
                     </div>
                 </div>
             ))}
@@ -85,11 +123,17 @@ function Thread({ looks }) {
  * no note and no chart still records that you looked, which resets the clock and
  * is more than the screen knew before.
  */
-function Row({ item, onLook, onDrop, onOpen, openId, setOpenId }) {
+function Row({ item, onLook, onDrop, onOpen, onTrade, openId, setOpenId }) {
     const [note, setNote] = useState('');
     const [chartUrl, setChartUrl] = useState(null);
     const [busy, setBusy] = useState(false);
     const [showThread, setShowThread] = useState(false);
+    // Prefilled from what is armed, so opening a look and pressing Enter leaves
+    // your levels alone rather than silently clearing them.
+    const [trigger, setTrigger] = useState('');
+    const [triggerDir, setTriggerDir] = useState('above');
+    const [invalid, setInvalid] = useState('');
+    const [invalidDir, setInvalidDir] = useState('below');
     const input = useRef(null);
 
     const open = openId === item.id;
@@ -97,13 +141,27 @@ function Row({ item, onLook, onDrop, onOpen, openId, setOpenId }) {
     const looks = item.looks || [];
 
     useEffect(() => {
-        if (open) input.current?.focus();
-    }, [open]);
+        if (!open) return;
+        setTrigger(item.trigger ? String(item.trigger.price) : '');
+        setTriggerDir(item.trigger?.dir || 'above');
+        setInvalid(item.invalidation ? String(item.invalidation.price) : '');
+        setInvalidDir(item.invalidation?.dir || 'below');
+        input.current?.focus();
+    }, [open, item.trigger, item.invalidation]);
+
+    const priceOf = (v) => (v.trim() === '' ? null : Number(v));
 
     const save = async () => {
         setBusy(true);
         try {
-            await onLook(item, { note: note.trim(), chartUrl });
+            const t = priceOf(trigger);
+            const v = priceOf(invalid);
+            await onLook(item, {
+                note: note.trim(),
+                chartUrl,
+                trigger: t == null || Number.isNaN(t) ? null : { price: t, dir: triggerDir },
+                invalidation: v == null || Number.isNaN(v) ? null : { price: v, dir: invalidDir }
+            });
             setNote(''); setChartUrl(null); setOpenId(null);
         } finally {
             setBusy(false);
@@ -141,9 +199,46 @@ function Row({ item, onLook, onDrop, onOpen, openId, setOpenId }) {
                 <span className="ml-auto"><Drift item={item} /></span>
             </div>
 
+            {!open && <Meter item={item} />}
+
             {open ? (
                 <div className="mt-2.5 flex flex-col gap-2">
                     <ChartUpload value={chartUrl} onChange={setChartUrl} />
+                    {/* Both optional, and skipping them is the common case. They
+                        sit after the note because the note is the thing that
+                        matters and a price is a convenience on top of it. */}
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-gray-500 dark:text-gray-400">
+                        <span className="inline-flex items-center gap-1.5">
+                            Wake me
+                            <select value={triggerDir} onChange={(e) => setTriggerDir(e.target.value)}
+                                aria-label={`Trigger direction for ${item.symbol}`}
+                                className="rounded border border-gray-300 bg-white px-1.5 py-1 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
+                                <option value="above">above</option>
+                                <option value="below">below</option>
+                            </select>
+                            <input type="text" inputMode="decimal" value={trigger}
+                                onChange={(e) => setTrigger(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') save(); }}
+                                placeholder="price" aria-label={`Trigger price for ${item.symbol}`}
+                                className="w-20 rounded border border-gray-300 bg-white px-2 py-1 font-mono tabular-nums dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100" />
+                        </span>
+                        <span className="inline-flex items-center gap-1.5">
+                            Dead
+                            <select value={invalidDir} onChange={(e) => setInvalidDir(e.target.value)}
+                                aria-label={`Invalidation direction for ${item.symbol}`}
+                                className="rounded border border-gray-300 bg-white px-1.5 py-1 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
+                                <option value="below">below</option>
+                                <option value="above">above</option>
+                            </select>
+                            <input type="text" inputMode="decimal" value={invalid}
+                                onChange={(e) => setInvalid(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') save(); }}
+                                placeholder="price" aria-label={`Invalidation price for ${item.symbol}`}
+                                className="w-20 rounded border border-gray-300 bg-white px-2 py-1 font-mono tabular-nums dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100" />
+                        </span>
+                        <span className="text-gray-400 dark:text-gray-500">both optional</span>
+                    </div>
+
                     <div className="flex flex-wrap items-center gap-2">
                         <input
                             ref={input}
@@ -175,6 +270,10 @@ function Row({ item, onLook, onDrop, onOpen, openId, setOpenId }) {
                         className="rounded-lg border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-700 transition hover:border-cyan-500 hover:text-cyan-600 dark:border-gray-600 dark:text-gray-300 dark:hover:text-cyan-400">
                         I looked at this
                     </button>
+                    <button type="button" onClick={() => onTrade(item)}
+                        className="rounded-lg border border-transparent px-2.5 py-1 text-xs font-medium text-gray-500 transition hover:text-cyan-600 dark:text-gray-400 dark:hover:text-cyan-400">
+                        I bought it
+                    </button>
                     {looks.length > 0 && (
                         <button type="button" onClick={() => setShowThread((v) => !v)}
                             aria-expanded={showThread}
@@ -204,7 +303,7 @@ function Row({ item, onLook, onDrop, onOpen, openId, setOpenId }) {
  */
 export default function WatchlistPage() {
     const navigate = useNavigate();
-    const { items, loading, error, reload, unflag, update, look, counts } = useWatchlist();
+    const { items, loading, error, reload, unflag, update, look, trade, counts } = useWatchlist();
     const [openId, setOpenId] = useState(null);
 
     // Settled once per load of the data, deliberately.
@@ -213,6 +312,27 @@ export default function WatchlistPage() {
     const onLook = (item, body) => look(item.id, body);
     const onDrop = (item) => (item.looks?.length ? update(item.id, { state: 'dropped' }) : unflag(item.id));
     const onOpen = (item) => navigate(`/heatmap/${toSlug(item.sector)}?over=${item.period}`);
+
+    /**
+     * The one place this screen hands over to the journal.
+     *
+     * It asks for the two numbers only the broker knows and invents neither -
+     * putting a fill price in the journal that nobody paid is the mistake its
+     * own comments warn about. The stop defaults to the price you already said
+     * would kill the idea, which is usually the right answer and always editable.
+     */
+    const onTrade = async (item) => {
+        const price = window.prompt(`What did you pay for ${item.symbol}?`, item.priceNow ?? '');
+        if (price === null || price.trim() === '') return;
+        const qty = window.prompt(`How many ${item.symbol}?`, '');
+        if (qty === null || qty.trim() === '') return;
+        try {
+            await trade(item.id, { entryPrice: Number(price), quantity: Number(qty) });
+            navigate('/journal');
+        } catch (e) {
+            window.alert(e.response?.data?.message || 'Could not log that trade');
+        }
+    };
 
     return (
         <div className="container mx-auto space-y-4 px-4 py-6">
@@ -269,7 +389,7 @@ export default function WatchlistPage() {
                 <div className="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
                     {rows.map((item) => (
                         <Row key={item.id} item={item}
-                            onLook={onLook} onDrop={onDrop} onOpen={onOpen}
+                            onLook={onLook} onDrop={onDrop} onOpen={onOpen} onTrade={onTrade}
                             openId={openId} setOpenId={setOpenId} />
                     ))}
                 </div>

@@ -21,7 +21,7 @@ import mongoose from 'mongoose';
 import { marketScoped } from './plugins/marketScoped.js';
 import { PERIODS } from '../services/sectorPerformance.js';
 
-export const STATES = ['watching', 'dropped'];
+export const STATES = ['watching', 'dropped', 'invalidated', 'traded'];
 
 /**
  * One visit to the chart.
@@ -37,10 +37,22 @@ export const STATES = ['watching', 'dropped'];
  * the date you drew them, which is the thing nobody can reconstruct six weeks
  * later.
  */
+const levelSchema = new mongoose.Schema({
+    price: { type: Number, required: true, min: [0, 'A price cannot be negative'] },
+    // Which way price has to go to mean something. Never inferred from where
+    // price happens to be today: a trigger set below the market is a perfectly
+    // ordinary thing to want, and guessing would silently invert it.
+    dir: { type: String, enum: ['above', 'below'], required: true }
+}, { _id: false });
+
 const lookSchema = new mongoose.Schema({
     at: { type: Date, default: Date.now },
     note: { type: String, trim: true, maxlength: [280, 'A note cannot exceed 280 characters'] },
-    chartUrl: { type: String, trim: true }
+    chartUrl: { type: String, trim: true },
+    // The levels as they stood at this look, so the thread shows what you were
+    // waiting for at the time and not only what you are waiting for now.
+    trigger: { type: levelSchema, default: null },
+    invalidation: { type: levelSchema, default: null }
 }, { _id: true });
 
 const watchlistSchema = new mongoose.Schema({
@@ -99,6 +111,37 @@ const watchlistSchema = new mongoose.Schema({
     looks: { type: [lookSchema], default: [] },
 
     /**
+     * What you are waiting for, right now.
+     *
+     * Mirrored from the most recent look that set one, rather than read out of
+     * the array. The watcher runs over every live entry on every price update
+     * and asks one question - has this price been crossed - so the answer has to
+     * be a field it can filter on, not the last element of a subdocument list.
+     *
+     * Both are optional and most names will have neither. A trigger is a
+     * convenience, not the point: the record is the point, and a name with no
+     * levels still sits in the list and still holds its looks.
+     */
+    trigger: { type: levelSchema, default: null },
+
+    /**
+     * The price that would prove the idea wrong.
+     *
+     * This is the one that answers "how do I mark a name I am no longer
+     * interested in". You do not, later, once you have forgotten why you cared -
+     * you name it while you are still thinking clearly, and the watcher closes
+     * the entry for you when price gets there.
+     */
+    invalidation: { type: levelSchema, default: null },
+
+    // The trade this idea became, if it became one.
+    journalEntryId: { type: mongoose.Schema.Types.ObjectId, ref: 'JournalEntry' },
+
+    // Set when the watcher acts, so the thread can say when rather than only that.
+    triggeredAt: { type: Date },
+    invalidatedAt: { type: Date },
+
+    /**
      * Two states, not three.
      *
      * `analysed` used to mean finished, which was the mistake: a name you looked
@@ -139,6 +182,23 @@ watchlistSchema.index(
     { user: 1, market: 1, symbol: 1, period: 1 },
     { unique: true, partialFilterExpression: { state: 'watching' } }
 );
+
+/**
+ * The watcher's own query: live names carrying a level worth checking.
+ *
+ * Sparse, because most names will have neither level and there is no reason to
+ * index a null for them - the whole point of the design is that a trigger is
+ * the exception rather than the thing you are asked for.
+ */
+watchlistSchema.index(
+    { state: 1, 'trigger.price': 1 },
+    { partialFilterExpression: { state: 'watching' } }
+);
+
+/** A name still being watched is the only kind the queue shows. */
+watchlistSchema.methods.isLive = function () {
+    return this.state === 'watching';
+};
 
 /** When you last put eyes on it, or when you flagged it if you never have. */
 watchlistSchema.virtual('lastLookAt').get(function () {

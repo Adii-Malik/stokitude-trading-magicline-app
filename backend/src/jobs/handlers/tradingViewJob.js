@@ -8,6 +8,7 @@ import axios from 'axios';
 import config from '../../config/config.js';
 import { stampPricesFromBars } from '../../services/priceFromBars.js';
 import journalLevelHandler from '../../handlers/journalLevelHandler.js';
+import { checkWatchlistLevels } from '../../services/watchlistLevels.js';
 
 export default async function tradingViewJob(context) {
   const { logger, config: jobConfig } = context;
@@ -63,13 +64,24 @@ export default async function tradingViewJob(context) {
         levels = await journalLevelHandler.checkLevels();
         logger.info('Journal levels checked against the new close', levels);
       } catch (levelError) {
-        logger.warn('Level check failed, prices are still stored', { error: levelError.message });
+        logger.warn('Journal level check failed, prices are still stored', { error: levelError.message });
+      }
+
+      // The same close, against the levels you named while deciding whether to
+      // trade at all. Separate from the journal's because the two answer
+      // different questions and one failing must not silence the other.
+      let watchlist = null;
+      try {
+        watchlist = await checkWatchlistLevels();
+        logger.info('Shortlist levels checked against the new close', watchlist);
+      } catch (levelError) {
+        logger.warn('Shortlist level check failed, prices are still stored', { error: levelError.message });
       }
 
       return {
         success: true,
         message: `Updated ${timeframes.join(', ')} timeframes, ${prices.moved} price(s) moved`,
-        metadata: { ...summary, ...prices, levels }
+        metadata: { ...summary, ...prices, levels, watchlist }
       };
     } else {
       throw new Error(response.data?.message || 'Invalid response from TradingView Core Engine');

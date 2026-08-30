@@ -81,6 +81,17 @@ export function WatchlistProvider({ children }) {
         return data.data;
     }, []);
 
+    /**
+     * It became a trade. The name leaves the queue - the journal is watching it
+     * now, and two screens asking about the same position is how you end up
+     * trusting neither.
+     */
+    const trade = useCallback(async (id, body) => {
+        const { data } = await api.post(`/watchlist/${id}/trade`, body);
+        setItems((prev) => prev.filter((i) => i.id !== id));
+        return data.data;
+    }, []);
+
     /** Fast lookup for the sector page, which asks once per row it draws. */
     const flagged = useMemo(() => {
         const map = new Map();
@@ -91,9 +102,9 @@ export function WatchlistProvider({ children }) {
     const counts = useMemo(() => tally(items), [items]);
 
     const value = useMemo(() => ({
-        items, loading, error, reload, flag, unflag, update, look, flagged, counts,
+        items, loading, error, reload, flag, unflag, update, look, trade, flagged, counts,
         flagOf: (symbol, period) => flagged.get(`${symbol}|${period}`) || null
-    }), [items, loading, error, reload, flag, unflag, update, look, flagged, counts]);
+    }), [items, loading, error, reload, flag, unflag, update, look, trade, flagged, counts]);
 
     return <WatchlistContext.Provider value={value}>{children}</WatchlistContext.Provider>;
 }

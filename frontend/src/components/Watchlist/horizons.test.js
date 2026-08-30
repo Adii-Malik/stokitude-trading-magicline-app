@@ -2,7 +2,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-    BANDS, bandFor, daysSince, lastLookAt, daysLeft, isDue, tally, order, dueText
+    BANDS, bandFor, daysSince, lastLookAt, daysLeft, isDue, tally, order, dueText, meterFor
 } from './horizons.js';
 
 const NOW = new Date('2026-08-31T12:00:00Z').getTime();
@@ -164,5 +164,36 @@ describe('daysSince', () => {
 
     test('a missing date is not a negative age', () => {
         assert.equal(daysSince(null, NOW), 0);
+    });
+});
+
+describe('meterFor', () => {
+    const between = { invalidation: { price: 79, dir: 'below' }, trigger: { price: 88, dir: 'above' }, priceNow: 84 };
+
+    test('places price between the two ends', () => {
+        const m = meterFor(between);
+        assert.equal(Math.round(m.at * 100), 56);
+        assert.equal(m.past, null);
+        assert.equal(m.lo.label, 'dead below');
+        assert.equal(m.hi.label, 'wake me above');
+    });
+
+    // The case that matters most: the idea has run away from you.
+    test('pins and reports when price is past the invalidation', () => {
+        const m = meterFor({ ...between, priceNow: 70 });
+        assert.equal(m.at, 0);
+        assert.equal(m.past, 'invalidation');
+    });
+
+    test('pins and reports when price is past the trigger', () => {
+        const m = meterFor({ ...between, priceNow: 95 });
+        assert.equal(m.at, 1);
+        assert.equal(m.past, 'trigger');
+    });
+
+    test('there is nothing to draw without both levels and a price', () => {
+        assert.equal(meterFor({ trigger: { price: 88, dir: 'above' }, priceNow: 84 }), null);
+        assert.equal(meterFor({ ...between, priceNow: null }), null);
+        assert.equal(meterFor(null), null);
     });
 });

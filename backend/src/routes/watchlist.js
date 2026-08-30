@@ -1,5 +1,6 @@
 import express from 'express';
 import Watchlist from '../models/Watchlist.js';
+import JournalEntry from '../models/JournalEntry.js';
 import { authenticate } from '../middleware/auth.js';
 import { sectorPerformance } from '../services/sectorPerformance.js';
 import { currentMarket } from '../config/marketStore.js';
@@ -41,11 +42,18 @@ const shape = (doc, quote) => ({
     perfWhenNoticed: doc.perfWhenNoticed,
     priceWhenNoticed: doc.priceWhenNoticed,
     state: doc.state,
+    trigger: doc.trigger || null,
+    invalidation: doc.invalidation || null,
+    triggeredAt: doc.triggeredAt || null,
+    invalidatedAt: doc.invalidatedAt || null,
+    journalEntryId: doc.journalEntryId || null,
     looks: (doc.looks || []).map((l) => ({
         id: l._id,
         at: l.at,
         note: l.note,
-        chartUrl: l.chartUrl
+        chartUrl: l.chartUrl,
+        trigger: l.trigger || null,
+        invalidation: l.invalidation || null
     })),
     lastLookAt: doc.looks?.length ? doc.looks[doc.looks.length - 1].at : doc.noticedAt,
     tag: doc.tag,
@@ -137,13 +145,39 @@ router.post('/', async (req, res) => {
  */
 router.post('/:id/looks', async (req, res) => {
     try {
-        const { note, chartUrl } = req.body || {};
+        const { note, chartUrl, trigger, invalidation } = req.body || {};
 
+        // A level is only a level with both halves. Half of one is a typo, and
+        // storing it would arm a watcher against a price with no direction.
+        const level = (l) => (l && l.price != null && ['above', 'below'].includes(l.dir)
+            ? { price: Number(l.price), dir: l.dir }
+            : null);
+
+        const t = level(trigger);
+        const v = level(invalidation);
+
+        /**
+         * The look keeps the levels as they stood; the entry carries the live
+         * ones. Passing null clears what was armed - which is how you say "never
+         * mind" about a price you set last week without dropping the name.
+         */
         const doc = await Watchlist.findOneAndUpdate(
             { _id: req.params.id, user: req.user._id },
             {
-                $push: { looks: { at: new Date(), note: note || undefined, chartUrl: chartUrl || undefined } },
-                $set: { state: 'watching' }
+                $push: {
+                    looks: {
+                        at: new Date(),
+                        note: note || undefined,
+                        chartUrl: chartUrl || undefined,
+                        trigger: t,
+                        invalidation: v
+                    }
+                },
+                $set: {
+                    state: 'watching',
+                    ...(trigger !== undefined ? { trigger: t, triggeredAt: null } : {}),
+                    ...(invalidation !== undefined ? { invalidation: v } : {})
+                }
             },
             { new: true, runValidators: true }
         ).lean();
@@ -189,6 +223,58 @@ router.patch('/:id', async (req, res) => {
     } catch (error) {
         console.error('Error updating watchlist entry:', error);
         res.status(500).json({ success: false, message: 'Failed to update this name' });
+    }
+});
+
+/**
+ * POST /api/watchlist/:id/trade - this one is ready.
+ *
+ * Creates the journal entry and links the two, so the thread that led to a
+ * trade stays attached to it and the name stops asking for looks. The journal
+ * owns the numbers from here: this hands over a symbol, a date and whatever the
+ * last look said as the setup, and nothing else. Inventing a fill price the
+ * broker never gave is exactly what the journal's own comments warn against.
+ */
+router.post('/:id/trade', async (req, res) => {
+    try {
+        const { entryPrice, quantity, entryDate, plannedStop } = req.body || {};
+        if (entryPrice == null || quantity == null) {
+            return res.status(400).json({
+                success: false,
+                message: 'A trade needs the price you paid and how many'
+            });
+        }
+
+        const doc = await Watchlist.findOne({ _id: req.params.id, user: req.user._id });
+        if (!doc) return res.status(404).json({ success: false, message: 'Not on your shortlist' });
+
+        const last = doc.looks?.[doc.looks.length - 1];
+        const entry = await JournalEntry.create({
+            user: req.user._id,
+            symbol: doc.symbol,
+            exchange: currentMarket() === 'US' ? 'NASDAQ' : 'PSX',
+            direction: 'long',
+            state: 'open',
+            entryDate: entryDate ? new Date(entryDate) : new Date(),
+            entryPrice: Number(entryPrice),
+            quantity: Number(quantity),
+            plannedStop: plannedStop != null ? Number(plannedStop) : (doc.invalidation?.price ?? undefined),
+            setupType: doc.sector?.slice(0, 40),
+            notes: last?.note || undefined
+        });
+
+        doc.state = 'traded';
+        doc.journalEntryId = entry._id;
+        doc.trigger = null;
+        await doc.save();
+
+        res.status(201).json({
+            success: true,
+            data: { watchlist: shape(doc.toObject(), (await quotes()).get(doc.symbol)), journalEntryId: entry._id }
+        });
+    } catch (error) {
+        console.error('Error promoting to a trade:', error);
+        res.status(400).json({ success: false, message: error.message || 'Could not log that trade' });
     }
 });
 

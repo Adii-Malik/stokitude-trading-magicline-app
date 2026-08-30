@@ -135,4 +135,29 @@ export function dueText(item, now = Date.now()) {
     return { text: `${left} days left`, tone: 'calm' };
 }
 
-export default { BANDS, bandFor, daysSince, lastLookAt, daysLeft, isDue, tally, order, dueText };
+/**
+ * Where price sits between the two levels, as 0..1, or null when there is
+ * nothing to draw.
+ *
+ * Clamped, and it reports which end it is pinned to, because a name that has
+ * run past its invalidation is the most informative case on the screen and
+ * silently flattening it to 0 would hide exactly that.
+ */
+export function meterFor(item) {
+    const lo = item?.invalidation?.price;
+    const hi = item?.trigger?.price;
+    const now = item?.priceNow;
+    if (lo == null || hi == null || now == null || lo === hi) return null;
+
+    const [min, max] = lo < hi ? [lo, hi] : [hi, lo];
+    const at = (now - min) / (max - min);
+    return {
+        at: Math.max(0, Math.min(1, at)),
+        past: at < 0 ? 'invalidation' : at > 1 ? 'trigger' : null,
+        lo: { price: lo, label: item.invalidation.dir === 'below' ? 'dead below' : 'dead above' },
+        hi: { price: hi, label: item.trigger.dir === 'above' ? 'wake me above' : 'wake me below' },
+        now
+    };
+}
+
+export default { BANDS, bandFor, daysSince, lastLookAt, daysLeft, isDue, tally, order, dueText, meterFor };

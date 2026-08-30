@@ -156,6 +156,23 @@ class NotificationService {
   }
 
   /**
+   * Stamp one channel's outcome onto a notification.
+   *
+   * A targeted update, never doc.save(). Email and push are both dispatched
+   * without awaiting - deliberately, so a slow provider cannot hold up the price
+   * run that raised the alert - which means two writers reach the same document
+   * at the same time. Mongoose refuses that ("Can't save() the same doc multiple
+   * times in parallel") and the loser's result was simply lost: a push that had
+   * actually been delivered recorded itself as not sent.
+   */
+  async stamp(notification, channel, fields) {
+    await Notification.updateOne(
+      { _id: notification._id },
+      { $set: Object.fromEntries(Object.entries(fields).map(([k, v]) => [`channels.${channel}.${k}`, v])) }
+    );
+  }
+
+  /**
    * Send email notification
    */
   async sendEmail(notification, user, prefs) {
@@ -174,20 +191,14 @@ class NotificationService {
       // Only a real send counts. With no provider configured the email service
       // prints to the console and says so, and the record must agree with it.
       if (result?.delivered === false) {
-        notification.channels.email.error = 'No email provider configured';
-        await notification.save();
+        await this.stamp(notification, 'email', { error: 'No email provider configured' });
         return;
       }
 
-      notification.channels.email.sent = true;
-      notification.channels.email.sentAt = new Date();
-      await notification.save();
-
+      await this.stamp(notification, 'email', { sent: true, sentAt: new Date() });
       console.log(`📧 Email notification sent to ${user.username}`);
     } catch (error) {
-      // Update notification record with error
-      notification.channels.email.error = error.message;
-      await notification.save();
+      await this.stamp(notification, 'email', { error: error.message });
       throw error;
     }
   }
@@ -209,12 +220,10 @@ class NotificationService {
     });
 
     if (result.sent > 0) {
-      notification.channels.push.sent = true;
-      notification.channels.push.sentAt = new Date();
+      await this.stamp(notification, 'push', { sent: true, sentAt: new Date() });
     } else if (result.failed > 0) {
-      notification.channels.push.error = `${result.failed} device(s) failed`;
+      await this.stamp(notification, 'push', { error: `${result.failed} device(s) failed` });
     }
-    await notification.save();
 
     const dropped = result.gone ? `, ${result.gone} expired device(s) removed` : '';
     console.log(`\ud83d\udcf1 Push sent to ${result.sent} device(s) for ${user.username}${dropped}`);
@@ -237,6 +246,46 @@ class NotificationService {
       data: { journalEntryId: entry._id, symbol: entry.symbol, level: target.level, price },
       priority: 'high',
       actionUrl: '/journal'
+    });
+  }
+
+  /**
+   * A price you named on the shortlist has printed.
+   *
+   * High, not urgent: this is a setup arriving, not a position going against
+   * you. The difference decides whether the phone insists.
+   */
+  async notifyWatchlistTrigger(entry, price) {
+    const dir = entry.trigger?.dir === 'below' ? 'down through' : 'up through';
+    return this.send({
+      userId: entry.user,
+      category: 'trade_plans',
+      event: 'target_hit',
+      title: `\u{1F3AF} ${entry.symbol} reached ${entry.trigger?.price?.toFixed(2)}`,
+      message: `${entry.symbol} is at ${price.toFixed(2)}, ${dir} the level you were waiting for. From ${entry.sector}.`,
+      data: { watchlistId: entry._id, symbol: entry.symbol, price },
+      priority: 'high',
+      actionUrl: '/watchlist'
+    });
+  }
+
+  /**
+   * The idea is over, and this says so once.
+   *
+   * The entry closes itself either way - the notification is a courtesy so the
+   * change is not something you discover weeks later wondering where a name
+   * went.
+   */
+  async notifyWatchlistInvalidated(entry, price) {
+    return this.send({
+      userId: entry.user,
+      category: 'trade_plans',
+      event: 'stop_loss_hit',
+      title: `\u{1F5D1}\uFE0F ${entry.symbol} is off the shortlist`,
+      message: `${entry.symbol} is at ${price.toFixed(2)}, through the ${entry.invalidation?.price?.toFixed(2)} you said would kill the idea. Closed.`,
+      data: { watchlistId: entry._id, symbol: entry.symbol, price },
+      priority: 'medium',
+      actionUrl: '/watchlist'
     });
   }
 
