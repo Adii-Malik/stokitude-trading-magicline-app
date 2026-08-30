@@ -63,6 +63,17 @@ export function WatchlistProvider({ children }) {
     }, []);
 
     /**
+     * You looked at the chart. The row is replaced in place rather than
+     * refetched: it keeps its position while the list is being worked, and the
+     * order only settles again on the next load.
+     */
+    const look = useCallback(async (id, body) => {
+        const { data } = await api.post(`/watchlist/${id}/looks`, body);
+        setItems((prev) => prev.map((i) => (i.id === id ? data.data : i)));
+        return data.data;
+    }, []);
+
+    /**
      * Drop it, put it back, or tag it.
      *
      * Replaced in place rather than removed, whichever way it went. A dropped
@@ -77,15 +88,17 @@ export function WatchlistProvider({ children }) {
     }, []);
 
     /**
-     * You looked at the chart. The row is replaced in place rather than
-     * refetched: it keeps its position while the list is being worked, and the
-     * order only settles again on the next load.
+     * Take a name off the queue, without ever destroying what you wrote.
+     *
+     * A delete is the undo for a mis-click, and a mis-click has nothing in it.
+     * The moment there are looks the answer is to drop it instead, which keeps
+     * the thread in history. This became load-bearing when a flag stopped being
+     * per-board: the button on the yearly board now un-flags the record you
+     * built on the monthly one, three notes and a chart included.
      */
-    const look = useCallback(async (id, body) => {
-        const { data } = await api.post(`/watchlist/${id}/looks`, body);
-        setItems((prev) => prev.map((i) => (i.id === id ? data.data : i)));
-        return data.data;
-    }, []);
+    const remove = useCallback((item) => (
+        item.looks?.length ? update(item.id, { state: 'dropped' }) : unflag(item.id)
+    ), [update, unflag]);
 
     /**
      * It became a trade. The name leaves the queue - the journal is watching it
@@ -102,23 +115,28 @@ export function WatchlistProvider({ children }) {
     /**
      * Fast lookup for the sector page, which asks once per row it draws.
      *
-     * Live names only. The flag button is a toggle for "am I watching this", and
-     * a name you traded or passed on months ago answering yes would light up a
-     * row you have already finished with - and offer to unflag something that is
-     * not on the queue.
+     * Keyed on the symbol alone, matching the record. A flag is on the stock, so
+     * a name flagged off the monthly board has to read as flagged on the yearly
+     * one too - otherwise the button offers to flag what is already flagged, and
+     * the server quietly folds the second press into the first while the screen
+     * pretends something happened.
+     *
+     * Live names only. The button is a toggle for "am I watching this", and a
+     * name you traded or passed on months ago answering yes would light up a row
+     * you have already finished with.
      */
     const flagged = useMemo(() => {
         const map = new Map();
-        for (const item of items) if (isLive(item)) map.set(`${item.symbol}|${item.period}`, item);
+        for (const item of items) if (isLive(item)) map.set(item.symbol, item);
         return map;
     }, [items]);
 
     const counts = useMemo(() => tally(items), [items]);
 
     const value = useMemo(() => ({
-        items, loading, error, reload, flag, unflag, update, look, trade, flagged, counts,
-        flagOf: (symbol, period) => flagged.get(`${symbol}|${period}`) || null
-    }), [items, loading, error, reload, flag, unflag, update, look, trade, flagged, counts]);
+        items, loading, error, reload, flag, unflag, remove, update, look, trade, flagged, counts,
+        flagOf: (symbol) => flagged.get(symbol) || null
+    }), [items, loading, error, reload, flag, unflag, remove, update, look, trade, flagged, counts]);
 
     return <WatchlistContext.Provider value={value}>{children}</WatchlistContext.Provider>;
 }

@@ -608,8 +608,7 @@ function PastRow({ item, onOpen, onRevive, onJournal }) {
     };
 
     return (
-        <div className="relative border-t border-gray-200 px-5 py-4 first:border-t-0 dark:border-gray-700 sm:pl-6">
-            {kind === 'dead' && <span className="absolute inset-y-0 left-0 w-1 bg-rose-500" />}
+        <div className="border-t border-gray-200 px-5 py-4 first:border-t-0 dark:border-gray-700 sm:pl-6">
 
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                 <button type="button" onClick={() => onOpen(item)}
@@ -647,7 +646,10 @@ function PastRow({ item, onOpen, onRevive, onJournal }) {
                 {traded(item)
                     ? <button type="button" onClick={() => onJournal(item)} className={QUIET}>Open in the journal</button>
                     : (
-                        <button type="button" onClick={revive} disabled={busy} className={QUIET}>
+                        <button type="button" onClick={revive} disabled={busy} className={QUIET}
+                            title={kind === 'dead'
+                                ? 'Puts it back on the queue and clears that level — you name a new one on the next look'
+                                : `Put ${item.symbol} back on the queue`}>
                             <Undo2 className="h-3.5 w-3.5" />
                             {busy ? 'Putting it back…' : kind === 'dead' ? 'I still like it' : 'Watch it again'}
                         </button>
@@ -655,11 +657,6 @@ function PastRow({ item, onOpen, onRevive, onJournal }) {
                 <ThreadToggle looks={item.looks || []} label="What I thought" />
             </div>
 
-            {kind === 'dead' && (
-                <p className="mt-2 text-[12.5px] text-gray-400 dark:text-gray-500">
-                    Putting it back clears that level — you name a new one on the next look.
-                </p>
-            )}
         </div>
     );
 }
@@ -729,7 +726,7 @@ function Kinds({ items, value, onChange }) {
  */
 export default function WatchlistPage() {
     const navigate = useNavigate();
-    const { items, loading, error, reload, unflag, update, look, trade, counts } = useWatchlist();
+    const { items, loading, error, reload, remove, update, look, trade, counts } = useWatchlist();
     const [open, setOpen] = useState(null);
     const [tab, setTab] = useState('queue');
     const [kind, setKind] = useState('all');
@@ -750,7 +747,7 @@ export default function WatchlistPage() {
     }, [groups, tab]);
 
     const onLook = (item, body) => look(item.id, body);
-    const onDrop = (item) => (item.looks?.length ? update(item.id, { state: 'dropped' }) : unflag(item.id));
+    const onDrop = (item) => remove(item);
     const onRevive = (item) => update(item.id, { state: 'watching' });
     const onOpen = (item) => navigate(`/heatmap/${toSlug(item.sector)}?over=${item.period}`);
     const onJournal = () => navigate('/journal');

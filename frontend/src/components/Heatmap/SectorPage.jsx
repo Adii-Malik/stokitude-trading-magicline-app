@@ -18,14 +18,18 @@ import { TIMEFRAMES, PERIOD_PARAM, periodFrom } from './heatmapConfig';
  * that stops you capturing.
  */
 function Flag({ stock, sector, period }) {
-    const { flagOf, flag, unflag } = useWatchlist();
+    const { flagOf, flag, remove } = useWatchlist();
     const [busy, setBusy] = useState(false);
-    const on = flagOf(stock.symbol, period);
+    // Keyed on the symbol, not the symbol and this board. A flag is on the
+    // stock, so one made on the monthly board reads as flagged here too.
+    const on = flagOf(stock.symbol);
 
     const toggle = async () => {
         setBusy(true);
         try {
-            if (on) await unflag(on.id);
+            // Never a hard delete once there is a thread to lose - this button
+            // can now be pressed on a board you did not flag it from.
+            if (on) await remove(on);
             else await flag({
                 symbol: stock.symbol,
                 name: stock.name,
