@@ -95,7 +95,7 @@ class NotificationService {
       const prefs = await NotificationPreference.getOrCreate(userId);
 
       // Check if notification should be sent
-      if (!prefs.shouldSendNotification(category, 'inApp')) {
+      if (!prefs.shouldSend('inApp')) {
         console.log(`⚠️  User ${user.username} has disabled ${category} notifications`);
         return null;
       }
@@ -133,7 +133,7 @@ class NotificationService {
       console.log(`✅ In-app notification created for ${user.username}: ${title}`);
 
       // Send email if enabled
-      if (prefs.shouldSendNotification(category, 'email')) {
+      if (prefs.shouldSend('email')) {
         this.sendEmail(notification, user, prefs).catch(err => {
           console.error(`❌ Failed to send email notification: ${err.message}`);
         });
@@ -142,7 +142,7 @@ class NotificationService {
       // Send push if enabled. Not awaited, for the same reason email is not:
       // the notification is already saved, and a push service being slow must
       // not hold up the price poll that raised the alert.
-      if (prefs.shouldSendNotification(category, 'push')) {
+      if (prefs.shouldSend('push')) {
         this.sendPush(notification, user).catch(err => {
           console.error(`❌ Failed to send push notification: ${err.message}`);
         });

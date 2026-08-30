@@ -43,21 +43,6 @@ export const NOTIFICATION_CATEGORIES = {
 
 };
 
-/**
- * Get user-controllable notification features
- * @returns {Array} List of features user can enable/disable
- */
-export function getUserControllableFeatures() {
-    return Object.values(NOTIFICATION_CATEGORIES)
-        .filter(cat => cat.userControllable === true)
-        .map(cat => ({
-            id: cat.id,
-            label: cat.label,
-            description: cat.description,
-            icon: cat.icon,
-            defaultEnabled: cat.defaultEnabled
-        }));
-}
 
 /**
  * Validate if a category exists
@@ -83,7 +68,6 @@ export function isValidEvent(category, event) {
 
 export default {
     NOTIFICATION_CATEGORIES,
-    getUserControllableFeatures,
     isValidCategory,
     isValidEvent,
 };

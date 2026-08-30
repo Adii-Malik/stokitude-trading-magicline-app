@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Bell, Save, Clock, Mail, Monitor, Smartphone } from 'lucide-react';
-import { getPreferences, updatePreferences, getNotificationFeatures } from '../services/notifications';
+import { getPreferences, updatePreferences } from '../services/notifications';
 import toast from 'react-hot-toast';
 import PushChannel from './PushChannel';
 
 export default function NotificationPreferences() {
   const [preferences, setPreferences] = useState(null);
-  const [features, setFeatures] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -17,12 +16,8 @@ export default function NotificationPreferences() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [prefsResponse, featuresResponse] = await Promise.all([
-        getPreferences(),
-        getNotificationFeatures()
-      ]);
+      const prefsResponse = await getPreferences();
       setPreferences(prefsResponse.data.preferences);
-      setFeatures(featuresResponse.data.features);
     } catch (error) {
       console.error('Error loading data:', error);
       toast.error('Failed to load preferences');
@@ -175,55 +170,6 @@ export default function NotificationPreferences() {
               of this device rather than of the account, so it cannot be part of
               the preferences blob that Save writes. */}
           <PushChannel icon={<Smartphone className="w-5 h-5 text-gray-600 dark:text-gray-400" />} />
-        </div>
-      </div>
-
-      {/* Notification Preferences - Dynamic from API */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-          Notification Preferences
-        </h3>
-
-        <div className="space-y-4">
-          {features.map((feature) => (
-            <div
-              key={feature.id}
-              className="flex items-start justify-between py-3 border-b border-gray-200 dark:border-gray-700 last:border-0"
-            >
-              <div className="flex items-start gap-3 flex-1">
-                <span className="text-2xl mt-1">{feature.icon}</span>
-                <div className="flex-1">
-                  <label className="font-medium text-gray-900 dark:text-white block">
-                    {feature.label}
-                  </label>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    {feature.description}
-                  </p>
-                </div>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer ml-4">
-                <input
-                  type="checkbox"
-                  checked={preferences.features?.[feature.id]?.enabled !== false}
-                  onChange={(e) => setPreferences({
-                    ...preferences,
-                    features: {
-                      ...preferences.features,
-                      [feature.id]: { enabled: e.target.checked }
-                    }
-                  })}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-cyan-300 dark:peer-focus:ring-cyan-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-cyan-600"></div>
-              </label>
-            </div>
-          ))}
-
-          {features.length === 0 && (
-            <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
-              No notification features available
-            </p>
-          )}
         </div>
       </div>
 

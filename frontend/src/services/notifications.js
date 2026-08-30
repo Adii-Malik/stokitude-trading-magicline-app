@@ -49,10 +49,6 @@ export const updatePreferences = async (preferences) => {
 };
 
 // Get available notification features
-export const getNotificationFeatures = async () => {
-  const response = await api.get('/notifications/features');
-  return response.data;
-};
 
 // Send test notification (basic)
 export const sendTestNotification = async () => {
@@ -89,7 +85,6 @@ export default {
   markAllAsRead,
   deleteNotification,
   clearReadNotifications,
-  getNotificationFeatures,
   getPreferences,
   updatePreferences,
   sendTestNotification

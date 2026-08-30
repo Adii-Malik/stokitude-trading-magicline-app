@@ -2,7 +2,6 @@ import express from 'express';
 import Notification from '../models/Notification.js';
 import NotificationPreference from '../models/NotificationPreference.js';
 import { authenticate } from '../middleware/auth.js';
-import { getUserControllableFeatures } from '../config/notificationConfig.js';
 import pushService from '../services/pushService.js';
 import PushSubscription from '../models/PushSubscription.js';
 
@@ -260,35 +259,6 @@ router.put('/preferences', authenticate, async (req, res) => {
     });
   }
 });
-
-// GET /api/notifications/features - Get available notification features
-router.get('/features', authenticate, async (req, res) => {
-  try {
-    // Get only user-controllable features (no system/admin)
-    const features = getUserControllableFeatures();
-
-    res.json({
-      success: true,
-      data: {
-        features
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching notification features:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch notification features',
-      error: error.message
-    });
-  }
-});
-
-/**
- * Web Push.
- *
- * The public VAPID key is deliberately public - it is what the browser encrypts
- * to, and it is useless without the private half that never leaves the server.
- */
 
 // GET /api/notifications/push/key - the key the browser subscribes with
 router.get('/push/key', authenticate, (req, res) => {

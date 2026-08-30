@@ -29,18 +29,6 @@ const notificationPreferenceSchema = new mongoose.Schema({
     }
   },
 
-  // Feature preferences (dynamic - only user-controllable features)
-  // System and admin notifications are always enabled (not stored here)
-  features: {
-    type: Map,
-    of: {
-      enabled: { type: Boolean, default: true }
-    },
-    default: () => new Map([
-      ['trade_plans', { enabled: true }]
-    ])
-  },
-
   // Quiet hours (no notifications during these hours)
   quietHours: {
     enabled: { type: Boolean, default: false },
@@ -73,23 +61,22 @@ notificationPreferenceSchema.statics.getOrCreate = async function (userId) {
   return prefs;
 };
 
-// Method to check if notification should be sent
-notificationPreferenceSchema.methods.shouldSendNotification = function (category, channel) {
-  // Check if globally enabled
+/**
+ * Whether this channel may carry a notification right now.
+ *
+ * It used to take a category too, and check three things: a global switch, the
+ * channel, and a per-category switch held in a `features` map. With one
+ * category left there is nothing to select between - the per-feature toggle and
+ * the master switch said the same thing in two places, which is two places to
+ * look when nothing arrives.
+ *
+ * Quiet hours apply only to the channels that make a noise. An in-app entry is
+ * something you go and look at, so silencing it would only lose the record.
+ */
+notificationPreferenceSchema.methods.shouldSend = function (channel) {
   if (!this.enabled) return false;
-
-  // Check if channel is enabled
   if (!this.channels[channel]?.enabled) return false;
 
-  // There is no always-on bypass any more: the two categories it existed for -
-  // system and admin - never raised a single notification and have been removed.
-  // Every category that can occur is one you control.
-
-  // Check if feature category is enabled (for user-controllable features)
-  const featureConfig = this.features.get(category);
-  if (!featureConfig || !featureConfig.enabled) return false;
-
-  // Check quiet hours (only for email and push)
   if ((channel === 'email' || channel === 'push') && this.quietHours.enabled) {
     if (this.isInQuietHours()) return false;
   }
