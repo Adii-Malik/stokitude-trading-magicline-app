@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowUpDown } from 'lucide-react';
 import { useMarket } from '../../contexts/MarketContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import Treemap from './Treemap';
 import { useSectors, money, pct, tone, fromSlug } from './heatmapData';
-import { TIMEFRAMES, DEFAULTS } from './heatmapConfig';
+import { TIMEFRAMES, PERIOD_PARAM, periodFrom } from './heatmapConfig';
 
 /** The same row of choices as the board, so the two pages read alike. */
 function Choice({ label, options, value, onChange }) {
@@ -41,7 +41,11 @@ export default function SectorPage() {
     const currency = market === 'PK' ? 'PKR' : market === 'US' ? 'USD' : null;
     const { theme } = useTheme();
     const { data, error } = useSectors(market);
-    const [period, setPeriod] = useState(DEFAULTS.timeframe);
+
+    // Inherited from the board, so the sector opens on the period you clicked.
+    const [params, setParams] = useSearchParams();
+    const period = periodFrom(params);
+    const setPeriod = (id) => setParams({ [PERIOD_PARAM]: id }, { replace: true });
     const [sort, setSort] = useState({ key: 'weight', dir: 'desc' });
 
     const name = fromSlug(slug);
@@ -51,7 +55,7 @@ export default function SectorPage() {
     /** Where you are, and the way back, in one line rather than a stray button. */
     const crumbs = (here) => (
         <nav className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400">
-            <button type="button" onClick={() => navigate('/heatmap')}
+            <button type="button" onClick={() => navigate(`/heatmap?${PERIOD_PARAM}=${period}`)}
                 className="flex items-center gap-1.5 rounded px-1 py-0.5 hover:text-cyan-600 dark:hover:text-cyan-400">
                 <ArrowLeft className="h-3.5 w-3.5" /> Sector Heatmap
             </button>

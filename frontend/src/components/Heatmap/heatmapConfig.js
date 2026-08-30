@@ -24,3 +24,19 @@ export const TIMEFRAMES = [
 
 /** A month is long enough to be a trend and short enough to still be tradeable. */
 export const DEFAULTS = { timeframe: 'Perf.1M' };
+
+/**
+ * The period, carried in the URL.
+ *
+ * Clicking a sector used to land on a page reset to one month, whatever you had
+ * been looking at - the question you asked the board was thrown away by the
+ * answer. Keeping it in the query string means the sector page opens on the
+ * period you clicked, the back link returns on the period you left, and a link
+ * you paste shows what you were seeing.
+ */
+export const PERIOD_PARAM = 'over';
+
+export function periodFrom(params) {
+    const asked = params.get(PERIOD_PARAM);
+    return TIMEFRAMES.some((t) => t.id === asked) ? asked : DEFAULTS.timeframe;
+}

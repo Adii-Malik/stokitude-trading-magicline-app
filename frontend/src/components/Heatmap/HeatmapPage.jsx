@@ -1,12 +1,11 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { LayoutGrid, RefreshCw } from 'lucide-react';
 import { useMarket } from '../../contexts/MarketContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import Treemap from './Treemap';
 import SectorTable from './SectorTable';
 import { useSectors, pct, toSlug } from './heatmapData';
-import { BOARDS, TIMEFRAMES, DEFAULTS } from './heatmapConfig';
+import { BOARDS, TIMEFRAMES, PERIOD_PARAM, periodFrom } from './heatmapConfig';
 
 function Choice({ label, options, value, onChange }) {
     return (
@@ -31,11 +30,17 @@ export default function HeatmapPage() {
     const { theme } = useTheme();
     const navigate = useNavigate();
     const { data, error, reload } = useSectors(market);
-    const [period, setPeriod] = useState(DEFAULTS.timeframe);
+
+    // The period lives in the URL, so the sector page can inherit it and the
+    // board can be returned to unchanged. Replacing rather than pushing keeps
+    // eight period presses out of the back button.
+    const [params, setParams] = useSearchParams();
+    const period = periodFrom(params);
+    const setPeriod = (id) => setParams({ [PERIOD_PARAM]: id }, { replace: true });
 
     const board = BOARDS[market] || BOARDS.PK;
     const label = TIMEFRAMES.find((t) => t.id === period)?.label;
-    const open = (sector) => navigate(`/heatmap/${toSlug(sector)}`);
+    const open = (sector) => navigate(`/heatmap/${toSlug(sector)}?${PERIOD_PARAM}=${period}`);
 
     /**
      * Area is capitalisation, always. The sectors holding the money are the ones
