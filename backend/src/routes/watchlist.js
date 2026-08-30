@@ -7,7 +7,7 @@ import { currentMarket } from '../config/marketStore.js';
 const router = express.Router();
 router.use(authenticate);
 
-const LIVE = ['noticed', 'analysed'];
+const LIVE = ['watching'];
 
 /**
  * Today's number for every flagged name, or an empty map.
@@ -41,8 +41,13 @@ const shape = (doc, quote) => ({
     perfWhenNoticed: doc.perfWhenNoticed,
     priceWhenNoticed: doc.priceWhenNoticed,
     state: doc.state,
-    verdict: doc.verdict,
-    analysedAt: doc.analysedAt,
+    looks: (doc.looks || []).map((l) => ({
+        id: l._id,
+        at: l.at,
+        note: l.note,
+        chartUrl: l.chartUrl
+    })),
+    lastLookAt: doc.looks?.length ? doc.looks[doc.looks.length - 1].at : doc.noticedAt,
     tag: doc.tag,
     // Null rather than absent when the scanner is down, so the screen can say
     // "no quote" instead of drawing a drift of zero.
@@ -88,7 +93,7 @@ router.post('/', async (req, res) => {
             market: currentMarket(),
             symbol: String(symbol).toUpperCase().trim(),
             period,
-            state: { $in: LIVE }
+            state: 'watching'
         };
 
         const existing = await Watchlist.findOne(key).lean();
@@ -123,29 +128,54 @@ router.post('/', async (req, res) => {
 });
 
 /**
- * PATCH /api/watchlist/:id - record what the analysis concluded, or let it go.
+ * POST /api/watchlist/:id/looks - you went and looked at the chart.
  *
- * Dropping keeps the row. It is the record of an idea you looked at and passed
- * on, which is worth more than a deletion - and it frees the unique key so the
- * same name can be noticed again later without carrying the old verdict.
+ * Everything is optional, including all of it. Saving a look with no note and
+ * no chart still records the date and that you looked, which resets the clock
+ * and is more than the screen knew before. Requiring anything here would put a
+ * decision in front of the one action this whole feature depends on you taking.
+ */
+router.post('/:id/looks', async (req, res) => {
+    try {
+        const { note, chartUrl } = req.body || {};
+
+        const doc = await Watchlist.findOneAndUpdate(
+            { _id: req.params.id, user: req.user._id },
+            {
+                $push: { looks: { at: new Date(), note: note || undefined, chartUrl: chartUrl || undefined } },
+                $set: { state: 'watching' }
+            },
+            { new: true, runValidators: true }
+        ).lean();
+
+        if (!doc) return res.status(404).json({ success: false, message: 'Not on your shortlist' });
+
+        res.status(201).json({ success: true, data: shape(doc, (await quotes()).get(doc.symbol)) });
+    } catch (error) {
+        console.error('Error recording a look:', error);
+        res.status(500).json({ success: false, message: 'Failed to record that look' });
+    }
+});
+
+/**
+ * PATCH /api/watchlist/:id - let an idea go, or tag it.
+ *
+ * Dropping keeps the row and its looks. It is the record of an idea you watched
+ * and passed on, which is worth more than a deletion - and it frees the unique
+ * key so the same name can be flagged again later without inheriting the old
+ * thread.
  */
 router.patch('/:id', async (req, res) => {
     try {
-        const { state, verdict, tag } = req.body || {};
+        const { state, tag } = req.body || {};
         const update = {};
 
-        if (state === 'analysed') {
-            update.state = 'analysed';
-            update.analysedAt = new Date();
-            if (verdict !== undefined) update.verdict = verdict;
-        } else if (state === 'dropped') {
-            update.state = 'dropped';
-        } else if (state !== undefined) {
-            return res.status(400).json({ success: false, message: 'state must be analysed or dropped' });
-        } else {
-            if (verdict !== undefined) update.verdict = verdict;
-            if (tag !== undefined) update.tag = tag;
+        if (state === 'dropped') update.state = 'dropped';
+        else if (state === 'watching') update.state = 'watching';
+        else if (state !== undefined) {
+            return res.status(400).json({ success: false, message: 'state must be watching or dropped' });
         }
+        if (tag !== undefined) update.tag = tag;
 
         const doc = await Watchlist.findOneAndUpdate(
             { _id: req.params.id, user: req.user._id },

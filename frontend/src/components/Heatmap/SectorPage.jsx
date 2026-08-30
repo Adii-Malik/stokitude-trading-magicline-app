@@ -113,7 +113,7 @@ export default function SectorPage() {
     );
 
     const shell = (body, here = name) => (
-        <div className="space-y-4">
+        <div className="container mx-auto space-y-4 px-4 py-6">
             <div className="rounded-lg border border-gray-200 bg-white px-6 py-4 dark:border-gray-700 dark:bg-gray-800">{crumbs(here)}</div>
             <div className="rounded-lg border border-gray-200 bg-white p-6 text-sm dark:border-gray-700 dark:bg-gray-800">{body}</div>
         </div>

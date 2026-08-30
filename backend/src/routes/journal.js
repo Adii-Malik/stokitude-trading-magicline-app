@@ -7,7 +7,6 @@ import { authenticate } from '../middleware/auth.js';
 import journalService from '../services/journalService.js';
 import RiskProfile from '../models/RiskProfile.js';
 import { contextFor, judge, suggestSize } from '../services/riskContext.js';
-import { chartUpload, URL_PREFIX } from '../services/chartStorage.js';
 import Portfolio from '../models/Portfolio.js';
 import JournalSettings from '../models/JournalSettings.js';
 import JournalEntry from '../models/JournalEntry.js';
@@ -184,14 +183,6 @@ router.put('/settings', async (req, res) => {
         await settings.save();
         res.json({ success: true, data: settings });
     } catch (error) { fail(res, error); }
-});
-
-router.post('/chart', (req, res) => {
-    chartUpload.single('chart')(req, res, (err) => {
-        if (err) return res.status(400).json({ success: false, message: err.message });
-        if (!req.file) return res.status(400).json({ success: false, message: 'No image received' });
-        res.json({ success: true, data: { chartUrl: `${URL_PREFIX}${req.file.filename}` } });
-    });
 });
 
 router.get('/stats', async (req, res) => {

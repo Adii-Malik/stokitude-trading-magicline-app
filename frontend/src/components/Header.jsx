@@ -11,21 +11,18 @@ import { useWatchlist } from '../contexts/WatchlistContext';
 import { UserProfileDropdown } from './common';
 
 /**
- * How many names are waiting, and whether any are about to be missed.
+ * How many names are asking for you.
  *
- * Amber is a queue; red is a flag that has outlived its horizon. Two states
- * rather than one because the difference between "things to do" and "about to
- * miss one" is the only thing worth interrupting you for, and a badge that
- * cannot say which is a badge you learn to ignore.
+ * Absent when the answer is none, rather than a zero: a badge that is always lit
+ * is one you stop seeing. It appears only when a deadline you set has passed.
  */
-function Badge({ waiting, stale }) {
-  if (!waiting) return null;
+function Badge({ due }) {
+  if (!due) return null;
   return (
-    <span title={`${waiting} waiting${stale ? `, ${stale} past their horizon` : ''}`}
-      className={`inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1.5
-                  text-[11px] font-bold tabular-nums text-white
-                  ${stale ? 'bg-rose-500' : 'bg-amber-500'}`}>
-      {waiting}
+    <span title={`${due} name${due === 1 ? '' : 's'} want looking at`}
+      className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full
+                 bg-rose-500 px-1.5 text-[11px] font-bold tabular-nums text-white">
+      {due}
     </span>
   );
 }
@@ -137,7 +134,7 @@ export default function Header({
                 >
                   <Compass className="w-4 h-4" />
                   <span>Research</span>
-                  <Badge waiting={counts.waiting} stale={counts.stale} />
+                  <Badge due={counts.due} />
                   <ChevronDown className={`w-3.5 h-3.5 transition-transform ${researchOpen ? 'rotate-180' : ''}`} />
                 </button>
 
@@ -155,9 +152,7 @@ export default function Header({
                       <Bookmark className="w-4 h-4 shrink-0" />
                       <span className="flex-1">Shortlist</span>
                       <span className="text-xs text-gray-400 dark:text-gray-500">
-                        {counts.waiting
-                          ? `${counts.waiting} waiting${counts.stale ? ` · ${counts.stale} stale` : ''}`
-                          : 'all caught up'}
+                        {counts.due ? `${counts.due} to look at` : 'all caught up'}
                       </span>
                     </button>
                   </div>
@@ -339,7 +334,7 @@ export default function Header({
             >
               <Bookmark className="w-5 h-5" />
               <span className="flex-1 text-left">Shortlist</span>
-              <Badge waiting={counts.waiting} stale={counts.stale} />
+              <Badge due={counts.due} />
             </button>
 
             {isAdmin() && (

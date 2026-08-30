@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import api from '../../services/api';
 
 /**
- * The chart, which for a price-action trade is the setup itself.
+ * The chart, which for a price-action decision is the reasoning itself.
  *
  * Paste is the first-class way in: the screenshot is already on the clipboard
  * the moment you take it, and making someone save it to disk first is friction
@@ -23,7 +23,7 @@ export function ChartUpload({ value, onChange }) {
             body.append('chart', file);
             // The client defaults to JSON, which would send this without a
             // multipart boundary and the server would see no file at all.
-            const res = await api.post('/journal/chart', body, {
+            const res = await api.post('/uploads/chart', body, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
             onChange(res.data.data.chartUrl);
@@ -56,7 +56,7 @@ export function ChartUpload({ value, onChange }) {
     if (value) {
         return (
             <div className="flex items-center gap-3 rounded-control ring-1 ring-hairline p-2">
-                <img src={value} alt="Chart for this trade"
+                <img src={value} alt="The chart at the time"
                     className="w-16 h-11 object-cover rounded-control ring-1 ring-hairline" />
                 <a href={value} target="_blank" rel="noreferrer"
                     className="text-sm text-cyan-600 dark:text-cyan-400 font-medium hover:underline">

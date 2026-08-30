@@ -70,6 +70,17 @@ export function WatchlistProvider({ children }) {
         return data.data;
     }, []);
 
+    /**
+     * You looked at the chart. The row is replaced in place rather than
+     * refetched: it keeps its position while the list is being worked, and the
+     * order only settles again on the next load.
+     */
+    const look = useCallback(async (id, body) => {
+        const { data } = await api.post(`/watchlist/${id}/looks`, body);
+        setItems((prev) => prev.map((i) => (i.id === id ? data.data : i)));
+        return data.data;
+    }, []);
+
     /** Fast lookup for the sector page, which asks once per row it draws. */
     const flagged = useMemo(() => {
         const map = new Map();
@@ -80,9 +91,9 @@ export function WatchlistProvider({ children }) {
     const counts = useMemo(() => tally(items), [items]);
 
     const value = useMemo(() => ({
-        items, loading, error, reload, flag, unflag, update, flagged, counts,
+        items, loading, error, reload, flag, unflag, update, look, flagged, counts,
         flagOf: (symbol, period) => flagged.get(`${symbol}|${period}`) || null
-    }), [items, loading, error, reload, flag, unflag, update, flagged, counts]);
+    }), [items, loading, error, reload, flag, unflag, update, look, flagged, counts]);
 
     return <WatchlistContext.Provider value={value}>{children}</WatchlistContext.Provider>;
 }

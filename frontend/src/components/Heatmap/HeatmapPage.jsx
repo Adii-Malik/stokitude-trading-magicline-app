@@ -56,7 +56,7 @@ export default function HeatmapPage() {
     })) ?? [];
 
     return (
-        <div className="space-y-4">
+        <div className="container mx-auto space-y-4 px-4 py-6">
             <div className="flex flex-wrap items-start justify-between gap-4 rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
                 <div>
                     <h1 className="flex items-center gap-3 text-2xl font-bold text-gray-900 dark:text-white">

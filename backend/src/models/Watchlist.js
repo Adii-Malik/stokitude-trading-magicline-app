@@ -21,7 +21,27 @@ import mongoose from 'mongoose';
 import { marketScoped } from './plugins/marketScoped.js';
 import { PERIODS } from '../services/sectorPerformance.js';
 
-export const STATES = ['noticed', 'analysed', 'dropped'];
+export const STATES = ['watching', 'dropped'];
+
+/**
+ * One visit to the chart.
+ *
+ * The screen this replaces treated a verdict as the end: you wrote a line and
+ * the name left the queue. That is not how the work goes. Four times out of
+ * five the answer is "not yet", and the name stays - so a look is an entry in a
+ * log, not a closing statement, and a name accumulates them until it becomes a
+ * trade or a dead idea.
+ *
+ * The chart is why this is worth keeping. A note says what you thought; the
+ * picture says what you were looking at, with the lines you had drawn on it and
+ * the date you drew them, which is the thing nobody can reconstruct six weeks
+ * later.
+ */
+const lookSchema = new mongoose.Schema({
+    at: { type: Date, default: Date.now },
+    note: { type: String, trim: true, maxlength: [280, 'A note cannot exceed 280 characters'] },
+    chartUrl: { type: String, trim: true }
+}, { _id: true });
 
 const watchlistSchema = new mongoose.Schema({
     user: {
@@ -75,20 +95,23 @@ const watchlistSchema = new mongoose.Schema({
     perfWhenNoticed: { type: Number },
     priceWhenNoticed: { type: Number },
 
+    // Every visit, oldest first. What you thought, and what it looked like.
+    looks: { type: [lookSchema], default: [] },
+
+    /**
+     * Two states, not three.
+     *
+     * `analysed` used to mean finished, which was the mistake: a name you looked
+     * at and passed on for now is still being watched, and clearing it off the
+     * list is what made every session start from nothing. So a name is either
+     * being watched or it is dead. How long since you last looked is a date, not
+     * a state, and the screen works it out.
+     */
     state: {
         type: String,
         enum: STATES,
-        default: 'noticed'
+        default: 'watching'
     },
-
-    // What the analysis concluded, in a sentence. The thing you actually forgot.
-    verdict: {
-        type: String,
-        trim: true,
-        maxlength: [280, 'Verdict cannot exceed 280 characters']
-    },
-
-    analysedAt: { type: Date },
 
     // For a name that arrived from somewhere other than a sector board.
     tag: {
@@ -114,8 +137,17 @@ watchlistSchema.plugin(marketScoped({ from: null }));
  */
 watchlistSchema.index(
     { user: 1, market: 1, symbol: 1, period: 1 },
-    { unique: true, partialFilterExpression: { state: { $in: ['noticed', 'analysed'] } } }
+    { unique: true, partialFilterExpression: { state: 'watching' } }
 );
+
+/** When you last put eyes on it, or when you flagged it if you never have. */
+watchlistSchema.virtual('lastLookAt').get(function () {
+    if (!this.looks?.length) return this.noticedAt;
+    return this.looks[this.looks.length - 1].at;
+});
+
+watchlistSchema.set('toJSON', { virtuals: true });
+watchlistSchema.set('toObject', { virtuals: true });
 
 /**
  * The screen's own query: everything still live, newest flag first.

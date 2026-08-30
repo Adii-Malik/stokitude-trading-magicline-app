@@ -19,6 +19,7 @@ import jobsRoutes from './routes/jobs.js';
 import notificationsRoutes from './routes/notifications.js';
 import heatmapRoutes from './routes/heatmap.js';
 import watchlistRoutes from './routes/watchlist.js';
+import uploadRoutes from './routes/uploads.js';
 import portfoliosRoutes from './routes/portfolios.js';
 import journalRoutes from './routes/journal.js';
 
@@ -141,6 +142,7 @@ app.use('/api/jobs', jobsRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/heatmap', heatmapRoutes);
 app.use('/api/watchlist', watchlistRoutes);
+app.use('/api/uploads', uploadRoutes);
 app.use('/api/portfolios', portfoliosRoutes);
 app.use('/api/journal', journalRoutes);
 
@@ -166,7 +168,8 @@ app.get('/api', (req, res) => {
       signals: '/api/signals',
       jobs: '/api/jobs  [Admin]',
       notifications: '/api/notifications',
-      watchlist: '/api/watchlist'
+      watchlist: '/api/watchlist',
+      uploads: '/api/uploads'
     },
     websocket: 'Socket.IO available for real-time updates',
     note: '[Admin] routes require authentication with admin role'

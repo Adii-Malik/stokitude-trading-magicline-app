@@ -6,7 +6,7 @@ import { SymbolInput } from '../../ui/SymbolInput';
 import { FIELD, choice } from '../../ui/field';
 import { RiskRail } from './RiskRail';
 import { ResultRail } from './ResultRail';
-import { ChartUpload } from './ChartUpload';
+import { ChartUpload } from '../common/ChartUpload';
 import api from '../../services/api';
 import { createEntry, updateEntry } from '../../services/journal';
 import { chargesFor } from '../../utils/commission';
