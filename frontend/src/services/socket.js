@@ -78,10 +78,6 @@ class SocketService {
       this.listeners.clear();
     }
   }
-
-  isConnected() {
-    return this.socket?.connected || false;
-  }
 }
 
 // Export singleton instance

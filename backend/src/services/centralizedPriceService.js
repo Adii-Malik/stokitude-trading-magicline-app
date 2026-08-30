@@ -9,9 +9,7 @@
 import Stock from '../models/Stock.js';
 import Position from '../models/Position.js';
 import JournalEntry from '../models/JournalEntry.js';
-import Settings from '../models/Settings.js';
 import psxScraper from './psxScraper.js';
-import marketHoursService from './marketHoursService.js';
 
 let serviceMonitor = null;
 // Lazy load to avoid circular dependency.
@@ -34,8 +32,6 @@ class CentralizedPriceService {
   constructor() {
     this.lastCheckTime = null;
     this.handlers = [];
-    this.skipCount = 0;
-    this.MAX_SKIPS = 4; // Log status every 4 skips
     this.isFetching = false; // Lock to prevent concurrent fetches
   }
 
@@ -49,8 +45,8 @@ class CentralizedPriceService {
   }
 
   // Main price checking logic
-  // @param {boolean} skipMarketCheck - If true, fetch prices regardless of market hours (for manual refresh)
-  async checkPrices(skipMarketCheck = false) {
+  // @param {boolean} manual - True when a person asked for it rather than a schedule
+  async checkPrices(manual = false) {
     const startTime = Date.now();
     const currentTime = new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' });
 
@@ -65,36 +61,10 @@ class CentralizedPriceService {
         };
       }
 
-      // Check if market is open (unless skipped for manual refresh)
-      const status = marketHoursService.getMarketStatus();
-
-      if (!skipMarketCheck && status && !status.isOpen) {
-        this.skipCount++;
-        if (this.skipCount >= this.MAX_SKIPS) {
-          console.log(`\n⏸️ [${currentTime} PKT] Market is ${status.status?.toUpperCase() || 'CLOSED'}`);
-          console.log(`   ${status.message || 'Market is closed'}`);
-          console.log(`   Skipping price check (checked ${this.skipCount} times while closed)`);
-          this.skipCount = 0;
-
-          // Don't log market closed - it's expected and clutters the logs
-        }
-
-        return {
-          skipped: true,
-          reason: 'market_closed',
-          status: status.status,
-          message: status.message
-        };
-      }
-
       // Set lock - prevent concurrent fetches
       this.isFetching = true;
 
-      // Reset skip counter when market is open
-      this.skipCount = 0;
-
-      const isManual = skipMarketCheck;
-      console.log(`\n💰 [${currentTime} PKT] ${isManual ? 'Manual' : 'Automatic'} price fetch initiated`);
+      console.log(`\n💰 [${currentTime} PKT] ${manual ? 'Manual' : 'Automatic'} price fetch initiated`);
 
       // Get symbols worth a price: held positions, and the levels the journal is
       // watching. Journal symbols matter because a planned trade is usually on
@@ -232,17 +202,6 @@ class CentralizedPriceService {
         },
         duration
       );
-
-      // Save timestamp to database (for status bar display)
-      try {
-        await Settings.updateSettings({
-          pricePolling: {
-            lastPriceUpdate: now
-          }
-        });
-      } catch (dbError) {
-        console.error('⚠️ Failed to save update timestamp:', dbError.message);
-      }
 
       // Notify handlers (for Socket.IO broadcasting)
       this.notifyHandlers({

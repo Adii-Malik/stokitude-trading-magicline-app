@@ -6,11 +6,10 @@ import { useAuth } from '../../contexts/AuthContext';
 /**
  * Reusable User Profile Dropdown Component
  * Used in both main Header and AdminHeader for consistent user menu experience
- * @param {boolean|null} isConnected - Connection status indicator (optional)
  * @param {function} onClose - Callback to close parent menu (for mobile)
  * @param {boolean} isMobile - Whether to render in mobile mode (flat list instead of dropdown)
  */
-export default function UserProfileDropdown({ isConnected = null, onClose = () => { }, isMobile = false }) {
+export default function UserProfileDropdown({ onClose = () => { }, isMobile = false }) {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
     const [userDropdownOpen, setUserDropdownOpen] = useState(false);
@@ -75,15 +74,7 @@ export default function UserProfileDropdown({ isConnected = null, onClose = () =
             <button
                 onClick={() => setUserDropdownOpen(!userDropdownOpen)}
                 className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-                title={isConnected !== null ? (isConnected ? 'Connected to server' : 'Disconnected from server') : undefined}
             >
-                {/* Connection Status Indicator (optional) */}
-                {isConnected !== null && (
-                    <>
-                        <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                        <div className="w-px h-4 bg-gray-300 dark:bg-gray-600"></div>
-                    </>
-                )}
                 <span className="text-sm font-medium text-gray-900 dark:text-white">{user?.username}</span>
                 <ChevronDown className={`w-4 h-4 text-gray-500 dark:text-gray-400 transition-transform ${userDropdownOpen ? 'rotate-180' : ''}`} />
             </button>

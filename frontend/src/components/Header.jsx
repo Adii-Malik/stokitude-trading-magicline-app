@@ -9,9 +9,7 @@ import MarketSwitch from './MarketSwitch';
 import { UserProfileDropdown } from './common';
 
 export default function Header({
-  isConnected,
   currentPage,
-  marketStatus,
   onNavigateToDashboard,
   onNavigateToStocks,
   onNavigateToTradingBot,
@@ -28,8 +26,6 @@ export default function Header({
   const { theme, toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const isMarketOpen = marketStatus === 'open';
-
   const handleNavigation = (navFunction) => {
     navFunction();
     setMobileMenuOpen(false); // Close mobile menu after navigation
@@ -45,7 +41,12 @@ export default function Header({
             className="flex items-center gap-2 hover:opacity-90 transition-opacity min-w-0"
           >
             <TrendingUp className="w-6 h-6 text-cyan-500 shrink-0" />
-            <h1 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap">Financial Reading</h1>
+            {/* The wordmark stands down on a phone. With two markets to switch
+                between, the bar wants the mark, the switch, the theme, the bell
+                and the menu in 358px - the words were sliding under the market
+                switch. Truncating them to "Financ..." is worse than the logo
+                alone, which is what a phone header usually is. */}
+            <h1 className="hidden sm:block truncate text-base sm:text-lg font-bold text-gray-900 dark:text-white">Financial Reading</h1>
           </button>
 
           {/* Desktop Navigation */}
@@ -110,18 +111,8 @@ export default function Header({
             </nav>
           )}
 
-          {/* Right Section: Market Status + Theme + User/Login */}
-          <div className="flex items-center gap-2">
-            {/* Market Status - Desktop Only */}
-            {user && (
-              <div className="hidden lg:flex items-center gap-2 bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-lg">
-                <div className={`w-2 h-2 rounded-full ${isMarketOpen ? 'bg-green-500 animate-pulse' : 'bg-orange-500'}`}></div>
-                <span className={`text-sm font-medium ${isMarketOpen ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'}`}>
-                  {isMarketOpen ? 'OPEN' : 'CLOSED'}
-                </span>
-              </div>
-            )}
-
+          {/* Right Section: Market + Theme + User/Login */}
+          <div className="flex shrink-0 items-center gap-2">
             {/* User Section */}
             {user ? (
               <>
@@ -149,11 +140,11 @@ export default function Header({
 
                 {/* User Dropdown - Desktop */}
                 <div className="hidden lg:block">
-                  <UserProfileDropdown isConnected={isConnected} />
+                  <UserProfileDropdown />
                 </div>
 
                 {/* Mobile: Theme Toggle + Notifications + User Badge + Menu Toggle */}
-                <div className="lg:hidden flex items-center gap-2">
+                <div className="lg:hidden flex items-center gap-1">
                   <MarketSwitch />
                   {/* Theme Toggle */}
                   <button
@@ -171,7 +162,7 @@ export default function Header({
                   {/* Notification Bell */}
                   <NotificationBell />
 
-                  {/* User Badge + Menu Toggle */}
+                  {/* Menu Toggle */}
                   {/* A hamburger, not a chevron beside a username - nobody
                       guesses that their own name is the navigation. */}
                   <button
@@ -180,8 +171,6 @@ export default function Header({
                     aria-expanded={mobileMenuOpen}
                     className="flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition"
                   >
-                    <div className={`w-2 h-2 rounded-full shrink-0 ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-
                     <span className="hidden sm:inline text-sm font-medium text-gray-900 dark:text-white max-w-[100px] truncate">
                       {user.username}
                     </span>
@@ -229,20 +218,6 @@ export default function Header({
         {/* Mobile Navigation Menu */}
         {user && mobileMenuOpen && (
           <nav className="lg:hidden mt-4 py-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
-            {/* Status Badges - Mobile/Tablet */}
-            <div className="flex items-center justify-between px-4 pb-4 mb-2 border-b border-gray-200 dark:border-gray-700">
-              {/* Market Status */}
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Market:</span>
-                <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-lg">
-                  <div className={`w-2 h-2 rounded-full ${isMarketOpen ? 'bg-green-500 animate-pulse' : 'bg-orange-500'}`}></div>
-                  <span className={`text-sm font-medium ${isMarketOpen ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'}`}>
-                    {isMarketOpen ? 'OPEN' : 'CLOSED'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
             <button
               onClick={() => handleNavigation(onNavigateToDashboard)}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${currentPage === 'dashboard'
@@ -304,7 +279,6 @@ export default function Header({
             <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
               {/* Mobile Profile Menu Items */}
               <UserProfileDropdown
-                isConnected={isConnected}
                 onClose={() => setMobileMenuOpen(false)}
                 isMobile={true}
               />

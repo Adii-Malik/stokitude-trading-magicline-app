@@ -6,7 +6,6 @@
 
 import Stock from '../../models/Stock.js';
 import psxScraper from '../../services/psxScraper.js';
-import marketHoursService from '../../services/marketHoursService.js';
 import journalLevelHandler from '../../handlers/journalLevelHandler.js';
 
 export default async function pricePollingJob(context) {
@@ -17,28 +16,6 @@ export default async function pricePollingJob(context) {
   logger.info('Starting price fetch...', { config });
 
   try {
-    // Check market hours (unless skipMarketCheck is enabled)
-    if (!config.skipMarketCheck) {
-      const marketStatus = marketHoursService.getMarketStatus();
-
-      if (!marketStatus.isOpen) {
-        logger.info(`Market is ${marketStatus.status}, skipping price fetch`, {
-          marketStatus: marketStatus.status,
-          nextOpen: marketStatus.nextOpen
-        });
-
-        return {
-          success: true,
-          message: `Market closed (${marketStatus.status})`,
-          metadata: {
-            skipped: true,
-            reason: 'market_closed',
-            marketStatus: marketStatus.status
-          }
-        };
-      }
-    }
-
     // Every stock still listed. A delisted one has no price left to poll.
     const stocks = await Stock.find({ delisted: { $ne: true } }).select('symbol lastUpdated');
 

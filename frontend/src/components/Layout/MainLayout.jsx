@@ -5,8 +5,6 @@ import Footer from './Footer';
 export default function MainLayout({
     children,
     currentPage,
-    isConnected,
-    marketStatus,
     showFooter = true
 }) {
     const navigate = useNavigate();
@@ -14,9 +12,7 @@ export default function MainLayout({
     return (
         <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300">
             <Header
-                isConnected={isConnected}
                 currentPage={currentPage}
-                marketStatus={marketStatus}
                 onNavigateToDashboard={() => navigate('/dashboard')}
                 onNavigateToStocks={() => navigate('/stocks')}
                 onNavigateToPortfolios={() => navigate('/portfolios')}

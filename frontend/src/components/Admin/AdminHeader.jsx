@@ -1,4 +1,4 @@
-import { Shield, Home, Sun, Moon, Users, Database, Briefcase, Bot, Settings } from 'lucide-react';
+import { Shield, Home, Sun, Moon, Users, Database, Briefcase, Bot } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { UserProfileDropdown } from '../common';
 
@@ -9,8 +9,7 @@ export default function AdminHeader({ activeTab, onTabChange, onBackToMain }) {
     { id: 'users', label: 'Users', icon: Users },
     { id: 'stocks', label: 'Stocks', icon: Database },
     { id: 'jobs', label: 'Jobs', icon: Briefcase },
-    { id: 'bot', label: 'Bot', icon: Bot },
-    { id: 'settings', label: 'Settings', icon: Settings }
+    { id: 'bot', label: 'Bot', icon: Bot }
   ];
 
   return (

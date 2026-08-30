@@ -10,7 +10,7 @@ export default {
   
   // Display information
   name: 'Price Polling Service',
-  description: 'Fetches real-time stock prices from PSX during market hours',
+  description: 'Fetches real-time stock prices from PSX',
   category: 'data',
   icon: '💰',
   
@@ -20,14 +20,6 @@ export default {
   // Configurable parameters for GUI
   // Note: Scheduling (interval/frequency) is handled by universal schedule system
   parameters: [
-    {
-      name: 'skipMarketCheck',
-      label: 'Skip Market Hours Check',
-      type: 'boolean',
-      default: false,
-      description: 'Fetch prices even when market is closed',
-      helpText: 'Enable only for testing or special circumstances'
-    },
     {
       name: 'batchSize',
       label: 'Batch Size',
@@ -61,9 +53,9 @@ export default {
       daysOfWeek: [1,2,3,4,5], // Mon-Fri (market days)
       time: null  // Any time during the day
     },
-    respectMarketHours: true,  // Should check if market is open
-    skipWeekends: true,
-    skipHolidays: true
+    respectMarketHours: false,
+    skipWeekends: false,
+    skipHolidays: false
   },
   
   // Execution settings

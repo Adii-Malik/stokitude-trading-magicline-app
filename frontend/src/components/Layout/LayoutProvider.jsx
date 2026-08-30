@@ -1,20 +1,15 @@
 import { MainLayout } from './';
-import { useLayoutProps } from '../../hooks/useLayoutProps';
+import { useSocketConnection } from '../../hooks/useSocketConnection';
 
 /**
  * Layout Provider Component
- * Automatically provides layout props (isConnected, marketStatus, etc.)
- * Eliminates repetitive prop passing
+ * Wraps a page in the shared chrome and keeps the socket open behind it.
  */
 export default function LayoutProvider({ currentPage, showFooter, children }) {
-    const layoutProps = useLayoutProps();
+    useSocketConnection();
 
     return (
-        <MainLayout
-            currentPage={currentPage}
-            showFooter={showFooter}
-            {...layoutProps}
-        >
+        <MainLayout currentPage={currentPage} showFooter={showFooter}>
             {children}
         </MainLayout>
     );

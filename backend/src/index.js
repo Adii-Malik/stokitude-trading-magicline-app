@@ -12,18 +12,15 @@ import centralizedPriceService from './services/centralizedPriceService.js';
 import journalLevelHandler from './handlers/journalLevelHandler.js';
 import { UPLOADS_DIR } from './services/chartStorage.js';
 import portfolioHandler from './handlers/portfolioHandler.js';
-import marketHoursService from './services/marketHoursService.js';
 import authRoutes from './routes/auth.js';
 import adminRoutes from './routes/admin.js';
 import stocksRoutes from './routes/stocks.js';
-import settingsRoutes from './routes/settings.js';
 import historicalRoutes from './routes/historical.js';
 import strategiesRoutes from './routes/strategies.js';
 import signalsRoutes from './routes/signals.js';
 import jobsRoutes from './routes/jobs.js';
 import notificationsRoutes from './routes/notifications.js';
 import heatmapRoutes from './routes/heatmap.js';
-import systemRoutes from './routes/system.js';
 import portfoliosRoutes from './routes/portfolios.js';
 import journalRoutes from './routes/journal.js';
 
@@ -112,8 +109,7 @@ app.get('/health', async (req, res) => {
       status: 'disconnected'
     },
     services: {
-      socketIO: io.engine.clientsCount > 0 ? `active (${io.engine.clientsCount} clients)` : 'idle',
-      marketStatus: marketHoursService.getMarketStatus().isOpen ? 'open' : 'closed'
+      socketIO: io.engine.clientsCount > 0 ? `active (${io.engine.clientsCount} clients)` : 'idle'
     }
   };
 
@@ -141,13 +137,11 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/historical', historicalRoutes);
 app.use('/api/stocks', stocksRoutes);
-app.use('/api/settings', settingsRoutes);
 app.use('/api/strategies', strategiesRoutes);
 app.use('/api/signals', signalsRoutes);
 app.use('/api/jobs', jobsRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/heatmap', heatmapRoutes);
-app.use('/api/system', systemRoutes);
 app.use('/api/portfolios', portfoliosRoutes);
 app.use('/api/journal', journalRoutes);
 
@@ -172,9 +166,7 @@ app.get('/api', (req, res) => {
       strategies: '/api/strategies',
       signals: '/api/signals',
       jobs: '/api/jobs  [Admin]',
-      notifications: '/api/notifications',
-      settings: '/api/settings',
-      system: '/api/system'
+      notifications: '/api/notifications'
     },
     websocket: 'Socket.IO available for real-time updates',
     note: '[Admin] routes require authentication with admin role'
@@ -278,13 +270,6 @@ async function startServer() {
     // Initialize Job Management System
     const jobManager = (await import('./jobs/jobManager.js')).default;
     await jobManager.initialize();
-
-    // Initialize System Settings
-    const Settings = (await import('./models/Settings.js')).default;
-    const settings = await Settings.getSettings();
-
-    // Load market hours from settings into marketHoursService
-    marketHoursService.updateConfig(settings.marketHours);
 
     // Note: All automated services (Price Polling, TradingView Updates, Signal Generation)
     // are now managed by the Job Management System. Check Admin > Jobs to configure.

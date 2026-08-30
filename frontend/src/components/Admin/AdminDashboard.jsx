@@ -1,9 +1,8 @@
-import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import AdminHeader from './AdminHeader';
 import UserManagement from './UserManagement';
 import JobsDashboard from './Jobs/JobsDashboard';
-import SettingsComponent from './Settings';
 import TradingBot from './TradingBot/TradingBot';
 import StockManagement from './StockManagement';
 import HistoricalDataViewer from './HistoricalDataViewer';
@@ -18,7 +17,6 @@ export default function AdminDashboard({ onBackToMain = () => {} }) {
     if (path.includes('/stocks') || path.includes('/historical')) return 'stocks';
     if (path.includes('/jobs')) return 'jobs';
     if (path.includes('/bot')) return 'bot';
-    if (path.includes('/settings')) return 'settings';
     return 'users';
   };
 
@@ -27,8 +25,7 @@ export default function AdminDashboard({ onBackToMain = () => {} }) {
       users: '/admin',
       stocks: '/admin/stocks',
       jobs: '/admin/jobs',
-      bot: '/admin/bot',
-      settings: '/admin/settings'
+      bot: '/admin/bot'
     };
     navigate(routes[tab]);
   };
@@ -59,7 +56,9 @@ export default function AdminDashboard({ onBackToMain = () => {} }) {
           <Route path="historical/:symbol" element={<HistoricalDataViewer />} />
           <Route path="jobs" element={<JobsDashboard />} />
           <Route path="bot" element={<TradingBot />} />
-          <Route path="settings" element={<SettingsComponent />} />
+          {/* /admin/settings was the market-hours screen. A bookmark to a
+              removed tab lands on the dashboard, not on a blank panel. */}
+          <Route path="*" element={<Navigate to="/admin" replace />} />
         </Routes>
       </div>
     </div>
