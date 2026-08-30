@@ -1,13 +1,13 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    Bookmark, RefreshCw, Check, ArrowUpRight, ChevronDown, Target, Search, Undo2
+    Bookmark, RefreshCw, Check, ArrowUpRight, ChevronDown, Target, Search, Undo2, History
 } from 'lucide-react';
 import { useWatchlist } from '../../contexts/WatchlistContext';
 import { ChartUpload } from '../common/ChartUpload';
 import { pct, tone, toSlug } from '../Heatmap/heatmapData';
 import { TIMEFRAMES } from '../Heatmap/heatmapConfig';
-import { split, matches, dueText, daysSince, lastLookAt, meterFor, hasFired } from './horizons';
+import { split, kindOf, matches, dueText, daysSince, lastLookAt, meterFor, hasFired } from './horizons';
 
 const labelOf = (period) => TIMEFRAMES.find((t) => t.id === period)?.label || period;
 
@@ -234,6 +234,35 @@ function Fired({ item }) {
                     : ' printed through the level you named'}
                 {item.triggeredAt && <span className="opacity-70"> · {ago(daysSince(item.triggeredAt))}</span>}
             </span>
+        </div>
+    );
+}
+
+/**
+ * You have studied this one before.
+ *
+ * A re-flagged name is a fresh record on purpose - old levels would arm the
+ * watcher against a price you named months ago, and the clock has to restart.
+ * But forgetting you were ever here is the exact thing this feature exists to
+ * stop, so the old thread comes back, read-only, one line up front.
+ */
+function Prior({ prior }) {
+    // Keyed on the stored state, not on kindOf's names for it - they are
+    // different vocabularies and mixing them drops the clause silently.
+    const ended = { invalidated: 'the idea died', dropped: 'you passed on it', traded: 'you traded it' };
+    const when = prior.settledAt
+        ? new Date(prior.settledAt).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+        : null;
+    return (
+        <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-gray-50 px-3.5 py-2 text-[13.5px] text-gray-500 dark:bg-gray-900/40 dark:text-gray-400">
+            <History className="h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" />
+            <span>
+                You watched this before — {prior.looks.length || 'no'}
+                {prior.looks.length === 1 ? ' look' : ' looks'}
+                {ended[prior.state] ? `, ${ended[prior.state]}` : ''}
+                {when ? ` in ${when}` : ''}.
+            </span>
+            <ThreadToggle looks={prior.looks} label="Read it back" />
         </div>
     );
 }
@@ -477,6 +506,7 @@ function QueueRow({ item, open, setOpen, onLook, onDrop, onOpen, onTrade }) {
                         ? `${looks.length} look${looks.length === 1 ? '' : 's'} · last ${ago(daysSince(lastLookAt(item)))}`
                         : `flagged ${ago(daysSince(item.noticedAt))}, never looked at`} />
 
+                {item.prior && <Prior prior={item.prior} />}
                 {hasFired(item) && <Fired item={item} />}
 
                 {mode === 'look' && (
@@ -643,6 +673,42 @@ function Tab({ id, label, count, active, onClick, tone: t }) {
     );
 }
 
+/** How a name ended, as a filter inside history. Absent when nothing ended that way. */
+const KINDS = [
+    { id: 'all', label: 'Everything' },
+    { id: 'dead', label: 'Called dead' },
+    { id: 'passed', label: 'Passed on' },
+    { id: 'traded', label: 'Became trades' }
+];
+
+function Kinds({ items, value, onChange }) {
+    const counts = useMemo(() => {
+        const c = { all: items.length };
+        for (const i of items) c[kindOf(i)] = (c[kindOf(i)] || 0) + 1;
+        return c;
+    }, [items]);
+
+    // One kind of ending is not a filter, it is the list.
+    const shown = KINDS.filter((k) => counts[k.id]);
+    if (shown.length < 3) return null;
+
+    return (
+        <div className="flex flex-wrap items-center gap-2 border-t border-gray-200 px-4 py-2.5 dark:border-gray-700">
+            {shown.map((k) => (
+                <button key={k.id} type="button" onClick={() => onChange(k.id)}
+                    aria-pressed={value === k.id}
+                    className={`rounded-full px-3 py-1 text-[13px] font-medium transition ${
+                        value === k.id
+                            ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900'
+                            : 'bg-gray-100 text-gray-500 hover:text-gray-800 dark:bg-gray-700 dark:text-gray-300 dark:hover:text-white'
+                    }`}>
+                    {k.label} <span className="tabular-nums opacity-60">{counts[k.id]}</span>
+                </button>
+            ))}
+        </div>
+    );
+}
+
 /**
  * Everything you flagged and have not finished with.
  *
@@ -656,15 +722,16 @@ export default function WatchlistPage() {
     const { items, loading, error, reload, unflag, update, look, trade, counts } = useWatchlist();
     const [open, setOpen] = useState(null);
     const [tab, setTab] = useState('queue');
+    const [kind, setKind] = useState('all');
     const [query, setQuery] = useState('');
 
     // Settled once per load of the data, deliberately.
     const groups = useMemo(() => split(items), [items]);
 
-    const rows = useMemo(
-        () => groups[tab].filter((i) => matches(i, query)),
-        [groups, tab, query]
-    );
+    const rows = useMemo(() => groups[tab]
+        .filter((i) => tab !== 'past' || kind === 'all' || kindOf(i) === kind)
+        .filter((i) => matches(i, query)),
+    [groups, tab, kind, query]);
 
     // A tab that empties under you would leave the screen blank with no
     // explanation, so fall back to the queue, which always exists.
@@ -717,11 +784,6 @@ export default function WatchlistPage() {
                     <div className="flex flex-wrap items-center gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-900/50">
                         <Tab id="queue" label="Queue" count={groups.queue.length}
                             active={tab === 'queue'} onClick={setTab} />
-                        {groups.dead.length > 0 && (
-                            <Tab id="dead" label="Called dead" count={groups.dead.length}
-                                active={tab === 'dead'} onClick={setTab}
-                                tone="bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300" />
-                        )}
                         {groups.past.length > 0 && (
                             <Tab id="past" label="History" count={groups.past.length}
                                 active={tab === 'past'} onClick={setTab} />
@@ -736,6 +798,8 @@ export default function WatchlistPage() {
                         </label>
                     )}
                 </div>
+
+                {tab === 'past' && <Kinds items={groups.past} value={kind} onChange={setKind} />}
             </div>
 
             {error && (
@@ -749,7 +813,7 @@ export default function WatchlistPage() {
                     <p className="font-medium text-gray-900 dark:text-white">
                         {loading ? 'Reading your shortlist…'
                             : query ? `Nothing here matches “${query}”.`
-                                : tab === 'queue' ? 'Nothing flagged yet.' : 'Nothing here.'}
+                                : tab === 'queue' ? 'Nothing flagged yet.' : 'Nothing here yet.'}
                     </p>
                     {!loading && !query && tab === 'queue' && (
                         <>
@@ -771,7 +835,9 @@ export default function WatchlistPage() {
                         tab === 'queue' ? (
                             <QueueRow key={item.id} item={item} open={open} setOpen={setOpen}
                                 onLook={onLook} onDrop={onDrop} onOpen={onOpen} onTrade={onTrade} />
-                        ) : tab === 'dead' ? (
+                        ) : kindOf(item) === 'dead' ? (
+                            // A closed idea keeps the fuller row: it has to say
+                            // what happened, which a one-line history entry cannot.
                             <DeadRow key={item.id} item={item} onRevive={onRevive} onOpen={onOpen} />
                         ) : (
                             <PastRow key={item.id} item={item} onOpen={onOpen}

@@ -154,18 +154,33 @@ export function order(items = [], now = Date.now()) {
 }
 
 /**
- * The three things a name can be, on one screen.
+ * How a name stopped being live. Null while it still is.
  *
- * Not three pages: the queue is the work, and the other two are answers you look
- * back at. Splitting here rather than at the fetch keeps one request and lets
- * the counts on the tabs be true without a second round trip.
+ * The distinction that matters is who decided: the watcher closed a dead idea
+ * because price reached a number you named, where passing on one was your own
+ * call. Both are finished, which is why they share a list.
+ */
+export function kindOf(item) {
+    if (item?.state === 'invalidated') return 'dead';
+    if (item?.state === 'dropped') return 'passed';
+    if (item?.state === 'traded') return 'traded';
+    return null;
+}
+
+/**
+ * Two lists: the work, and what came of everything else.
+ *
+ * A closed idea gets no inbox of its own and nothing to acknowledge. The watcher
+ * already pushed you a notification when it died - a second badge you clear by
+ * hand is a chore invented to make itself go away. Sorting history by when each
+ * name settled does the same job for free: one closed on Tuesday is at the top
+ * on Wednesday and has sunk by the following week, without you touching it.
  */
 export function split(items = [], now = Date.now()) {
     return {
         queue: order(items, now),
-        dead: items.filter((i) => i.state === 'invalidated')
-            .sort((a, b) => new Date(b.invalidatedAt || 0) - new Date(a.invalidatedAt || 0)),
-        past: items.filter((i) => i.state === 'dropped' || i.state === 'traded')
+        past: items.filter(kindOf)
+            .sort((a, b) => new Date(b.settledAt || 0) - new Date(a.settledAt || 0))
     };
 }
 
@@ -222,5 +237,5 @@ export function meterFor(item) {
 
 export default {
     BANDS, bandFor, daysSince, lastLookAt, daysLeft, isLive, hasFired, isDue,
-    tally, order, split, matches, dueText, meterFor
+    tally, order, kindOf, split, matches, dueText, meterFor
 };

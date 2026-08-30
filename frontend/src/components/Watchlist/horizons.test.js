@@ -3,7 +3,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import {
     BANDS, bandFor, daysSince, lastLookAt, daysLeft, isLive, hasFired, isDue,
-    tally, order, split, matches, dueText, meterFor
+    tally, order, kindOf, split, matches, dueText, meterFor
 } from './horizons.js';
 
 const NOW = new Date('2026-08-31T12:00:00Z').getTime();
@@ -163,25 +163,39 @@ describe('isLive', () => {
     });
 });
 
+describe('kindOf', () => {
+    test('names how a name stopped being live, and nothing while it is', () => {
+        assert.equal(kindOf(flag({})), null);
+        assert.equal(kindOf(flag({ state: 'invalidated' })), 'dead');
+        assert.equal(kindOf(flag({ state: 'dropped' })), 'passed');
+        assert.equal(kindOf(flag({ state: 'traded' })), 'traded');
+    });
+});
+
 describe('split', () => {
     const items = [
         flag({ symbol: 'PRL', looks: [40] }),
-        flag({ symbol: 'PPL', state: 'invalidated', invalidatedAt: daysAgo(2) }),
-        flag({ symbol: 'PSO', state: 'invalidated', invalidatedAt: daysAgo(9) }),
-        flag({ symbol: 'OGDC', state: 'traded' }),
-        flag({ symbol: 'ATRL', state: 'dropped' })
+        flag({ symbol: 'PPL', state: 'invalidated', settledAt: daysAgo(2) }),
+        flag({ symbol: 'PSO', state: 'invalidated', settledAt: daysAgo(9) }),
+        flag({ symbol: 'OGDC', state: 'traded', settledAt: daysAgo(5) }),
+        flag({ symbol: 'ATRL', state: 'dropped', settledAt: daysAgo(30) })
     ];
 
-    test('every name lands in exactly one of the three', () => {
+    test('the work is one list and everything finished is the other', () => {
         const g = split(items, NOW);
         assert.deepEqual(g.queue.map((i) => i.symbol), ['PRL']);
-        assert.deepEqual(g.dead.map((i) => i.symbol), ['PPL', 'PSO']);
-        assert.deepEqual(g.past.map((i) => i.symbol).sort(), ['ATRL', 'OGDC']);
-        assert.equal(g.queue.length + g.dead.length + g.past.length, items.length);
+        assert.deepEqual(g.past.map((i) => i.symbol), ['PPL', 'OGDC', 'PSO', 'ATRL']);
+        assert.equal(g.queue.length + g.past.length, items.length);
     });
 
-    test('the most recently closed idea is the one you have not seen yet', () => {
-        assert.equal(split(items, NOW).dead[0].symbol, 'PPL');
+    // The whole reason a closed idea needs no button to acknowledge: the newest
+    // verdict is already at the top, and sinks on its own as it ages.
+    test('history leads with whatever settled most recently', () => {
+        assert.equal(split(items, NOW).past[0].symbol, 'PPL');
+    });
+
+    test('a name that never settled is never in history', () => {
+        assert.deepEqual(split([flag({})], NOW).past, []);
     });
 });
 

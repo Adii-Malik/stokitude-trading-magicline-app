@@ -11,18 +11,18 @@ router.use(authenticate);
 /**
  * What the screen gets.
  *
- * `watching` is the queue. `invalidated` is on the list too, and that is not a
- * detail: the watcher closes an idea and pushes you a notification whose link is
- * this screen, so a list that excluded it sent you to a page that did not
- * contain the thing it had just told you about. A verdict has to land somewhere
- * you can see it.
+ * `watching` is the queue. Everything else is history, and history includes the
+ * ideas the watcher closed - which is not a detail, because it pushes you a
+ * notification whose link is this screen, and a list that excluded them sent you
+ * to a page that did not contain the thing it had just told you about.
  *
- * Dropped and traded names are history - never in the queue, never counted, but
- * fetched so the screen can answer "what did I pass on, and what came of it",
- * which is the question that made the shortlist worth building.
+ * A closed idea gets no separate inbox and no button to acknowledge it. The
+ * notification already told you; a badge you clear by hand is a chore invented
+ * to make itself go away. History sorts by when each name settled, so one the
+ * watcher closed on Tuesday sits at the top on Wednesday and sinks on its own.
  */
-const LIVE = ['watching', 'invalidated'];
-const PAST = ['dropped', 'traded'];
+const LIVE = ['watching'];
+const PAST = ['invalidated', 'dropped', 'traded'];
 
 // History is browsed, not worked. Enough to recognise a pattern in what you
 // keep passing on; not so much that the first paint waits on years of it.
@@ -50,7 +50,43 @@ async function quotes() {
     }
 }
 
-const shape = (doc, quote) => ({
+/**
+ * Everything you already thought about these names, from before.
+ *
+ * Flagging a name you once dropped makes a fresh record - deliberately, because
+ * carrying the old levels forward would arm the watcher against a price you
+ * named six months ago, and the horizon clock has to restart. But a fresh record
+ * that also forgets you were ever here is the exact failure this whole feature
+ * exists to fix: you study a stock, walk away, and study it again from nothing.
+ *
+ * So the thread comes back read-only. One query for the lot, keyed on symbol
+ * rather than symbol-and-period - the same company noticed on two different
+ * boards is still a company you have opinions about.
+ */
+async function priorsFor(userId, symbols) {
+    const priors = new Map();
+    if (!symbols.length) return priors;
+
+    const docs = await Watchlist.find({
+        user: userId,
+        symbol: { $in: symbols },
+        state: { $ne: 'watching' }
+    }).sort({ noticedAt: 1 }).lean();
+
+    for (const doc of docs) {
+        if (!priors.has(doc.symbol)) priors.set(doc.symbol, { count: 0, looks: [], state: null, settledAt: null });
+        const p = priors.get(doc.symbol);
+        p.count += 1;
+        p.state = doc.state;
+        p.settledAt = doc.invalidatedAt || doc.updatedAt || null;
+        for (const l of doc.looks || []) {
+            p.looks.push({ id: l._id, at: l.at, note: l.note, chartUrl: l.chartUrl, trigger: l.trigger || null, invalidation: l.invalidation || null });
+        }
+    }
+    return priors;
+}
+
+const shape = (doc, quote, prior) => ({
     id: doc._id,
     symbol: doc.symbol,
     name: doc.name,
@@ -83,7 +119,8 @@ const shape = (doc, quote) => ({
     // Null rather than absent when the scanner is down, so the screen can say
     // "no quote" instead of drawing a drift of zero.
     perfNow: quote ? quote.perf?.[doc.period] ?? null : null,
-    priceNow: quote ? quote.close ?? null : null
+    priceNow: quote ? quote.close ?? null : null,
+    prior: prior || null
 });
 
 // GET /api/watchlist - the live list, plus recent history to look back over
@@ -94,15 +131,20 @@ router.get('/', async (req, res) => {
                 .sort({ noticedAt: -1 })
                 .lean(),
             Watchlist.find({ user: req.user._id, state: { $in: PAST } })
-                .sort({ updatedAt: -1 })
+                .sort({ invalidatedAt: -1, updatedAt: -1 })
                 .limit(PAST_LIMIT)
                 .lean(),
             quotes()
         ]);
 
+        const priors = await priorsFor(req.user._id, live.map(d => d.symbol));
+
         res.json({
             success: true,
-            data: [...live, ...past].map(d => shape(d, quote.get(d.symbol)))
+            data: [
+                ...live.map(d => shape(d, quote.get(d.symbol), priors.get(d.symbol))),
+                ...past.map(d => shape(d, quote.get(d.symbol)))
+            ]
         });
     } catch (error) {
         console.error('Error listing watchlist:', error);
