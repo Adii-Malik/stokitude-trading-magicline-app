@@ -5,7 +5,6 @@ const serviceLogSchema = new mongoose.Schema({
         type: String,
         required: true,
         enum: [
-            'pricePolling',
             'tradingViewScheduler',
             'tradingViewDaily',
             'tradingViewWeekly',

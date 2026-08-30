@@ -8,10 +8,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import config from './config/config.js';
 import { connectDB } from './config/mongodb.js';
-import centralizedPriceService from './services/centralizedPriceService.js';
-import journalLevelHandler from './handlers/journalLevelHandler.js';
 import { UPLOADS_DIR } from './services/chartStorage.js';
-import portfolioHandler from './handlers/portfolioHandler.js';
 import authRoutes from './routes/auth.js';
 import adminRoutes from './routes/admin.js';
 import stocksRoutes from './routes/stocks.js';
@@ -214,46 +211,6 @@ io.on('connection', async (socket) => {
   socket.on('disconnect', () => {
     // Client disconnected
   });
-});
-
-// ===== CENTRALIZED EVENT ARCHITECTURE =====
-// 1. Centralized Price Service fetches prices and emits event
-// 2. Handlers listen to price updates and execute their logic
-// 3. Handlers emit their own events for Socket.IO broadcasting
-
-// Setup centralized price service handler - When prices update, notify all listeners
-centralizedPriceService.onUpdate(async (data) => {
-  if (data.type === 'priceUpdate') {
-    console.log('📢 Price update received - notifying all feature handlers');
-
-    // Broadcast to frontend
-    io.emit('priceUpdate', {
-      checked: data.data.checked,
-      updated: data.data.updated,
-      timestamp: data.data.timestamp,
-      errors: data.data.errors
-    });
-
-    // Trigger feature handlers to check their logic
-    await journalLevelHandler.checkLevels();
-
-    // Update portfolio positions with new prices
-    if (data.data.updatedSymbols && data.data.updatedSymbols.length > 0) {
-      await portfolioHandler.handlePriceUpdate(data.data.updatedSymbols);
-    }
-  }
-});
-
-// Setup Portfolio handler - Broadcasts when portfolio positions update
-portfolioHandler.onUpdate(async (data) => {
-  if (data.type === 'portfolioUpdate') {
-    io.emit('portfolioUpdate', {
-      affectedPortfolios: data.data.affectedPortfolios,
-      updatedSymbols: data.data.updatedSymbols,
-      positionsUpdated: data.data.positionsUpdated,
-      timestamp: data.data.timestamp
-    });
-  }
 });
 
 // Start application

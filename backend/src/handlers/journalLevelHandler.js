@@ -1,6 +1,6 @@
 import JournalEntry from '../models/JournalEntry.js';
-import Stock from '../models/Stock.js';
 import notificationService from '../services/notificationService.js';
+import { pricesFor } from '../services/quotes.js';
 
 /**
  * Journal Level Handler
@@ -50,22 +50,40 @@ export function levelsReached(entry, price) {
 class JournalLevelHandler {
     async checkLevels() {
         try {
+            // Unscoped by circumstance: this runs from a job, where there is no
+            // request and so no market, which is exactly right - a stop is a stop
+            // in either book.
             const entries = await JournalEntry.find({ state: 'open' });
-            if (!entries.length) return { checked: 0, updated: 0 };
+            if (!entries.length) return { checked: 0, updated: 0, missing: 0 };
 
-            // One price lookup covering every symbol involved. Per-entry findOne
-            // was a round trip each, and open positions repeat their names.
-            const symbols = [...new Set(entries.map(e => e.symbol))];
-            const stocks = await Stock.find({ symbol: { $in: symbols } })
-                .select('symbol currentPrice').lean();
-            const priceOf = new Map(stocks.map(s => [s.symbol, s.currentPrice]));
+            /**
+             * Grouped by market, because the two books keep their prices in
+             * different places - PSX in the warehouse, the US on the board - and
+             * a symbol alone does not say which. One lookup per market, not one
+             * per entry: open positions repeat their names.
+             */
+            const byMarket = new Map();
+            for (const entry of entries) {
+                const market = entry.market || 'PK';
+                if (!byMarket.has(market)) byMarket.set(market, []);
+                byMarket.get(market).push(entry);
+            }
 
-            let checked = 0;
+            const priceOf = new Map();
+            for (const [market, group] of byMarket) {
+                const prices = await pricesFor(group.map(e => e.symbol), market);
+                for (const [symbol, price] of prices) priceOf.set(symbol, price);
+            }
+
+            let checked = 0, missing = 0;
             const dirty = [];
 
             for (const entry of entries) {
                 const price = priceOf.get(entry.symbol);
-                if (!price) continue;
+                // Counted rather than ignored. A level that is never compared is
+                // indistinguishable from one that never printed, and silence was
+                // this handler's whole failure mode.
+                if (!price) { missing++; continue; }
                 checked++;
 
                 const updates = await this.apply(entry, price);
@@ -74,7 +92,7 @@ class JournalLevelHandler {
 
             await Promise.all(dirty.map(e => e.save()));
 
-            return { checked, updated: dirty.length };
+            return { checked, updated: dirty.length, missing };
         } catch (error) {
             console.error('Error checking journal levels:', error);
             return { error: error.message };

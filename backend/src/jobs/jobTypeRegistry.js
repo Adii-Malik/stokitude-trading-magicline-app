@@ -5,7 +5,6 @@
  * Similar to SFCC's steptypes.json but as a JS module
  */
 
-import pricePollingJobType from './types/pricePollingJobType.js';
 import tradingViewJobType from './types/tradingViewJobType.js';
 import signalGenerationJobType from './types/signalGenerationJobType.js';
 import historicalDataJobType from './types/historicalDataJobType.js';
@@ -28,7 +27,6 @@ class JobTypeRegistry {
     }
 
     // Register built-in job types
-    await this.register(pricePollingJobType);
     await this.register(tradingViewJobType);
     await this.register(signalGenerationJobType);
     await this.register(historicalDataJobType);

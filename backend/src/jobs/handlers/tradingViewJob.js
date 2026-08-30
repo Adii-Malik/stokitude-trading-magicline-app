@@ -7,6 +7,7 @@
 import axios from 'axios';
 import config from '../../config/config.js';
 import { stampPricesFromBars } from '../../services/priceFromBars.js';
+import journalLevelHandler from '../../handlers/journalLevelHandler.js';
 
 export default async function tradingViewJob(context) {
   const { logger, config: jobConfig } = context;
@@ -44,10 +45,31 @@ export default async function tradingViewJob(context) {
       const prices = await stampPricesFromBars();
       logger.info('Prices taken from the last close', prices);
 
+      /**
+       * And a price nobody compares against a level is two thirds of a job.
+       *
+       * checkLevels has been written, tested and unreachable: its only callers
+       * were the price poller, which is disabled, and centralizedPriceService,
+       * which nothing calls. So no stop and no target has ever raised a hand.
+       * This is the missing call, and it belongs here because this is the job
+       * that produces the price it reads.
+       *
+       * Failing it must not fail the sync. The bars are the valuable part and
+       * they are already written by this point; a level that could not be
+       * checked is checked again tomorrow.
+       */
+      let levels = null;
+      try {
+        levels = await journalLevelHandler.checkLevels();
+        logger.info('Journal levels checked against the new close', levels);
+      } catch (levelError) {
+        logger.warn('Level check failed, prices are still stored', { error: levelError.message });
+      }
+
       return {
         success: true,
         message: `Updated ${timeframes.join(', ')} timeframes, ${prices.moved} price(s) moved`,
-        metadata: { ...summary, ...prices }
+        metadata: { ...summary, ...prices, levels }
       };
     } else {
       throw new Error(response.data?.message || 'Invalid response from TradingView Core Engine');
