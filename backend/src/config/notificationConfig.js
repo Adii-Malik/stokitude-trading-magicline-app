@@ -1,12 +1,20 @@
 /**
- * Notification Configuration
- * 
- * This file defines all available notification categories and events.
- * Adding/removing features here automatically updates the entire system.
- * 
- * IMPORTANT: 
- * - 'system' and 'admin' categories are ALWAYS ENABLED (no user control)
- * - Only categories with userControllable: true appear in preferences UI
+ * What this app can notify you about.
+ *
+ * One category and two events, because that is everything anything actually
+ * raises: a stop and a target on an open journal trade, both from
+ * journalLevelHandler. There were two further categories - system and admin,
+ * with six events between them - describing announcements, maintenance, signal
+ * generation and user registration. Nothing ever sent one, which meant every
+ * preference row carried switches for notifications that could not arrive and
+ * the model kept an always-enabled bypass for categories that never occurred.
+ *
+ * `buy_level_hit` went the same way: the journal has no entry-zone concept
+ * since planned trades were removed from it, so nothing could raise it either.
+ *
+ * The id and event ids are stored on every NotificationPreference row, so they
+ * stay as they are even though they now describe journal levels rather than the
+ * trade plans they were named for.
  */
 
 export const NOTIFICATION_CATEGORIES = {
@@ -21,11 +29,6 @@ export const NOTIFICATION_CATEGORIES = {
         defaultEnabled: true,
         events: [
             {
-                id: 'buy_level_hit',
-                label: 'Entry Zone Reached',
-                description: 'Price traded into the entry zone of a planned trade'
-            },
-            {
                 id: 'target_hit',
                 label: 'Target Reached',
                 description: 'Price traded through a target on an open trade'
@@ -38,58 +41,6 @@ export const NOTIFICATION_CATEGORIES = {
         ]
     },
 
-    system: {
-        id: 'system',
-        label: 'System Notifications',
-        description: 'Important system updates and announcements',
-        icon: '🔔',
-        userControllable: false, // ALWAYS ENABLED
-        defaultEnabled: true,
-        events: [
-            {
-                id: 'system_alert',
-                label: 'System Alert',
-                description: 'Critical system notifications'
-            },
-            {
-                id: 'maintenance',
-                label: 'Maintenance',
-                description: 'System maintenance notifications'
-            },
-            {
-                id: 'announcement',
-                label: 'Announcement',
-                description: 'Admin announcements'
-            }
-        ]
-    },
-
-    admin: {
-        id: 'admin',
-        label: 'Admin Notifications',
-        description: 'Signal generation and incomplete trade setups',
-        icon: '👨‍💼',
-        userControllable: false, // ALWAYS ENABLED
-        defaultEnabled: true,
-        adminOnly: true, // Only visible to admins
-        events: [
-            {
-                id: 'signal_generated',
-                label: 'Signal Generated',
-                description: 'Trading signal generated (incomplete setup)'
-            },
-            {
-                id: 'strategy_opportunity',
-                label: 'Strategy Opportunity',
-                description: 'Trading strategy opportunity detected'
-            },
-            {
-                id: 'user_registered',
-                label: 'User Registered',
-                description: 'New user registration pending approval'
-            }
-        ]
-    }
 };
 
 /**
@@ -129,20 +80,10 @@ export function isValidEvent(category, event) {
     return cat.events.some(e => e.id === event);
 }
 
-/**
- * Check if category is admin-only
- * @param {String} category - Category ID
- * @returns {Boolean}
- */
-export function isAdminOnly(category) {
-    const cat = NOTIFICATION_CATEGORIES[category];
-    return cat && cat.adminOnly === true;
-}
 
 export default {
     NOTIFICATION_CATEGORIES,
     getUserControllableFeatures,
     isValidCategory,
     isValidEvent,
-    isAdminOnly
 };

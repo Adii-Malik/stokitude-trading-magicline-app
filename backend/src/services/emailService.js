@@ -262,13 +262,18 @@ Financial Reading Team
    * Works with any configured provider
    */
   async sendEmail(mailOptions) {
-    // If not initialized, just log
+    // If not initialized, just log.
+    //
+    // `delivered: false` matters. This used to return success, so the caller
+    // stamped channels.email.sent = true and the notification record claimed an
+    // email had gone out when it had only been printed to a console nobody
+    // reads. A record that lies about delivery is worse than one that admits it.
     if (!this.initialized || !this.provider) {
       console.log('\n📧 Email would be sent (service not configured):');
       console.log(`   To: ${mailOptions.to}`);
       console.log(`   Subject: ${mailOptions.subject}`);
       console.log(`   Content: ${mailOptions.text?.substring(0, 200)}...`);
-      return { success: true, messageId: 'console-only' };
+      return { success: true, delivered: false, messageId: 'console-only' };
     }
 
     try {

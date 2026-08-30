@@ -81,14 +81,9 @@ notificationPreferenceSchema.methods.shouldSendNotification = function (category
   // Check if channel is enabled
   if (!this.channels[channel]?.enabled) return false;
 
-  // System and admin notifications are ALWAYS enabled (bypass user preferences)
-  if (category === 'system' || category === 'admin') {
-    // Still respect quiet hours for email/push
-    if ((channel === 'email' || channel === 'push') && this.quietHours.enabled) {
-      if (this.isInQuietHours()) return false;
-    }
-    return true;
-  }
+  // There is no always-on bypass any more: the two categories it existed for -
+  // system and admin - never raised a single notification and have been removed.
+  // Every category that can occur is one you control.
 
   // Check if feature category is enabled (for user-controllable features)
   const featureConfig = this.features.get(category);

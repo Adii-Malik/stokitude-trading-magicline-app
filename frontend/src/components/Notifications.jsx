@@ -178,22 +178,18 @@ export default function Notifications() {
     // Use category if available, otherwise fall back to type
     const category = notification.category || notification.type;
 
+    /**
+     * One category can be raised, so one is labelled.
+     *
+     * The map used to carry System, Admin and eight legacy trade-plan types.
+     * None of them can occur: those categories never raised a notification and
+     * were removed, and the legacy ids belong to MagicLine and TradePlan, both
+     * of which are gone. Anything left from that era falls to Older, which is
+     * honest about what it is.
+     */
     const categoryMap = {
-      // New categories
-      'trade_plans': { label: '💰 Trade Plans', color: 'green' },
-      'system': { label: '🔔 System', color: 'blue' },
-      'admin': { label: '👨‍💼 Admin', color: 'purple' },
-
-      // Legacy types (backward compatibility)
-      'trade_plan_buy_level': { label: '💰 Trade Plans', color: 'green' },
-      'trade_plan_target': { label: '💰 Trade Plans', color: 'green' },
-      'trade_plan_stop_loss': { label: '💰 Trade Plans', color: 'green' },
-      'trade_plan_created': { label: '💰 Trade Plans', color: 'green' },
-      'signal_generated': { label: '👨‍💼 Admin', color: 'purple' },
-      'strategy_opportunity': { label: '👨‍💼 Admin', color: 'purple' },
-      'system_alert': { label: '🔔 System', color: 'blue' },
-      'price_alert': { label: '🔔 System', color: 'blue' },
-      'admin_announcement': { label: '🔔 System', color: 'blue' }
+      'trade_plans': { label: '💰 Level Alerts', color: 'green' },
+      'magic_line': { label: '🕓 Older', color: 'gray' }
     };
 
     return categoryMap[category] || { label: '📋 Other', color: 'gray' };
@@ -313,14 +309,13 @@ export default function Notifications() {
                     }}
                     className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-cyan-500"
                   >
+                    {/* Only what can actually be raised. Every option here used
+                        to be a legacy id that matched nothing in the collection,
+                        so the filter silently returned an empty list whatever you
+                        picked. */}
                     <option value="all">All Types</option>
-                    <option value="trade_plan_buy_level">Buy Level</option>
-                    <option value="trade_plan_target">Target Hit</option>
-                    <option value="trade_plan_stop_loss">Stop Loss</option>
-                    <option value="trade_plan_created">New Trade Plan</option>
-                    <option value="signal_generated">Signal</option>
-                    <option value="system_alert">System Alert</option>
-                    <option value="admin_announcement">Announcement</option>
+                    <option value="trade_plans_stop_loss_hit">Stop reached</option>
+                    <option value="trade_plans_target_hit">Target reached</option>
                   </select>
                 </div>
               </div>

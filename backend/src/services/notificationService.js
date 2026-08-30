@@ -3,7 +3,7 @@ import NotificationPreference from '../models/NotificationPreference.js';
 import User from '../models/User.js';
 import emailService from './emailService.js';
 import pushService from './pushService.js';
-import { isValidCategory, isValidEvent, isAdminOnly } from '../config/notificationConfig.js';
+import { isValidCategory, isValidEvent } from '../config/notificationConfig.js';
 
 class NotificationService {
   /**
@@ -91,12 +91,6 @@ class NotificationService {
         return null;
       }
 
-      // Check if admin-only notification for non-admin user
-      if (isAdminOnly(category) && !['admin', 'super_admin'].includes(user.role)) {
-        console.log(`⚠️  Admin-only notification skipped for regular user ${user.username}`);
-        return null;
-      }
-
       // Get user preferences
       const prefs = await NotificationPreference.getOrCreate(userId);
 
@@ -168,7 +162,7 @@ class NotificationService {
     try {
       const emailAddress = prefs.channels.email.address || user.email;
 
-      await emailService.sendNotificationEmail(
+      const result = await emailService.sendNotificationEmail(
         emailAddress,
         user.username,
         notification.title,
@@ -177,7 +171,14 @@ class NotificationService {
         notification.priority
       );
 
-      // Update notification record
+      // Only a real send counts. With no provider configured the email service
+      // prints to the console and says so, and the record must agree with it.
+      if (result?.delivered === false) {
+        notification.channels.email.error = 'No email provider configured';
+        await notification.save();
+        return;
+      }
+
       notification.channels.email.sent = true;
       notification.channels.email.sentAt = new Date();
       await notification.save();
@@ -220,28 +221,6 @@ class NotificationService {
   }
 
   /**
-   * Notify all admins
-   */
-  async notifyAdmins(params) {
-    const admins = await User.find({
-      role: { $in: ['admin', 'super_admin'] },
-      isActive: true
-    });
-
-    const adminIds = admins.map(admin => admin._id);
-    return this.send({ ...params, userId: adminIds });
-  }
-
-  /**
-   * Notify all users
-   */
-  async notifyAll(params) {
-    const users = await User.find({ isActive: true });
-    const userIds = users.map(user => user._id);
-    return this.send({ ...params, userId: userIds });
-  }
-
-  /**
    * Journal levels. These reuse the trade_plans category because its events are
    * the same concepts, and its id is stored on every NotificationPreference row -
    * renaming it would silently reset everyone's settings.
@@ -276,32 +255,6 @@ class NotificationService {
     });
   }
 
-  /**
-   * Trading Signal Generated (Admin notification)
-   */
-  async notifySignalGenerated(signal, userId = null) {
-    const title = `📊 New Signal: ${signal.symbol}`;
-    const message = `${signal.signalType.toUpperCase()} signal generated for ${signal.symbol} by ${signal.strategyName}`;
-
-    const params = {
-      category: 'admin',
-      event: 'signal_generated',
-      title,
-      message,
-      data: {
-        signalId: signal._id,
-        symbol: signal.symbol,
-        signalType: signal.signalType,
-        strategyName: signal.strategyName,
-        entryPrice: signal.entryPrice
-      },
-      priority: 'high',
-      actionUrl: '/trading-bot'
-    };
-
-    // Only notify admins for signals (incomplete setups)
-    return this.notifyAdmins(params);
-  }
 }
 
 export default new NotificationService();

@@ -5,7 +5,7 @@
  */
 
 import express from 'express';
-import { authenticate, adminOnly } from '../../middleware/auth.js';
+import { authenticate } from '../../middleware/auth.js';
 import { requireFeature } from '../../config/featureFlags.js';
 
 const router = express.Router();
@@ -40,35 +40,6 @@ router.post('/test', authenticate, requireFeature('test'), async (req, res) => {
         });
     } catch (error) {
         console.error('Error sending test notification:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to send test notification',
-            error: error.message
-        });
-    }
-});
-
-// POST /api/notifications/test-admin - Test admin notifications
-router.post('/test-admin', authenticate, requireFeature('test'), adminOnly, async (req, res) => {
-    try {
-        const notificationService = (await import('../../services/notificationService.js')).default;
-
-        const mockSignal = {
-            _id: 'signal123',
-            symbol: 'ENGRO',
-            signalType: 'buy',
-            strategyName: 'EMA Crossover',
-            entryPrice: 320
-        };
-
-        await notificationService.notifySignalGenerated(mockSignal, req.user._id);
-
-        res.json({
-            success: true,
-            message: 'Admin signal test notification sent! Check your notifications.'
-        });
-    } catch (error) {
-        console.error('Error sending test admin notification:', error);
         res.status(500).json({
             success: false,
             message: 'Failed to send test notification',
