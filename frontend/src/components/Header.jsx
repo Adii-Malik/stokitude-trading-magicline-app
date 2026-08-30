@@ -1,12 +1,34 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
-  TrendingUp, Shield, Sun, Moon, Menu, X, Home, Briefcase, BookOpen, LayoutGrid
+  TrendingUp, Shield, Sun, Moon, Menu, X, Home, Briefcase, BookOpen, LayoutGrid,
+  Bookmark, Compass, ChevronDown
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import NotificationBell from './NotificationBell';
 import MarketSwitch from './MarketSwitch';
+import { useWatchlist } from '../contexts/WatchlistContext';
 import { UserProfileDropdown } from './common';
+
+/**
+ * How many names are waiting, and whether any are about to be missed.
+ *
+ * Amber is a queue; red is a flag that has outlived its horizon. Two states
+ * rather than one because the difference between "things to do" and "about to
+ * miss one" is the only thing worth interrupting you for, and a badge that
+ * cannot say which is a badge you learn to ignore.
+ */
+function Badge({ waiting, stale }) {
+  if (!waiting) return null;
+  return (
+    <span title={`${waiting} waiting${stale ? `, ${stale} past their horizon` : ''}`}
+      className={`inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1.5
+                  text-[11px] font-bold tabular-nums text-white
+                  ${stale ? 'bg-rose-500' : 'bg-amber-500'}`}>
+      {waiting}
+    </span>
+  );
+}
 
 export default function Header({
   currentPage,
@@ -16,6 +38,7 @@ export default function Header({
   onNavigateToPortfolios,
   onNavigateToJournal,
   onNavigateToHeatmap,
+  onNavigateToWatchlist,
   onNavigateToAdmin,
   onNavigateToSettings,
   onNavigateToProfile,
@@ -25,10 +48,24 @@ export default function Header({
   const { user, isAdmin } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [researchOpen, setResearchOpen] = useState(false);
+  const research = useRef(null);
+  const { counts } = useWatchlist();
+
+  // Finding and tracking are one job, so they share one menu - and the header
+  // stops growing, which matters at 390px where it already had no room to spare.
+  const inResearch = currentPage === 'heatmap' || currentPage === 'watchlist';
+
+  useEffect(() => {
+    const away = (e) => { if (research.current && !research.current.contains(e.target)) setResearchOpen(false); };
+    document.addEventListener('mousedown', away);
+    return () => document.removeEventListener('mousedown', away);
+  }, []);
 
   const handleNavigation = (navFunction) => {
     navFunction();
     setMobileMenuOpen(false); // Close mobile menu after navigation
+    setResearchOpen(false);
   };
 
   return (
@@ -85,16 +122,47 @@ export default function Header({
                 <span>Journal</span>
               </button>
 
-              <button
-                onClick={() => handleNavigation(onNavigateToHeatmap)}
-                className={`px-3 py-2 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${currentPage === 'heatmap'
-                  ? 'bg-cyan-500 text-white'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-                  }`}
-              >
-                <LayoutGrid className="w-4 h-4" />
-                <span>Heatmap</span>
-              </button>
+              {/* The badge sits on the group, so the count is readable without
+                  opening it - the forgetting happens away from these screens,
+                  which is exactly why it cannot hide behind a click. */}
+              <div className="relative" ref={research}>
+                <button
+                  onClick={() => setResearchOpen((o) => !o)}
+                  aria-haspopup="menu"
+                  aria-expanded={researchOpen}
+                  className={`px-3 py-2 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${inResearch
+                    ? 'bg-cyan-500 text-white'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                    }`}
+                >
+                  <Compass className="w-4 h-4" />
+                  <span>Research</span>
+                  <Badge waiting={counts.waiting} stale={counts.stale} />
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform ${researchOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {researchOpen && (
+                  <div role="menu"
+                    className="absolute left-0 z-30 mt-1 w-60 overflow-hidden rounded-lg bg-white shadow-lg ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
+                    <button role="menuitem" onClick={() => handleNavigation(onNavigateToHeatmap)}
+                      className={`flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition hover:bg-gray-100 dark:hover:bg-gray-700 ${currentPage === 'heatmap' ? 'font-semibold text-cyan-600 dark:text-cyan-400' : 'text-gray-700 dark:text-gray-300'}`}>
+                      <LayoutGrid className="w-4 h-4 shrink-0" />
+                      <span className="flex-1">Heatmap</span>
+                      <span className="text-xs text-gray-400 dark:text-gray-500">what is moving</span>
+                    </button>
+                    <button role="menuitem" onClick={() => handleNavigation(onNavigateToWatchlist)}
+                      className={`flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition hover:bg-gray-100 dark:hover:bg-gray-700 ${currentPage === 'watchlist' ? 'font-semibold text-cyan-600 dark:text-cyan-400' : 'text-gray-700 dark:text-gray-300'}`}>
+                      <Bookmark className="w-4 h-4 shrink-0" />
+                      <span className="flex-1">Shortlist</span>
+                      <span className="text-xs text-gray-400 dark:text-gray-500">
+                        {counts.waiting
+                          ? `${counts.waiting} waiting${counts.stale ? ` · ${counts.stale} stale` : ''}`
+                          : 'all caught up'}
+                      </span>
+                    </button>
+                  </div>
+                )}
+              </div>
 
               {isAdmin() && (
                 <button
@@ -260,6 +328,18 @@ export default function Header({
             >
               <LayoutGrid className="w-5 h-5" />
               <span>Heatmap</span>
+            </button>
+
+            <button
+              onClick={() => handleNavigation(onNavigateToWatchlist)}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${currentPage === 'watchlist'
+                ? 'bg-cyan-500 text-white'
+                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                }`}
+            >
+              <Bookmark className="w-5 h-5" />
+              <span className="flex-1 text-left">Shortlist</span>
+              <Badge waiting={counts.waiting} stale={counts.stale} />
             </button>
 
             {isAdmin() && (

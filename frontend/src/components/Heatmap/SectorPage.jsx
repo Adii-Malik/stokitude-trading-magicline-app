@@ -1,11 +1,59 @@
 import { useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ArrowUpDown } from 'lucide-react';
+import { ArrowLeft, ArrowUpDown, Bookmark } from 'lucide-react';
 import { useMarket } from '../../contexts/MarketContext';
+import { useWatchlist } from '../../contexts/WatchlistContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import Treemap from './Treemap';
 import { useSectors, money, pct, tone, fromSlug } from './heatmapData';
 import { TIMEFRAMES, PERIOD_PARAM, periodFrom } from './heatmapConfig';
+
+/**
+ * One click to put a name on the shortlist, and one to take it off.
+ *
+ * Nothing to type and no list to choose: the sector, the period, the price and
+ * the percentage are all on this screen already, so the record writes itself
+ * from what you were looking at. That is the whole reason the flag lives here
+ * rather than on a form somewhere - a choice made while capturing is the thing
+ * that stops you capturing.
+ */
+function Flag({ stock, sector, period }) {
+    const { flagOf, flag, unflag } = useWatchlist();
+    const [busy, setBusy] = useState(false);
+    const on = flagOf(stock.symbol, period);
+
+    const toggle = async () => {
+        setBusy(true);
+        try {
+            if (on) await unflag(on.id);
+            else await flag({
+                symbol: stock.symbol,
+                name: stock.name,
+                sector,
+                period,
+                perf: stock.perf?.[period] ?? null,
+                price: stock.close ?? null
+            });
+        } catch {
+            // The list is refetched on every visit, so a failed toggle costs a
+            // click rather than a wrong-looking button that outlives the page.
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    return (
+        <button type="button" onClick={toggle} disabled={busy}
+            aria-pressed={!!on}
+            title={on ? `Remove ${stock.symbol} from the shortlist` : `Flag ${stock.symbol} to look at later`}
+            className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-semibold transition-colors disabled:opacity-50 ${on
+                ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                : 'text-gray-400 ring-1 ring-gray-200 hover:text-amber-600 dark:text-gray-500 dark:ring-gray-600 dark:hover:text-amber-400'}`}>
+            <Bookmark className={`h-3.5 w-3.5 ${on ? 'fill-current' : ''}`} />
+            {on ? 'Flagged' : 'Flag'}
+        </button>
+    );
+}
 
 /** The same row of choices as the board, so the two pages read alike. */
 function Choice({ label, options, value, onChange }) {
@@ -131,6 +179,7 @@ export default function SectorPage() {
                     <table className="w-full text-sm">
                         <thead className="border-b border-gray-200 text-[11px] uppercase tracking-wide text-gray-400 dark:border-gray-700 dark:text-gray-500">
                             <tr>
+                                <th className="px-3 py-2 text-left font-medium">Watch</th>
                                 <th className="px-4 py-2 text-left font-medium">Symbol</th>
                                 <th className="px-2 py-2 text-left font-medium">Name</th>
                                 {head('close', `Price${currency ? ` (${currency})` : ''}`, 'text-right')}
@@ -141,6 +190,7 @@ export default function SectorPage() {
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
                             {rows.map((s) => (
                                 <tr key={s.symbol} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                                    <td className="px-3 py-2"><Flag stock={s} sector={sector.sector} period={period} /></td>
                                     <td className="whitespace-nowrap px-4 py-2 font-medium text-gray-800 dark:text-gray-200">{s.symbol}</td>
                                     <td className="max-w-xs truncate px-2 py-2 text-xs text-gray-500 dark:text-gray-400">{s.name}</td>
                                     <td className="px-2 py-2 text-right font-medium tabular-nums text-gray-800 dark:text-gray-200">

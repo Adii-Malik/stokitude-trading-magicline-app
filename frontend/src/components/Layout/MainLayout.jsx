@@ -18,6 +18,7 @@ export default function MainLayout({
                 onNavigateToPortfolios={() => navigate('/portfolios')}
                 onNavigateToJournal={() => navigate('/journal')}
                 onNavigateToHeatmap={() => navigate('/heatmap')}
+                onNavigateToWatchlist={() => navigate('/watchlist')}
                 onNavigateToTradingBot={() => navigate('/trading-bot')}
                 onNavigateToAdmin={() => navigate('/admin')}
                 onNavigateToSettings={() => navigate('/settings')}

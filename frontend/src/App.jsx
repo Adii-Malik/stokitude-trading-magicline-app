@@ -3,6 +3,7 @@ import { lazy, Suspense } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { MarketProvider } from './contexts/MarketContext';
+import { WatchlistProvider } from './contexts/WatchlistContext';
 import { LayoutProvider } from './components/Layout';
 import { FullPageLoader } from './components/common';
 import Dashboard from './components/Dashboard';
@@ -20,6 +21,7 @@ import SymbolDetail from './components/Portfolio/SymbolDetail';
 import JournalPage from './components/Journal/JournalPage';
 import HeatmapPage from './components/Heatmap/HeatmapPage';
 import SectorPage from './components/Heatmap/SectorPage';
+import WatchlistPage from './components/Watchlist/WatchlistPage';
 import featureFlags from './config/featureFlags';
 
 // Conditionally import dev tools only in development
@@ -156,6 +158,14 @@ function AppContent() {
         </ProtectedRoute>
       } />
 
+      <Route path="/watchlist" element={
+        <ProtectedRoute>
+          <LayoutProvider currentPage="watchlist">
+            <WatchlistPage />
+          </LayoutProvider>
+        </ProtectedRoute>
+      } />
+
       {/* Profile */}
       <Route path="/profile" element={
         <ProtectedRoute>
@@ -203,6 +213,7 @@ function App() {
     <Router>
       <AuthProvider>
         <MarketProvider>
+        <WatchlistProvider>
         <Toaster
           position="top-right"
           toastOptions={{
@@ -233,6 +244,7 @@ function App() {
             <DevToolsPanel />
           </Suspense>
         )}
+        </WatchlistProvider>
         </MarketProvider>
       </AuthProvider>
     </Router>
