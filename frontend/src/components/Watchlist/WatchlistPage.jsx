@@ -7,7 +7,7 @@ import { useWatchlist } from '../../contexts/WatchlistContext';
 import { ChartUpload } from '../common/ChartUpload';
 import { pct, tone, toSlug } from '../Heatmap/heatmapData';
 import { TIMEFRAMES } from '../Heatmap/heatmapConfig';
-import { split, kindOf, matches, dueText, daysSince, lastLookAt, meterFor, hasFired } from './horizons';
+import { split, kindOf, matches, statusOf, daysSince, daysIdle, meterFor, hasFired } from './horizons';
 
 const labelOf = (period) => TIMEFRAMES.find((t) => t.id === period)?.label || period;
 
@@ -47,8 +47,7 @@ const today = () => {
 const DUE_PILL = {
     fired: 'bg-cyan-50 text-cyan-700 dark:bg-cyan-500/15 dark:text-cyan-300',
     late: 'bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300',
-    soon: 'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300',
-    calm: 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
+    soon: 'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300'
 };
 
 /** The state of the row, said once, at a size you can read down a column. */
@@ -61,11 +60,12 @@ function Pill({ tone: t, children }) {
     );
 }
 
+// Only a row with something to say gets a stripe. A colour down every row is a
+// colour that means nothing.
 const STRIPE = {
     fired: 'bg-cyan-500',
     late: 'bg-rose-500',
-    soon: 'bg-amber-500',
-    calm: 'bg-transparent'
+    soon: 'bg-amber-500'
 };
 
 const INPUT = 'rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-cyan-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100';
@@ -481,16 +481,18 @@ function Origin({ item, onOpen }) {
         <button type="button" onClick={() => onOpen(item)}
             className="inline-flex items-center gap-1.5 border-b border-gray-300 text-[13px] text-gray-500 transition hover:border-cyan-500 hover:text-cyan-600 dark:border-gray-600 dark:text-gray-400 dark:hover:border-cyan-400 dark:hover:text-cyan-400">
             {item.sector} · {labelOf(item.period).toLowerCase()}
+            {/* Flagging the same name off another board adds a word, not a row. */}
+            {item.alsoSeenOn?.length > 0 && `, also ${item.alsoSeenOn.map((p) => labelOf(p).toLowerCase()).join(', ')}`}
             <ArrowUpRight className="h-3 w-3" />
         </button>
     );
 }
 
-/** Sector, timeframe and how long since you last looked. */
-function Status({ item, tone: t, label, onOpen, extra }) {
+/** Where it came from, how long it has been, and a pill only if one is earned. */
+function Status({ item, status, onOpen, extra }) {
     return (
         <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-2">
-            <Pill tone={t}>{label}</Pill>
+            {status && <Pill tone={status.tone}>{status.text}</Pill>}
             <Origin item={item} onOpen={onOpen} />
             {extra && <span className="text-[13px] text-gray-400 dark:text-gray-500">{extra}</span>}
         </div>
@@ -502,22 +504,22 @@ function Status({ item, tone: t, label, onOpen, extra }) {
  * taking. Open it, paste the chart, press Enter.
  */
 function QueueRow({ item, open, setOpen, onLook, onDrop, onOpen, onTrade }) {
-    const due = dueText(item);
+    const status = statusOf(item);
     const looks = item.looks || [];
     const mode = open?.id === item.id ? open.mode : null;
     const hasLevels = item.trigger || item.invalidation;
 
     return (
         <div className={ROW}>
-            <span className={`absolute inset-y-0 left-0 w-1 ${STRIPE[due.tone]}`} />
+            {status && <span className={`absolute inset-y-0 left-0 w-1 ${STRIPE[status.tone]}`} />}
 
             <div className={MAIN}>
                 <Head item={item} onOpen={onOpen} />
-                <Status item={item} onOpen={onOpen} tone={due.tone} label={due.text}
+                <Status item={item} onOpen={onOpen} status={status}
                     extra={[
                         looks.length
-                            ? `${looks.length} look${looks.length === 1 ? '' : 's'} · last ${ago(daysSince(lastLookAt(item)))}`
-                            : `flagged ${ago(daysSince(item.noticedAt))}, never looked at`,
+                            ? `${looks.length} look${looks.length === 1 ? '' : 's'} · last ${ago(daysIdle(item))}`
+                            : `flagged ${ago(daysSince(item.noticedAt))}`,
                         // Two words rather than a panel. That you have been here
                         // before matters when you open the thread, not while you
                         // are scanning past the row.
@@ -664,6 +666,23 @@ function PastRow({ item, onOpen, onRevive, onJournal }) {
 
 const traded = (item) => item.state === 'traded' && item.journalEntryId;
 
+/** One tab. Absent rather than zero: an empty tab is a thing to rule out. */
+function Tab({ id, label, count, active, onClick }) {
+    return (
+        <button type="button" onClick={() => onClick(id)} aria-current={active}
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                active
+                    ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white'
+                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+            }`}>
+            {label}
+            <span className="rounded-full bg-gray-200 px-1.5 text-[11px] tabular-nums text-gray-600 dark:bg-gray-600 dark:text-gray-200">
+                {count}
+            </span>
+        </button>
+    );
+}
+
 /** How a name ended, as a filter inside history. Absent when nothing ended that way. */
 const KINDS = [
     { id: 'all', label: 'Everything' },
@@ -761,7 +780,7 @@ export default function WatchlistPage() {
                     <div className="flex items-center gap-3">
                         {counts.due > 0 && (
                             <span className="rounded-full bg-rose-50 px-3 py-1 text-sm font-semibold text-rose-600 dark:bg-rose-900/30 dark:text-rose-400">
-                                {counts.due} due
+                                {counts.due} need{counts.due === 1 ? 's' : ''} you
                             </span>
                         )}
                         <button type="button" onClick={reload}
@@ -836,9 +855,9 @@ export default function WatchlistPage() {
 
             {tab === 'queue' && rows.length > 0 && (
                 <p className="px-1 text-xs text-gray-400 dark:text-gray-500">
-                    A name asks for you when its horizon runs out since the last look — two
-                    days on a weekly idea, two weeks on a monthly one, two months on a yearly
-                    one. Looking at it resets the clock, whatever you conclude.
+                    A name only asks for you when something happened to it — a level you
+                    named printed, or you flagged it and never opened it. Everything else
+                    sits here quietly, longest since you looked at the top.
                 </p>
             )}
         </div>

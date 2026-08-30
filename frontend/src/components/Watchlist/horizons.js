@@ -1,56 +1,26 @@
 /**
- * How long a flag stays interesting, decided by the board it came from.
+ * When a name is asking for you, and when it is only sitting there.
  *
- * The instinct is a list per timeframe - one for daily, one for monthly - but a
- * named list has to be chosen while capturing, and a choice at capture time is
- * what stops you capturing. The period is already recorded from the board you
- * were on, so the grouping is free and cannot be mis-filed.
+ * This used to derive a deadline from the board you found the name on - two days
+ * for one spotted on the daily, sixty for one spotted on the yearly - and shout
+ * "overdue by 100 days" when it lapsed. That rule was wrong twice over. The
+ * board you happened to be scanning says nothing about how fast the setup you
+ * actually found moves; you can spot a name on the twelve-month board and be
+ * waiting on a daily breakout. And worse, a lapsed deadline corresponds to
+ * nothing that happened. No information arrived. The stock did not reach a price
+ * you cared about. Open the row and you will read the same chart and reach the
+ * same conclusion, because nothing changed - which is how an alert teaches you
+ * to stop reading alerts.
  *
- * Grouping is not only tidiness: it is what makes the numbers comparable. A
- * name down 3% since you noticed it is noise on a five-year idea and a serious
- * problem on one flagged yesterday. In a single flat column the two invite
- * exactly the wrong comparison.
+ * So there is no deadline here, and nothing to remember. Two things ask for you,
+ * and both are facts rather than opinions:
  *
- * Staleness is derived here and nowhere else, and never configured. A flag is
- * not due because it is old, it is due because it is old *for its horizon*.
+ *   a level you named printed  - you chose the number and price got there
+ *   you never opened it        - an unfinished action, not a stale one
  *
- * And the clock runs from the last time you looked, not from the day you
- * flagged it. A name you checked yesterday is not overdue however long it has
- * been on the list - that was the flaw in measuring from noticedAt, which made
- * a name you were actively watching nag you every week.
+ * Everything else is sorted by how long it has been and left alone. The ordering
+ * does the nagging; the screen stops inventing urgency it cannot know about.
  */
-
-export const BANDS = [
-    {
-        id: 'short',
-        name: 'Short',
-        periods: ['change', 'Perf.W'],
-        // A move spotted on the daily board is over by the time you get back to
-        // it on Thursday.
-        staleDays: 2
-    },
-    {
-        id: 'swing',
-        name: 'Swing',
-        periods: ['Perf.1M', 'Perf.3M'],
-        // Where most flags land. Long enough to think, short enough that the
-        // setup still exists when you do.
-        staleDays: 14
-    },
-    {
-        id: 'theme',
-        name: 'Theme',
-        periods: ['Perf.6M', 'Perf.YTD', 'Perf.Y', 'Perf.5Y'],
-        // A rotation, not a trade. Nagging weekly about one would teach you to
-        // ignore the badge, which costs more than the reminder is worth.
-        staleDays: 60
-    }
-];
-
-/** The band a period belongs to. Unknown periods sit with the swings. */
-export function bandFor(period) {
-    return BANDS.find((b) => b.periods.includes(period)) || BANDS[1];
-}
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -68,17 +38,6 @@ export function lastLookAt(item) {
     return looks.length ? looks[looks.length - 1].at : item.noticedAt;
 }
 
-/**
- * Days until this one wants looking at again. Negative means overdue.
- *
- * This is the number the screen shows, in words, so you never have to hold the
- * rule in your head or work out a date difference at a glance.
- */
-export function daysLeft(item, now = Date.now()) {
-    if (!item) return 0;
-    return bandFor(item.period).staleDays - daysSince(lastLookAt(item), now);
-}
-
 /** Only a name you are still watching is in the queue at all. */
 export function isLive(item) {
     return item?.state === 'watching';
@@ -90,66 +49,64 @@ export function isLive(item) {
  * True only while the firing is unanswered: the watcher disarms the trigger when
  * it fires, and setting a new one on your next look clears the flag by replacing
  * it. So this means "the thing you asked to be woken for happened and you have
- * not been back since", which is a different and much louder thing than a
- * horizon quietly running out.
+ * not been back since".
  */
 export function hasFired(item) {
     return Boolean(item?.triggeredAt) && !item?.trigger && isLive(item);
 }
 
 /**
- * Is this one asking for you?
+ * Flagged, and never opened once.
  *
- * Only live names are. A dead or dropped or traded name has an answer already,
- * and one of those nagging you is the fastest way to teach you to stop reading
- * the badge.
+ * The one piece of neglect worth mentioning, because it is an unfinished action
+ * rather than an ageing one - you told the system this was interesting and then
+ * did not look. It clears the first time you do, whatever you conclude.
  *
- * Everything else is due once its horizon has run out since the last look -
- * which for a name you have never looked at is the day you flagged it, so a
- * fresh flag is due almost immediately on a short horizon and can wait a month
- * on a long one. A fired level is due whatever the clock says: you asked to be
- * told, and you have not been back.
+ * A revived name counts as opened: putting it back is a decision you just made.
  */
-export function isDue(item, now = Date.now()) {
-    if (!isLive(item)) return false;
-    return hasFired(item) || daysLeft(item, now) < 0;
+export function neverOpened(item) {
+    return isLive(item) && !item?.looks?.length && !item?.resumedAt;
+}
+
+/** Is this one asking for you? Only ever for a reason it can name. */
+export function isDue(item) {
+    return hasFired(item) || neverOpened(item);
+}
+
+/** Days since you last put eyes on it. The number the row states plainly. */
+export function daysIdle(item, now = Date.now()) {
+    return daysSince(lastLookAt(item), now);
 }
 
 /**
- * How many are asking for you. One number, deliberately.
+ * How many are asking for you. One number, and only for the two real reasons.
  *
- * A second "badly overdue" tier looked useful and was not: on a two-day horizon
- * you are a full window past after three days, so almost everything late
- * qualified and the distinction stopped distinguishing. Due is already the
- * alert - it means a deadline you set has passed - and a badge that appears
- * only when something wants you says more than one that is always lit in a
- * shade you have to interpret.
+ * A badge that is always lit in a shade you have to interpret says less than one
+ * that appears when something has actually happened. Absent is a true statement:
+ * nothing wants you.
  */
-export function tally(items = [], now = Date.now()) {
-    return { due: items.filter((i) => isDue(i, now)).length };
+export function tally(items = []) {
+    return { due: items.filter(isDue).length };
 }
 
 /**
  * The list, most in need of you first.
  *
- * One flat order rather than sections. The horizon still decides everything -
- * it sets each name's deadline - but as a property of the row instead of a
- * heading above it: nine headings for seven rows was most of what made the
- * first version unreadable.
+ * Three tiers, and the first two are the only ones the screen has an opinion
+ * about. A fired level outranks everything: you asked to be interrupted for that
+ * number and you have not been back. A name you never opened comes next, because
+ * it is an action you started and left. Everything after that is sorted by how
+ * long it has been, which surfaces neglect without calling it a failure.
  *
- * Sorted by how overdue a name is, so the top of the screen is always the next
- * thing to do. The caller settles the order once on load, because a queue that
- * re-sorts while you work it moves the row out from under your cursor.
+ * The caller settles the order once on load - a queue that re-sorts while you
+ * work it moves the row out from under your cursor.
  */
 export function order(items = [], now = Date.now()) {
+    const rank = (i) => (hasFired(i) ? 0 : neverOpened(i) ? 1 : 2);
     return items
         .filter(isLive)
-        // A fired level outranks any timer. The clock running out is the screen
-        // guessing you have forgotten; a level printing is the thing you
-        // explicitly asked to be interrupted for, and burying it under a name
-        // that is merely late would waste the one alert you set yourself.
-        .map((i) => ({ item: i, fired: hasFired(i), left: daysLeft(i, now) }))
-        .sort((a, b) => (a.fired !== b.fired ? (a.fired ? -1 : 1) : a.left - b.left))
+        .map((i) => ({ item: i, rank: rank(i), idle: daysIdle(i, now) }))
+        .sort((a, b) => (a.rank !== b.rank ? a.rank - b.rank : b.idle - a.idle))
         .map((x) => x.item);
 }
 
@@ -197,17 +154,17 @@ export function matches(item, query) {
     return `${item.symbol} ${item.name || ''} ${item.sector || ''}`.toLowerCase().includes(q);
 }
 
-/** The deadline as a sentence. The rule applied, not printed. */
-export function dueText(item, now = Date.now()) {
-    // A fired level replaces the countdown rather than sitting beside it. "Your
-    // level printed" next to "13 days left" reads as a contradiction, and the
-    // countdown is the half that stopped mattering the moment price got there.
-    if (hasFired(item)) return { text: 'your level printed', tone: 'fired' };
-    const left = daysLeft(item, now);
-    if (left < 0) return { text: `overdue by ${-left} ${-left === 1 ? 'day' : 'days'}`, tone: 'late' };
-    if (left === 0) return { text: 'due today', tone: 'late' };
-    if (left <= 3) return { text: `${left} ${left === 1 ? 'day' : 'days'} left`, tone: 'soon' };
-    return { text: `${left} days left`, tone: 'calm' };
+/**
+ * The pill, or nothing at all.
+ *
+ * Null for most rows, deliberately. A name that is merely sitting there has no
+ * status worth a coloured chip - how long it has been is already in the line
+ * below it, in words, which is enough.
+ */
+export function statusOf(item) {
+    if (hasFired(item)) return { text: 'Your level printed', tone: 'fired' };
+    if (neverOpened(item)) return { text: 'Never opened', tone: 'soon' };
+    return null;
 }
 
 /**
@@ -236,6 +193,6 @@ export function meterFor(item) {
 }
 
 export default {
-    BANDS, bandFor, daysSince, lastLookAt, daysLeft, isLive, hasFired, isDue,
-    tally, order, kindOf, split, matches, dueText, meterFor
+    daysSince, lastLookAt, daysIdle, isLive, hasFired, neverOpened, isDue,
+    tally, order, kindOf, split, matches, statusOf, meterFor
 };

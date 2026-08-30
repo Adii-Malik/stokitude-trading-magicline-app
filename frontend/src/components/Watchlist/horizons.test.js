@@ -1,9 +1,9 @@
-/** The banding rule, which is the whole argument against named lists. */
+/** What asks for you, and what is only sitting there. */
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-    BANDS, bandFor, daysSince, lastLookAt, daysLeft, isLive, hasFired, isDue,
-    tally, order, kindOf, split, matches, dueText, meterFor
+    daysSince, lastLookAt, daysIdle, isLive, hasFired, neverOpened, isDue,
+    tally, order, kindOf, split, matches, statusOf, meterFor
 } from './horizons.js';
 
 const NOW = new Date('2026-08-31T12:00:00Z').getTime();
@@ -15,30 +15,6 @@ const flag = ({ looks = [], noticed = 1, ...over } = {}) => ({
     noticedAt: daysAgo(noticed), state: 'watching',
     looks: looks.map((d) => ({ at: daysAgo(d), note: 'a note' })),
     ...over
-});
-
-describe('bandFor', () => {
-    test('every period the heatmap offers lands in exactly one band', () => {
-        const all = ['change', 'Perf.W', 'Perf.1M', 'Perf.3M', 'Perf.6M', 'Perf.YTD', 'Perf.Y', 'Perf.5Y'];
-        for (const period of all) {
-            const hits = BANDS.filter((b) => b.periods.includes(period));
-            assert.equal(hits.length, 1, `${period} should belong to one band, got ${hits.length}`);
-        }
-    });
-
-    test('the daily and weekly boards are short-horizon', () => {
-        assert.equal(bandFor('change').id, 'short');
-        assert.equal(bandFor('Perf.W').id, 'short');
-    });
-
-    test('a five-year flag is a theme, not a trade', () => {
-        assert.equal(bandFor('Perf.5Y').id, 'theme');
-    });
-
-    // A period the app stops offering must not make a flag disappear.
-    test('an unknown period falls to swing rather than vanishing', () => {
-        assert.equal(bandFor('Perf.42Y').id, 'swing');
-    });
 });
 
 describe('lastLookAt', () => {
@@ -56,81 +32,12 @@ describe('lastLookAt', () => {
     });
 });
 
-describe('daysLeft', () => {
-    // The whole point of the rewrite: the clock runs from the last look, so a
-    // name you checked yesterday is not overdue however long you have held it.
-    test('runs from the last look, not from the day you flagged it', () => {
-        const held = flag({ noticed: 90, looks: [1] });
-        assert.equal(daysLeft(held, NOW), 13, 'swing gives 14 days, one has passed');
-    });
-
-    test('runs from the flag date when there are no looks', () => {
-        assert.equal(daysLeft(flag({ noticed: 6, looks: [] }), NOW), 8);
-    });
-
-    test('goes negative once the horizon has run out', () => {
-        assert.equal(daysLeft(flag({ period: 'Perf.W', looks: [5] }), NOW), -3);
-    });
-
-    test('the same neglect is overdue on a week and fine on a year', () => {
-        assert.ok(daysLeft(flag({ period: 'Perf.W', looks: [5] }), NOW) < 0);
-        assert.ok(daysLeft(flag({ period: 'Perf.Y', looks: [5] }), NOW) > 0);
-    });
-});
-
-describe('isDue', () => {
-    test('a name past its horizon is asking for you', () => {
-        assert.equal(isDue(flag({ period: 'Perf.W', looks: [5] }), NOW), true);
-    });
-
-    test('one you looked at today is not', () => {
-        assert.equal(isDue(flag({ period: 'Perf.W', looks: [0] }), NOW), false);
-    });
-
-    // A dropped idea nagging you is the fastest way to teach you to stop
-    // reading the badge.
-    test('a dropped name never is, however old', () => {
-        assert.equal(isDue(flag({ period: 'Perf.W', looks: [400], state: 'dropped' }), NOW), false);
-    });
-
-    test('one whose level printed is, whatever the clock says', () => {
-        assert.equal(isDue(flag({ looks: [0], triggeredAt: daysAgo(0) }), NOW), true);
-    });
-});
-
-describe('tally', () => {
-    test('counts only what is asking for you', () => {
-        const items = [
-            flag({ symbol: 'STJT', period: 'Perf.W', looks: [5] }),   // due
-            flag({ symbol: 'PRL', looks: [40] }),                     // due
-            flag({ symbol: 'PIM', looks: [1] }),                      // not due
-            flag({ symbol: 'ATRL', looks: [400], state: 'dropped' })  // never
-        ];
-        assert.deepEqual(tally(items, NOW), { due: 2 });
-    });
-
-    test('an empty shortlist is quiet', () => {
-        assert.deepEqual(tally([], NOW), { due: 0 });
-    });
-
-    // The badge should be absent, not zero: nothing wants you.
-    test('a list where nothing is due is quiet too', () => {
-        assert.deepEqual(tally([flag({ looks: [1] })], NOW), { due: 0 });
-    });
-
-    // A name the watcher already closed has an answer. Counting it would nag
-    // you about a question that is settled.
-    test('names that are already settled never count', () => {
-        const settled = [
-            flag({ symbol: 'PSO', state: 'invalidated', looks: [90] }),
-            flag({ symbol: 'OGDC', state: 'traded', looks: [90] }),
-            flag({ symbol: 'ATRL', state: 'dropped', looks: [90] })
-        ];
-        assert.deepEqual(tally(settled, NOW), { due: 0 });
-    });
-
-    test('a fired level counts even when the clock has not run out', () => {
-        assert.deepEqual(tally([flag({ looks: [0], triggeredAt: daysAgo(0) })], NOW), { due: 1 });
+describe('isLive', () => {
+    test('only a name you are still watching', () => {
+        assert.equal(isLive(flag({})), true);
+        for (const state of ['dropped', 'invalidated', 'traded']) {
+            assert.equal(isLive(flag({ state })), false, state);
+        }
     });
 });
 
@@ -139,8 +46,7 @@ describe('hasFired', () => {
         assert.equal(hasFired(flag({ triggeredAt: daysAgo(1), trigger: null })), true);
     });
 
-    // Setting a new level on your next look is how you answer the alert. Leaving
-    // it flagged after that would pin the row to the top forever.
+    // Setting a new level on your next look is how you answer the alert.
     test('re-arming it answers the alert', () => {
         assert.equal(hasFired(flag({ triggeredAt: daysAgo(1), trigger: { price: 90, dir: 'above' } })), false);
     });
@@ -154,12 +60,125 @@ describe('hasFired', () => {
     });
 });
 
-describe('isLive', () => {
-    test('only a name you are still watching', () => {
-        assert.equal(isLive(flag({})), true);
-        for (const state of ['dropped', 'invalidated', 'traded']) {
-            assert.equal(isLive(flag({ state })), false, state);
-        }
+describe('neverOpened', () => {
+    test('flagged and not looked at once', () => {
+        assert.equal(neverOpened(flag({ noticed: 40 })), true);
+    });
+
+    // It is an unfinished action, not an ageing one, so any look at all clears
+    // it - whatever you concluded and however long ago.
+    test('one look clears it forever', () => {
+        assert.equal(neverOpened(flag({ noticed: 400, looks: [399] })), false);
+    });
+
+    // Putting a name back is a decision you just made about it.
+    test('reviving it counts as opening it', () => {
+        assert.equal(neverOpened(flag({ noticed: 200, resumedAt: daysAgo(1) })), false);
+    });
+
+    test('a settled name never counts', () => {
+        assert.equal(neverOpened(flag({ state: 'dropped' })), false);
+    });
+});
+
+describe('isDue', () => {
+    test('a fired level asks for you', () => {
+        assert.equal(isDue(flag({ looks: [0], triggeredAt: daysAgo(0) })), true);
+    });
+
+    test('so does one you never opened', () => {
+        assert.equal(isDue(flag({ noticed: 3 })), true);
+    });
+
+    // The whole point of the rewrite. Nothing happened to this name, so nothing
+    // is asking - however long it has been.
+    test('age alone never does, however old', () => {
+        assert.equal(isDue(flag({ noticed: 400, looks: [380] })), false);
+    });
+
+    test('a dropped name never does', () => {
+        assert.equal(isDue(flag({ state: 'dropped', noticed: 400 })), false);
+    });
+});
+
+describe('tally', () => {
+    test('counts only what is asking for you', () => {
+        const items = [
+            flag({ symbol: 'STJT', triggeredAt: daysAgo(1), looks: [1] }),  // fired
+            flag({ symbol: 'PRL', noticed: 3 }),                            // never opened
+            flag({ symbol: 'PIM', looks: [300], noticed: 400 }),            // old, quiet
+            flag({ symbol: 'ATRL', state: 'dropped' })
+        ];
+        assert.deepEqual(tally(items), { due: 2 });
+    });
+
+    test('an empty shortlist is quiet', () => {
+        assert.deepEqual(tally([]), { due: 0 });
+    });
+
+    // The badge should be absent, not zero: nothing wants you.
+    test('a worked list is quiet too', () => {
+        assert.deepEqual(tally([flag({ looks: [1] })]), { due: 0 });
+    });
+});
+
+describe('order', () => {
+    const items = [
+        flag({ symbol: 'PIM', looks: [1] }),
+        flag({ symbol: 'OGDC', looks: [90] }),
+        flag({ symbol: 'STJT', triggeredAt: daysAgo(1), looks: [0] }),
+        flag({ symbol: 'NRL', noticed: 2 }),
+        flag({ symbol: 'ATRL', state: 'dropped', looks: [1] })
+    ];
+
+    test('fired first, then never opened, then longest since you looked', () => {
+        assert.deepEqual(order(items, NOW).map((i) => i.symbol), ['STJT', 'NRL', 'OGDC', 'PIM']);
+    });
+
+    test('settled names are not in the queue at all', () => {
+        const settled = [flag({ state: 'invalidated' }), flag({ state: 'traded' }), flag({ state: 'dropped' })];
+        assert.deepEqual(order(settled, NOW), []);
+    });
+
+    test('an empty list stays empty rather than throwing', () => {
+        assert.deepEqual(order([], NOW), []);
+    });
+});
+
+describe('statusOf', () => {
+    test('names the two things that actually happened', () => {
+        assert.deepEqual(statusOf(flag({ triggeredAt: daysAgo(1), looks: [1] })),
+            { text: 'Your level printed', tone: 'fired' });
+        assert.deepEqual(statusOf(flag({ noticed: 3 })),
+            { text: 'Never opened', tone: 'soon' });
+    });
+
+    // A name merely sitting there has no status worth a coloured chip; how long
+    // it has been is already in the line below it, in words.
+    test('says nothing about a name that is only waiting', () => {
+        assert.equal(statusOf(flag({ looks: [40] })), null);
+        assert.equal(statusOf(flag({ looks: [1] })), null);
+    });
+});
+
+describe('daysIdle', () => {
+    test('counts from the last look', () => {
+        assert.equal(daysIdle(flag({ noticed: 90, looks: [4] }), NOW), 4);
+    });
+
+    test('and from the flag date when there was never a look', () => {
+        assert.equal(daysIdle(flag({ noticed: 6 }), NOW), 6);
+    });
+});
+
+describe('daysSince', () => {
+    test('counts whole days', () => {
+        assert.equal(daysSince(daysAgo(3), NOW), 3);
+        assert.equal(daysSince(new Date(NOW).toISOString(), NOW), 0);
+    });
+
+    test('a missing date is not a negative age', () => {
+        assert.equal(daysSince(null, NOW), 0);
     });
 });
 
@@ -188,8 +207,6 @@ describe('split', () => {
         assert.equal(g.queue.length + g.past.length, items.length);
     });
 
-    // The whole reason a closed idea needs no button to acknowledge: the newest
-    // verdict is already at the top, and sinks on its own as it ages.
     test('history leads with whatever settled most recently', () => {
         assert.equal(split(items, NOW).past[0].symbol, 'PPL');
     });
@@ -200,7 +217,7 @@ describe('split', () => {
 });
 
 describe('matches', () => {
-    const prl = flag({ symbol: 'PRL', name: 'Pakistan Refinery', sector: 'REFINERY' });
+    const prl = flag({});
 
     test('finds a name by symbol, sector or company, ignoring case', () => {
         for (const q of ['prl', 'refin', 'Pakistan']) assert.equal(matches(prl, q), true, q);
@@ -212,84 +229,6 @@ describe('matches', () => {
 
     test('says no when it does not match', () => {
         assert.equal(matches(prl, 'cement'), false);
-    });
-});
-
-describe('order', () => {
-    const items = [
-        flag({ symbol: 'PIM', looks: [1] }),                     // +13
-        flag({ symbol: 'STJT', period: 'Perf.W', looks: [5] }),  // -3
-        flag({ symbol: 'PPL', period: 'Perf.Y', looks: [11] }),  // +49
-        flag({ symbol: 'ATRL', state: 'dropped', looks: [1] })
-    ];
-
-    test('the most overdue leads, so the top of the screen is the next thing to do', () => {
-        assert.deepEqual(order(items, NOW).map((i) => i.symbol), ['STJT', 'PIM', 'PPL']);
-    });
-
-    // You asked to be interrupted for this one. Burying it under a name that is
-    // merely late would waste the only alert you set yourself.
-    test('a fired level jumps the whole queue, however new it is', () => {
-        const fired = flag({ symbol: 'HCAR', looks: [0], triggeredAt: daysAgo(0) });
-        assert.equal(order([...items, fired], NOW)[0].symbol, 'HCAR');
-    });
-
-    test('dropped names are not in the list at all', () => {
-        assert.equal(order(items, NOW).some((i) => i.symbol === 'ATRL'), false);
-    });
-
-    // The reason dead names are fetched at all is so the verdict has somewhere
-    // to land - but the queue is work, and a closed idea is not work.
-    test('dead and traded names are not in the queue either', () => {
-        const settled = [
-            flag({ symbol: 'PSO', state: 'invalidated', looks: [30] }),
-            flag({ symbol: 'OGDC', state: 'traded', looks: [30] })
-        ];
-        assert.deepEqual(order(settled, NOW), []);
-    });
-
-    test('an empty list stays empty rather than throwing', () => {
-        assert.deepEqual(order([], NOW), []);
-    });
-});
-
-describe('dueText', () => {
-    test('says the answer rather than the rule', () => {
-        assert.equal(dueText(flag({ period: 'Perf.W', looks: [5] }), NOW).text, 'overdue by 3 days');
-        assert.equal(dueText(flag({ period: 'Perf.W', looks: [2] }), NOW).text, 'due today');
-        assert.equal(dueText(flag({ looks: [12] }), NOW).text, '2 days left');
-        assert.equal(dueText(flag({ looks: [1] }), NOW).text, '13 days left');
-    });
-
-    test('singular reads as singular', () => {
-        assert.equal(dueText(flag({ period: 'Perf.W', looks: [3] }), NOW).text, 'overdue by 1 day');
-        assert.equal(dueText(flag({ period: 'Perf.W', looks: [1] }), NOW).text, '1 day left');
-    });
-
-    // A countdown beside "your level printed" reads as a contradiction, and the
-    // countdown is the half that stopped mattering.
-    test('a fired level replaces the countdown rather than sitting beside it', () => {
-        const fired = dueText(flag({ looks: [1], triggeredAt: daysAgo(0) }), NOW);
-        assert.equal(fired.text, 'your level printed');
-        assert.equal(fired.tone, 'fired');
-    });
-
-    // Colour is a hint; the words carry it, so they must be right on their own.
-    test('tone escalates as the deadline closes', () => {
-        assert.equal(dueText(flag({ looks: [1] }), NOW).tone, 'calm');
-        assert.equal(dueText(flag({ looks: [12] }), NOW).tone, 'soon');
-        assert.equal(dueText(flag({ looks: [40] }), NOW).tone, 'late');
-    });
-});
-
-describe('daysSince', () => {
-    test('counts whole days', () => {
-        assert.equal(daysSince(daysAgo(3), NOW), 3);
-        assert.equal(daysSince(new Date(NOW).toISOString(), NOW), 0);
-    });
-
-    test('a missing date is not a negative age', () => {
-        assert.equal(daysSince(null, NOW), 0);
     });
 });
 

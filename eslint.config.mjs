@@ -57,6 +57,10 @@ export default [
       // does not flag every imported component.
       'react/jsx-uses-vars': 'error',
       'react/jsx-uses-react': 'error',
+      // Core no-undef does not read JSX element names, so deleting a component
+      // while leaving <Component /> behind lints and builds clean and blows up
+      // in the browser. This is the rule that catches it.
+      'react/jsx-no-undef': 'error',
       'no-undef': 'error',
       'no-unused-vars': ['warn', {
         args: 'none',

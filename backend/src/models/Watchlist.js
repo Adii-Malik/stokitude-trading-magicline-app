@@ -11,11 +11,12 @@
  * the symbol tells you nothing on return; storing the sector, the period and the
  * number at the time is what lets the screen open with what has moved since.
  *
- * There is deliberately no listId. Naming lists - "daily", "monthly" - means
- * choosing one while capturing, and a choice at capture time is what stops you
- * capturing. The period is recorded from the board you were on, so the grouping
- * comes free and cannot be mis-filed. `tag` is the escape hatch for the rare
- * name that did not come from a heatmap at all: nullable, never asked for.
+ * There is deliberately no listId, and no per-timeframe split. Naming lists -
+ * "daily", "monthly" - means choosing one while capturing, and a choice at
+ * capture time is what stops you capturing. The period is recorded from the
+ * board you were on as provenance; the stock is the unit. `tag` is the escape
+ * hatch for the rare name that did not come from a heatmap at all: nullable,
+ * never asked for.
  */
 import mongoose from 'mongoose';
 import { marketScoped } from './plugins/marketScoped.js';
@@ -87,13 +88,35 @@ const watchlistSchema = new mongoose.Schema({
         trim: true
     },
 
-    // The board you were looking at. This is the field that does the work a
-    // named list would: it decides the horizon band, the staleness window, and
-    // which drift numbers are comparable with which.
+    /**
+     * The board you found it on. Provenance, and nothing more.
+     *
+     * It used to be part of the identity - the same company noticed on the
+     * monthly board and on the yearly one became two records - and that was
+     * wrong. You do not hold a view on "the 1-month PRL"; you hold a view on
+     * PRL, with one entry, one invalidation and one decision to buy or not.
+     * Everything downstream already agrees: the broker has one position, the
+     * journal one trade, the portfolio one holding.
+     *
+     * The test that settles it is what happens when the two disagree. A trigger
+     * of 185 on one row and 210 on the other means the watcher tells you about
+     * the same stock twice, with two numbers, and leaves you to reconcile them.
+     * That is not two studies. It is one study stored badly.
+     *
+     * It still decides which drift column to read, which is the job it is good
+     * at.
+     */
     period: {
         type: String,
         required: [true, 'Period is required'],
         enum: PERIODS.map(p => p.id)
+    },
+
+    // The other boards it turned up on afterwards. Noticing a name again is
+    // worth a word on the row, never a second row.
+    alsoSeenOn: {
+        type: [{ type: String, enum: PERIODS.map(p => p.id) }],
+        default: []
     },
 
     noticedAt: {
@@ -192,15 +215,14 @@ const watchlistSchema = new mongoose.Schema({
 watchlistSchema.plugin(marketScoped({ from: null }));
 
 /**
- * One live flag per name per period, and no more.
+ * One live flag per name. Not per name per board.
  *
- * The same symbol noticed on the weekly board and on the yearly board is two
- * different observations that belong in two different bands, so the period is
- * part of the key. Dropped rows are excluded: dropping a name and noticing it
- * again months later should make a fresh record, not resurrect an old verdict.
+ * Settled rows are excluded, so dropping a name and noticing it again months
+ * later makes a fresh record rather than resurrecting an old verdict - and the
+ * old thread still comes back beside it, read-only.
  */
 watchlistSchema.index(
-    { user: 1, market: 1, symbol: 1, period: 1 },
+    { user: 1, market: 1, symbol: 1 },
     { unique: true, partialFilterExpression: { state: 'watching' } }
 );
 
