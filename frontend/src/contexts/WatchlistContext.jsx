@@ -2,7 +2,7 @@ import { createContext, useContext, useCallback, useEffect, useMemo, useState } 
 import api from '../services/api';
 import { useAuth } from './AuthContext';
 import { useMarket } from './MarketContext';
-import { tally } from '../components/Watchlist/horizons';
+import { tally, isLive } from '../components/Watchlist/horizons';
 
 /**
  * The shortlist, held once for the whole app.
@@ -62,11 +62,17 @@ export function WatchlistProvider({ children }) {
         setItems((prev) => prev.filter((i) => i.id !== id));
     }, []);
 
+    /**
+     * Drop it, put it back, or tag it.
+     *
+     * Replaced in place rather than removed, whichever way it went. A dropped
+     * name has not stopped existing - it moved to the part of the screen that
+     * answers what you passed on, and dropping the row from memory would make
+     * that list wrong until the next reload.
+     */
     const update = useCallback(async (id, body) => {
         const { data } = await api.patch(`/watchlist/${id}`, body);
-        setItems((prev) => (body.state === 'dropped'
-            ? prev.filter((i) => i.id !== id)
-            : prev.map((i) => (i.id === id ? data.data : i))));
+        setItems((prev) => prev.map((i) => (i.id === id ? data.data : i)));
         return data.data;
     }, []);
 
@@ -84,18 +90,26 @@ export function WatchlistProvider({ children }) {
     /**
      * It became a trade. The name leaves the queue - the journal is watching it
      * now, and two screens asking about the same position is how you end up
-     * trusting neither.
+     * trusting neither - but it stays in memory as history, so the thread that
+     * led to the trade is still there to read back.
      */
     const trade = useCallback(async (id, body) => {
         const { data } = await api.post(`/watchlist/${id}/trade`, body);
-        setItems((prev) => prev.filter((i) => i.id !== id));
+        setItems((prev) => prev.map((i) => (i.id === id ? data.data.watchlist : i)));
         return data.data;
     }, []);
 
-    /** Fast lookup for the sector page, which asks once per row it draws. */
+    /**
+     * Fast lookup for the sector page, which asks once per row it draws.
+     *
+     * Live names only. The flag button is a toggle for "am I watching this", and
+     * a name you traded or passed on months ago answering yes would light up a
+     * row you have already finished with - and offer to unflag something that is
+     * not on the queue.
+     */
     const flagged = useMemo(() => {
         const map = new Map();
-        for (const item of items) map.set(`${item.symbol}|${item.period}`, item);
+        for (const item of items) if (isLive(item)) map.set(`${item.symbol}|${item.period}`, item);
         return map;
     }, [items]);
 

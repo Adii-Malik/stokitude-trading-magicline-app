@@ -104,6 +104,7 @@ export async function checkWatchlistLevels() {
                     await notificationService.notifyWatchlistInvalidated(entry, price);
                     entry.state = 'invalidated';
                     entry.invalidatedAt = new Date();
+                    entry.invalidatedPrice = price;
                     await entry.save();
                     invalidated += 1;
                 } else {
@@ -112,6 +113,7 @@ export async function checkWatchlistLevels() {
                     // again every day until you happened to open the screen.
                     entry.trigger = null;
                     entry.triggeredAt = new Date();
+                    entry.triggeredPrice = price;
                     await entry.save();
                     triggered += 1;
                 }

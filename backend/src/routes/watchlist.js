@@ -8,7 +8,25 @@ import { currentMarket } from '../config/marketStore.js';
 const router = express.Router();
 router.use(authenticate);
 
-const LIVE = ['watching'];
+/**
+ * What the screen gets.
+ *
+ * `watching` is the queue. `invalidated` is on the list too, and that is not a
+ * detail: the watcher closes an idea and pushes you a notification whose link is
+ * this screen, so a list that excluded it sent you to a page that did not
+ * contain the thing it had just told you about. A verdict has to land somewhere
+ * you can see it.
+ *
+ * Dropped and traded names are history - never in the queue, never counted, but
+ * fetched so the screen can answer "what did I pass on, and what came of it",
+ * which is the question that made the shortlist worth building.
+ */
+const LIVE = ['watching', 'invalidated'];
+const PAST = ['dropped', 'traded'];
+
+// History is browsed, not worked. Enough to recognise a pattern in what you
+// keep passing on; not so much that the first paint waits on years of it.
+const PAST_LIMIT = 50;
 
 /**
  * Today's number for every flagged name, or an empty map.
@@ -45,7 +63,9 @@ const shape = (doc, quote) => ({
     trigger: doc.trigger || null,
     invalidation: doc.invalidation || null,
     triggeredAt: doc.triggeredAt || null,
+    triggeredPrice: doc.triggeredPrice ?? null,
     invalidatedAt: doc.invalidatedAt || null,
+    invalidatedPrice: doc.invalidatedPrice ?? null,
     journalEntryId: doc.journalEntryId || null,
     looks: (doc.looks || []).map((l) => ({
         id: l._id,
@@ -57,23 +77,33 @@ const shape = (doc, quote) => ({
     })),
     lastLookAt: doc.looks?.length ? doc.looks[doc.looks.length - 1].at : doc.noticedAt,
     tag: doc.tag,
+    // When this one stopped being live. Only history reads it, and only to say
+    // how long ago you settled the question.
+    settledAt: doc.state === 'watching' ? null : (doc.invalidatedAt || doc.updatedAt || null),
     // Null rather than absent when the scanner is down, so the screen can say
     // "no quote" instead of drawing a drift of zero.
     perfNow: quote ? quote.perf?.[doc.period] ?? null : null,
     priceNow: quote ? quote.close ?? null : null
 });
 
-// GET /api/watchlist - everything still live, newest flag first
+// GET /api/watchlist - the live list, plus recent history to look back over
 router.get('/', async (req, res) => {
     try {
-        const [docs, quote] = await Promise.all([
+        const [live, past, quote] = await Promise.all([
             Watchlist.find({ user: req.user._id, state: { $in: LIVE } })
                 .sort({ noticedAt: -1 })
+                .lean(),
+            Watchlist.find({ user: req.user._id, state: { $in: PAST } })
+                .sort({ updatedAt: -1 })
+                .limit(PAST_LIMIT)
                 .lean(),
             quotes()
         ]);
 
-        res.json({ success: true, data: docs.map(d => shape(d, quote.get(d.symbol))) });
+        res.json({
+            success: true,
+            data: [...live, ...past].map(d => shape(d, quote.get(d.symbol)))
+        });
     } catch (error) {
         console.error('Error listing watchlist:', error);
         res.status(500).json({ success: false, message: 'Failed to load the shortlist' });
@@ -192,12 +222,19 @@ router.post('/:id/looks', async (req, res) => {
 });
 
 /**
- * PATCH /api/watchlist/:id - let an idea go, or tag it.
+ * PATCH /api/watchlist/:id - let an idea go, put one back, or tag it.
  *
  * Dropping keeps the row and its looks. It is the record of an idea you watched
  * and passed on, which is worth more than a deletion - and it frees the unique
  * key so the same name can be flagged again later without inheriting the old
  * thread.
+ *
+ * Putting one back is the other direction, and it has to disarm the level that
+ * closed it. Reviving a name with its invalidation still armed hands it straight
+ * back to the watcher, which finds price on the wrong side of the same number
+ * that night and kills it again - so the button would appear to do nothing, once
+ * a day, forever. Disagreeing with the verdict means the old level was the part
+ * that was wrong; you set a new one on the next look.
  */
 router.patch('/:id', async (req, res) => {
     try {
@@ -205,8 +242,12 @@ router.patch('/:id', async (req, res) => {
         const update = {};
 
         if (state === 'dropped') update.state = 'dropped';
-        else if (state === 'watching') update.state = 'watching';
-        else if (state !== undefined) {
+        else if (state === 'watching') {
+            update.state = 'watching';
+            update.invalidation = null;
+            update.invalidatedAt = null;
+            update.invalidatedPrice = null;
+        } else if (state !== undefined) {
             return res.status(400).json({ success: false, message: 'state must be watching or dropped' });
         }
         if (tag !== undefined) update.tag = tag;
@@ -221,6 +262,15 @@ router.patch('/:id', async (req, res) => {
 
         res.json({ success: true, data: shape(doc, (await quotes()).get(doc.symbol)) });
     } catch (error) {
+        // Reviving collides when the same name was flagged again on the same
+        // board after this one died. The live flag is the current thinking, so
+        // say so rather than resurrecting a stale thread on top of it.
+        if (error.code === 11000) {
+            return res.status(409).json({
+                success: false,
+                message: 'That name is already back on the shortlist'
+            });
+        }
         console.error('Error updating watchlist entry:', error);
         res.status(500).json({ success: false, message: 'Failed to update this name' });
     }

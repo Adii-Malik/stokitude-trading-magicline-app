@@ -2,7 +2,8 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-    BANDS, bandFor, daysSince, lastLookAt, daysLeft, isDue, tally, order, dueText, meterFor
+    BANDS, bandFor, daysSince, lastLookAt, daysLeft, isLive, hasFired, isDue,
+    tally, order, split, matches, dueText, meterFor
 } from './horizons.js';
 
 const NOW = new Date('2026-08-31T12:00:00Z').getTime();
@@ -10,7 +11,7 @@ const daysAgo = (n) => new Date(NOW - n * 24 * 60 * 60 * 1000).toISOString();
 
 /** A flag, with looks given as ages in days rather than dates. */
 const flag = ({ looks = [], noticed = 1, ...over } = {}) => ({
-    symbol: 'PRL', sector: 'REFINERY', period: 'Perf.1M',
+    symbol: 'PRL', name: 'Pakistan Refinery', sector: 'REFINERY', period: 'Perf.1M',
     noticedAt: daysAgo(noticed), state: 'watching',
     looks: looks.map((d) => ({ at: daysAgo(d), note: 'a note' })),
     ...over
@@ -91,6 +92,10 @@ describe('isDue', () => {
     test('a dropped name never is, however old', () => {
         assert.equal(isDue(flag({ period: 'Perf.W', looks: [400], state: 'dropped' }), NOW), false);
     });
+
+    test('one whose level printed is, whatever the clock says', () => {
+        assert.equal(isDue(flag({ looks: [0], triggeredAt: daysAgo(0) }), NOW), true);
+    });
 });
 
 describe('tally', () => {
@@ -112,6 +117,88 @@ describe('tally', () => {
     test('a list where nothing is due is quiet too', () => {
         assert.deepEqual(tally([flag({ looks: [1] })], NOW), { due: 0 });
     });
+
+    // A name the watcher already closed has an answer. Counting it would nag
+    // you about a question that is settled.
+    test('names that are already settled never count', () => {
+        const settled = [
+            flag({ symbol: 'PSO', state: 'invalidated', looks: [90] }),
+            flag({ symbol: 'OGDC', state: 'traded', looks: [90] }),
+            flag({ symbol: 'ATRL', state: 'dropped', looks: [90] })
+        ];
+        assert.deepEqual(tally(settled, NOW), { due: 0 });
+    });
+
+    test('a fired level counts even when the clock has not run out', () => {
+        assert.deepEqual(tally([flag({ looks: [0], triggeredAt: daysAgo(0) })], NOW), { due: 1 });
+    });
+});
+
+describe('hasFired', () => {
+    test('true once the watcher has fired and disarmed the trigger', () => {
+        assert.equal(hasFired(flag({ triggeredAt: daysAgo(1), trigger: null })), true);
+    });
+
+    // Setting a new level on your next look is how you answer the alert. Leaving
+    // it flagged after that would pin the row to the top forever.
+    test('re-arming it answers the alert', () => {
+        assert.equal(hasFired(flag({ triggeredAt: daysAgo(1), trigger: { price: 90, dir: 'above' } })), false);
+    });
+
+    test('a name that never fired has not fired', () => {
+        assert.equal(hasFired(flag({})), false);
+    });
+
+    test('a settled name is not shouting for attention', () => {
+        assert.equal(hasFired(flag({ triggeredAt: daysAgo(1), state: 'traded' })), false);
+    });
+});
+
+describe('isLive', () => {
+    test('only a name you are still watching', () => {
+        assert.equal(isLive(flag({})), true);
+        for (const state of ['dropped', 'invalidated', 'traded']) {
+            assert.equal(isLive(flag({ state })), false, state);
+        }
+    });
+});
+
+describe('split', () => {
+    const items = [
+        flag({ symbol: 'PRL', looks: [40] }),
+        flag({ symbol: 'PPL', state: 'invalidated', invalidatedAt: daysAgo(2) }),
+        flag({ symbol: 'PSO', state: 'invalidated', invalidatedAt: daysAgo(9) }),
+        flag({ symbol: 'OGDC', state: 'traded' }),
+        flag({ symbol: 'ATRL', state: 'dropped' })
+    ];
+
+    test('every name lands in exactly one of the three', () => {
+        const g = split(items, NOW);
+        assert.deepEqual(g.queue.map((i) => i.symbol), ['PRL']);
+        assert.deepEqual(g.dead.map((i) => i.symbol), ['PPL', 'PSO']);
+        assert.deepEqual(g.past.map((i) => i.symbol).sort(), ['ATRL', 'OGDC']);
+        assert.equal(g.queue.length + g.dead.length + g.past.length, items.length);
+    });
+
+    test('the most recently closed idea is the one you have not seen yet', () => {
+        assert.equal(split(items, NOW).dead[0].symbol, 'PPL');
+    });
+});
+
+describe('matches', () => {
+    const prl = flag({ symbol: 'PRL', name: 'Pakistan Refinery', sector: 'REFINERY' });
+
+    test('finds a name by symbol, sector or company, ignoring case', () => {
+        for (const q of ['prl', 'refin', 'Pakistan']) assert.equal(matches(prl, q), true, q);
+    });
+
+    test('an empty box filters nothing', () => {
+        assert.equal(matches(prl, '   '), true);
+    });
+
+    test('says no when it does not match', () => {
+        assert.equal(matches(prl, 'cement'), false);
+    });
 });
 
 describe('order', () => {
@@ -126,8 +213,25 @@ describe('order', () => {
         assert.deepEqual(order(items, NOW).map((i) => i.symbol), ['STJT', 'PIM', 'PPL']);
     });
 
+    // You asked to be interrupted for this one. Burying it under a name that is
+    // merely late would waste the only alert you set yourself.
+    test('a fired level jumps the whole queue, however new it is', () => {
+        const fired = flag({ symbol: 'HCAR', looks: [0], triggeredAt: daysAgo(0) });
+        assert.equal(order([...items, fired], NOW)[0].symbol, 'HCAR');
+    });
+
     test('dropped names are not in the list at all', () => {
         assert.equal(order(items, NOW).some((i) => i.symbol === 'ATRL'), false);
+    });
+
+    // The reason dead names are fetched at all is so the verdict has somewhere
+    // to land - but the queue is work, and a closed idea is not work.
+    test('dead and traded names are not in the queue either', () => {
+        const settled = [
+            flag({ symbol: 'PSO', state: 'invalidated', looks: [30] }),
+            flag({ symbol: 'OGDC', state: 'traded', looks: [30] })
+        ];
+        assert.deepEqual(order(settled, NOW), []);
     });
 
     test('an empty list stays empty rather than throwing', () => {
@@ -146,6 +250,14 @@ describe('dueText', () => {
     test('singular reads as singular', () => {
         assert.equal(dueText(flag({ period: 'Perf.W', looks: [3] }), NOW).text, 'overdue by 1 day');
         assert.equal(dueText(flag({ period: 'Perf.W', looks: [1] }), NOW).text, '1 day left');
+    });
+
+    // A countdown beside "your level printed" reads as a contradiction, and the
+    // countdown is the half that stopped mattering.
+    test('a fired level replaces the countdown rather than sitting beside it', () => {
+        const fired = dueText(flag({ looks: [1], triggeredAt: daysAgo(0) }), NOW);
+        assert.equal(fired.text, 'your level printed');
+        assert.equal(fired.tone, 'fired');
     });
 
     // Colour is a hint; the words carry it, so they must be right on their own.

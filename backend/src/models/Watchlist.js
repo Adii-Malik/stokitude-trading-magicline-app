@@ -137,9 +137,18 @@ const watchlistSchema = new mongoose.Schema({
     // The trade this idea became, if it became one.
     journalEntryId: { type: mongoose.Schema.Types.ObjectId, ref: 'JournalEntry' },
 
-    // Set when the watcher acts, so the thread can say when rather than only that.
+    /**
+     * What the watcher saw, and when.
+     *
+     * The price is kept alongside the date because the notification is the only
+     * other place it ever appears, and a notification is gone by morning. Two
+     * days later "your level printed" is a much weaker sentence than "88.40
+     * printed through the 88.00 you named" - and the second one you can check.
+     */
     triggeredAt: { type: Date },
+    triggeredPrice: { type: Number },
     invalidatedAt: { type: Date },
+    invalidatedPrice: { type: Number },
 
     /**
      * Two states, not three.
@@ -195,7 +204,7 @@ watchlistSchema.index(
     { partialFilterExpression: { state: 'watching' } }
 );
 
-/** A name still being watched is the only kind the queue shows. */
+/** A name still being watched is the only kind that can go stale and nag you. */
 watchlistSchema.methods.isLive = function () {
     return this.state === 'watching';
 };

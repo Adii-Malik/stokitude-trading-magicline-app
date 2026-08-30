@@ -79,17 +79,40 @@ export function daysLeft(item, now = Date.now()) {
     return bandFor(item.period).staleDays - daysSince(lastLookAt(item), now);
 }
 
+/** Only a name you are still watching is in the queue at all. */
+export function isLive(item) {
+    return item?.state === 'watching';
+}
+
+/**
+ * Did a level you named actually print?
+ *
+ * True only while the firing is unanswered: the watcher disarms the trigger when
+ * it fires, and setting a new one on your next look clears the flag by replacing
+ * it. So this means "the thing you asked to be woken for happened and you have
+ * not been back since", which is a different and much louder thing than a
+ * horizon quietly running out.
+ */
+export function hasFired(item) {
+    return Boolean(item?.triggeredAt) && !item?.trigger && isLive(item);
+}
+
 /**
  * Is this one asking for you?
  *
- * A dropped name never is. Everything else is due once its horizon has run out
- * since the last look - which for a name you have never looked at is the day
- * you flagged it, so a fresh flag is due almost immediately on a short horizon
- * and can wait a month on a long one.
+ * Only live names are. A dead or dropped or traded name has an answer already,
+ * and one of those nagging you is the fastest way to teach you to stop reading
+ * the badge.
+ *
+ * Everything else is due once its horizon has run out since the last look -
+ * which for a name you have never looked at is the day you flagged it, so a
+ * fresh flag is due almost immediately on a short horizon and can wait a month
+ * on a long one. A fired level is due whatever the clock says: you asked to be
+ * told, and you have not been back.
  */
 export function isDue(item, now = Date.now()) {
-    if (!item || item.state === 'dropped') return false;
-    return daysLeft(item, now) < 0;
+    if (!isLive(item)) return false;
+    return hasFired(item) || daysLeft(item, now) < 0;
 }
 
 /**
@@ -120,14 +143,51 @@ export function tally(items = [], now = Date.now()) {
  */
 export function order(items = [], now = Date.now()) {
     return items
-        .filter((i) => i.state !== 'dropped')
-        .map((i) => ({ item: i, left: daysLeft(i, now) }))
-        .sort((a, b) => a.left - b.left)
+        .filter(isLive)
+        // A fired level outranks any timer. The clock running out is the screen
+        // guessing you have forgotten; a level printing is the thing you
+        // explicitly asked to be interrupted for, and burying it under a name
+        // that is merely late would waste the one alert you set yourself.
+        .map((i) => ({ item: i, fired: hasFired(i), left: daysLeft(i, now) }))
+        .sort((a, b) => (a.fired !== b.fired ? (a.fired ? -1 : 1) : a.left - b.left))
         .map((x) => x.item);
+}
+
+/**
+ * The three things a name can be, on one screen.
+ *
+ * Not three pages: the queue is the work, and the other two are answers you look
+ * back at. Splitting here rather than at the fetch keeps one request and lets
+ * the counts on the tabs be true without a second round trip.
+ */
+export function split(items = [], now = Date.now()) {
+    return {
+        queue: order(items, now),
+        dead: items.filter((i) => i.state === 'invalidated')
+            .sort((a, b) => new Date(b.invalidatedAt || 0) - new Date(a.invalidatedAt || 0)),
+        past: items.filter((i) => i.state === 'dropped' || i.state === 'traded')
+    };
+}
+
+/**
+ * Does this row match what you typed?
+ *
+ * Symbol and sector, because those are the two things you remember about a name
+ * you are hunting for. Notes are deliberately not searched: matching on text
+ * inside a collapsed thread hides the reason the row appeared.
+ */
+export function matches(item, query) {
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    return `${item.symbol} ${item.name || ''} ${item.sector || ''}`.toLowerCase().includes(q);
 }
 
 /** The deadline as a sentence. The rule applied, not printed. */
 export function dueText(item, now = Date.now()) {
+    // A fired level replaces the countdown rather than sitting beside it. "Your
+    // level printed" next to "13 days left" reads as a contradiction, and the
+    // countdown is the half that stopped mattering the moment price got there.
+    if (hasFired(item)) return { text: 'your level printed', tone: 'fired' };
     const left = daysLeft(item, now);
     if (left < 0) return { text: `overdue by ${-left} ${-left === 1 ? 'day' : 'days'}`, tone: 'late' };
     if (left === 0) return { text: 'due today', tone: 'late' };
@@ -160,4 +220,7 @@ export function meterFor(item) {
     };
 }
 
-export default { BANDS, bandFor, daysSince, lastLookAt, daysLeft, isDue, tally, order, dueText, meterFor };
+export default {
+    BANDS, bandFor, daysSince, lastLookAt, daysLeft, isLive, hasFired, isDue,
+    tally, order, split, matches, dueText, meterFor
+};
