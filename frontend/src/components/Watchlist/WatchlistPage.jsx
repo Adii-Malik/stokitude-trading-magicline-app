@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    Bookmark, RefreshCw, Check, X, ArrowUpRight, ChevronDown, Target, Search, Undo2
+    Bookmark, RefreshCw, Check, ArrowUpRight, ChevronDown, Target, Search, Undo2
 } from 'lucide-react';
 import { useWatchlist } from '../../contexts/WatchlistContext';
 import { ChartUpload } from '../common/ChartUpload';
@@ -35,6 +35,16 @@ const DUE_PILL = {
     calm: 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
 };
 
+/** The state of the row, said once, at a size you can read down a column. */
+function Pill({ tone: t, children }) {
+    return (
+        <span className={`inline-flex items-center gap-1.5 rounded-full py-[3px] pl-2.5 pr-3 text-[13px] font-semibold ${DUE_PILL[t]}`}>
+            <span className="h-[7px] w-[7px] rounded-full bg-current" />
+            {children}
+        </span>
+    );
+}
+
 const STRIPE = {
     fired: 'bg-cyan-500',
     late: 'bg-rose-500',
@@ -42,10 +52,27 @@ const STRIPE = {
     calm: 'bg-transparent'
 };
 
-const CHIP = 'rounded px-1.5 py-0.5 text-[11px] font-medium';
 const INPUT = 'rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-cyan-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100';
-const GHOST = 'rounded-lg border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-700 transition hover:border-cyan-500 hover:text-cyan-600 dark:border-gray-600 dark:text-gray-300 dark:hover:text-cyan-400';
-const QUIET = 'rounded-lg px-2.5 py-1 text-xs font-medium text-gray-500 transition hover:text-cyan-600 dark:text-gray-400 dark:hover:text-cyan-400';
+
+/**
+ * Three ranks of button, and they have to look like three ranks.
+ *
+ * Every action on the row used to be an outline or bare text, so the one the
+ * whole feature depends on you pressing read exactly like the disclosure toggle
+ * next to it. Filled for that one, outline for the alternative, quiet for
+ * everything that only reveals something.
+ */
+const BTN = 'inline-flex items-center gap-1.5 rounded-lg px-3.5 py-[7px] text-[13.5px] font-semibold transition';
+const PRIMARY = `${BTN} bg-cyan-500 text-white hover:bg-cyan-600 disabled:opacity-60 dark:bg-cyan-400 dark:text-cyan-950 dark:hover:bg-cyan-300`;
+const OUTLINE = `${BTN} border border-gray-300 font-medium text-gray-800 hover:border-cyan-500 hover:text-cyan-600 dark:border-gray-600 dark:text-gray-200 dark:hover:border-cyan-400 dark:hover:text-cyan-400`;
+const QUIET = 'inline-flex items-center gap-1 rounded-lg px-2 py-[7px] text-[13.5px] font-medium text-gray-400 transition hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-200';
+const DANGER = 'inline-flex items-center gap-1 rounded-lg px-2 py-[7px] text-[13.5px] font-medium text-gray-400 transition hover:text-rose-600 dark:text-gray-500 dark:hover:text-rose-400';
+
+/** The row splits: what you think on the left, what the market says on the right. */
+const ROW = 'relative flex flex-col border-t border-gray-200 first:border-t-0 dark:border-gray-700 sm:flex-row';
+const MAIN = 'min-w-0 flex-1 px-5 py-4 sm:pl-6';
+const PANEL = 'flex w-full shrink-0 flex-col gap-3.5 border-t border-gray-200 bg-gray-50 px-5 py-4 dark:border-gray-700 dark:bg-gray-900/40 sm:w-[262px] sm:border-l sm:border-t-0';
+const PN_LABEL = 'text-[10.5px] font-semibold uppercase tracking-[0.09em] text-gray-400 dark:text-gray-500';
 
 /**
  * How far the name has travelled since you flagged it.
@@ -55,10 +82,10 @@ const QUIET = 'rounded-lg px-2.5 py-1 text-xs font-medium text-gray-500 transiti
  */
 function Drift({ item }) {
     if (item.perfNow == null || item.perfWhenNoticed == null) {
-        return <span className="text-xs text-gray-400 dark:text-gray-500">no quote</span>;
+        return <span className="text-[13px] text-gray-400 dark:text-gray-500">no quote</span>;
     }
     return (
-        <span className="whitespace-nowrap font-mono text-xs tabular-nums text-gray-400 dark:text-gray-500">
+        <span className="whitespace-nowrap font-mono text-[13.5px] tabular-nums text-gray-400 dark:text-gray-500">
             <span className="line-through opacity-70">{pct(item.perfWhenNoticed)}</span>
             {' → '}
             <span className={`font-semibold ${tone(item.perfNow)}`}>{pct(item.perfNow)}</span>
@@ -83,17 +110,50 @@ function Meter({ item }) {
         : m.past === 'trigger' ? 'bg-cyan-500' : 'bg-amber-500';
 
     return (
-        <div className="mt-2.5 max-w-md">
-            <div className="relative h-1.5 rounded-full bg-gradient-to-r from-rose-200 via-gray-100 to-cyan-200 dark:from-rose-500/25 dark:via-gray-700 dark:to-cyan-500/25">
-                <span className={`absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-white dark:ring-gray-800 ${colour}`}
+        <div>
+            <div className={PN_LABEL}>Your levels</div>
+            <div className="relative mt-2 h-1.5 rounded-full bg-gradient-to-r from-rose-200 via-gray-200 to-cyan-200 dark:from-rose-500/30 dark:via-gray-700 dark:to-cyan-500/30">
+                <span className={`absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full ring-[2.5px] ring-gray-50 dark:ring-gray-900 ${colour}`}
                     style={{ left: `${m.at * 100}%` }} />
             </div>
-            <div className="mt-1 flex justify-between font-mono text-[10px] tabular-nums text-gray-400 dark:text-gray-500">
-                <span>{money(m.lo.price)} {m.lo.label}</span>
-                <span className="font-semibold text-gray-600 dark:text-gray-300">now {money(m.now)}</span>
-                <span>{money(m.hi.price)} {m.hi.label}</span>
+            <div className="mt-2 flex justify-between font-mono text-[11.5px] font-semibold tabular-nums text-gray-500 dark:text-gray-400">
+                <span>{money(m.lo.price)}</span>
+                <span>{money(m.hi.price)}</span>
+            </div>
+            {/* The numbers alone do not say which end means what, and getting
+                that backwards is the one misreading that costs money. */}
+            <div className="flex justify-between text-[10.5px] text-gray-400 dark:text-gray-500">
+                <span>{m.lo.label}</span>
+                <span>{m.hi.label}</span>
             </div>
         </div>
+    );
+}
+
+/**
+ * The right-hand column: what the market says, as opposed to what you think.
+ *
+ * This exists because the width existed. Today's price and the drift were the
+ * only live data on the row and they sat at twelve pixels pinned to the far
+ * edge, a thousand pixels from the name they described - so the eye had to cross
+ * an empty field to pair them up. Giving them a bordered column of their own
+ * pairs each number with a label and puts the whole of it under one glance.
+ */
+function Panel({ item, children }) {
+    return (
+        <aside className={PANEL}>
+            <div>
+                <div className={PN_LABEL}>Price now</div>
+                <div className="mt-1 font-mono text-[25px] font-semibold leading-none tracking-tight tabular-nums text-gray-900 dark:text-white">
+                    {item.priceNow == null ? <span className="text-base text-gray-400 dark:text-gray-500">—</span> : money(item.priceNow)}
+                </div>
+            </div>
+            <div>
+                <div className={PN_LABEL}>Since you flagged it</div>
+                <div className="mt-1"><Drift item={item} /></div>
+            </div>
+            {children}
+        </aside>
     );
 }
 
@@ -142,10 +202,9 @@ function ThreadToggle({ looks, label = 'What I thought before' }) {
     if (!looks.length) return null;
     return (
         <>
-            <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open}
-                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-gray-400 hover:text-cyan-600 dark:text-gray-500 dark:hover:text-cyan-400">
+            <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className={QUIET}>
                 {open ? 'Hide' : label}
-                <ChevronDown className={`h-3 w-3 transition-transform ${open ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
             </button>
             {open && (
                 <div className="mt-1 w-full border-l-2 border-gray-200 pl-3 dark:border-gray-700">
@@ -166,7 +225,7 @@ function ThreadToggle({ looks, label = 'What I thought before' }) {
 function Fired({ item }) {
     const look = [...(item.looks || [])].reverse().find((l) => l.trigger);
     return (
-        <div className="mt-2 inline-flex max-w-full items-start gap-2 rounded-lg bg-cyan-50 px-3 py-2 text-sm text-cyan-800 dark:bg-cyan-500/10 dark:text-cyan-200">
+        <div className="mt-3 inline-flex max-w-full items-start gap-2.5 rounded-lg bg-cyan-50 px-3.5 py-2.5 text-[14px] leading-snug text-cyan-800 dark:bg-cyan-500/10 dark:text-cyan-200">
             <Target className="mt-0.5 h-4 w-4 shrink-0" />
             <span>
                 <span className="font-mono font-semibold tabular-nums">{money(item.triggeredPrice)}</span>
@@ -357,28 +416,43 @@ function TradeForm({ item, onSave, onCancel }) {
     );
 }
 
-/** Symbol, name and today's number - the head of every row, whatever its state. */
-function Head({ item, onOpen, right }) {
+/** Symbol and name, the head of every row whatever its state. */
+function Head({ item, onOpen }) {
     return (
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <button type="button" onClick={() => onOpen(item)}
-                className="font-mono text-[15px] font-semibold tracking-tight text-gray-900 hover:text-cyan-600 dark:text-white dark:hover:text-cyan-400">
+                className="font-mono text-[19px] font-semibold tracking-tight text-gray-900 hover:text-cyan-600 dark:text-white dark:hover:text-cyan-400">
                 {item.symbol}
             </button>
-            <span className="min-w-0 flex-1 truncate text-sm text-gray-500 dark:text-gray-400">{item.name}</span>
-            {right}
+            <span className="min-w-0 flex-1 truncate text-[15px] text-gray-500 dark:text-gray-400">{item.name}</span>
         </div>
     );
 }
 
-/** Sector and timeframe, as the chips that took you here. */
+/**
+ * Back to the board you found it on.
+ *
+ * Drawn as a link, with the arrow, because it was drawn as a static grey chip
+ * and nobody presses a label. A control that hides is a control you never use.
+ */
 function Origin({ item, onOpen }) {
     return (
         <button type="button" onClick={() => onOpen(item)}
-            className="inline-flex items-center gap-1.5 text-gray-400 transition hover:text-cyan-600 dark:text-gray-500 dark:hover:text-cyan-400">
-            <span className={`${CHIP} bg-gray-100 dark:bg-gray-700`}>{item.sector}</span>
-            <span className={`${CHIP} bg-gray-100 dark:bg-gray-700`}>{labelOf(item.period).toLowerCase()}</span>
+            className="inline-flex items-center gap-1.5 border-b border-gray-300 text-[13px] text-gray-500 transition hover:border-cyan-500 hover:text-cyan-600 dark:border-gray-600 dark:text-gray-400 dark:hover:border-cyan-400 dark:hover:text-cyan-400">
+            {item.sector} · {labelOf(item.period).toLowerCase()}
+            <ArrowUpRight className="h-3 w-3" />
         </button>
+    );
+}
+
+/** Sector, timeframe and how long since you last looked. */
+function Status({ item, tone: t, label, onOpen, extra }) {
+    return (
+        <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-2">
+            <Pill tone={t}>{label}</Pill>
+            <Origin item={item} onOpen={onOpen} />
+            {extra && <span className="text-[13px] text-gray-400 dark:text-gray-500">{extra}</span>}
+        </div>
     );
 }
 
@@ -390,54 +464,60 @@ function QueueRow({ item, open, setOpen, onLook, onDrop, onOpen, onTrade }) {
     const due = dueText(item);
     const looks = item.looks || [];
     const mode = open?.id === item.id ? open.mode : null;
+    const hasLevels = item.trigger || item.invalidation;
 
     return (
-        <div className="relative border-t border-gray-200 px-4 py-3 first:border-t-0 dark:border-gray-700">
-            <span className={`absolute inset-y-0 left-0 w-[3px] ${STRIPE[due.tone]}`} />
+        <div className={ROW}>
+            <span className={`absolute inset-y-0 left-0 w-1 ${STRIPE[due.tone]}`} />
 
-            <Head item={item} onOpen={onOpen} right={
-                <>
-                    <Drift item={item} />
-                    <button type="button" onClick={() => onDrop(item)} title={`Not interested in ${item.symbol}`}
-                        className="rounded p-1 text-gray-300 opacity-60 hover:bg-gray-100 hover:text-rose-600 hover:opacity-100 dark:text-gray-600 dark:hover:bg-gray-700">
-                        <X className="h-4 w-4" />
-                    </button>
-                </>
-            } />
-
-            <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs">
-                <span className={`${CHIP} ${DUE_PILL[due.tone]}`}>{due.text}</span>
-                <Origin item={item} onOpen={onOpen} />
-                <span className="text-gray-400 dark:text-gray-500">
-                    {looks.length
+            <div className={MAIN}>
+                <Head item={item} onOpen={onOpen} />
+                <Status item={item} onOpen={onOpen} tone={due.tone} label={due.text}
+                    extra={looks.length
                         ? `${looks.length} look${looks.length === 1 ? '' : 's'} · last ${ago(daysSince(lastLookAt(item)))}`
-                        : `flagged ${ago(daysSince(item.noticedAt))}, never looked at`}
-                </span>
+                        : `flagged ${ago(daysSince(item.noticedAt))}, never looked at`} />
+
+                {hasFired(item) && <Fired item={item} />}
+
+                {mode === 'look' && (
+                    <LookForm item={item} onCancel={() => setOpen(null)}
+                        onSave={async (body) => { await onLook(item, body); setOpen(null); }} />
+                )}
+                {mode === 'trade' && (
+                    <TradeForm item={item} onCancel={() => setOpen(null)}
+                        onSave={(body) => onTrade(item, body)} />
+                )}
+
+                {!mode && (
+                    <div className="mt-3.5 flex flex-wrap items-center gap-2">
+                        <button type="button" onClick={() => setOpen({ id: item.id, mode: 'look' })} className={PRIMARY}>
+                            I looked at this
+                        </button>
+                        <button type="button" onClick={() => setOpen({ id: item.id, mode: 'trade' })} className={OUTLINE}>
+                            I bought it
+                        </button>
+                        <ThreadToggle looks={looks} />
+                        {/* Held away from the others on purpose. It is the only
+                            destructive control here, and a thumb's width from
+                            "I bought it" is how you drop a name you meant to keep. */}
+                        <button type="button" onClick={() => onDrop(item)} className={`${DANGER} ml-auto`}>
+                            Not interested
+                        </button>
+                    </div>
+                )}
             </div>
 
-            {hasFired(item) && <Fired item={item} />}
-            {!mode && <Meter item={item} />}
-
-            {mode === 'look' && (
-                <LookForm item={item} onCancel={() => setOpen(null)}
-                    onSave={async (body) => { await onLook(item, body); setOpen(null); }} />
-            )}
-            {mode === 'trade' && (
-                <TradeForm item={item} onCancel={() => setOpen(null)}
-                    onSave={(body) => onTrade(item, body)} />
-            )}
-
-            {!mode && (
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <button type="button" onClick={() => setOpen({ id: item.id, mode: 'look' })} className={GHOST}>
-                        I looked at this
-                    </button>
-                    <button type="button" onClick={() => setOpen({ id: item.id, mode: 'trade' })} className={QUIET}>
-                        I bought it
-                    </button>
-                    <ThreadToggle looks={looks} />
-                </div>
-            )}
+            <Panel item={item}>
+                {hasLevels ? <Meter item={item} /> : (
+                    <p className="text-[12.5px] leading-snug text-gray-400 dark:text-gray-500">
+                        No level armed.{' '}
+                        <button type="button" onClick={() => setOpen({ id: item.id, mode: 'look' })}
+                            className="border-b border-current font-medium text-cyan-600 dark:text-cyan-400">
+                            Set one
+                        </button>
+                    </p>
+                )}
+            </Panel>
         </div>
     );
 }
@@ -453,7 +533,8 @@ function QueueRow({ item, open, setOpen, onLook, onDrop, onOpen, onTrade }) {
 function DeadRow({ item, onRevive, onOpen }) {
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState(null);
-    const level = item.looks?.slice().reverse().find((l) => l.invalidation)?.invalidation;
+    const level = item.looks?.slice().reverse().find((l) => l.invalidation)?.invalidation
+        || item.invalidation;
 
     const revive = async () => {
         setBusy(true);
@@ -467,33 +548,47 @@ function DeadRow({ item, onRevive, onOpen }) {
     };
 
     return (
-        <div className="relative border-t border-gray-200 px-4 py-3 first:border-t-0 dark:border-gray-700">
-            <span className="absolute inset-y-0 left-0 w-[3px] bg-rose-500" />
-            <Head item={item} onOpen={onOpen} right={<Drift item={item} />} />
+        <div className={ROW}>
+            <span className="absolute inset-y-0 left-0 w-1 bg-rose-500" />
 
-            <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs">
-                <span className={`${CHIP} ${DUE_PILL.late}`}>idea closed</span>
-                <Origin item={item} onOpen={onOpen} />
+            <div className={MAIN}>
+                <Head item={item} onOpen={onOpen} />
+                <Status item={item} onOpen={onOpen} tone="late" label="Idea closed"
+                    extra={item.invalidatedAt ? ago(daysSince(item.invalidatedAt)) : null} />
+
+                <p className="mt-3 text-[15px] text-gray-600 dark:text-gray-300">
+                    <span className="font-mono font-semibold tabular-nums">{money(item.invalidatedPrice)}</span>
+                    {level
+                        ? <> printed {level.dir === 'above' ? 'up through' : 'through'} the <span className="font-mono tabular-nums">{money(level.price)}</span> you said would kill it</>
+                        : ' printed through the level you said would kill it'}
+                </p>
+
+                {error && <p className="mt-1.5 text-[13px] text-rose-600 dark:text-rose-400">{error}</p>}
+
+                <div className="mt-3.5 flex flex-wrap items-center gap-2">
+                    <button type="button" onClick={revive} disabled={busy} className={`${OUTLINE} disabled:opacity-60`}>
+                        <Undo2 className="h-4 w-4" /> {busy ? 'Putting it back…' : 'I still like it'}
+                    </button>
+                    <ThreadToggle looks={item.looks || []} label="Why I liked it" />
+                </div>
+                <p className="mt-2 text-[12.5px] text-gray-400 dark:text-gray-500">
+                    Putting it back clears that level — you name a new one on the next look.
+                </p>
             </div>
 
-            <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-                <span className="font-mono font-semibold tabular-nums">{money(item.invalidatedPrice)}</span>
-                {level ? <> printed {level.dir === 'above' ? 'up through' : 'through'} the <span className="font-mono tabular-nums">{money(level.price)}</span> you said would kill it</>
-                    : ' printed through the level you said would kill it'}
-                {item.invalidatedAt && <span className="text-gray-400 dark:text-gray-500"> · {ago(daysSince(item.invalidatedAt))}</span>}
-            </p>
-
-            {error && <p className="mt-1.5 text-xs text-rose-600 dark:text-rose-400">{error}</p>}
-
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-                <button type="button" onClick={revive} disabled={busy} className={`inline-flex items-center gap-1.5 ${GHOST} disabled:opacity-60`}>
-                    <Undo2 className="h-3.5 w-3.5" /> {busy ? 'Putting it back…' : 'I still like it'}
-                </button>
-                <ThreadToggle looks={item.looks || []} label="Why I liked it" />
-            </div>
-            <p className="mt-1.5 text-[11px] text-gray-400 dark:text-gray-500">
-                Putting it back clears that level — you name a new one on the next look.
-            </p>
+            <Panel item={item}>
+                {/* The level, not the price it printed at - the sentence beside
+                    this already says that one, and a panel that repeats the row
+                    is width spent on nothing. */}
+                {level && (
+                    <div>
+                        <div className={PN_LABEL}>The level you named</div>
+                        <div className="mt-1 font-mono text-[15px] font-semibold tabular-nums text-rose-600 dark:text-rose-400">
+                            {money(level.price)} <span className="font-sans text-[12.5px] font-normal text-gray-400 dark:text-gray-500">{level.dir}</span>
+                        </div>
+                    </div>
+                )}
+            </Panel>
         </div>
     );
 }
@@ -502,16 +597,23 @@ function DeadRow({ item, onRevive, onOpen }) {
 function PastRow({ item, onOpen, onRevive, onJournal }) {
     const traded = item.state === 'traded';
     return (
-        <div className="border-t border-gray-200 px-4 py-2.5 first:border-t-0 dark:border-gray-700">
-            <Head item={item} onOpen={onOpen} right={
-                <span className={`${CHIP} ${traded ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'}`}>
-                    {traded ? 'became a trade' : 'passed on'}
+        <div className="border-t border-gray-200 px-5 py-3.5 first:border-t-0 dark:border-gray-700">
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <button type="button" onClick={() => onOpen(item)}
+                    className="font-mono text-[17px] font-semibold tracking-tight text-gray-900 hover:text-cyan-600 dark:text-white dark:hover:text-cyan-400">
+                    {item.symbol}
+                </button>
+                <span className="min-w-0 flex-1 truncate text-[14px] text-gray-500 dark:text-gray-400">{item.name}</span>
+                <span className={`rounded-full px-3 py-[3px] text-[12.5px] font-semibold ${traded
+                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
+                    : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'}`}>
+                    {traded ? 'Became a trade' : 'Passed on'}
                 </span>
-            } />
-            <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs">
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
                 <Origin item={item} onOpen={onOpen} />
                 {item.settledAt && (
-                    <span className="text-gray-400 dark:text-gray-500">{ago(daysSince(item.settledAt))}</span>
+                    <span className="text-[13px] text-gray-400 dark:text-gray-500">{ago(daysSince(item.settledAt))}</span>
                 )}
                 {traded && item.journalEntryId ? (
                     <button type="button" onClick={() => onJournal(item)} className={QUIET}>Open in the journal</button>
