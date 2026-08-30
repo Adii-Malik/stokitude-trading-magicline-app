@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    Bookmark, RefreshCw, Check, ArrowUpRight, ChevronDown, Target, Search, Undo2, History
+    Bookmark, RefreshCw, Check, ArrowUpRight, ChevronDown, Target, Search, Undo2
 } from 'lucide-react';
 import { useWatchlist } from '../../contexts/WatchlistContext';
 import { ChartUpload } from '../common/ChartUpload';
@@ -12,6 +12,22 @@ import { split, kindOf, matches, dueText, daysSince, lastLookAt, meterFor, hasFi
 const labelOf = (period) => TIMEFRAMES.find((t) => t.id === period)?.label || period;
 
 const ago = (days) => (days === 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`);
+
+/**
+ * When something happened, said once.
+ *
+ * The thread printed "31 Aug · today" on every entry - the date and the same
+ * date in words, side by side. Recent things want the relative form because you
+ * think in days; old things want the date because "173 days ago" is not a fact
+ * you can place.
+ */
+const when = (at) => {
+    const days = daysSince(at);
+    if (days < 7) return ago(days);
+    const d = new Date(at);
+    const sameYear = d.getFullYear() === new Date().getFullYear();
+    return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', ...(sameYear ? {} : { year: 'numeric' }) });
+};
 
 const money = (n) => (n == null ? '—' : Number(n).toFixed(2));
 
@@ -157,49 +173,74 @@ function Panel({ item, children }) {
     );
 }
 
-/** Everything you thought about this name, newest first, with the charts. */
-function Thread({ looks }) {
-    if (!looks.length) {
+/** One entry: when, what you thought, and what you were waiting for. */
+function Look({ look }) {
+    return (
+        <div className="flex items-start gap-3">
+            {/* No placeholder when there is no chart. An empty box per look was
+                more of the row than the words were. */}
+            {look.chartUrl && (
+                <a href={look.chartUrl} target="_blank" rel="noreferrer" className="shrink-0">
+                    <img src={look.chartUrl} alt={`Chart from ${new Date(look.at).toDateString()}`}
+                        className="h-14 w-24 rounded border border-gray-200 object-cover dark:border-gray-600" />
+                </a>
+            )}
+            <div className="min-w-0 flex-1">
+                <div className="font-mono text-[11px] text-gray-400 dark:text-gray-500">{when(look.at)}</div>
+                <p className="text-sm text-gray-700 dark:text-gray-300">
+                    {look.note || <span className="italic text-gray-400 dark:text-gray-500">looked, wrote nothing</span>}
+                </p>
+                {(look.trigger || look.invalidation) && (
+                    <p className="mt-0.5 font-mono text-[11px] text-gray-400 dark:text-gray-500">
+                        {look.trigger && `wake me ${look.trigger.dir} ${money(look.trigger.price)}`}
+                        {look.trigger && look.invalidation && ' · '}
+                        {look.invalidation && `dead ${look.invalidation.dir} ${money(look.invalidation.price)}`}
+                    </p>
+                )}
+            </div>
+        </div>
+    );
+}
+
+/**
+ * Everything you thought about this name, newest first, in one list.
+ *
+ * The earlier round belongs in here, not in a box of its own above the buttons.
+ * Two threads on one card, drawn identically, each with its own button reading
+ * "Hide", left you unable to say which was which - and the answer is not a
+ * second label, it is one chronology with the break marked in it. A name you
+ * dropped and picked up again is still one continuous train of thought; only the
+ * record underneath it restarted.
+ */
+function Thread({ looks, prior }) {
+    const ENDED = { invalidated: 'the idea died here', dropped: 'you passed on it here', traded: 'you traded it here' };
+    const earlier = prior?.looks || [];
+
+    if (!looks.length && !earlier.length) {
         return <p className="py-1 text-sm text-gray-400 dark:text-gray-500">Nothing written down yet.</p>;
     }
     return (
         <div className="flex flex-col gap-2.5 py-1">
-            {[...looks].reverse().map((look) => (
-                <div key={look.id} className="flex items-start gap-3">
-                    {/* No placeholder when there is no chart. An empty box per
-                        look was more of the row than the words were. */}
-                    {look.chartUrl && (
-                        <a href={look.chartUrl} target="_blank" rel="noreferrer" className="shrink-0">
-                            <img src={look.chartUrl} alt={`Chart from ${new Date(look.at).toDateString()}`}
-                                className="h-14 w-24 rounded border border-gray-200 object-cover dark:border-gray-600" />
-                        </a>
-                    )}
-                    <div className="min-w-0 flex-1">
-                        <div className="font-mono text-[11px] text-gray-400 dark:text-gray-500">
-                            {new Date(look.at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
-                            {' · '}{ago(daysSince(look.at))}
-                        </div>
-                        <p className="text-sm text-gray-700 dark:text-gray-300">
-                            {look.note || <span className="italic text-gray-400 dark:text-gray-500">looked, wrote nothing</span>}
-                        </p>
-                        {(look.trigger || look.invalidation) && (
-                            <p className="mt-0.5 font-mono text-[11px] text-gray-400 dark:text-gray-500">
-                                {look.trigger && `wake me ${look.trigger.dir} ${money(look.trigger.price)}`}
-                                {look.trigger && look.invalidation && ' · '}
-                                {look.invalidation && `dead ${look.invalidation.dir} ${money(look.invalidation.price)}`}
-                            </p>
-                        )}
-                    </div>
+            {[...looks].reverse().map((look) => <Look key={look.id} look={look} />)}
+
+            {earlier.length > 0 && (
+                <div className="flex items-center gap-2.5 py-0.5 text-[11px] uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                    <span className="h-px flex-1 bg-gray-200 dark:bg-gray-700" />
+                    {ENDED[prior.state] || 'an earlier run'}
+                    {prior.settledAt && <span className="font-mono normal-case tracking-normal">· {when(prior.settledAt)}</span>}
+                    <span className="h-px flex-1 bg-gray-200 dark:bg-gray-700" />
                 </div>
-            ))}
+            )}
+
+            {[...earlier].reverse().map((look) => <Look key={look.id} look={look} />)}
         </div>
     );
 }
 
 /** The thread, behind a disclosure, wherever a row wants to offer it. */
-function ThreadToggle({ looks, label = 'What I thought before' }) {
+function ThreadToggle({ looks, prior, label = 'What I thought before' }) {
     const [open, setOpen] = useState(false);
-    if (!looks.length) return null;
+    if (!looks.length && !prior?.looks?.length) return null;
     return (
         <>
             <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className={QUIET}>
@@ -208,7 +249,7 @@ function ThreadToggle({ looks, label = 'What I thought before' }) {
             </button>
             {open && (
                 <div className="mt-1 w-full border-l-2 border-gray-200 pl-3 dark:border-gray-700">
-                    <Thread looks={looks} />
+                    <Thread looks={looks} prior={prior} />
                 </div>
             )}
         </>
@@ -234,35 +275,6 @@ function Fired({ item }) {
                     : ' printed through the level you named'}
                 {item.triggeredAt && <span className="opacity-70"> · {ago(daysSince(item.triggeredAt))}</span>}
             </span>
-        </div>
-    );
-}
-
-/**
- * You have studied this one before.
- *
- * A re-flagged name is a fresh record on purpose - old levels would arm the
- * watcher against a price you named months ago, and the clock has to restart.
- * But forgetting you were ever here is the exact thing this feature exists to
- * stop, so the old thread comes back, read-only, one line up front.
- */
-function Prior({ prior }) {
-    // Keyed on the stored state, not on kindOf's names for it - they are
-    // different vocabularies and mixing them drops the clause silently.
-    const ended = { invalidated: 'the idea died', dropped: 'you passed on it', traded: 'you traded it' };
-    const when = prior.settledAt
-        ? new Date(prior.settledAt).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
-        : null;
-    return (
-        <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-gray-50 px-3.5 py-2 text-[13.5px] text-gray-500 dark:bg-gray-900/40 dark:text-gray-400">
-            <History className="h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" />
-            <span>
-                You watched this before — {prior.looks.length || 'no'}
-                {prior.looks.length === 1 ? ' look' : ' looks'}
-                {ended[prior.state] ? `, ${ended[prior.state]}` : ''}
-                {when ? ` in ${when}` : ''}.
-            </span>
-            <ThreadToggle looks={prior.looks} label="Read it back" />
         </div>
     );
 }
@@ -502,11 +514,16 @@ function QueueRow({ item, open, setOpen, onLook, onDrop, onOpen, onTrade }) {
             <div className={MAIN}>
                 <Head item={item} onOpen={onOpen} />
                 <Status item={item} onOpen={onOpen} tone={due.tone} label={due.text}
-                    extra={looks.length
-                        ? `${looks.length} look${looks.length === 1 ? '' : 's'} · last ${ago(daysSince(lastLookAt(item)))}`
-                        : `flagged ${ago(daysSince(item.noticedAt))}, never looked at`} />
+                    extra={[
+                        looks.length
+                            ? `${looks.length} look${looks.length === 1 ? '' : 's'} · last ${ago(daysSince(lastLookAt(item)))}`
+                            : `flagged ${ago(daysSince(item.noticedAt))}, never looked at`,
+                        // Two words rather than a panel. That you have been here
+                        // before matters when you open the thread, not while you
+                        // are scanning past the row.
+                        item.prior?.looks?.length ? 'watched before' : null
+                    ].filter(Boolean).join(' · ')} />
 
-                {item.prior && <Prior prior={item.prior} />}
                 {hasFired(item) && <Fired item={item} />}
 
                 {mode === 'look' && (
@@ -526,7 +543,7 @@ function QueueRow({ item, open, setOpen, onLook, onDrop, onOpen, onTrade }) {
                         <button type="button" onClick={() => setOpen({ id: item.id, mode: 'trade' })} className={OUTLINE}>
                             I bought it
                         </button>
-                        <ThreadToggle looks={looks} />
+                        <ThreadToggle looks={looks} prior={item.prior} />
                         {/* Held away from the others on purpose. It is the only
                             destructive control here, and a thumb's width from
                             "I bought it" is how you drop a name you meant to keep. */}
