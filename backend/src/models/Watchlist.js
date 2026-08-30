@@ -112,13 +112,6 @@ const watchlistSchema = new mongoose.Schema({
         enum: PERIODS.map(p => p.id)
     },
 
-    // The other boards it turned up on afterwards. Noticing a name again is
-    // worth a word on the row, never a second row.
-    alsoSeenOn: {
-        type: [{ type: String, enum: PERIODS.map(p => p.id) }],
-        default: []
-    },
-
     noticedAt: {
         type: Date,
         default: Date.now

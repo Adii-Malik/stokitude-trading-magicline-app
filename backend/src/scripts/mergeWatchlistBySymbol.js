@@ -53,7 +53,6 @@ async function main() {
         const [keep, ...merge] = docs;
 
         const looks = docs.flatMap(d => d.looks || []).sort((a, b) => new Date(a.at) - new Date(b.at));
-        const boards = [...new Set(docs.map(d => d.period))].filter(p => p !== keep.period);
 
         // The survivor's own levels stand. Only a record with none inherits, and
         // then from the most recently noticed - a price named later is the one
@@ -62,16 +61,11 @@ async function main() {
         const trigger = keep.trigger || (keep.invalidation ? null : donor?.trigger) || null;
         const invalidation = keep.invalidation || (keep.trigger ? null : donor?.invalidation) || null;
 
-        console.log(`  ${keep.symbol}: ${docs.length} rows -> 1 (${looks.length} looks, boards: ${[keep.period, ...boards].join(', ')})`);
+        console.log(`  ${keep.symbol}: ${docs.length} rows -> 1 (${looks.length} looks)`);
         if (dry) continue;
 
         await col.updateOne({ _id: keep._id }, {
-            $set: {
-                looks,
-                trigger,
-                invalidation,
-                alsoSeenOn: [...new Set([...(keep.alsoSeenOn || []), ...boards])]
-            }
+            $set: { looks, trigger, invalidation }
         });
         await col.deleteMany({ _id: { $in: merge.map(d => d._id) } });
     }

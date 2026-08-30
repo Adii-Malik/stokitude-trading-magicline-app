@@ -6,10 +6,7 @@ import {
 import { useWatchlist } from '../../contexts/WatchlistContext';
 import { ChartUpload } from '../common/ChartUpload';
 import { pct, tone, toSlug } from '../Heatmap/heatmapData';
-import { TIMEFRAMES } from '../Heatmap/heatmapConfig';
 import { split, kindOf, matches, statusOf, daysSince, daysIdle, meterFor, hasFired } from './horizons';
-
-const labelOf = (period) => TIMEFRAMES.find((t) => t.id === period)?.label || period;
 
 const ago = (days) => (days === 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`);
 
@@ -471,18 +468,24 @@ function Head({ item, onOpen }) {
 }
 
 /**
- * Back to the board you found it on.
+ * Back to the sector you found it in.
  *
- * Drawn as a link, with the arrow, because it was drawn as a static grey chip
- * and nobody presses a label. A control that hides is a control you never use.
+ * The board's timeframe used to be printed here too. It stopped meaning
+ * anything the moment a flag became one per stock: it is not the identity, it
+ * no longer sets a deadline, and a name flagged off the monthly board is the
+ * same name you would have flagged off the yearly one. Printing it implied a
+ * distinction the record does not make. It still decides which board this
+ * opens, and which column the drift is read from - both jobs it can do without
+ * being on screen.
+ *
+ * Drawn as a link, with the arrow, because it was a static grey chip and nobody
+ * presses a label. A control that hides is a control you never use.
  */
 function Origin({ item, onOpen }) {
     return (
         <button type="button" onClick={() => onOpen(item)}
             className="inline-flex items-center gap-1.5 border-b border-gray-300 text-[13px] text-gray-500 transition hover:border-cyan-500 hover:text-cyan-600 dark:border-gray-600 dark:text-gray-400 dark:hover:border-cyan-400 dark:hover:text-cyan-400">
-            {item.sector} · {labelOf(item.period).toLowerCase()}
-            {/* Flagging the same name off another board adds a word, not a row. */}
-            {item.alsoSeenOn?.length > 0 && `, also ${item.alsoSeenOn.map((p) => labelOf(p).toLowerCase()).join(', ')}`}
+            {item.sector}
             <ArrowUpRight className="h-3 w-3" />
         </button>
     );

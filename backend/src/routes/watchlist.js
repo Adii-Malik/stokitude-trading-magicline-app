@@ -101,7 +101,6 @@ const shape = (doc, quote, prior) => ({
     name: doc.name,
     sector: doc.sector,
     period: doc.period,
-    alsoSeenOn: doc.alsoSeenOn || [],
     noticedAt: doc.noticedAt,
     perfWhenNoticed: doc.perfWhenNoticed,
     priceWhenNoticed: doc.priceWhenNoticed,
@@ -188,22 +187,12 @@ router.post('/', async (req, res) => {
         /**
          * Already watching it, whichever board you were on.
          *
-         * Noticing PRL again off the yearly board is not a second study of PRL -
-         * it is the same name turning up somewhere else, which is worth a word
-         * on the row and nothing more. The original record keeps its thread, its
-         * levels and its clock.
+         * Noticing PRL again off the yearly board is not a second study of PRL,
+         * it is the same name turning up somewhere else. The original record is
+         * returned untouched, keeping its thread, its levels and its clock.
          */
-        const existing = await Watchlist.findOneAndUpdate(
-            key,
-            period ? { $addToSet: { alsoSeenOn: period } } : {},
-            { new: true }
-        ).lean();
+        const existing = await Watchlist.findOne(key).lean();
         if (existing) {
-            // The board you first found it on is not "also seen on".
-            if (existing.period === period && existing.alsoSeenOn?.includes(period)) {
-                await Watchlist.updateOne({ _id: existing._id }, { $pull: { alsoSeenOn: period } });
-                existing.alsoSeenOn = existing.alsoSeenOn.filter((p) => p !== period);
-            }
             const quote = (await quotes()).get(existing.symbol);
             return res.json({ success: true, data: shape(existing, quote) });
         }
