@@ -21,6 +21,16 @@ router.use(authenticate);
  * to make itself go away. History sorts by when each name settled, so one the
  * watcher closed on Tuesday sits at the top on Wednesday and sinks on its own.
  */
+/**
+ * The window a hand-added name is compared over.
+ *
+ * The period stopped being identity and stopped setting any deadline; all it
+ * still decides is which drift column the row reads and which board its link
+ * opens. A month is the sane default for both, and because the screen no longer
+ * prints the timeframe, defaulting it claims nothing that is not true.
+ */
+const DEFAULT_PERIOD = 'Perf.1M';
+
 const LIVE = ['watching'];
 const PAST = ['invalidated', 'dropped', 'traded'];
 
@@ -95,6 +105,18 @@ function lastLookOf(doc) {
     return doc.resumedAt && doc.resumedAt > last ? doc.resumedAt : last;
 }
 
+/** One name off the board, with its sector. Null when the board has never heard of it. */
+async function fromBoard(symbol) {
+    try {
+        const board = await sectorPerformance();
+        for (const sector of board.sectors) {
+            const hit = sector.stocks.find((s) => s.symbol.toUpperCase() === symbol);
+            if (hit) return { ...hit, sector: sector.sector };
+        }
+    } catch { /* the board being down is not a reason to refuse a flag */ }
+    return null;
+}
+
 const shape = (doc, quote, prior) => ({
     id: doc._id,
     symbol: doc.symbol,
@@ -162,6 +184,51 @@ router.get('/', async (req, res) => {
 });
 
 /**
+ * GET /api/watchlist/search?q= - find a name to flag, from anywhere.
+ *
+ * The flag button only ever existed on a sector row, which meant flagging a name
+ * you were already staring at on a chart required working out its sector, opening
+ * that board, and finding the row - three steps to record one thought, at exactly
+ * the moment the thought is worth recording.
+ *
+ * Backed by the board rather than the warehouse: the board already carries the
+ * sector, the price and the performance a flag wants, for every listed company
+ * and for both markets, and it is cached for five minutes. The warehouse holds
+ * PSX only, so searching it would silently fail on every US name.
+ */
+router.get('/search', async (req, res) => {
+    try {
+        const q = String(req.query.q || '').trim().toUpperCase();
+        if (q.length < 1) return res.json({ success: true, data: [] });
+
+        const board = await sectorPerformance();
+        const hits = [];
+        for (const sector of board.sectors) {
+            for (const stock of sector.stocks) {
+                const symbol = stock.symbol.toUpperCase();
+                const name = (stock.name || '').toUpperCase();
+                if (!symbol.includes(q) && !name.includes(q)) continue;
+                hits.push({
+                    symbol: stock.symbol,
+                    name: stock.name,
+                    sector: sector.sector,
+                    close: stock.close ?? null,
+                    perf: stock.perf?.[DEFAULT_PERIOD] ?? null,
+                    // A symbol that starts with what you typed is what you meant.
+                    rank: symbol.startsWith(q) ? 0 : symbol.includes(q) ? 1 : 2
+                });
+            }
+        }
+
+        hits.sort((a, b) => (a.rank - b.rank) || a.symbol.localeCompare(b.symbol));
+        res.json({ success: true, data: hits.slice(0, 12).map(({ rank, ...h }) => h) });
+    } catch (error) {
+        console.error('Error searching for a name:', error);
+        res.status(500).json({ success: false, message: 'Could not search right now' });
+    }
+});
+
+/**
  * POST /api/watchlist - flag a name.
  *
  * Idempotent by the same key the index enforces, because the caller is a toggle
@@ -170,11 +237,8 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
     try {
         const { symbol, name, sector, period, perf, price, tag } = req.body || {};
-        if (!symbol || !sector || !period) {
-            return res.status(400).json({
-                success: false,
-                message: 'symbol, sector and period are required'
-            });
+        if (!symbol) {
+            return res.status(400).json({ success: false, message: 'A symbol is required' });
         }
 
         const key = {
@@ -197,15 +261,43 @@ router.post('/', async (req, res) => {
             return res.json({ success: true, data: shape(existing, quote) });
         }
 
+        /**
+         * Whatever the caller did not send, the board knows.
+         *
+         * A flag off a sector row arrives complete. One typed into the search box
+         * arrives as a symbol and nothing else - and the sector, the name, the
+         * price and the performance are all sitting in a board this process
+         * already has cached.
+         */
+        let filled = { name, sector, perf, price };
+        if (!sector || price == null || perf == null || !name) {
+            const found = await fromBoard(key.symbol);
+            if (found) {
+                filled = {
+                    name: name || found.name,
+                    sector: sector || found.sector,
+                    perf: perf ?? found.perf?.[period || DEFAULT_PERIOD] ?? null,
+                    price: price ?? found.close ?? null
+                };
+            }
+        }
+
+        if (!filled.sector) {
+            return res.status(422).json({
+                success: false,
+                message: `We do not have a sector for ${key.symbol} on this market`
+            });
+        }
+
         const doc = await Watchlist.create({
             user: req.user._id,
             market: currentMarket(),
-            symbol,
-            name,
-            sector,
-            period,
-            perfWhenNoticed: perf ?? null,
-            priceWhenNoticed: price ?? null,
+            symbol: key.symbol,
+            name: filled.name,
+            sector: filled.sector,
+            period: period || DEFAULT_PERIOD,
+            perfWhenNoticed: filled.perf ?? null,
+            priceWhenNoticed: filled.price ?? null,
             tag: tag || undefined
         });
 

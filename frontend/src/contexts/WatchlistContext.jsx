@@ -57,6 +57,12 @@ export function WatchlistProvider({ children }) {
         return data.data;
     }, []);
 
+    /** Find a name to flag, from the board rather than only from a sector row. */
+    const search = useCallback(async (q) => {
+        const { data } = await api.get('/watchlist/search', { params: { q } });
+        return data.data || [];
+    }, []);
+
     const unflag = useCallback(async (id) => {
         await api.delete(`/watchlist/${id}`);
         setItems((prev) => prev.filter((i) => i.id !== id));
@@ -134,9 +140,9 @@ export function WatchlistProvider({ children }) {
     const counts = useMemo(() => tally(items), [items]);
 
     const value = useMemo(() => ({
-        items, loading, error, reload, flag, unflag, remove, update, look, trade, flagged, counts,
+        items, loading, error, reload, flag, search, unflag, remove, update, look, trade, flagged, counts,
         flagOf: (symbol) => flagged.get(symbol) || null
-    }), [items, loading, error, reload, flag, unflag, remove, update, look, trade, flagged, counts]);
+    }), [items, loading, error, reload, flag, search, unflag, remove, update, look, trade, flagged, counts]);
 
     return <WatchlistContext.Provider value={value}>{children}</WatchlistContext.Provider>;
 }

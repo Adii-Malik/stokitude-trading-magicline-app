@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    Bookmark, RefreshCw, Check, ArrowUpRight, ChevronDown, Target, Search, Undo2
+    Bookmark, RefreshCw, Check, ArrowUpRight, ChevronDown, Target, Search, Undo2, Plus
 } from 'lucide-react';
 import { useWatchlist } from '../../contexts/WatchlistContext';
 import { ChartUpload } from '../common/ChartUpload';
@@ -666,6 +666,92 @@ function PastRow({ item, onOpen, onRevive, onJournal }) {
 
 const traded = (item) => item.state === 'traded' && item.journalEntryId;
 
+/**
+ * Flag a name you are already looking at, without going to find it first.
+ *
+ * The button used to live only on a sector row, so recording "I like this chart"
+ * meant working out the sector, opening that board and hunting the row down -
+ * three steps between the thought and the record, at exactly the moment the
+ * thought is worth keeping. Type the symbol instead.
+ */
+function AddByName({ onAdd }) {
+    const [open, setOpen] = useState(false);
+    const [q, setQ] = useState('');
+    const [hits, setHits] = useState([]);
+    const [busy, setBusy] = useState(null);
+    const [error, setError] = useState(null);
+    const { search } = useWatchlist();
+    const box = useRef(null);
+
+    useEffect(() => { if (open) box.current?.focus(); }, [open]);
+
+    // Debounced, because the board is searched on every keystroke otherwise and
+    // the answers would arrive out of order.
+    useEffect(() => {
+        if (!q.trim()) { setHits([]); return; }
+        let live = true;
+        const t = setTimeout(async () => {
+            try {
+                const found = await search(q);
+                if (live) setHits(found);
+            } catch { if (live) setHits([]); }
+        }, 180);
+        return () => { live = false; clearTimeout(t); };
+    }, [q, search]);
+
+    const add = async (hit) => {
+        setBusy(hit.symbol);
+        setError(null);
+        try {
+            await onAdd(hit);
+            setQ(''); setHits([]); setOpen(false);
+        } catch (e) {
+            setError(e.response?.data?.message || `Could not flag ${hit.symbol}`);
+        } finally {
+            setBusy(null);
+        }
+    };
+
+    if (!open) {
+        return (
+            <button type="button" onClick={() => setOpen(true)} className={OUTLINE}>
+                <Plus className="h-4 w-4" /> Add a name
+            </button>
+        );
+    }
+
+    return (
+        <div className="relative">
+            <input ref={box} type="text" value={q} onChange={(e) => setQ(e.target.value)}
+                onKeyDown={(e) => {
+                    if (e.key === 'Escape') { setOpen(false); setQ(''); }
+                    if (e.key === 'Enter' && hits.length) add(hits[0]);
+                }}
+                placeholder="Symbol or company" aria-label="Find a name to flag"
+                className={`w-56 ${INPUT}`} />
+
+            {(hits.length > 0 || q.trim()) && (
+                <div className="absolute right-0 z-30 mt-1 w-80 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                    {hits.map((hit) => (
+                        <button key={hit.symbol} type="button" onClick={() => add(hit)} disabled={busy === hit.symbol}
+                            className="flex w-full items-baseline gap-2.5 px-3.5 py-2.5 text-left transition hover:bg-gray-50 disabled:opacity-60 dark:hover:bg-gray-700">
+                            <span className="font-mono text-sm font-semibold text-gray-900 dark:text-white">{hit.symbol}</span>
+                            <span className="min-w-0 flex-1 truncate text-[13px] text-gray-500 dark:text-gray-400">{hit.name}</span>
+                            <span className="shrink-0 text-[11px] text-gray-400 dark:text-gray-500">{hit.sector}</span>
+                        </button>
+                    ))}
+                    {!hits.length && (
+                        <p className="px-3.5 py-3 text-[13px] text-gray-400 dark:text-gray-500">
+                            Nothing on this market matches “{q.trim()}”.
+                        </p>
+                    )}
+                </div>
+            )}
+            {error && <p className="absolute right-0 mt-1 text-[12px] text-rose-600 dark:text-rose-400">{error}</p>}
+        </div>
+    );
+}
+
 /** One tab. Absent rather than zero: an empty tab is a thing to rule out. */
 function Tab({ id, label, count, active, onClick }) {
     return (
@@ -729,7 +815,7 @@ function Kinds({ items, value, onChange }) {
  */
 export default function WatchlistPage() {
     const navigate = useNavigate();
-    const { items, loading, error, reload, remove, update, look, trade, counts } = useWatchlist();
+    const { items, loading, error, reload, flag, remove, update, look, trade, counts } = useWatchlist();
     const [open, setOpen] = useState(null);
     const [tab, setTab] = useState('queue');
     const [kind, setKind] = useState('all');
@@ -773,11 +859,15 @@ export default function WatchlistPage() {
                             Shortlist
                         </h1>
                         <p className="mt-1 max-w-xl text-sm text-gray-500 dark:text-gray-400">
-                            Names you flagged off the heatmap, the ones needing a look first.
-                            Paste the chart and it remembers what you were looking at.
+                            Names worth a second look — flagged off a sector board or typed in
+                            from wherever you found them. Paste the chart and it remembers what
+                            you were looking at.
                         </p>
                     </div>
                     <div className="flex items-center gap-3">
+                        <AddByName onAdd={(hit) => flag({
+                            symbol: hit.symbol, name: hit.name, sector: hit.sector, price: hit.close, perf: hit.perf
+                        })} />
                         {counts.due > 0 && (
                             <span className="rounded-full bg-rose-50 px-3 py-1 text-sm font-semibold text-rose-600 dark:bg-rose-900/30 dark:text-rose-400">
                                 {counts.due} need{counts.due === 1 ? 's' : ''} you
