@@ -1,282 +1,389 @@
-import { useState, useEffect } from 'react';
-import {
-  Target, TrendingUp, Activity, CheckCircle, XCircle, Clock, Award, ArrowUpRight
-} from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { RefreshCw, ShieldAlert, Target, ArrowRight } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { useWatchlist } from '../contexts/WatchlistContext';
+import { hasFired } from './Watchlist/horizons';
 import api from '../services/api';
 
-export default function Dashboard() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
+/**
+ * The first screen, and it gets about five seconds.
+ *
+ * What was here answered "what are my numbers" out of a single endpoint - three
+ * counts, a panel repeating two of them, and a gradient describing the product
+ * to the person already using it. It knew nothing about the book, the shortlist
+ * or the board.
+ *
+ * What replaced it answers "what do I do now", in the order you would ask it:
+ * what am I worth, is anything wrong, which door do I walk through. Anything
+ * that is detail rather than a decision moved below the fold, because a screen
+ * answering every question at once is a report, and a report does not get read
+ * at eight in the morning.
+ */
 
-  const [stats, setStats] = useState(null);
-  const [recent, setRecent] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+const money = (n, dp = 0) => (n == null ? '—' : Number(n).toLocaleString(undefined, {
+    minimumFractionDigits: dp, maximumFractionDigits: dp
+}));
 
-  useEffect(() => {
-    loadDashboardStats();
-  }, []);
+const signed = (n) => (n == null ? '—' : `${n >= 0 ? '+' : '−'}${money(Math.abs(n))}`);
 
-  const loadDashboardStats = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+const LABEL = 'text-[12.5px] font-semibold text-gray-500 dark:text-gray-400';
 
-      const [statsRes, recentRes] = await Promise.all([
-        api.get('/journal/stats'),
-        api.get('/journal', { params: { status: 'closed', sort: 'recent', limit: 5 } })
-      ]);
+/** One thing being wrong, said with the number that makes it matter. */
+function Alert({ tone, icon: Icon, headline, detail, action, onAct }) {
+    const skin = tone === 'fired'
+        ? 'border-cyan-500 bg-cyan-50 dark:bg-cyan-500/10'
+        : 'border-rose-500 bg-rose-50 dark:bg-rose-500/10';
+    const ink = tone === 'fired' ? 'text-cyan-700 dark:text-cyan-300' : 'text-rose-600 dark:text-rose-400';
 
-      setStats(statsRes.data.data);
-      setRecent(recentRes.data.data || []);
-    } catch (err) {
-      console.error('Error loading dashboard stats:', err);
-      setError('Failed to load dashboard statistics');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // One market, so these are simply the figures. This used to sum counts across
-  // currencies and keep money out entirely, because adding PKR to USD is not a
-  // number - a problem that stopped existing when the app began being scoped to
-  // one market at a time.
-  const totals = {
-    wins: stats?.wins || 0,
-    losses: stats?.losses || 0,
-    closed: stats?.closedTrades || 0,
-    open: stats?.openTrades || 0
-  };
-
-  // Over trades that finished, not over everything ever recorded. The old
-  // version divided by total plans, which quietly understated the rate.
-  const winRate = totals.closed > 0
-    ? ((totals.wins / totals.closed) * 100).toFixed(1)
-    : 0;
-
-  // Read off the entries, never typed. Null rather than zero when there is
-  // nothing closed, so the line can be left out instead of claiming 0%.
-  const stopSet = stats?.process?.stopSet;
-  const stopRate = stopSet?.of > 0 ? Math.round((stopSet.n / stopSet.of) * 100) : null;
-
-  if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <Activity className="w-12 h-12 text-cyan-500 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-400">Loading dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
-              Dashboard
-            </h1>
-            <button
-              onClick={() => loadDashboardStats()}
-              disabled={loading}
-              className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg transition flex items-center gap-2 disabled:opacity-50"
-            >
-              <Activity className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
+        <div className={`mt-6 flex flex-wrap items-center gap-4 rounded-xl border border-l-4 px-5 py-4 ${skin}`}>
+            <Icon className={`h-5 w-5 shrink-0 ${ink}`} />
+            <div className="min-w-[280px] flex-1">
+                <p className="text-[15px] text-gray-900 dark:text-white">{headline}</p>
+                <p className="mt-0.5 text-[13px] text-gray-500 dark:text-gray-400">{detail}</p>
+            </div>
+            <button type="button" onClick={onAct}
+                className="rounded-lg bg-cyan-500 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-cyan-600 dark:bg-cyan-400 dark:text-cyan-950 dark:hover:bg-cyan-300">
+                {action}
             </button>
-          </div>
-          <p className="text-gray-600 dark:text-gray-400">
-            Welcome back, <span className="font-semibold">{user?.username}</span>! Here's your trading overview.
-          </p>
         </div>
-
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-          </div>
-        )}
-
-        {/* Stats Overview */}
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                <Activity className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{totals.open}</p>
-                <p className="text-xs text-gray-600 dark:text-gray-400">Open Trades</p>
-              </div>
-            </div>
-            <div className="text-xs text-gray-500 dark:text-gray-500">
-              {stats?.openWithoutStop
-                ? `${stats.openWithoutStop} with no stop set`
-                : totals.open ? 'all with a stop set' : 'nothing running'}
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-green-600 dark:text-green-400">{totals.wins}</p>
-                <p className="text-xs text-gray-600 dark:text-gray-400">Wins</p>
-              </div>
-            </div>
-            <div className="text-xs text-gray-500 dark:text-gray-500">
-              {winRate}% of {totals.closed} closed
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
-                <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-red-600 dark:text-red-400">{totals.losses}</p>
-                <p className="text-xs text-gray-600 dark:text-gray-400">Losses</p>
-              </div>
-            </div>
-            <div className="text-xs text-gray-500 dark:text-gray-500">
-              {stopRate == null ? 'no closed trades yet' : `${stopRate}% had a stop set`}
-            </div>
-          </div>
-        </div>
-
-        {/* Main Sections */}
-        <div className="grid grid-cols-1 gap-6 mb-8">
-          {/* Journal */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                  <Target className="w-5 h-5 text-purple-500" />
-                  Journal
-                </h2>
-                <button
-                  onClick={() => navigate('/journal')}
-                  className="text-purple-500 hover:text-purple-600 text-sm font-medium flex items-center gap-1"
-                >
-                  View All
-                  <ArrowUpRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            {stats && (
-              <div className="p-6">
-                <div className="space-y-3 mb-4">
-                  <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Open</span>
-                    <span className="text-lg font-bold text-blue-600 dark:text-blue-400">{totals.open}</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900/40 rounded-lg">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Closed</span>
-                    <span className="text-lg font-bold text-gray-600 dark:text-gray-300">{totals.closed}</span>
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                  <div className="flex justify-between text-sm mb-2">
-                    <span className="text-gray-600 dark:text-gray-400">Win Rate</span>
-                    <span className="font-semibold text-gray-900 dark:text-white">{winRate}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                    <div
-                      className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-500"
-                      style={{ width: `${winRate}%` }}
-                    ></div>
-                  </div>
-                  {/* Outcome and process are separate questions, so both are
-                      shown. This one is read off the entries rather than from
-                      anything the trader typed, so it cannot be true by default. */}
-                  {stopRate != null && (
-                    <div className="flex justify-between text-sm mt-3">
-                      <span className="text-gray-600 dark:text-gray-400">Had a stop set</span>
-                      <span className="font-semibold text-gray-900 dark:text-white">{stopRate}%</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Recent Activity */}
-        <div className="grid grid-cols-1 gap-6 mb-8">
-          {/* Recent Trade Outcomes */}
-          {recent.length > 0 && (
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-              <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                  <Award className="w-5 h-5 text-purple-500" />
-                  Recent Trade Outcomes
-                </h2>
-              </div>
-              <div className="p-6">
-                <div className="space-y-3">
-                  {recent.map((trade) => (
-                    <div
-                      key={trade._id}
-                      className={`flex items-center justify-between p-3 rounded-lg ${trade.outcome === 'win'
-                        ? 'bg-green-50 dark:bg-green-900/20'
-                        : trade.outcome === 'loss'
-                          ? 'bg-red-50 dark:bg-red-900/20'
-                          : 'bg-gray-50 dark:bg-gray-900/50'
-                        }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        {trade.outcome === 'win' ? (
-                          <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
-                        ) : trade.outcome === 'loss' ? (
-                          <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
-                        ) : (
-                          <Clock className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-                        )}
-                        <div>
-                          <p className="font-medium text-gray-900 dark:text-white">{trade.symbol}</p>
-                          {/* The lesson if there is one - it is the reason the entry exists. */}
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {trade.lesson || trade.exitReason || '—'}
-                          </p>
-                        </div>
-                      </div>
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        {trade.exitDate ? new Date(trade.exitDate).toLocaleDateString() : '—'}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Info Banner */}
-        <div className="bg-gradient-to-r from-cyan-500 to-blue-500 rounded-xl shadow-lg p-6 text-white">
-          <div className="flex items-start gap-4">
-            <div className="flex-shrink-0">
-              <TrendingUp className="w-8 h-8" />
-            </div>
-            <div>
-              <h3 className="text-xl font-bold mb-2">Financial Reading Analytics</h3>
-              <p className="text-cyan-100">
-                Levels you are watching are checked against live prices on every poll, and
-                you are told when one is reached. Outcome and process are tracked apart:
-                a loss that followed the plan is not a mistake, and a win that broke it is luck.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+    );
 }
+
+/** A door, carrying the one number that says whether to walk through it. */
+function Door({ label, count, detail, hot, onClick }) {
+    return (
+        <button type="button" onClick={onClick}
+            className={`rounded-xl border px-5 py-4 text-left transition hover:border-cyan-500 hover:bg-gray-50 dark:hover:bg-gray-700/40 ${
+                hot ? 'border-amber-400 dark:border-amber-500/60' : 'border-gray-200 dark:border-gray-700'
+            }`}>
+            <span className={`flex items-center justify-between ${LABEL}`}>
+                {label}<ArrowRight className="h-3.5 w-3.5 text-gray-300 dark:text-gray-600" />
+            </span>
+            <span className={`mt-2.5 block font-mono text-[30px] font-semibold leading-none tracking-tight ${
+                count == null ? 'text-gray-300 dark:text-gray-600'
+                    : hot ? 'text-amber-600 dark:text-amber-400' : 'text-gray-900 dark:text-white'
+            }`}>
+                {count == null ? '—' : count}
+            </span>
+            <span className="mt-1.5 block text-[13px] leading-snug text-gray-500 dark:text-gray-400">{detail}</span>
+        </button>
+    );
+}
+
+/** The only thing on the screen that changes daily. */
+function Sectors({ rows, onOpen }) {
+    if (!rows.length) return null;
+    const biggest = Math.max(...rows.map((r) => Math.abs(r.change)));
+    return (
+        <div className="mt-6 border-t border-gray-200 pt-5 dark:border-gray-700">
+            <div className="mb-3.5 flex items-baseline justify-between">
+                <span className={LABEL}>Sectors moving today</span>
+                <button type="button" onClick={onOpen}
+                    className="text-[13px] font-medium text-cyan-600 hover:text-cyan-700 dark:text-cyan-400">
+                    Heatmap →
+                </button>
+            </div>
+            <div className="flex flex-col gap-2.5">
+                {rows.map((r) => (
+                    <div key={r.sector} className="flex items-center gap-3">
+                        <span className="w-32 shrink-0 truncate font-mono text-[12px] font-semibold text-gray-900 dark:text-white">
+                            {r.sector}
+                        </span>
+                        <span className="h-[7px] flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
+                            <i className={`block h-full rounded-full ${r.change >= 0 ? 'bg-emerald-500' : 'bg-rose-500'}`}
+                                style={{ width: `${Math.max(4, (Math.abs(r.change) / biggest) * 100)}%` }} />
+                        </span>
+                        <span className={`w-16 shrink-0 text-right font-mono text-[13px] ${
+                            r.change >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+                        }`}>
+                            {r.change >= 0 ? '+' : '−'}{Math.abs(r.change).toFixed(2)}%
+                        </span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+/** A panel below the fold: a figure, the proportion drawn, one sentence. */
+function Deeper({ title, figure, unit, segments, children }) {
+    return (
+        <div>
+            <p className={`${LABEL} mb-3`}>{title}</p>
+            <p className="font-mono text-[28px] font-semibold leading-none tracking-tight text-gray-900 dark:text-white">
+                {figure}
+                {unit && <span className="ml-1.5 font-sans text-[13px] font-medium text-gray-500 dark:text-gray-400">{unit}</span>}
+            </p>
+            {segments && (
+                <span className="mt-3 flex h-[7px] overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
+                    {segments.map((seg, i) => (
+                        <i key={i} className={`block h-full ${seg.c}`} style={{ width: `${seg.w}%` }} />
+                    ))}
+                </span>
+            )}
+            <p className="mt-2.5 text-[13px] leading-snug text-gray-500 dark:text-gray-400">{children}</p>
+        </div>
+    );
+}
+
+export default function Dashboard() {
+    const { user } = useAuth();
+    const navigate = useNavigate();
+    const { items, counts } = useWatchlist();
+
+    const [book, setBook] = useState(null);
+    const [stats, setStats] = useState(null);
+    const [open, setOpen] = useState([]);
+    const [sectors, setSectors] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    const load = async () => {
+        setLoading(true);
+        try {
+            const [ports, statsRes, openRes] = await Promise.all([
+                api.get('/portfolios').catch(() => null),
+                api.get('/journal/stats').catch(() => null),
+                api.get('/journal', { params: { state: 'open' } }).catch(() => null)
+            ]);
+
+            const list = ports?.data?.data || [];
+            const boards = await Promise.all(
+                list.map((p) => api.get(`/portfolios/${p._id}/dashboard`)
+                    .then((r) => ({ ...r.data.data, currency: p.currency }))
+                    .catch(() => null))
+            );
+            const live = boards.filter(Boolean);
+            setBook(live.length ? live.reduce(sumBooks) : null);
+            setStats(statsRes?.data?.data || null);
+            setOpen(openRes?.data?.data || []);
+
+            // The board is asked for last and on its own: it is a live scanner
+            // call, and a slow morning at TradingView is not a reason for the
+            // screen to have no numbers on it.
+            const board = await api.get('/heatmap/sectors').catch(() => null);
+            setSectors(topMovers(board?.data?.data?.sectors || []));
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => { load(); }, []);
+
+    const account = book ? (book.totalValue || 0) + (book.cashBalance || 0) : null;
+    const cashPct = account ? Math.round((book.cashBalance / account) * 100) : null;
+
+    const fired = useMemo(() => items.filter(hasFired), [items]);
+    const naked = useMemo(() => open.filter((t) => t.plannedStop == null), [open]);
+    const exposure = naked.reduce((a, t) => a + (t.entryPrice || 0) * (t.quantity || 0), 0);
+
+    /**
+     * One alert, and only when something is actually wrong.
+     *
+     * A level printing outranks an unguarded position: you asked to be
+     * interrupted for that number, where the open trade has been sitting there
+     * all along. Everything quieter is left to the doors - a banner reading
+     * "nothing needs you" is a reward once and furniture by the third morning.
+     */
+    const alert = fired.length ? {
+        tone: 'fired', icon: Target,
+        headline: <>A level you named on <b className="font-mono">{fired[0].symbol}</b> printed</>,
+        detail: fired.length > 1
+            ? `and ${fired.length - 1} more since you last looked`
+            : 'you asked to be told when it got there',
+        action: 'Go and look', onAct: () => navigate('/watchlist')
+    } : naked.length ? {
+        tone: 'risk', icon: ShieldAlert,
+        headline: <>
+            <b className="font-mono">{money(exposure)}</b> of {naked.map((t) => t.symbol).join(', ')} has no stop under it
+        </>,
+        detail: naked.length === 1
+            ? `${money(naked[0].quantity)} shares in at ${money(naked[0].entryPrice, 2)}${
+                book?.totalValue ? ` — ${Math.round((exposure / book.totalValue) * 100)}% of the book` : ''}`
+            : `${naked.length} positions with nothing defending them`,
+        action: 'Set a stop', onAct: () => navigate('/journal')
+    } : null;
+
+    const concentration = useMemo(() => {
+        const top = (book?.topHoldings || []).slice(0, 3);
+        return { top, pct: Math.round(top.reduce((a, h) => a + (h.weightPct || 0), 0)) };
+    }, [book]);
+
+    const funnel = useMemo(() => ({
+        total: items.length,
+        traded: items.filter((i) => i.state === 'traded').length,
+        passed: items.filter((i) => i.state === 'dropped').length,
+        killed: items.filter((i) => i.state === 'invalidated').length
+    }), [items]);
+
+    const firstName = (user?.username || '').split(' ')[0];
+
+    if (loading && !book && !stats) {
+        return (
+            <div className="container mx-auto max-w-5xl px-4 py-8">
+                <div className="rounded-xl border border-gray-200 bg-white p-10 dark:border-gray-700 dark:bg-gray-800">
+                    <RefreshCw className="mx-auto h-6 w-6 animate-spin text-cyan-500" />
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="container mx-auto max-w-5xl px-4 py-8">
+            <div className="rounded-xl border border-gray-200 bg-white px-7 py-7 dark:border-gray-700 dark:bg-gray-800">
+                <div className="flex flex-wrap items-baseline justify-between gap-4">
+                    <span className="text-[15px] text-gray-500 dark:text-gray-400">
+                        {greeting()}{firstName ? `, ${firstName}` : ''}
+                    </span>
+                    <button type="button" onClick={load}
+                        className="flex items-center gap-2 font-mono text-[12px] text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300">
+                        <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+                        {today()}
+                    </button>
+                </div>
+
+                {/* One number, big enough that nothing competes to be seen first. */}
+                <p className="mt-3.5 font-mono text-[52px] font-semibold leading-none tracking-tight text-gray-900 dark:text-white">
+                    <span className="mr-2 text-[19px] font-medium text-gray-500 dark:text-gray-400">
+                        {book?.currency || 'PKR'}
+                    </span>
+                    {account == null ? '—' : money(account)}
+                </p>
+
+                {book ? (
+                    <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1.5 text-[14px] text-gray-500 dark:text-gray-400">
+                        <span>
+                            <b className="font-mono font-semibold">{money(book.totalValue)}</b> invested ·{' '}
+                            <b className="font-mono font-semibold">{money(book.cashBalance)}</b> cash
+                        </span>
+                        <span className={book.unrealizedPnL >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>
+                            <b className="font-mono font-semibold">{signed(book.unrealizedPnL)}</b> unrealised
+                        </span>
+                        <span className={book.realizedPnL >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>
+                            <b className="font-mono font-semibold">{signed(book.realizedPnL)}</b> booked
+                        </span>
+                    </div>
+                ) : (
+                    <p className="mt-3 text-[14px] text-gray-400 dark:text-gray-500">
+                        No portfolio on this market yet.
+                    </p>
+                )}
+
+                {alert && <Alert {...alert} />}
+
+                <div className="mt-6 grid gap-3.5 sm:grid-cols-3">
+                    <Door label="Ideas" hot={counts.due > 0}
+                        count={counts.due || null}
+                        detail={counts.due
+                            ? (fired.length ? 'a level printed' : 'flagged, never opened')
+                            : 'nothing waiting'}
+                        onClick={() => navigate('/watchlist')} />
+                    <Door label="Journal"
+                        count={stats?.openTrades || null}
+                        detail={stats?.openTrades
+                            ? (stats.openWithoutStop
+                                ? <>open · <b className="font-semibold text-gray-900 dark:text-white">none protected</b></>
+                                : 'open · stop set')
+                            : 'nothing open'}
+                        onClick={() => navigate('/journal')} />
+                    <Door label="Portfolios"
+                        count={book?.holdingsCount || null}
+                        detail={cashPct == null
+                            ? 'no book yet'
+                            : <>holdings · <b className="font-semibold text-gray-900 dark:text-white">{cashPct}%</b> in cash</>}
+                        onClick={() => navigate('/portfolios')} />
+                </div>
+
+                <Sectors rows={sectors} onOpen={() => navigate('/heatmap')} />
+            </div>
+
+            {/* Detail, where detail belongs: a scroll further down. */}
+            {(book || items.length > 0) && (
+                <div className="mt-4 rounded-xl border border-gray-200 bg-white px-7 py-6 dark:border-gray-700 dark:bg-gray-800">
+                    <div className="grid gap-7 sm:grid-cols-3">
+                        {concentration.top.length > 0 && (
+                            <Deeper title="Risk you did not choose" figure={concentration.pct} unit="% in your top three"
+                                segments={concentration.top.map((h, i) => ({
+                                    w: h.weightPct, c: ['bg-cyan-500', 'bg-cyan-500/70', 'bg-cyan-500/45'][i]
+                                }))}>
+                                <b className="font-semibold text-gray-900 dark:text-white">
+                                    {concentration.top[0].symbol} alone is {Math.round(concentration.top[0].weightPct)}%
+                                </b>
+                                {book.holdingsCount > 1 && ` — against an even ${Math.round(100 / book.holdingsCount)}% across ${book.holdingsCount} names.`}
+                            </Deeper>
+                        )}
+
+                        {funnel.total > 0 && (
+                            <Deeper title="Whether your screening works" figure={funnel.traded}
+                                unit={`of ${funnel.total} flags became positions`}
+                                segments={[
+                                    { w: (funnel.traded / funnel.total) * 100, c: 'bg-cyan-500' },
+                                    { w: (funnel.passed / funnel.total) * 100, c: 'bg-gray-400 dark:bg-gray-500' },
+                                    { w: (funnel.killed / funnel.total) * 100, c: 'bg-rose-500' }
+                                ]}>
+                                <b className="font-semibold text-gray-900 dark:text-white">{funnel.passed} you passed on</b>
+                                {funnel.killed > 0 && `, ${funnel.killed} a level killed for you`}.
+                            </Deeper>
+                        )}
+
+                        {book && book.closedCount > 0 && (
+                            <Deeper title="What holding pays, what trading costs"
+                                figure={signed(book.totalDividends)} unit="in dividends"
+                                segments={[{
+                                    w: book.realizedPnL > 0
+                                        ? Math.min(100, (book.totalDividends / book.realizedPnL) * 100) : 0,
+                                    c: 'bg-emerald-500'
+                                }]}>
+                                About <b className="font-semibold text-gray-900 dark:text-white">{money(book.totalFees / book.closedCount)}</b>
+                                {' '}a round trip across {book.closedCount} closed positions
+                                {book.capitalGainsTax > 0 && <>, and <b className="font-semibold text-gray-900 dark:text-white">{money(book.capitalGainsTax)}</b> of tax owed on the rest</>}.
+                            </Deeper>
+                        )}
+                    </div>
+
+                    {/* The honest empty state, once, rather than four dashes in a card. */}
+                    {stats && !stats.closedTrades && (
+                        <p className="mt-6 border-t border-gray-200 pt-4 text-[13px] text-gray-400 dark:border-gray-700 dark:text-gray-500">
+                            Expectancy, profit factor and average R stay blank until the journal has
+                            closed trades — <b className="font-mono text-gray-500 dark:text-gray-400">0 so far</b>.
+                            {book?.closedCount > 0 && ` The ledger's ${book.closedCount} closed positions are a different book.`}
+                        </p>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
+
+/** Sums the dashboards of every portfolio on this market. Usually there is one. */
+function sumBooks(a, b) {
+    const add = (k) => (a[k] || 0) + (b[k] || 0);
+    return {
+        currency: a.currency || b.currency,
+        totalValue: add('totalValue'), cashBalance: add('cashBalance'),
+        unrealizedPnL: add('unrealizedPnL'), realizedPnL: add('realizedPnL'),
+        totalDividends: add('totalDividends'), totalFees: add('totalFees'),
+        capitalGainsTax: add('capitalGainsTax'),
+        holdingsCount: add('holdingsCount'), closedCount: add('closedCount'),
+        topHoldings: [...(a.topHoldings || []), ...(b.topHoldings || [])]
+            .sort((x, y) => y.weightPct - x.weightPct).slice(0, 5)
+    };
+}
+
+/** The two best and the worst, which is what "what moved" actually means. */
+function topMovers(sectors) {
+    const rows = sectors
+        .map((s) => ({ sector: s.sector, change: s.periods?.change?.median }))
+        .filter((r) => typeof r.change === 'number')
+        .sort((a, b) => b.change - a.change);
+    if (rows.length < 3) return rows;
+    return [rows[0], rows[1], rows[rows.length - 1]];
+}
+
+const greeting = () => {
+    const h = new Date().getHours();
+    return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+};
+
+const today = () => new Date().toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
