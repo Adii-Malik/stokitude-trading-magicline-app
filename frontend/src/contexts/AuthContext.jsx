@@ -13,6 +13,15 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  /**
+   * The markets this account holds books in, from the same response as the user.
+   *
+   * /auth/me answers { user, markets } in one call. Keeping only the user meant
+   * MarketContext fetched the identical endpoint again a moment later, and left
+   * a window where the market was unknown - long enough for every market-scoped
+   * screen to fetch once against nothing and again once it landed.
+   */
+  const [markets, setMarkets] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -31,6 +40,7 @@ export const AuthProvider = ({ children }) => {
 
       const response = await authAPI.getCurrentUser();
       setUser(response.data.user);
+      setMarkets(response.data.markets || null);
     } catch (error) {
       console.error('Auth check failed:', error);
       localStorage.removeItem('token');
@@ -109,6 +119,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const value = {
+    markets,
     user,
     setUser,
     loading,

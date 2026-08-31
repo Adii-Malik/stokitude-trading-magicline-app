@@ -142,11 +142,26 @@ export default function Dashboard() {
     const load = async () => {
         setLoading(true);
         try {
-            const [ports, statsRes, openRes] = await Promise.all([
+            /**
+             * Everything that can be asked for at once, is.
+             *
+             * The board used to be fetched after the portfolio dashboards even
+             * though it depends on neither - three waves of waiting where only
+             * one is forced, since the per-portfolio call is the sole request
+             * that needs an answer first. Each one still fails on its own: a
+             * slow morning at TradingView is not a reason for the screen to
+             * have no numbers on it.
+             */
+            const [ports, statsRes, openRes, board] = await Promise.all([
                 api.get('/portfolios').catch(() => null),
                 api.get('/journal/stats').catch(() => null),
-                api.get('/journal', { params: { state: 'open' } }).catch(() => null)
+                api.get('/journal', { params: { state: 'open' } }).catch(() => null),
+                api.get('/heatmap/sectors').catch(() => null)
             ]);
+
+            setStats(statsRes?.data?.data || null);
+            setOpen(openRes?.data?.data || []);
+            setSectors(topMovers(board?.data?.data?.sectors || []));
 
             const list = ports?.data?.data || [];
             const boards = await Promise.all(
@@ -156,14 +171,6 @@ export default function Dashboard() {
             );
             const live = boards.filter(Boolean);
             setBook(live.length ? live.reduce(sumBooks) : null);
-            setStats(statsRes?.data?.data || null);
-            setOpen(openRes?.data?.data || []);
-
-            // The board is asked for last and on its own: it is a live scanner
-            // call, and a slow morning at TradingView is not a reason for the
-            // screen to have no numbers on it.
-            const board = await api.get('/heatmap/sectors').catch(() => null);
-            setSectors(topMovers(board?.data?.data?.sectors || []));
         } finally {
             setLoading(false);
         }

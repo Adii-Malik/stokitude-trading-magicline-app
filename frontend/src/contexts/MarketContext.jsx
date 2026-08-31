@@ -33,27 +33,35 @@ export const MarketProvider = ({ children }) => {
     // switch has nothing to offer, so it does not appear at all.
     const [available, setAvailable] = useState([]);
 
+    /**
+     * Taken from the auth response, not fetched again.
+     *
+     * This used to call /auth/me itself, which AuthContext had already called -
+     * the same endpoint twice on every page load, and a gap between them where
+     * the market read null. Every market-scoped screen fetched once inside that
+     * gap and again when it closed. The markets arrive with the user now, so
+     * the scope is known the moment there is a user at all.
+     */
+    const { user, markets } = useAuth();
+    useEffect(() => {
+        if (!user || !markets) { setAvailable([]); setMarketState(null); return; }
+        setAvailable(markets.held || []);
+        setMarketState(markets.active || null);
+    }, [user, markets]);
+
+    // The server owns the market, so re-reading the account is the only way to
+    // pick up a change made anywhere else.
     const refresh = useCallback(async () => {
         try {
             const { data } = await api.get('/auth/me');
-            const markets = data?.data?.markets;
-            if (!markets) return;
-            setAvailable(markets.held || []);
-            setMarketState(markets.active || null);
+            const next = data?.data?.markets;
+            if (!next) return;
+            setAvailable(next.held || []);
+            setMarketState(next.active || null);
         } catch {
             // Signed out, or offline. Nothing to scope until there is a user.
         }
     }, []);
-
-    // Whenever the signed-in user changes, not only on mount. Logging in as
-    // somebody else without a page load would otherwise leave the previous
-    // market on screen. The data would still be right - the server reads the
-    // market from the account - but the flag would be lying about it.
-    const { user } = useAuth();
-    useEffect(() => {
-        if (user) refresh();
-        else setAvailable([]);
-    }, [user, refresh]);
 
     /**
      * Switch, then start again.

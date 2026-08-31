@@ -824,7 +824,56 @@ class PortfolioService {
     async getDashboard(portfolioId, userId) {
         const portfolio = await this.getPortfolio(portfolioId, userId); // Access check
 
-        const holdings = await this.getHoldings(portfolioId, userId, { authorized: true });
+        /**
+         * Only where this app has a tax model. A US book showed no tax purely
+         * because AVERAGE_COST records no disposals - switch it to FIFO, which
+         * does track lots, and it would have started charging Pakistani NCCPL
+         * rates on US trades without anything saying so. The market decides,
+         * rather than whichever calculator happened to be selected.
+         */
+        const taxed = getMarket(portfolio.market).capitalGains;
+
+        /**
+         * Five independent reads, run together rather than one after another.
+         *
+         * They were sequential, and none of them needed the one before it -
+         * every one takes only the portfolio id and the document already
+         * fetched above. On a real book that was 850ms of waiting for work that
+         * could all have been in flight at once, and the cash balance alone -
+         * which walks the whole transaction ledger - accounted for 480ms of it.
+         */
+        const [holdings, booked, withDisposals, cash, filerStatus] = await Promise.all([
+            this.getHoldings(portfolioId, userId, { authorized: true }),
+
+            // Realized P/L and dividends outlive the position, so total them
+            // across every position rather than only the open ones.
+            Position.aggregate([
+                { $match: { portfolioId: new mongoose.Types.ObjectId(String(portfolioId)) } },
+                {
+                    $group: {
+                        _id: null,
+                        realizedPnL: { $sum: '$realizedPnL' },
+                        dividends: { $sum: '$dividendsReceived' },
+                        cgtTax: { $sum: '$cgtTax' },
+                        closed: { $sum: { $cond: [{ $lte: ['$netShares', 0] }, 1, 0] } }
+                    }
+                }
+            ]),
+
+            // Loss relief nets across every symbol and carries between tax
+            // years, so the disposals have to be gathered before the tax can be
+            // worked out. Summing each position's own cgtTax taxed gross gains
+            // and ignored every loss, which on a book that churns overstates
+            // the bill several times over.
+            taxed
+                ? Position.find({ portfolioId, 'disposals.0': { $exists: true } }).select('disposals').lean()
+                : [],
+
+            this.getCashBalance(portfolioId),
+
+            // Filer status is a Pakistani thing; it means nothing on a US book.
+            taxed ? this.getOwnerFilerStatus(portfolio) : null
+        ]);
 
         let totalValue = 0;
         let totalCost = 0;
@@ -836,47 +885,14 @@ class PortfolioService {
             unrealizedPnL += holding.unrealizedPnL;
         }
 
-        // Realized P/L and dividends outlive the position, so total them across
-        // every position rather than only the open ones.
-        const booked = await Position.aggregate([
-            { $match: { portfolioId: new mongoose.Types.ObjectId(String(portfolioId)) } },
-            {
-                $group: {
-                    _id: null,
-                    realizedPnL: { $sum: '$realizedPnL' },
-                    dividends: { $sum: '$dividendsReceived' },
-                    cgtTax: { $sum: '$cgtTax' },
-                    closed: { $sum: { $cond: [{ $lte: ['$netShares', 0] }, 1, 0] } }
-                }
-            }
-        ]);
         const realizedPnL = booked[0]?.realizedPnL || 0;
         const totalDividends = booked[0]?.dividends || 0;
         const closedCount = booked[0]?.closed || 0;
 
-        // Loss relief nets across every symbol and carries between tax years, so
-        // the disposals have to be gathered before the tax can be worked out.
-        // Summing each position's own cgtTax taxed gross gains and ignored every
-        // loss, which on a book that churns overstates the bill several times over.
-        //
-        // Only where this app has a tax model. A US book showed no tax purely
-        // because AVERAGE_COST records no disposals - switch it to FIFO, which
-        // does track lots, and it would have started charging Pakistani NCCPL
-        // rates on US trades without anything saying so. The market decides now,
-        // rather than whichever calculator happened to be selected.
-        const taxed = getMarket(portfolio.market).capitalGains;
-
-        const withDisposals = taxed
-            ? await Position.find({ portfolioId, 'disposals.0': { $exists: true } })
-                .select('disposals').lean()
-            : [];
         const disposals = withDisposals.flatMap(p => p.disposals || []);
         const cgtYears = taxed ? cgtByTaxYear(disposals) : [];
         const holdingPeriodCGT = Math.round(cgtYears.reduce((sum, y) => sum + y.tax, 0) * 100) / 100;
 
-        const cash = await this.getCashBalance(portfolioId);
-        // Filer status is a Pakistani thing; it means nothing on a US book.
-        const filerStatus = taxed ? await this.getOwnerFilerStatus(portfolio) : null;
         const totalPnL = unrealizedPnL + realizedPnL + totalDividends;
 
         // Realized P/L comes from positions no longer held, whose cost is not in
