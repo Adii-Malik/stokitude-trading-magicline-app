@@ -378,14 +378,25 @@ function sumBooks(a, b) {
     };
 }
 
-/** The two best and the worst, which is what "what moved" actually means. */
+/**
+ * The top three, ranked exactly as the heatmap ranks them.
+ *
+ * This showed the best two and the worst one, on the theory that "what moved"
+ * includes what moved down. It reads as a bug instead: the row sits under a
+ * link to the heatmap, and the heatmap's daily board leads with the top three -
+ * so the third name here disagreed with the screen it points at, every day.
+ * A summary that ranks differently from the thing it summarises is wrong even
+ * when both numbers are right.
+ *
+ * Same field as the board uses, too: the median of the sector, not the mean or
+ * the cap-weighted figure.
+ */
 function topMovers(sectors) {
-    const rows = sectors
+    return sectors
         .map((s) => ({ sector: s.sector, change: s.periods?.change?.median }))
         .filter((r) => typeof r.change === 'number')
-        .sort((a, b) => b.change - a.change);
-    if (rows.length < 3) return rows;
-    return [rows[0], rows[1], rows[rows.length - 1]];
+        .sort((a, b) => b.change - a.change)
+        .slice(0, 3);
 }
 
 const greeting = () => {
