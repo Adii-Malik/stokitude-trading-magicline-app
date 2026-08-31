@@ -211,7 +211,9 @@ export function tileWeight(marketCap) {
  */
 export function withFloor(items, minShare = 0.011) {
     const total = items.reduce((a, i) => a + i.weight, 0);
-    if (!total) return items;
+    // No capitalisation anywhere is not a reason to draw nothing: without a
+    // basis for relative area, equal area is the honest answer.
+    if (!total) return items.map((i) => ({ ...i, weight: 1 }));
     const floor = total * minShare;
     return items.map((i) => (i.weight < floor ? { ...i, weight: floor } : i));
 }

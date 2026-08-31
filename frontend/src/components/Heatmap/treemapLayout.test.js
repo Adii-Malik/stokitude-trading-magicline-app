@@ -238,6 +238,21 @@ describe('withFloor', () => {
 
     test('an empty board does not divide by zero', () => {
         assert.deepEqual(withFloor([]), []);
-        assert.deepEqual(withFloor([{ key: 'z', weight: 0 }]), [{ key: 'z', weight: 0 }]);
+    });
+
+    // Passing the zeroes straight back kept withFloor safe and left the layout
+    // to divide by a zero total instead. Equal area is the honest answer when
+    // there is no basis for unequal area, and it still draws something.
+    test('no capitalisation anywhere means equal tiles, not no tiles', () => {
+        assert.deepEqual(withFloor([{ key: 'z', weight: 0 }, { key: 'y', weight: 0 }]),
+            [{ key: 'z', weight: 1 }, { key: 'y', weight: 1 }]);
+    });
+
+    // The bug this whole floor exists for: a sector whose constituents report
+    // no market cap was dropped from the board while the table beside it went
+    // on listing the sector.
+    test('a sector with no capitalisation still gets a tile', () => {
+        const out = withFloor([{ key: 'big', weight: 100 }, { key: 'capless', weight: 0 }]);
+        assert.ok(out.find((i) => i.key === 'capless').weight > 0);
     });
 });

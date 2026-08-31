@@ -35,9 +35,19 @@ export default function Treemap({ items, dark, onSelect, height = HEIGHT }) {
          * given, so the best performer leads and the worst trails, while the
          * tiles still say which sectors carry the money.
          */
+        /**
+         * A sector with no capitalisation is still a sector.
+         *
+         * Dropping weight <= 0 quietly removed two of them from the board -
+         * Leasing Companies and Vanaspati, whose constituents come back from
+         * the scanner with a null market cap - while the table beside the map
+         * went on listing all thirty-five. Leasing was the second best sector
+         * on the day and simply was not there. withFloor exists to stop a small
+         * tile becoming a scratch on the screen; it just never got the chance,
+         * because the filter ran first.
+         */
         const weighted = withFloor(items
             .map((i) => ({ ...i, weight: tileWeight(i.weight) }))
-            .filter((i) => i.weight > 0)
             .sort((a, b) => (b.value ?? 0) - (a.value ?? 0)));
         return stripLayout(weighted, WIDTH, height)
             .map((t) => ({ ...t, item: weighted.find((i) => i.key === t.key) }));
@@ -97,10 +107,15 @@ export default function Treemap({ items, dark, onSelect, height = HEIGHT }) {
                                 <text x={t.x + t.width / 2} y={t.y + t.height / 2 + 4} fill={text}
                                     textAnchor="middle" fontSize="11" fontWeight="600">{oneLine}</text>
                             )}
+                            {/* One decimal here as everywhere else. Rounding to whole percent
+                                on the narrow tiles alone printed Leasing at "+1%" beside
+                                Transport's "+0.4%" - the smaller mover reading as the larger,
+                                on the same board. Everything under half a percent collapsed to
+                                "+0%" too, which said nothing at all. */}
                             {tight && (
                                 <text x={t.x + t.width / 2} y={t.y + t.height / 2 + 4} fill={text}
                                     textAnchor="middle" fontSize="10.5" fontWeight="700">
-                                    {value >= 0 ? '+' : ''}{value.toFixed(0)}%
+                                    {value >= 0 ? '+' : ''}{value.toFixed(1)}%
                                 </text>
                             )}
                         </g>
