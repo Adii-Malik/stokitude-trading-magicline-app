@@ -45,16 +45,23 @@ export default function Header({
   const { user, isAdmin } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [researchOpen, setResearchOpen] = useState(false);
-  const research = useRef(null);
+  const [ideasOpen, setIdeasOpen] = useState(false);
+  const ideas = useRef(null);
   const { counts } = useWatchlist();
 
-  // Finding and tracking are one job, so they share one menu - and the header
-  // stops growing, which matters at 390px where it already had no room to spare.
-  const inResearch = currentPage === 'heatmap' || currentPage === 'watchlist';
+  /**
+   * Finding and tracking are one job, so they share one menu - and the header
+   * stops growing, which matters at 390px where it already had no room to spare.
+   *
+   * "Ideas" rather than "Research", which named a category instead of the
+   * contents: the heatmap is where an idea comes from and the shortlist is the
+   * ones you kept. It also puts the nav in the order the work happens - an idea
+   * before the position it becomes - which is why it sits first after Home.
+   */
+  const inIdeas = currentPage === 'heatmap' || currentPage === 'watchlist';
 
   useEffect(() => {
-    const away = (e) => { if (research.current && !research.current.contains(e.target)) setResearchOpen(false); };
+    const away = (e) => { if (ideas.current && !ideas.current.contains(e.target)) setIdeasOpen(false); };
     document.addEventListener('mousedown', away);
     return () => document.removeEventListener('mousedown', away);
   }, []);
@@ -62,7 +69,7 @@ export default function Header({
   const handleNavigation = (navFunction) => {
     navFunction();
     setMobileMenuOpen(false); // Close mobile menu after navigation
-    setResearchOpen(false);
+    setIdeasOpen(false);
   };
 
   return (
@@ -97,6 +104,46 @@ export default function Header({
                 <span>Home</span>
               </button>
 
+              {/* The badge sits on the group, so the count is readable without
+                  opening it - the forgetting happens away from these screens,
+                  which is exactly why it cannot hide behind a click. */}
+              <div className="relative" ref={ideas}>
+                <button
+                  onClick={() => setIdeasOpen((o) => !o)}
+                  aria-haspopup="menu"
+                  aria-expanded={ideasOpen}
+                  className={`px-3 py-2 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${inIdeas
+                    ? 'bg-cyan-500 text-white'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                    }`}
+                >
+                  <Compass className="w-4 h-4" />
+                  <span>Ideas</span>
+                  <Badge due={counts.due} />
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform ${ideasOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {ideasOpen && (
+                  <div role="menu"
+                    className="absolute left-0 z-30 mt-1 w-60 overflow-hidden rounded-lg bg-white shadow-lg ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
+                    <button role="menuitem" onClick={() => handleNavigation(onNavigateToHeatmap)}
+                      className={`flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition hover:bg-gray-100 dark:hover:bg-gray-700 ${currentPage === 'heatmap' ? 'font-semibold text-cyan-600 dark:text-cyan-400' : 'text-gray-700 dark:text-gray-300'}`}>
+                      <LayoutGrid className="w-4 h-4 shrink-0" />
+                      <span className="flex-1">Heatmap</span>
+                      <span className="text-xs text-gray-400 dark:text-gray-500">what is moving</span>
+                    </button>
+                    <button role="menuitem" onClick={() => handleNavigation(onNavigateToWatchlist)}
+                      className={`flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition hover:bg-gray-100 dark:hover:bg-gray-700 ${currentPage === 'watchlist' ? 'font-semibold text-cyan-600 dark:text-cyan-400' : 'text-gray-700 dark:text-gray-300'}`}>
+                      <Bookmark className="w-4 h-4 shrink-0" />
+                      <span className="flex-1">Shortlist</span>
+                      <span className="text-xs text-gray-400 dark:text-gray-500">
+                        {counts.due ? `${counts.due} to look at` : 'all caught up'}
+                      </span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <button
                 onClick={() => handleNavigation(onNavigateToPortfolios)}
                 className={`px-3 py-2 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${currentPage === 'portfolios'
@@ -118,46 +165,6 @@ export default function Header({
                 <BookOpen className="w-4 h-4" />
                 <span>Journal</span>
               </button>
-
-              {/* The badge sits on the group, so the count is readable without
-                  opening it - the forgetting happens away from these screens,
-                  which is exactly why it cannot hide behind a click. */}
-              <div className="relative" ref={research}>
-                <button
-                  onClick={() => setResearchOpen((o) => !o)}
-                  aria-haspopup="menu"
-                  aria-expanded={researchOpen}
-                  className={`px-3 py-2 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${inResearch
-                    ? 'bg-cyan-500 text-white'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-                    }`}
-                >
-                  <Compass className="w-4 h-4" />
-                  <span>Research</span>
-                  <Badge due={counts.due} />
-                  <ChevronDown className={`w-3.5 h-3.5 transition-transform ${researchOpen ? 'rotate-180' : ''}`} />
-                </button>
-
-                {researchOpen && (
-                  <div role="menu"
-                    className="absolute left-0 z-30 mt-1 w-60 overflow-hidden rounded-lg bg-white shadow-lg ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
-                    <button role="menuitem" onClick={() => handleNavigation(onNavigateToHeatmap)}
-                      className={`flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition hover:bg-gray-100 dark:hover:bg-gray-700 ${currentPage === 'heatmap' ? 'font-semibold text-cyan-600 dark:text-cyan-400' : 'text-gray-700 dark:text-gray-300'}`}>
-                      <LayoutGrid className="w-4 h-4 shrink-0" />
-                      <span className="flex-1">Heatmap</span>
-                      <span className="text-xs text-gray-400 dark:text-gray-500">what is moving</span>
-                    </button>
-                    <button role="menuitem" onClick={() => handleNavigation(onNavigateToWatchlist)}
-                      className={`flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition hover:bg-gray-100 dark:hover:bg-gray-700 ${currentPage === 'watchlist' ? 'font-semibold text-cyan-600 dark:text-cyan-400' : 'text-gray-700 dark:text-gray-300'}`}>
-                      <Bookmark className="w-4 h-4 shrink-0" />
-                      <span className="flex-1">Shortlist</span>
-                      <span className="text-xs text-gray-400 dark:text-gray-500">
-                        {counts.due ? `${counts.due} to look at` : 'all caught up'}
-                      </span>
-                    </button>
-                  </div>
-                )}
-              </div>
 
               {isAdmin() && (
                 <button
@@ -293,28 +300,6 @@ export default function Header({
             </button>
 
             <button
-              onClick={() => handleNavigation(onNavigateToPortfolios)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${currentPage === 'portfolios'
-                ? 'bg-cyan-500 text-white'
-                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-                }`}
-            >
-              <Briefcase className="w-5 h-5" />
-              <span>Portfolios</span>
-            </button>
-
-            <button
-              onClick={() => handleNavigation(onNavigateToJournal)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${currentPage === 'journal'
-                ? 'bg-cyan-500 text-white'
-                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-                }`}
-            >
-              <BookOpen className="w-5 h-5" />
-              <span>Journal</span>
-            </button>
-
-            <button
               onClick={() => handleNavigation(onNavigateToHeatmap)}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${currentPage === 'heatmap'
                 ? 'bg-cyan-500 text-white'
@@ -335,6 +320,28 @@ export default function Header({
               <Bookmark className="w-5 h-5" />
               <span className="flex-1 text-left">Shortlist</span>
               <Badge due={counts.due} />
+            </button>
+
+            <button
+              onClick={() => handleNavigation(onNavigateToPortfolios)}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${currentPage === 'portfolios'
+                ? 'bg-cyan-500 text-white'
+                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                }`}
+            >
+              <Briefcase className="w-5 h-5" />
+              <span>Portfolios</span>
+            </button>
+
+            <button
+              onClick={() => handleNavigation(onNavigateToJournal)}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${currentPage === 'journal'
+                ? 'bg-cyan-500 text-white'
+                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                }`}
+            >
+              <BookOpen className="w-5 h-5" />
+              <span>Journal</span>
             </button>
 
             {isAdmin() && (
