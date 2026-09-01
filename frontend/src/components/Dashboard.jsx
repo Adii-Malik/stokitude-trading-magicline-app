@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { RefreshCw, ShieldAlert, Target, ArrowRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useWatchlist } from '../contexts/WatchlistContext';
-import { hasFired } from './Watchlist/horizons';
+import { hasFired, isLive, daysSince } from './Watchlist/horizons';
 import api from '../services/api';
 
 /**
@@ -51,7 +51,15 @@ function Alert({ tone, icon: Icon, headline, detail, action, onAct }) {
     );
 }
 
-/** A door, carrying the one number that says whether to walk through it. */
+/**
+ * A door, carrying the one number that says whether to walk through it.
+ *
+ * The number has to be the thing the label names. "Portfolios / 5" over a book
+ * of two portfolios and five holdings is not a shorthand, it is a wrong number -
+ * and once one door lies the other two stop being read. So the count is
+ * portfolios, ideas, open trades, and the interesting figure goes in the line
+ * below where it can say what it is.
+ */
 function Door({ label, count, detail, hot, onClick }) {
     return (
         <button type="button" onClick={onClick}
@@ -131,7 +139,7 @@ function Deeper({ title, figure, unit, segments, children }) {
 export default function Dashboard() {
     const { user } = useAuth();
     const navigate = useNavigate();
-    const { items, counts } = useWatchlist();
+    const { items, counts, loaded: ideasLoaded } = useWatchlist();
 
     const [book, setBook] = useState(null);
     const [stats, setStats] = useState(null);
@@ -170,7 +178,7 @@ export default function Dashboard() {
                     .catch(() => null))
             );
             const live = boards.filter(Boolean);
-            setBook(live.length ? live.reduce(sumBooks) : null);
+            setBook(live.length ? { ...live.reduce(sumBooks), portfolios: live.length } : null);
         } finally {
             setLoading(false);
         }
@@ -182,6 +190,7 @@ export default function Dashboard() {
     const cashPct = account ? Math.round((book.cashBalance / account) * 100) : null;
 
     const fired = useMemo(() => items.filter(hasFired), [items]);
+    const watching = useMemo(() => items.filter(isLive).length, [items]);
     const naked = useMemo(() => open.filter((t) => t.plannedStop == null), [open]);
     const exposure = naked.reduce((a, t) => a + (t.entryPrice || 0) * (t.quantity || 0), 0);
 
@@ -195,20 +204,19 @@ export default function Dashboard() {
      */
     const alert = fired.length ? {
         tone: 'fired', icon: Target,
-        headline: <>A level you named on <b className="font-mono">{fired[0].symbol}</b> printed</>,
-        detail: fired.length > 1
-            ? `and ${fired.length - 1} more since you last looked`
-            : 'you asked to be told when it got there',
-        action: 'Go and look', onAct: () => navigate('/watchlist')
+        headline: fired.length > 1
+            ? <><b className="font-mono">{fired[0].symbol}</b> and {fired.length - 1} more hit your levels</>
+            : <><b className="font-mono">{fired[0].symbol}</b> hit{' '}
+                {fired[0].triggeredPrice == null ? 'your level' : money(fired[0].triggeredPrice, 2)}</>,
+        detail: fired[0].triggeredAt ? `your level · ${ago(daysSince(fired[0].triggeredAt))}` : 'your level',
+        action: 'Open', onAct: () => navigate('/watchlist')
     } : naked.length ? {
         tone: 'risk', icon: ShieldAlert,
-        headline: <>
-            <b className="font-mono">{money(exposure)}</b> of {naked.map((t) => t.symbol).join(', ')} has no stop under it
-        </>,
-        detail: naked.length === 1
-            ? `${money(naked[0].quantity)} shares in at ${money(naked[0].entryPrice, 2)}${
-                book?.totalValue ? ` — ${Math.round((exposure / book.totalValue) * 100)}% of the book` : ''}`
-            : `${naked.length} positions with nothing defending them`,
+        headline: naked.length === 1
+            ? <><b className="font-mono">{naked[0].symbol}</b> has no stop</>
+            : <>{naked.length} positions have no stop</>,
+        detail: `${money(exposure)} exposed${
+            book?.totalValue ? ` · ${Math.round((exposure / book.totalValue) * 100)}% of the book` : ''}`,
         action: 'Set a stop', onAct: () => navigate('/journal')
     } : null;
 
@@ -281,10 +289,12 @@ export default function Dashboard() {
 
                 <div className="mt-6 grid gap-4 sm:grid-cols-3">
                     <Door label="Ideas" hot={counts.due > 0}
-                        count={counts.due || null}
-                        detail={counts.due
-                            ? (fired.length ? 'a level printed' : 'flagged, never opened')
-                            : 'nothing waiting'}
+                        count={ideasLoaded ? watching || null : null}
+                        detail={!ideasLoaded ? '' : !watching ? 'nothing flagged'
+                            : counts.due
+                                ? <>watching · <b className="font-semibold text-gray-900 dark:text-white">
+                                    {fired.length ? 'a level printed' : `${counts.due} never opened`}</b></>
+                                : 'watching'}
                         onClick={() => navigate('/watchlist')} />
                     <Door label="Journal"
                         count={stats?.openTrades || null}
@@ -295,10 +305,10 @@ export default function Dashboard() {
                             : 'nothing open'}
                         onClick={() => navigate('/journal')} />
                     <Door label="Portfolios"
-                        count={book?.holdingsCount || null}
+                        count={book?.portfolios || null}
                         detail={cashPct == null
                             ? 'no book yet'
-                            : <>holdings · <b className="font-semibold text-gray-900 dark:text-white">{cashPct}%</b> in cash</>}
+                            : <><b className="font-semibold text-gray-900 dark:text-white">{book.holdingsCount}</b> holdings · <b className="font-semibold text-gray-900 dark:text-white">{cashPct}%</b> in cash</>}
                         onClick={() => navigate('/portfolios')} />
                 </div>
 
@@ -398,6 +408,8 @@ function topMovers(sectors) {
         .sort((a, b) => b.change - a.change)
         .slice(0, 3);
 }
+
+const ago = (days) => (days === 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`);
 
 const greeting = () => {
     const h = new Date().getHours();

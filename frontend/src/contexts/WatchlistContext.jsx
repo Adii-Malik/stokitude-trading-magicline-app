@@ -23,6 +23,9 @@ export function WatchlistProvider({ children }) {
     const { market } = useMarket();
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(false);
+    // Until the first answer lands, "no items" is ignorance, not a fact - and a
+    // screen that says "nothing waiting" before it has looked is lying.
+    const [loaded, setLoaded] = useState(false);
     const [error, setError] = useState(null);
 
     const reload = useCallback(async () => {
@@ -36,6 +39,7 @@ export function WatchlistProvider({ children }) {
             setError(e.response?.data?.message || 'Could not load the shortlist');
         } finally {
             setLoading(false);
+            setLoaded(true);
         }
     }, [user]);
 
@@ -140,9 +144,9 @@ export function WatchlistProvider({ children }) {
     const counts = useMemo(() => tally(items), [items]);
 
     const value = useMemo(() => ({
-        items, loading, error, reload, flag, search, unflag, remove, update, look, trade, flagged, counts,
+        items, loading, loaded, error, reload, flag, search, unflag, remove, update, look, trade, flagged, counts,
         flagOf: (symbol) => flagged.get(symbol) || null
-    }), [items, loading, error, reload, flag, search, unflag, remove, update, look, trade, flagged, counts]);
+    }), [items, loading, loaded, error, reload, flag, search, unflag, remove, update, look, trade, flagged, counts]);
 
     return <WatchlistContext.Provider value={value}>{children}</WatchlistContext.Provider>;
 }
