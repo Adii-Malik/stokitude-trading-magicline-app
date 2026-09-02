@@ -50,10 +50,20 @@ export function levelsReached(entry, price) {
 class JournalLevelHandler {
     async checkLevels() {
         try {
-            // Unscoped by circumstance: this runs from a job, where there is no
-            // request and so no market, which is exactly right - a stop is a stop
-            // in either book.
-            const entries = await JournalEntry.find({ state: 'open' });
+            /**
+             * Unscoped by circumstance: this runs from a job, where there is no
+             * request and so no market, which is exactly right - a stop is a stop
+             * in either book.
+             *
+             * Only the ones that have something to compare. An open trade with
+             * no stop and no target was loaded and priced on every run to be
+             * told there was nothing to check - which cost a document and a
+             * symbol in the quote request, every fifteen minutes, forever.
+             */
+            const entries = await JournalEntry.find({
+                state: 'open',
+                $or: [{ plannedStop: { $ne: null } }, { 'targets.0': { $exists: true } }]
+            });
             if (!entries.length) return { checked: 0, updated: 0, missing: 0 };
 
             /**

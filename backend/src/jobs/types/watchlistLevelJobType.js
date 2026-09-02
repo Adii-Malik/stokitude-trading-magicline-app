@@ -1,10 +1,13 @@
 /**
- * Shortlist Level Watch
+ * Level Watch
  *
- * The levels you named while deciding whether to trade a name, checked often
- * enough to be worth naming. The nightly sync checks them once as a byproduct
- * of producing a close; this is the same check on its own clock, so a level
- * reached at eleven in the morning does not wait until five.
+ * Every price you named - the stop and targets of a position you are in, and
+ * the trigger and invalidation of an idea you are still deciding on - checked
+ * often enough to be worth naming.
+ *
+ * Both used to ride the nightly bar sync, because that was the job producing
+ * the price they read. It no longer is, so they share this clock instead and a
+ * level reached at eleven in the morning does not wait until five.
  *
  * Every fifteen minutes, all day. The feed is delayed a quarter of an hour, so
  * a tighter cadence would ask the same question of the same number; a looser one
@@ -15,8 +18,8 @@
 export default {
   type: 'watchlist_levels',
 
-  name: 'Shortlist Level Watch',
-  description: 'Checks the triggers and invalidations on your shortlist against the session',
+  name: 'Level Watch',
+  description: 'Checks your journal stops and targets and your shortlist levels against the session',
   category: 'data',
   icon: '🎯',
 
@@ -52,5 +55,5 @@ export default {
     maxInstances: 1
   },
 
-  tags: ['watchlist', 'levels']
+  tags: ['watchlist', 'journal', 'levels']
 };
