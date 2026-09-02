@@ -20,6 +20,25 @@ class EmailService {
   async initialize() {
     if (this.initialized) return;
 
+    /**
+     * A development box does not email you.
+     *
+     * The level watchers run every fifteen minutes against whatever data the
+     * dev database happens to hold, and this machine has a working SMTP
+     * provider configured - so a local run put a real "stop level reached" in
+     * a real inbox for a position the developer was not in. Console output is
+     * the honest behaviour outside production: you still see exactly what would
+     * have been sent.
+     *
+     * EMAIL_FORCE_SEND=true is the way back in when the thing being tested is
+     * the email itself.
+     */
+    if (process.env.NODE_ENV !== 'production' && process.env.EMAIL_FORCE_SEND !== 'true') {
+      console.log('✓ Email service: Console only (not production)');
+      this.initialized = true;
+      return;
+    }
+
     // Try each provider in order
     for (const ProviderClass of availableProviders) {
       const provider = new ProviderClass(config.email);

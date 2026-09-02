@@ -1,137 +1,69 @@
-/**
- * Log Cleanup Job Handler
- * 
- * Removes old logs to optimize database storage
- */
-
-import ServiceLog from '../../models/ServiceLog.js';
 import JobExecution from '../../models/JobExecution.js';
 
+/**
+ * Keeps the execution history from growing without bound.
+ *
+ * Two rules, and a document has to fail both to be deleted: it must be older
+ * than the retention window *and* outside the newest hundred for its job. The
+ * second rule is what protects a job that runs weekly - thirty days of a
+ * fortnightly job is two rows, and losing them would leave nothing to answer
+ * "has this ever worked".
+ *
+ * This used to load every execution a job had ever produced into memory and
+ * slice the array. Level Watch now writes one every fifteen minutes, so that
+ * loop was reading a growing collection in full, once a week, forever. The same
+ * rule is now two queries per job: find the hundredth-newest, then delete by
+ * date. Both ride {jobId, createdAt} and neither returns more than one document.
+ *
+ * The ServiceLog half was removed rather than fixed. Nothing had written to that
+ * collection since it was created - zero documents, no callers - so the job
+ * spent a query every week deleting nothing from a table that existed only to
+ * be cleaned. The model and its wrapper went with it.
+ *
+ * Note this is a stricter rule laid over the TTL index the model already
+ * carries. If this job is disabled, ninety days is still the ceiling.
+ */
 export default async function logCleanupJob(context) {
   const { logger, config } = context;
-  
+
   const retentionDays = config.retentionDays || 30;
-  const batchSize = config.batchSize || 1000;
-  const cleanServiceLogs = config.cleanServiceLogs !== false;
-  const cleanJobExecutions = config.cleanJobExecutions !== false;
+  const keepPerJob = config.keepPerJob || 100;
 
-  logger.info('Starting log cleanup...', { 
-    retentionDays,
-    batchSize,
-    cleanServiceLogs,
-    cleanJobExecutions
-  });
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - retentionDays);
 
-  const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
+  const jobIds = await JobExecution.distinct('jobId');
+  let deleted = 0;
 
-  let totalDeleted = 0;
-  const summary = {
-    serviceLogs: 0,
-    jobExecutions: 0,
-    errors: []
-  };
+  for (const jobId of jobIds) {
+    /**
+     * The boundary, as one document.
+     *
+     * Sorted newest first, the row at index keepPerJob-1 is the oldest one being
+     * kept on count alone. Anything strictly older than it has already lost the
+     * count rule, so the two rules collapse into a single date - the earlier of
+     * that row's timestamp and the retention cutoff.
+     */
+    const [boundary] = await JobExecution.find({ jobId })
+      .sort({ createdAt: -1 })
+      .skip(keepPerJob - 1)
+      .limit(1)
+      .select('createdAt')
+      .lean();
 
-  try {
-    // Clean ServiceLog entries
-    if (cleanServiceLogs) {
-      logger.info('Cleaning ServiceLog entries...', { cutoffDate });
-      
-      try {
-        const serviceLogResult = await ServiceLog.deleteMany({
-          timestamp: { $lt: cutoffDate }
-        });
-        
-        summary.serviceLogs = serviceLogResult.deletedCount || 0;
-        totalDeleted += summary.serviceLogs;
-        
-        logger.info('ServiceLog cleanup completed', { 
-          deleted: summary.serviceLogs 
-        });
-      } catch (error) {
-        summary.errors.push(`ServiceLog cleanup failed: ${error.message}`);
-        logger.error('ServiceLog cleanup failed', { error: error.message });
-      }
-    }
+    // Fewer rows than we keep. Nothing to do, and no query worth spending.
+    if (!boundary) continue;
 
-    // Clean JobExecution entries (keep last 100 per job)
-    if (cleanJobExecutions) {
-      logger.info('Cleaning JobExecution entries...', { cutoffDate });
-      
-      try {
-        // Agenda is the source of truth for jobs (there is no Job model), so
-        // derive the job list from the executions we are about to clean.
-        const jobIds = await JobExecution.distinct('jobId');
-        let jobExecutionsDeleted = 0;
-
-        for (const jobId of jobIds) {
-          // Get all executions for this job, sorted by newest first
-          const executions = await JobExecution.find({ jobId })
-            .sort({ createdAt: -1 })
-            .select('_id createdAt');
-
-          // Keep the 100 most recent, delete the rest that are older than retention
-          const executionsToDelete = executions.slice(100).filter(exec => 
-            exec.createdAt < cutoffDate
-          );
-
-          if (executionsToDelete.length > 0) {
-            const idsToDelete = executionsToDelete.map(e => e._id);
-            const deleteResult = await JobExecution.deleteMany({
-              _id: { $in: idsToDelete }
-            });
-            
-            jobExecutionsDeleted += deleteResult.deletedCount || 0;
-          }
-        }
-
-        summary.jobExecutions = jobExecutionsDeleted;
-        totalDeleted += jobExecutionsDeleted;
-        
-        logger.info('JobExecution cleanup completed', { 
-          deleted: summary.jobExecutions 
-        });
-      } catch (error) {
-        summary.errors.push(`JobExecution cleanup failed: ${error.message}`);
-        logger.error('JobExecution cleanup failed', { error: error.message });
-      }
-    }
-
-    const success = summary.errors.length === 0;
-    const message = success 
-      ? `Cleaned up ${totalDeleted} log entries`
-      : `Cleaned up ${totalDeleted} entries with ${summary.errors.length} errors`;
-
-    logger.info('Log cleanup completed', { 
-      totalDeleted,
-      summary
-    });
-
-    return {
-      success,
-      message,
-      metadata: {
-        totalDeleted,
-        retentionDays,
-        cutoffDate,
-        ...summary
-      }
-    };
-
-  } catch (error) {
-    logger.error('Log cleanup failed', { 
-      error: error.message,
-      stack: error.stack
-    });
-
-    return {
-      success: false,
-      message: `Log cleanup failed: ${error.message}`,
-      metadata: {
-        error: error.message,
-        summary
-      }
-    };
+    const before = boundary.createdAt < cutoff ? boundary.createdAt : cutoff;
+    const { deletedCount } = await JobExecution.deleteMany({ jobId, createdAt: { $lt: before } });
+    deleted += deletedCount || 0;
   }
-}
 
+  if (deleted) logger.info('Execution history trimmed', { deleted, jobs: jobIds.length });
+
+  return {
+    success: true,
+    message: `Cleaned up ${deleted} execution record(s) across ${jobIds.length} job(s)`,
+    metadata: { deleted, jobs: jobIds.length, retentionDays, keepPerJob, cutoff }
+  };
+}

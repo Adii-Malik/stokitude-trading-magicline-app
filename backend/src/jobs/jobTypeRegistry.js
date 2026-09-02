@@ -7,7 +7,6 @@
 
 import tradingViewJobType from './types/tradingViewJobType.js';
 import signalGenerationJobType from './types/signalGenerationJobType.js';
-import historicalDataJobType from './types/historicalDataJobType.js';
 import logCleanupJobType from './types/logCleanupJobType.js';
 import fundamentalsRefreshJobType from './types/fundamentalsRefreshJobType.js';
 import watchlistLevelJobType from './types/watchlistLevelJobType.js';
@@ -30,7 +29,6 @@ class JobTypeRegistry {
     // Register built-in job types
     await this.register(tradingViewJobType);
     await this.register(signalGenerationJobType);
-    await this.register(historicalDataJobType);
     await this.register(logCleanupJobType);
     await this.register(fundamentalsRefreshJobType);
     await this.register(watchlistLevelJobType);

@@ -1,14 +1,19 @@
 /**
- * Log Cleanup Job Type Definition
- * 
- * Automatically cleans up old logs to optimize database storage
+ * Log Cleanup
+ *
+ * Trims the job execution history. Two rules, and a row must fail both to go:
+ * older than the retention window, and outside the newest hundred for its job.
+ *
+ * It used to offer a batch size and a switch for ServiceLog. The batch size was
+ * never read - the delete has always been one query - and ServiceLog had no
+ * writers and no rows, so both were settings for behaviour that did not exist.
  */
 
 export default {
   type: 'log_cleanup',
 
   name: 'Log Cleanup',
-  description: 'Removes old service logs and job execution logs to optimize database storage',
+  description: 'Trims job execution history, keeping the newest per job',
   category: 'maintenance',
   icon: '🧹',
 
@@ -23,37 +28,19 @@ export default {
       min: 7,
       max: 365,
       required: true,
-      description: 'Keep logs for this many days',
-      helpText: 'Logs older than this will be deleted (minimum 7 days)'
+      description: 'Delete execution records older than this',
+      helpText: 'A record still survives if it is among the newest kept per job'
     },
     {
-      name: 'batchSize',
-      label: 'Batch Size',
+      name: 'keepPerJob',
+      label: 'Keep Per Job',
       type: 'number',
-      default: 1000,
-      min: 100,
-      max: 10000,
+      default: 100,
+      min: 10,
+      max: 1000,
       required: false,
-      description: 'Number of logs to delete per batch',
-      helpText: 'Larger batches are faster but use more memory'
-    },
-    {
-      name: 'cleanServiceLogs',
-      label: 'Clean Service Logs',
-      type: 'boolean',
-      default: true,
-      required: false,
-      description: 'Delete old ServiceLog entries',
-      helpText: 'Removes logs from legacy services'
-    },
-    {
-      name: 'cleanJobExecutions',
-      label: 'Clean Job Execution Logs',
-      type: 'boolean',
-      default: true,
-      required: false,
-      description: 'Delete old JobExecution entries',
-      helpText: 'Removes old job execution history (keeps last 100 per job)'
+      description: 'Always keep this many of each job\'s newest records',
+      helpText: 'So a job that runs weekly still has a history to read'
     }
   ],
 
@@ -72,7 +59,7 @@ export default {
   },
 
   execution: {
-    timeout: 600000,  // 10 minutes
+    timeout: 300000,  // 5 minutes; two indexed queries per job
     retryEnabled: true,
     maxRetries: 2,
     retryDelayMinutes: 60,

@@ -19,15 +19,13 @@ const jobExecutionSchema = new mongoose.Schema({
   // Reference to job (stored as string in Agenda)
   jobId: {
     type: String,
-    required: true,
-    index: true
+    required: true
   },
 
   // Denormalized for quick lookup (no joins needed)
   jobType: {
     type: String,
-    required: true,
-    index: true
+    required: true
   },
 
   jobName: {
@@ -40,8 +38,7 @@ const jobExecutionSchema = new mongoose.Schema({
     type: String,
     enum: ['queued', 'running', 'success', 'failed', 'cancelled', 'timeout'],
     default: 'queued',
-    required: true,
-    index: true
+    required: true
   },
 
   trigger: {
@@ -59,18 +56,15 @@ const jobExecutionSchema = new mongoose.Schema({
   // Timing
   queuedAt: {
     type: Date,
-    default: Date.now,
-    index: true
+    default: Date.now
   },
 
   startedAt: {
-    type: Date,
-    index: true
+    type: Date
   },
 
   completedAt: {
-    type: Date,
-    index: true
+    type: Date
   },
 
   duration: {
@@ -145,16 +139,31 @@ const jobExecutionSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Indexes for performance
+/**
+ * Four indexes, where there were fifteen.
+ *
+ * Every query this collection has ever served is here: findOne by executionId,
+ * a job's history newest-first, and the unfiltered recent list. Nothing filters
+ * by jobType, status, queuedAt or completedAt, and nothing ever has - those
+ * columns had an index each because they looked like the sort of thing you
+ * index, which is not a reason.
+ *
+ * It matters more than it used to. Level Watch inserts one document every
+ * fifteen minutes, so this collection now takes about a hundred writes a day,
+ * and a write pays for every index tree whether or not anything reads it.
+ *
+ *   executionId    unique, from the field definition - the only lookup key
+ *   jobId+createdAt   one job's history, and the cleanup's boundary query
+ *   createdAt      the TTL, and it serves an unfiltered sort in either direction
+ *
+ * Both sorts are on createdAt rather than startedAt on purpose: a queued
+ * execution that never started has no startedAt, and sorting the history by a
+ * field that can be null puts the failures in an arbitrary place.
+ */
 jobExecutionSchema.index({ jobId: 1, createdAt: -1 });
-jobExecutionSchema.index({ jobType: 1, createdAt: -1 });
-jobExecutionSchema.index({ status: 1, createdAt: -1 });
-// executionId index already created by "unique: true" on field definition
-jobExecutionSchema.index({ queuedAt: -1 });
-jobExecutionSchema.index({ startedAt: -1 });
-jobExecutionSchema.index({ completedAt: -1 });
 
-// TTL index - auto-delete executions older than 90 days (keep longer than ServiceLog)
+// TTL - the floor under everything. Log Cleanup enforces a stricter rule on top
+// of it; this is what happens if that job is ever disabled or fails silently.
 jobExecutionSchema.index({ createdAt: 1 }, { expireAfterSeconds: 7776000 }); // 90 days
 
 // Methods

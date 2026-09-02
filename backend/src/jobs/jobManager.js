@@ -301,9 +301,11 @@ class JobManager {
       throw new Error('Job not found');
     }
 
-    // Get recent executions
+    // Sorted by createdAt, not startedAt: a queued execution that never started
+    // has no startedAt, and sorting a history by a field that can be null puts
+    // exactly the failures you came to look at in an arbitrary place.
     const recentExecutions = await JobExecution.find({ jobId })
-      .sort({ startedAt: -1 })
+      .sort({ createdAt: -1 })
       .limit(10)
       .lean();
 
@@ -334,7 +336,7 @@ class JobManager {
     const query = jobId ? { jobId } : {};
 
     return await JobExecution.find(query)
-      .sort({ startedAt: -1 })
+      .sort({ createdAt: -1 })
       .limit(limit)
       .lean();
   }
