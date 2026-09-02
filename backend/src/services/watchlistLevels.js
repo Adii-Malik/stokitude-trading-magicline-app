@@ -1,6 +1,6 @@
 import Watchlist from '../models/Watchlist.js';
 import notificationService from './notificationService.js';
-import { pricesFor } from './quotes.js';
+import { quotesFor } from './quotes.js';
 
 /**
  * The shortlist's own level watcher.
@@ -22,16 +22,31 @@ import { pricesFor } from './quotes.js';
  */
 
 /**
- * Has price reached this level? Pure, so the rule can be checked without a
- * database or a network.
+ * Has the session reached this level?
  *
- * Inclusive: a close exactly on the number you named has reached it. A level is
- * a decision boundary, not a strict inequality, and "88.00 when I said 88" is
+ * Compared against the day's extremes, not the last price, and that is the whole
+ * design. A level is reached the moment price touches it - which is how you
+ * think about it, and how TradingView's alerts behave - but we cannot watch
+ * every tick. The high and the low run from the open, so asking "did the day get
+ * there" answers the same question from a snapshot taken at any point, and keeps
+ * answering it correctly if a poll is late, slow, or missed entirely.
+ *
+ * A previous close carries no range and arrives with `live: false`; the extremes
+ * are then the close itself, so it degrades to the old one-number comparison
+ * rather than inventing a session that never happened.
+ *
+ * Inclusive: a print exactly on the number you named has reached it. A level is
+ * a decision boundary, not a strict inequality, and "530.00 when I said 530" is
  * not a case where you want silence.
  */
-export function reached(level, price) {
-    if (!level || price == null || level.price == null) return false;
-    return level.dir === 'above' ? price >= level.price : price <= level.price;
+export function reached(level, quote) {
+    if (!level || !quote || level.price == null) return false;
+    return level.dir === 'above' ? quote.high >= level.price : quote.low <= level.price;
+}
+
+/** The price to report: the extreme that actually got there. */
+export function printedAt(level, quote) {
+    return level?.dir === 'above' ? quote.high : quote.low;
 }
 
 /**
@@ -42,10 +57,10 @@ export function reached(level, price) {
  * wrong in a way that happened to pass your entry on the way, and telling you
  * to look at it would be the wrong instruction.
  */
-export function verdictFor(entry, price) {
-    if (!entry || price == null) return null;
-    if (reached(entry.invalidation, price)) return 'invalidated';
-    if (reached(entry.trigger, price)) return 'triggered';
+export function verdictFor(entry, quote) {
+    if (!entry || !quote) return null;
+    if (reached(entry.invalidation, quote)) return 'invalidated';
+    if (reached(entry.trigger, quote)) return 'triggered';
     return null;
 }
 
@@ -72,24 +87,29 @@ export async function checkWatchlistLevels() {
             byMarket.get(market).push(entry);
         }
 
-        const priceOf = new Map();
+        const quoteOf = new Map();
         for (const [market, group] of byMarket) {
-            const prices = await pricesFor(group.map((e) => e.symbol), market);
-            for (const [symbol, price] of prices) priceOf.set(symbol, price);
+            const quotes = await quotesFor(group.map((e) => e.symbol), market);
+            for (const [symbol, quote] of quotes) quoteOf.set(symbol, quote);
         }
 
         let checked = 0, triggered = 0, invalidated = 0, missing = 0;
 
         for (const entry of entries) {
-            const price = priceOf.get(entry.symbol);
+            const quote = quoteOf.get(entry.symbol);
             // Counted, not skipped quietly. A level never compared is
             // indistinguishable from one that never printed, and silence is the
             // failure mode this whole area has already had once.
-            if (price == null) { missing += 1; continue; }
+            if (!quote) { missing += 1; continue; }
             checked += 1;
 
-            const verdict = verdictFor(entry, price);
+            const verdict = verdictFor(entry, quote);
             if (!verdict) continue;
+
+            // The number you are told is the one that reached your level, not
+            // wherever price happens to be by the time the poll ran.
+            const level = verdict === 'invalidated' ? entry.invalidation : entry.trigger;
+            const price = printedAt(level, quote);
 
             /**
              * The flag is written only once the owner has been told.
@@ -129,4 +149,4 @@ export async function checkWatchlistLevels() {
     }
 }
 
-export default { reached, verdictFor, checkWatchlistLevels };
+export default { reached, printedAt, verdictFor, checkWatchlistLevels };

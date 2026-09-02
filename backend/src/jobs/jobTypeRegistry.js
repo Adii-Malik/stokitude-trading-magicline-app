@@ -10,6 +10,7 @@ import signalGenerationJobType from './types/signalGenerationJobType.js';
 import historicalDataJobType from './types/historicalDataJobType.js';
 import logCleanupJobType from './types/logCleanupJobType.js';
 import fundamentalsRefreshJobType from './types/fundamentalsRefreshJobType.js';
+import watchlistLevelJobType from './types/watchlistLevelJobType.js';
 
 class JobTypeRegistry {
   constructor() {
@@ -32,6 +33,7 @@ class JobTypeRegistry {
     await this.register(historicalDataJobType);
     await this.register(logCleanupJobType);
     await this.register(fundamentalsRefreshJobType);
+    await this.register(watchlistLevelJobType);
 
     // Auto-discover custom job types (if directory exists)
     await this.discoverCustomJobTypes();

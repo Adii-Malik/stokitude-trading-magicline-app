@@ -70,7 +70,10 @@ class JobManager {
       // This is CRITICAL - Agenda needs handlers defined before it can execute jobs
       await this.defineAgendaHandlers();
 
-      // Step 5: Get stats from Agenda
+      // Step 5: Provision the jobs the app cannot work without
+      await this.ensureSystemJobs();
+
+      // Step 6: Get stats from Agenda
       const stats = await agendaScheduler.getStats();
       console.log(`✓ Job scheduler: ${stats.enabled} job(s) active`);
 
@@ -112,6 +115,39 @@ class JobManager {
     }
 
     console.log(`✓ Defined ${jobTypes.length} Agenda handler(s)`);
+  }
+
+  /**
+   * Jobs that are infrastructure, not a preference.
+   *
+   * The level watcher is the one thing on the shortlist that works while you are
+   * not looking at it, so it cannot wait for somebody to notice the admin screen
+   * and click Create - an alerting system nobody switched on is worse than none,
+   * because you believe you are covered. Created once, on the first boot that
+   * finds it absent; after that it is an ordinary job you can reschedule or
+   * disable like any other, and this leaves it alone.
+   */
+  async ensureSystemJobs() {
+    const SYSTEM = [{
+      jobType: 'watchlist_levels',
+      schedule: {
+        recurring: { enabled: true, amount: 15, interval: 'minutes' },
+        timezone: 'Asia/Karachi'
+      }
+    }];
+
+    for (const { jobType, schedule } of SYSTEM) {
+      const existing = await agendaScheduler.getJobs({ jobType });
+      if (existing.length) continue;
+
+      await this.createJob({
+        jobType,
+        config: {},
+        schedule,
+        enabled: true,
+        createdBy: 'system'
+      });
+    }
   }
 
   /**

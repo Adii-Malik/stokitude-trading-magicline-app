@@ -320,6 +320,26 @@ function LookForm({ item, onSave, onCancel }) {
         return Number.isNaN(n) ? null : { price: n, dir };
     };
 
+    /**
+     * A level price has already passed is armed, not waiting.
+     *
+     * Said before you save rather than in a notification that night. Naming a
+     * number price is already through fires on the next check, and the alert is
+     * technically correct and completely useless - you get told about something
+     * that had already happened when you typed it. TradingView warns about the
+     * same case; this is that warning, with your own number in it.
+     */
+    const alreadyTrue = (v, dir) => {
+        const level = levelOf(v, dir);
+        if (!level || item.priceNow == null) return false;
+        return dir === 'above' ? item.priceNow >= level.price : item.priceNow <= level.price;
+    };
+
+    const armed = [
+        alreadyTrue(trigger, triggerDir) && 'Wake me',
+        alreadyTrue(invalid, invalidDir) && 'Dead'
+    ].filter(Boolean);
+
     const save = async () => {
         setBusy(true);
         try {
@@ -345,8 +365,18 @@ function LookForm({ item, onSave, onCancel }) {
                     dir={triggerDir} setDir={setTriggerDir} price={trigger} setPrice={setTrigger} />
                 <Level label="Dead" first="below" symbol={item.symbol} onEnter={save}
                     dir={invalidDir} setDir={setInvalidDir} price={invalid} setPrice={setInvalid} />
-                <span className="text-gray-400 dark:text-gray-500">both optional</span>
+                <span className="text-gray-400 dark:text-gray-500">
+                    both optional
+                    {item.priceNow != null && <> · <span className="font-mono tabular-nums">{money(item.priceNow)}</span> now</>}
+                </span>
             </div>
+
+            {armed.length > 0 && (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                    {armed.join(' and ')} {armed.length > 1 ? 'are' : 'is'} already true at{' '}
+                    <span className="font-mono tabular-nums">{money(item.priceNow)}</span> — it fires on the next check.
+                </p>
+            )}
 
             <div className="flex flex-wrap items-center gap-2">
                 <input ref={input} type="text" value={note} onChange={(e) => setNote(e.target.value)}
