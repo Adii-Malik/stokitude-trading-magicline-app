@@ -29,6 +29,7 @@ class NotificationService {
       data = {},
       priority = 'medium',
       actionUrl,
+      market = null,
       expiresInDays = 30
     } = params;
 
@@ -56,6 +57,7 @@ class NotificationService {
         data,
         priority,
         actionUrl,
+        market,
         expiresInDays
       }))
     );
@@ -80,6 +82,7 @@ class NotificationService {
       data = {},
       priority = 'medium',
       actionUrl,
+      market = null,
       expiresInDays = 30
     } = params;
 
@@ -115,6 +118,7 @@ class NotificationService {
         data,
         priority,
         actionUrl,
+        market,
         expiresAt,
         channels: {
           inApp: {
@@ -244,6 +248,7 @@ class NotificationService {
       title: `🎉 Target ${target.level} reached: ${entry.symbol}`,
       message: `${entry.symbol} hit ${price.toFixed(2)}, through your target ${target.level} of ${target.price.toFixed(2)}.`,
       data: { journalEntryId: entry._id, symbol: entry.symbol, level: target.level, price },
+      market: entry.market,
       priority: 'high',
       actionUrl: '/journal'
     });
@@ -264,6 +269,7 @@ class NotificationService {
       title: `\u{1F3AF} ${entry.symbol} reached ${entry.trigger?.price?.toFixed(2)}`,
       message: `${entry.symbol} is at ${price.toFixed(2)}, ${dir} the level you were waiting for. From ${entry.sector}.`,
       data: { watchlistId: entry._id, symbol: entry.symbol, price },
+      market: entry.market,
       priority: 'high',
       actionUrl: '/watchlist'
     });
@@ -284,6 +290,7 @@ class NotificationService {
       title: `\u{1F5D1}\uFE0F ${entry.symbol} is off the shortlist`,
       message: `${entry.symbol} is at ${price.toFixed(2)}, through the ${entry.invalidation?.price?.toFixed(2)} you said would kill the idea. Closed.`,
       data: { watchlistId: entry._id, symbol: entry.symbol, price },
+      market: entry.market,
       priority: 'medium',
       actionUrl: '/watchlist'
     });
@@ -299,6 +306,7 @@ class NotificationService {
       title: `⚠️ Stop level reached: ${entry.symbol}`,
       message: `${entry.symbol} is at ${price.toFixed(2)}, through your stop of ${entry.plannedStop.toFixed(2)}. Did you exit?`,
       data: { journalEntryId: entry._id, symbol: entry.symbol, price },
+      market: entry.market,
       priority: 'urgent',
       actionUrl: '/journal'
     });

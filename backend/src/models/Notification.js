@@ -42,6 +42,23 @@ const notificationSchema = new mongoose.Schema({
     maxlength: 1000
   },
 
+  /**
+   * Which book this is about, or absent when it is about neither.
+   *
+   * Not the marketScoped plugin. That one filters to exactly one market, and
+   * most of what lands here - a job that failed, an admin message, anything
+   * about the account itself - belongs to both. Absent means "always show",
+   * which is also what every notification written before this field existed
+   * means, so nothing has to be backfilled to stay visible.
+   *
+   * Stamped by the caller rather than derived: a notification has no venue and
+   * no currency of its own, only the record it is about.
+   */
+  market: {
+    type: String,
+    index: true
+  },
+
   // Additional data (flexible JSON)
   data: {
     type: mongoose.Schema.Types.Mixed,
@@ -131,9 +148,18 @@ notificationSchema.statics.markManyAsRead = async function (notificationIds, use
   );
 };
 
+/**
+ * What a reader in this market is allowed to see: its own, plus everything that
+ * belongs to no market. `null` in an $in matches a missing field too, which is
+ * what makes every notification written before the field existed keep showing.
+ */
+notificationSchema.statics.visibleIn = function (market) {
+  return market ? { market: { $in: [market, null] } } : {};
+};
+
 // Static method to get unread count
-notificationSchema.statics.getUnreadCount = async function (userId) {
-  return this.countDocuments({ userId, read: false });
+notificationSchema.statics.getUnreadCount = async function (userId, market) {
+  return this.countDocuments({ userId, read: false, ...this.visibleIn(market) });
 };
 
 // Static method to cleanup old notifications

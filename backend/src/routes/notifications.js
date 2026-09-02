@@ -2,6 +2,7 @@ import express from 'express';
 import Notification from '../models/Notification.js';
 import NotificationPreference from '../models/NotificationPreference.js';
 import { authenticate } from '../middleware/auth.js';
+import { currentMarket } from '../config/marketStore.js';
 import pushService from '../services/pushService.js';
 import PushSubscription from '../models/PushSubscription.js';
 
@@ -18,7 +19,15 @@ router.get('/', authenticate, async (req, res) => {
       priority
     } = req.query;
 
-    const query = { userId: req.user._id };
+    /**
+     * Scoped to the book you are looking at.
+     *
+     * A PSX level printing has nothing to say to somebody working the US
+     * screen, and a badge lit by a notification the list will not show is worse
+     * than no badge - you clear it by opening a page that has nothing on it.
+     * Everything that belongs to neither market stays visible in both.
+     */
+    const query = { userId: req.user._id, ...Notification.visibleIn(currentMarket()) };
 
     // Filter by read status
     if (read !== undefined) {
@@ -46,7 +55,7 @@ router.get('/', authenticate, async (req, res) => {
       .skip((parseInt(page) - 1) * parseInt(limit));
 
     // Get unread count
-    const unreadCount = await Notification.getUnreadCount(req.user._id);
+    const unreadCount = await Notification.getUnreadCount(req.user._id, currentMarket());
 
     res.json({
       success: true,
@@ -71,7 +80,7 @@ router.get('/', authenticate, async (req, res) => {
 // GET /api/notifications/unread-count - Get unread count
 router.get('/unread-count', authenticate, async (req, res) => {
   try {
-    const unreadCount = await Notification.getUnreadCount(req.user._id);
+    const unreadCount = await Notification.getUnreadCount(req.user._id, currentMarket());
 
     res.json({
       success: true,
@@ -124,8 +133,11 @@ router.put('/:id/read', authenticate, async (req, res) => {
 // PUT /api/notifications/mark-all-read - Mark all as read
 router.put('/mark-all-read', authenticate, async (req, res) => {
   try {
+    // Only what you can see. "Mark all read" reaching across a market would
+    // clear a badge for a book that is not on screen, and the thing it cleared
+    // is never coming back to tell you what it was.
     const result = await Notification.updateMany(
-      { userId: req.user._id, read: false },
+      { userId: req.user._id, read: false, ...Notification.visibleIn(currentMarket()) },
       {
         $set: {
           read: true,
@@ -157,7 +169,8 @@ router.delete('/clear-read', authenticate, async (req, res) => {
   try {
     const result = await Notification.deleteMany({
       userId: req.user._id,
-      read: true
+      read: true,
+      ...Notification.visibleIn(currentMarket())
     });
 
     res.json({
