@@ -59,12 +59,6 @@ function Pill({ tone: t, children }) {
 
 // Only a row with something to say gets a stripe. A colour down every row is a
 // colour that means nothing.
-const STRIPE = {
-    fired: 'bg-cyan-500',
-    late: 'bg-rose-500',
-    soon: 'bg-amber-500'
-};
-
 const INPUT = 'rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-cyan-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100';
 
 /**
@@ -485,18 +479,6 @@ function TradeForm({ item, onSave, onCancel }) {
 }
 
 /** Symbol and name, the head of every row whatever its state. */
-function Head({ item, onOpen }) {
-    return (
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <button type="button" onClick={() => onOpen(item)}
-                className="font-mono text-lg font-semibold tracking-tight text-gray-900 hover:text-cyan-600 dark:text-white dark:hover:text-cyan-400">
-                {item.symbol}
-            </button>
-            <span className="min-w-0 flex-1 truncate text-base text-gray-500 dark:text-gray-400">{item.name}</span>
-        </div>
-    );
-}
-
 /**
  * Back to the sector you found it in.
  *
@@ -533,6 +515,157 @@ function Status({ item, status, onOpen, extra }) {
 }
 
 /**
+ * Three orders, named in words rather than in this feature's own vocabulary.
+ *
+ * The default is the one the list has always used - a level that printed, then
+ * anything you have never opened, then longest since you looked.
+ *
+ * There was a chip beside this reading "not opened yet", and it had to go: the
+ * default order already floats those to the top, so the two controls were the
+ * same idea wearing different hats. Sorting and filtering earn separate places
+ * only when they answer separate questions.
+ */
+const SORTS = [
+    { id: 'needs', label: 'What needs me' },
+    { id: 'idle', label: 'Longest since a look' },
+    { id: 'drift', label: 'Move since I flagged it' }
+];
+
+/** How far price has come since you flagged it, as a percentage or null. */
+function driftPct(item) {
+    if (!(item.priceWhenNoticed > 0) || item.priceNow == null) return null;
+    return ((item.priceNow - item.priceWhenNoticed) / item.priceWhenNoticed) * 100;
+}
+
+/**
+ * One line per name, so fifteen of them can be scanned rather than read.
+ *
+ * The card this replaces is about a hundred and forty pixels tall, which is
+ * right for the five names it was designed for and two thousand pixels of
+ * scrolling at fifteen. Everything that decides whether you open a row is now a
+ * column, so the eye runs down one column instead of reading each line:
+ *
+ *   ○ or ●     never opened, or opened. The one you asked for.
+ *   looks      glanced at once and studied four times are different states.
+ *   watching   a level, or a dash. The dash is the useful half.
+ *
+ * The card is not gone - it is what a row expands into.
+ */
+function ListRow({ item, open, onExpand }) {
+    const looks = item.looks?.length || 0;
+    const level = item.trigger || item.invalidation;
+    const fired = hasFired(item);
+
+    return (
+        <button type="button" onClick={() => onExpand(open ? null : item.id)}
+            aria-expanded={open}
+            className={`flex w-full items-center gap-4 border-t px-6 py-3 text-left transition ${
+                open
+                    ? 'border-cyan-200 bg-cyan-50 dark:border-cyan-500/30 dark:bg-cyan-500/10'
+                    : 'border-gray-100 hover:bg-gray-50 dark:border-gray-700/60 dark:hover:bg-gray-700/40'
+            }`}>
+            {/* A chevron needs no legend. The circle it replaced was a symbol
+                with two colours and no key anywhere on the screen - and the
+                Looks column, which has a heading, already said the same thing. */}
+            <ChevronDown className={`h-4 w-4 shrink-0 transition ${
+                open ? 'rotate-0 text-cyan-600 dark:text-cyan-400' : '-rotate-90 text-gray-300 dark:text-gray-600'
+            }`} />
+            <span className="w-20 shrink-0 truncate font-mono text-sm font-bold text-gray-900 dark:text-white">
+                {item.symbol}
+            </span>
+            <span className="min-w-0 flex-1 truncate text-sm text-gray-500 dark:text-gray-400">
+                {item.sector}
+            </span>
+            <span className={`w-16 shrink-0 text-right font-mono text-sm ${
+                looks ? 'text-gray-600 dark:text-gray-300' : 'font-semibold text-rose-600 dark:text-rose-400'
+            }`}>
+                {looks || 'none'}
+            </span>
+            <span className="w-16 shrink-0 text-right font-mono text-sm text-gray-400 dark:text-gray-500">
+                {looks ? `${daysIdle(item)}d` : '—'}
+            </span>
+            <span className={`w-32 shrink-0 truncate text-right font-mono text-sm ${
+                fired ? 'font-semibold text-rose-600 dark:text-rose-400'
+                    : level ? 'text-cyan-600 dark:text-cyan-400' : 'text-gray-300 dark:text-gray-600'
+            }`}>
+                {fired ? `printed ${money(item.triggeredPrice)}`
+                    : level ? `${item.trigger ? '▲' : '▼'} ${money(level.price)}` : '—'}
+            </span>
+            <span className="w-24 shrink-0 text-right font-mono text-base font-semibold text-gray-900 dark:text-white">
+                {money(item.priceNow)}
+            </span>
+        </button>
+    );
+}
+
+/** The column names, once, so the row's numbers are not a guess. */
+function ListHead() {
+    // Widths and gaps match ListRow exactly. They have to be read together, so
+    // they are kept next to each other rather than in a shared constant that
+    // hides which column is which.
+    const H = 'shrink-0 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500';
+    return (
+        <div className="flex items-center gap-4 border-b border-gray-200 px-6 pb-3 dark:border-gray-700">
+            <span className="h-4 w-4 shrink-0" />
+            <span className={`w-20 ${H}`}>Symbol</span>
+            <span className={`min-w-0 flex-1 ${H}`}>Sector</span>
+            <span className={`w-16 text-right ${H}`}>Looks</span>
+            <span className={`w-16 text-right ${H}`}>Last</span>
+            <span className={`w-32 text-right ${H}`}>Watching</span>
+            <span className={`w-24 text-right ${H}`}>Now</span>
+        </div>
+    );
+}
+
+/**
+ * Narrowing, for when the list is long enough that scanning is not enough.
+ *
+ * Deliberately orthogonal to the groups above it. The groups answer "what needs
+ * me"; these answer "where is that one name" and "how are my refinery ideas
+ * doing" - questions the sort order can never reach. Sector offers only the
+ * sectors you actually hold names in, because a dropdown of every sector on the
+ * exchange is a worse search box.
+ */
+function Filters({ query, setQuery, sectors, sector, setSector, sort, setSort, onClear }) {
+    const SELECT = 'rounded-lg border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:border-cyan-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200';
+
+    return (
+        <div className="flex flex-wrap items-center gap-2 border-t border-gray-200 px-4 py-2 dark:border-gray-700">
+            <label className="relative min-w-40 flex-1">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <input type="search" value={query} onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Symbol or sector" aria-label="Filter the shortlist"
+                    className={`w-full py-1 pl-8 ${INPUT}`} />
+            </label>
+
+            <label className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                Sector
+                <select value={sector} onChange={(e) => setSector(e.target.value)} className={SELECT}>
+                    <option value="">All</option>
+                    {sectors.map((s) => <option key={s.name} value={s.name}>{s.name} ({s.n})</option>)}
+                </select>
+            </label>
+
+            <label className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                Sort
+                <select value={sort} onChange={(e) => setSort(e.target.value)} className={SELECT}>
+                    {SORTS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+                </select>
+            </label>
+
+            {/* Only when there is something to clear. A permanently visible
+                Clear on an unfiltered list is a button that does nothing. */}
+            {(query || sector || sort !== 'needs') && (
+                <button type="button" onClick={onClear}
+                    className="rounded-lg px-2 py-1 text-xs font-medium text-gray-400 underline-offset-2 transition hover:text-gray-700 hover:underline dark:text-gray-500 dark:hover:text-gray-200">
+                    Clear
+                </button>
+            )}
+        </div>
+    );
+}
+
+/**
  * One name in the queue, and the one action the whole feature depends on you
  * taking. Open it, paste the chart, press Enter.
  */
@@ -544,10 +677,11 @@ function QueueRow({ item, open, setOpen, onLook, onDrop, onOpen, onTrade }) {
 
     return (
         <div className={ROW}>
-            {status && <span className={`absolute inset-y-0 left-0 w-1 ${STRIPE[status.tone]}`} />}
-
             <div className={MAIN}>
-                <Head item={item} onOpen={onOpen} />
+                {/* No symbol here. The row above is still on screen with its
+                    columns intact, so repeating the name would say it twice and
+                    the detail would stop looking attached to anything. */}
+                <span className="sr-only">{item.symbol}</span>
                 <Status item={item} onOpen={onOpen} status={status}
                     extra={[
                         looks.length
@@ -592,7 +726,7 @@ function QueueRow({ item, open, setOpen, onLook, onDrop, onOpen, onTrade }) {
             <Panel item={item}>
                 {hasLevels ? <Meter item={item} /> : (
                     <p className="text-xs leading-snug text-gray-400 dark:text-gray-500">
-                        No level armed.{' '}
+                        Nothing is watching this price.{' '}
                         <button type="button" onClick={() => setOpen({ id: item.id, mode: 'look' })}
                             className="border-b border-current font-medium text-cyan-600 dark:text-cyan-400">
                             Set one
@@ -627,7 +761,9 @@ function PastRow({ item, onOpen, onRevive, onJournal }) {
         passed: 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-300',
         traded: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
     };
-    const LABEL = { dead: 'Idea closed', passed: 'Passed on', traded: 'Became a trade' };
+    // Shorter than the filter above it, but naming the same actor. "Idea
+    // closed" said something happened and not who did it.
+    const LABEL = { dead: 'Level killed it', passed: 'You passed', traded: 'You traded it' };
 
     const revive = async () => {
         setBusy(true);
@@ -800,11 +936,20 @@ function Tab({ id, label, count, active, onClick }) {
 }
 
 /** How a name ended, as a filter inside history. Absent when nothing ended that way. */
+/**
+ * Named for who ended the idea, because that is the only axis that separates
+ * them - and the one the old labels hid.
+ *
+ * "Called dead" read as a verdict with no author: nothing in the words said
+ * whether you killed it or the market did. One of these three is not your
+ * decision at all, which is the thing worth seeing while you are reading back
+ * what happened to your ideas.
+ */
 const KINDS = [
     { id: 'all', label: 'Everything' },
-    { id: 'dead', label: 'Called dead' },
-    { id: 'passed', label: 'Passed on' },
-    { id: 'traded', label: 'Became trades' }
+    { id: 'dead', label: 'Your level killed it' },
+    { id: 'passed', label: 'You passed on it' },
+    { id: 'traded', label: 'You traded it' }
 ];
 
 function Kinds({ items, value, onChange }) {
@@ -848,22 +993,41 @@ export default function WatchlistPage() {
     const { items, loading, error, reload, flag, remove, update, look, trade, counts } = useWatchlist();
     const [open, setOpen] = useState(null);
     const [tab, setTab] = useState('queue');
+    const [sector, setSector] = useState('');
+    const [sort, setSort] = useState('needs');
+    // Which row is showing its card. One at a time: two open cards is the
+    // wall of text the dense list exists to replace.
+    const [expanded, setExpanded] = useState(null);
     const [kind, setKind] = useState('all');
     const [query, setQuery] = useState('');
 
     // Settled once per load of the data, deliberately.
     const groups = useMemo(() => split(items), [items]);
 
-    const rows = useMemo(() => groups[tab]
-        .filter((i) => tab !== 'past' || kind === 'all' || kindOf(i) === kind)
-        .filter((i) => matches(i, query)),
-    [groups, tab, kind, query]);
-
-    // A tab that empties under you would leave the screen blank with no
-    // explanation, so fall back to the queue, which always exists.
-    useEffect(() => {
-        if (!groups[tab].length && tab !== 'queue') setTab('queue');
+    /** Only the sectors you hold names in, with counts. */
+    const sectors = useMemo(() => {
+        const n = new Map();
+        for (const i of groups[tab]) if (i.sector) n.set(i.sector, (n.get(i.sector) || 0) + 1);
+        return [...n.entries()].map(([name, count]) => ({ name, n: count }))
+            .sort((a, b) => b.n - a.n || a.name.localeCompare(b.name));
     }, [groups, tab]);
+
+    const rows = useMemo(() => {
+        const list = groups[tab]
+            .filter((i) => tab !== 'past' || kind === 'all' || kindOf(i) === kind)
+            .filter((i) => !sector || i.sector === sector)
+            .filter((i) => matches(i, query));
+
+        if (tab !== 'queue' || sort === 'needs') return list;
+
+        // A copy: split() hands back the array it sorted, and re-sorting it in
+        // place would reorder the queue behind every other reader of it.
+        const by = {
+            idle: (a, b) => daysIdle(b) - daysIdle(a),
+            drift: (a, b) => (driftPct(b) ?? -Infinity) - (driftPct(a) ?? -Infinity)
+        }[sort];
+        return by ? [...list].sort(by) : list;
+    }, [groups, tab, kind, query, sector, sort]);
 
     const onLook = (item, body) => look(item.id, body);
     const onDrop = (item) => remove(item);
@@ -914,20 +1078,20 @@ export default function WatchlistPage() {
                     <div className="flex flex-wrap items-center gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-900/50">
                         <Tab id="queue" label="Queue" count={groups.queue.length}
                             active={tab === 'queue'} onClick={setTab} />
-                        {groups.past.length > 0 && (
-                            <Tab id="past" label="History" count={groups.past.length}
-                                active={tab === 'past'} onClick={setTab} />
-                        )}
+                        {/* Shown at zero on purpose. Hidden until something
+                            settled there, you never learned the second half of
+                            the model existed. */}
+                        <Tab id="past" label="History" count={groups.past.length}
+                            active={tab === 'past'} onClick={setTab} />
                     </div>
-                    {searchable && (
-                        <label className="relative ml-auto">
-                            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                            <input type="search" value={query} onChange={(e) => setQuery(e.target.value)}
-                                placeholder="Symbol or sector" aria-label="Filter the shortlist"
-                                className={`w-48 py-1 pl-8 ${INPUT}`} />
-                        </label>
-                    )}
                 </div>
+
+                {searchable && (
+                    <Filters query={query} setQuery={setQuery}
+                        sectors={sectors} sector={sector} setSector={setSector}
+                        sort={sort} setSort={setSort}
+                        onClear={() => { setQuery(''); setSector(''); setSort('needs'); }} />
+                )}
 
                 {tab === 'past' && <Kinds items={groups.past} value={kind} onChange={setKind} />}
             </div>
@@ -961,24 +1125,28 @@ export default function WatchlistPage() {
 
             {rows.length > 0 && (
                 <div className="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-                    {rows.map((item) => (
-                        tab === 'queue' ? (
-                            <QueueRow key={item.id} item={item} open={open} setOpen={setOpen}
-                                onLook={onLook} onDrop={onDrop} onOpen={onOpen} onTrade={onTrade} />
-                        ) : (
-                            <PastRow key={item.id} item={item} onOpen={onOpen}
-                                onRevive={onRevive} onJournal={onJournal} />
-                        )
+                    {tab === 'queue' ? (
+                        <div className="py-3">
+                            <ListHead />
+                            {rows.map((item) => (
+                                <div key={item.id} className={expanded === item.id
+                                    ? 'border-l-2 border-cyan-500 dark:border-cyan-400' : ''}>
+                                    <ListRow item={item} open={expanded === item.id}
+                                        onExpand={(id) => { setExpanded(id); setOpen(null); }} />
+                                    {expanded === item.id && (
+                                        <div className="bg-cyan-50/40 dark:bg-cyan-500/5">
+                                            <QueueRow item={item} open={open} setOpen={setOpen}
+                                                onLook={onLook} onDrop={onDrop} onOpen={onOpen} onTrade={onTrade} />
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    ) : rows.map((item) => (
+                        <PastRow key={item.id} item={item} onOpen={onOpen}
+                            onRevive={onRevive} onJournal={onJournal} />
                     ))}
                 </div>
-            )}
-
-            {tab === 'queue' && rows.length > 0 && (
-                <p className="px-1 text-xs text-gray-400 dark:text-gray-500">
-                    A name only asks for you when something happened to it — a level you
-                    named printed, or you flagged it and never opened it. Everything else
-                    sits here quietly, longest since you looked at the top.
-                </p>
             )}
         </div>
     );
