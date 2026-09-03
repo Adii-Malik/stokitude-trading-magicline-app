@@ -24,6 +24,18 @@ export default function PortfolioDetail() {
     const [uploadResult, setUploadResult] = useState(null);
     const [uploading, setUploading] = useState(false);
     const [loading, setLoading] = useState(true);
+    /**
+     * Bumped whenever the book changes underneath the tabs.
+     *
+     * The holdings table and the allocation view each fetch their own data,
+     * keyed on the portfolio id alone - which never changes while you are on
+     * this screen. So adding a transaction refreshed the header and left the
+     * holdings showing the position you just changed, until you switched tabs
+     * and back and the remount happened to refetch. This is the signal that was
+     * missing: a number the children watch, so a change reaches every part of
+     * the screen rather than only the parts the parent happens to own.
+     */
+    const [version, setVersion] = useState(0);
 
     useEffect(() => {
         loadPortfolio();
@@ -46,6 +58,12 @@ export default function PortfolioDetail() {
         }
     };
 
+    /** The book changed. Everything on the screen has to hear about it. */
+    const refresh = () => {
+        setVersion((v) => v + 1);
+        loadPortfolio();
+    };
+
     const handleExport = async () => {
         try {
             const res = await api.get(`/portfolios/${id}/transactions/export`, { responseType: 'blob' });
@@ -64,7 +82,7 @@ export default function PortfolioDetail() {
         try {
             const res = await api.post(`/portfolios/${id}/rebuild`);
             toast.success(res.data.message || 'Positions rebuilt');
-            loadPortfolio();
+            refresh();
         } catch (error) {
             toast.error(error.response?.data?.message || 'Rebuild failed');
         }
@@ -101,7 +119,7 @@ export default function PortfolioDetail() {
             if (result.errors?.length) toast.error(message); else toast.success(message);
 
             setUploadFile(null);
-            loadPortfolio();
+            refresh();
         } catch (error) {
             console.error('Error uploading CSV:', error);
             toast.error(error.response?.data?.message || 'Failed to upload CSV');
@@ -219,6 +237,7 @@ export default function PortfolioDetail() {
                                 <HoldingsTable
                                     portfolioId={id}
                                     currency={portfolio.currency}
+                                    refreshKey={version}
                                     onSelectSymbol={(s) => navigate(`/portfolios/${id}/${s}`)}
                                 />
                             )}
@@ -226,7 +245,7 @@ export default function PortfolioDetail() {
                                 <TransactionList
                                     portfolioId={id}
                                     currency={portfolio.currency}
-                                    onTransactionChange={loadPortfolio}
+                                    onTransactionChange={refresh}
                                 />
                             )}
                             {activeTab === 'tax' && (
@@ -236,7 +255,7 @@ export default function PortfolioDetail() {
                                 />
                             )}
                             {activeTab === 'allocation' && (
-                                <AllocationView portfolioId={id} currency={portfolio.currency} />
+                                <AllocationView portfolioId={id} currency={portfolio.currency} refreshKey={version} />
                             )}
                         </div>
                     </div>
@@ -250,7 +269,7 @@ export default function PortfolioDetail() {
                             onClose={() => setShowAddTransaction(false)}
                             onAdded={() => {
                                 setShowAddTransaction(false);
-                                loadPortfolio();
+                                refresh();
                             }}
                         />
                     )}

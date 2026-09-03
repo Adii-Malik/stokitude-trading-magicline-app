@@ -4,16 +4,18 @@ import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { formatCurrency, formatPercent, formatShares, getPnLColorClass } from '../../utils/portfolioUtils';
 
-export default function HoldingsTable({ portfolioId, currency, onSelectSymbol }) {
+export default function HoldingsTable({ portfolioId, currency, onSelectSymbol, refreshKey = 0 }) {
     const [holdings, setHoldings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [sortField, setSortField] = useState('totalValue');
     const [sortDirection, setSortDirection] = useState('desc');
 
+    // refreshKey changes when the parent books a transaction, so a change made
+    // on another tab lands here without needing the remount a tab switch causes.
     useEffect(() => {
         loadHoldings();
-    }, [portfolioId]);
+    }, [portfolioId, refreshKey]);
 
     const loadHoldings = async () => {
         try {

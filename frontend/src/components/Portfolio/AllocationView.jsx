@@ -6,7 +6,7 @@ import { formatCurrency, formatPercent } from '../../utils/portfolioUtils';
 import PolicyEditorModal from './PolicyEditorModal';
 import SIPPlanModal from './SIPPlanModal';
 
-export default function AllocationView({ portfolioId, currency }) {
+export default function AllocationView({ portfolioId, currency, refreshKey = 0 }) {
     const [policy, setPolicy] = useState(null);
     const [sipPlan, setSipPlan] = useState(null);
     const [recommendations, setRecommendations] = useState([]);
@@ -16,9 +16,11 @@ export default function AllocationView({ portfolioId, currency }) {
     const [showPolicyEditor, setShowPolicyEditor] = useState(false);
     const [showSIPPlanEditor, setShowSIPPlanEditor] = useState(false);
 
+    // Drift is measured against the holdings, so a transaction booked on another
+    // tab moves it. refreshKey is how that reaches here without a remount.
     useEffect(() => {
         loadAllocationData();
-    }, [portfolioId]);
+    }, [portfolioId, refreshKey]);
 
     const loadAllocationData = async () => {
         try {
