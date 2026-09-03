@@ -855,7 +855,25 @@ class PortfolioService {
                         realizedPnL: { $sum: '$realizedPnL' },
                         dividends: { $sum: '$dividendsReceived' },
                         cgtTax: { $sum: '$cgtTax' },
-                        closed: { $sum: { $cond: [{ $lte: ['$netShares', 0] }, 1, 0] } }
+                        closed: { $sum: { $cond: [{ $lte: ['$netShares', 0] }, 1, 0] } },
+
+                        /**
+                         * How often booking a result went your way, and by how
+                         * much when it did.
+                         *
+                         * Home had a panel apologising that expectancy stays
+                         * blank until the journal has closed trades, while the
+                         * ledger already knew: a name whose realized P/L is not
+                         * zero has had its answer. Counting the two sides and
+                         * summing each separately is enough for a win rate and
+                         * the ratio of the average win to the average loss,
+                         * which together say more than either alone - you can
+                         * be wrong most of the time and still make money.
+                         */
+                        won: { $sum: { $cond: [{ $gt: ['$realizedPnL', 0] }, 1, 0] } },
+                        lost: { $sum: { $cond: [{ $lt: ['$realizedPnL', 0] }, 1, 0] } },
+                        wonSum: { $sum: { $cond: [{ $gt: ['$realizedPnL', 0] }, '$realizedPnL', 0] } },
+                        lostSum: { $sum: { $cond: [{ $lt: ['$realizedPnL', 0] }, '$realizedPnL', 0] } }
                     }
                 }
             ]),
@@ -925,6 +943,39 @@ class PortfolioService {
                 weightPct: h.weightPct
             }));
 
+        /**
+         * Every holding, by value, for callers that combine several books.
+         *
+         * `weightPct` is a share of this portfolio alone, so a screen showing
+         * two books cannot add them: 30% of a small account would outrank 20%
+         * of a large one though it is a twentieth of the size. Value is the
+         * same unit in every book of a market, so the caller sums first and
+         * divides once. Symbol and number only - anything richer belongs to the
+         * holdings endpoint.
+         */
+        const holdingValues = holdings.map(h => ({ symbol: h.symbol, value: h.totalValue }));
+
+        /**
+         * What booking a result has come to, over every name that has one.
+         *
+         * Counted per symbol rather than per round trip: a name traded four
+         * times is one answer to "was I right about this", which is the
+         * question. Averages rather than totals, because the ratio between them
+         * is the part that explains a losing hit rate that still makes money.
+         */
+        const won = booked[0]?.won || 0;
+        const lost = booked[0]?.lost || 0;
+        const results = {
+            won,
+            lost,
+            decided: won + lost,
+            // Sums, not averages. A caller combining two books can add these;
+            // averaging two averages weights a four-name book like a forty-name
+            // one. The division belongs wherever the totals stop growing.
+            wonSum: booked[0]?.wonSum || 0,
+            lostSum: Math.abs(booked[0]?.lostSum || 0)
+        };
+
         return {
             totalValue,
             totalCost,
@@ -950,7 +1001,9 @@ class PortfolioService {
             cashTracked: cash.tracked,
             holdingsCount: holdings.length,
             closedCount,
-            topHoldings
+            topHoldings,
+            holdingValues,
+            results
         };
     }
 }

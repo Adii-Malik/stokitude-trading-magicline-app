@@ -4,6 +4,7 @@
  * persisted, so an edited entry can never disagree with its own statistics.
  */
 import JournalEntry from '../models/JournalEntry.js';
+import Watchlist from '../models/Watchlist.js';
 import RiskProfile from '../models/RiskProfile.js';
 import { currencyOfMarket, DEFAULT_MARKET } from '../config/exchanges.js';
 import { currentMarket } from '../config/marketStore.js';
@@ -177,8 +178,20 @@ export function statsFor(entries) {
     // followedPlan it replaced.
     const withStop = closed.filter(e => e.plannedStop != null);
 
+    /**
+     * Whether a stop existed at entry, over every trade rather than only the
+     * closed ones.
+     *
+     * stopSet answers a question about history and cannot say anything about
+     * the position you are in right now. This counts the lot, because "five of
+     * my eight trades went on with nothing under them" is a habit, and a habit
+     * is what a journal is for.
+     */
+    const stopBeforeEntry = { n: entries.filter(e => e.plannedStop != null).length, of: entries.length };
+
     return {
         totalTrades: entries.length,
+        stopBeforeEntry,
         openTrades: open.length,
         closedTrades: closed.length,
         wins: wins.length,
@@ -377,9 +390,35 @@ class JournalService {
             market: currentMarket() || DEFAULT_MARKET,
             currency: currencyOfMarket(currentMarket()),
             ...statsFor(entries),
+            plannedFirst: await plannedFirst(entries),
             sizeInRule: await sizeInRule(userId, entries)
         };
     }
+}
+
+/**
+ * How many of these trades began as an idea you wrote down first.
+ *
+ * The shortlist stamps the journal entry it produced, so the link already
+ * exists and only needs counting from the other end. This is the one thing on
+ * the whole screen that measures process rather than outcome: a trade with no
+ * flag behind it was never an idea, it was a reaction, and no amount of
+ * profit-and-loss will ever tell you which is which.
+ *
+ * Unscoped by symbol on purpose - the id match is exact, so a name you flagged
+ * and traded twice counts only the entry it actually produced.
+ */
+async function plannedFirst(entries) {
+    const of = entries.length;
+    if (!of) return { n: 0, of: 0 };
+
+    const ids = entries.map(e => e._id);
+    const flagged = await Watchlist.find({ journalEntryId: { $in: ids } })
+        .select('journalEntryId')
+        .lean();
+
+    const seen = new Set(flagged.map(f => String(f.journalEntryId)));
+    return { n: entries.filter(e => seen.has(String(e._id))).length, of };
 }
 
 export default new JournalService();
