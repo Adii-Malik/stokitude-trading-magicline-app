@@ -41,3 +41,32 @@ describe('what a book is measured against', () => {
         assert.equal(light.tracked, full.tracked);
     });
 });
+
+describe('what the cash balance is made of', () => {
+    const buy = { type: 'BUY', quantity: 10, price: 50, fees: 5 };
+    const sell = { type: 'SELL', quantity: 10, price: 60, fees: 6 };
+
+    test('the six parts reconstruct the balance', () => {
+        // The whole point of the breakdown: if it cannot be added back up to the
+        // number on screen, it cannot be used to find a gap against a statement.
+        const { balance, walk } = cashFrom([dep(1000), buy, sell, wd(200)]);
+        const rebuilt = walk.deposits - walk.withdrawals - walk.bought
+            + walk.sold + walk.dividends - walk.fees;
+        assert.equal(Math.round(rebuilt * 100) / 100, balance);
+        // 1000 in, 500 spent, 5 commission, 600 back, 6 commission, 200 out.
+        assert.equal(balance, 889);
+    });
+
+    test('counts fills that recorded no commission', () => {
+        // A book with no commission slab records zero fees on every fill, and
+        // the balance is too high by exactly what the broker actually charged.
+        const { walk } = cashFrom([dep(1000), { type: 'BUY', quantity: 10, price: 50 }, sell]);
+        assert.equal(walk.trades, 2);
+        assert.equal(walk.freeOfCharge, 1);
+    });
+
+    test('a cash-only book has no trades to flag', () => {
+        const { walk } = cashFrom([dep(500), wd(100)]);
+        assert.deepEqual([walk.trades, walk.freeOfCharge], [0, 0]);
+    });
+});

@@ -32,14 +32,21 @@ export function Panel({ icon: Icon, tint = 'cyan', title, value, note, tone, chi
     );
 }
 
-export function Line({ label, value, note, tone, muted, strong }) {
+export function Line({ label, value, note, tone, muted, strong, onClick }) {
+    // A line that opens something is a button, so it can be reached by keyboard
+    // and reads as clickable rather than only behaving that way.
+    const Label = onClick ? 'button' : 'span';
+
     return (
         <div className={`flex items-baseline justify-between gap-3 text-sm
                         ${strong ? 'pt-2 border-t border-hairline' : ''}`}>
-            <span className={muted ? 'text-ink-faint' : 'text-ink-muted'}>
+            <Label
+                {...(onClick ? { type: 'button', onClick } : {})}
+                className={`text-left ${muted ? 'text-ink-faint' : 'text-ink-muted'}
+                            ${onClick ? 'underline decoration-dotted underline-offset-4 hover:text-ink' : ''}`}>
                 {label}
                 {note && <span className="block text-xs text-ink-faint">{note}</span>}
-            </span>
+            </Label>
             <span className={`shrink-0 tabular-nums ${strong ? 'font-semibold' : ''}
                              ${tone || (muted ? 'text-ink-faint' : 'text-ink')}`}>
                 {value}

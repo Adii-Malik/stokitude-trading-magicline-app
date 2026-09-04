@@ -125,24 +125,66 @@ const CASH_FIELDS = 'type cashAmount quantity price fees otherCharges dividendCa
 export function cashFrom(transactions) {
     let balance = 0, net = 0, peak = 0, charges = 0, tracked = false;
 
+    /**
+     * The same walk, kept as its six parts.
+     *
+     * The balance is one number and a broker statement is another, and when they
+     * disagree there was nothing on the screen to compare line by line - you
+     * could see that the app said 1,481.44 and the account said 1,475.80, and
+     * nothing at all about where the 5.64 went. These are the six sums the
+     * balance is made of, so the gap can be walked to one of them instead of
+     * guessed at.
+     *
+     * `trades` counts the buys and sells, and `freeOfCharge` how many of them
+     * recorded no commission at all - a book whose fees total zero across a
+     * dozen fills is not a cheap broker, it is a portfolio with no commission
+     * slab configured, and the missing charges are exactly the kind of gap this
+     * is here to find.
+     */
+    const walk = { deposits: 0, withdrawals: 0, bought: 0, sold: 0, dividends: 0, fees: 0 };
+    let trades = 0, freeOfCharge = 0;
+
     for (const tx of transactions) {
         const fees = (tx.fees || 0) + (tx.otherCharges || 0);
         const cash = tx.cashAmount || 0;
         charges += fees;
+        walk.fees += fees;
+
+        if (tx.type === 'BUY' || tx.type === 'SELL') {
+            trades++;
+            if (fees === 0) freeOfCharge++;
+        }
+
         switch (tx.type) {
             case 'DEPOSIT':
-                balance += cash; net += cash; peak = Math.max(peak, net); tracked = true; break;
+                balance += cash; net += cash; peak = Math.max(peak, net); tracked = true;
+                walk.deposits += cash; break;
             case 'WITHDRAW':
-                balance -= cash; net -= cash; tracked = true; break;
-            case 'BUY': balance -= (tx.quantity * tx.price) + fees; break;
-            case 'SELL': balance += (tx.quantity * tx.price) - fees; break;
-            case 'DIV': balance += tx.dividendCash || 0; break;
+                balance -= cash; net -= cash; tracked = true;
+                walk.withdrawals += cash; break;
+            case 'BUY':
+                balance -= (tx.quantity * tx.price) + fees;
+                walk.bought += tx.quantity * tx.price; break;
+            case 'SELL':
+                balance += (tx.quantity * tx.price) - fees;
+                walk.sold += tx.quantity * tx.price; break;
+            case 'DIV':
+                balance += tx.dividendCash || 0;
+                walk.dividends += tx.dividendCash || 0; break;
             default: break;
         }
     }
 
     const round = (n) => Math.round(n * 100) / 100;
-    return { balance: round(balance), tracked, peakInvested: round(peak), fees: round(charges) };
+    return {
+        balance: round(balance), tracked, peakInvested: round(peak), fees: round(charges),
+        walk: {
+            deposits: round(walk.deposits), withdrawals: round(walk.withdrawals),
+            bought: round(walk.bought), sold: round(walk.sold),
+            dividends: round(walk.dividends), fees: round(walk.fees),
+            trades, freeOfCharge
+        }
+    };
 }
 
 class PortfolioService {
@@ -317,8 +359,25 @@ class PortfolioService {
             }
         }
 
+        /**
+         * The venue comes from the book, not from a global constant.
+         *
+         * Transaction.exchange defaults to PSX whatever book it is written in,
+         * and its currency defaults from that - so every US fill was recorded as
+         * having traded in Pakistan, in rupees, inside a dollar portfolio. It is
+         * inert today because transactions are reached through a portfolio that
+         * is already scoped, and nothing reads the stored currency. It is still a
+         * row that contradicts its own parent, and the day anything scopes
+         * transactions the whole US ledger files itself under PK.
+         *
+         * Which venue within the market is not a question this app asks. Nothing
+         * here differs between NASDAQ and NYSE - not currency, not rounding, not
+         * pricing, not scoping - so the first is taken and the distinction is
+         * left alone rather than guessed at or asked for.
+         */
         const transaction = new Transaction({
             ...transactionData,
+            exchange: transactionData.exchange || getMarket(portfolio.market).exchanges[0],
             portfolioId,
             createdBy: userId
         });
@@ -1070,6 +1129,9 @@ class PortfolioService {
             totalFees: cash.fees,
             cashBalance: cash.balance,
             cashTracked: cash.tracked,
+            // The six sums the balance is made of, so it can be checked against
+            // a statement rather than believed.
+            cashWalk: cash.walk,
             holdingsCount: holdings.length,
             /**
              * Which holdings the total above leaves out.

@@ -424,8 +424,10 @@ function Summary({ dashboard, currency }) {
         unrealizedPnL = 0, realizedPnL = 0, totalDividends = 0,
         totalPnL = 0, totalPnLPct = 0, totalFees = 0,
         capitalGainsTax = 0, netRealizedPnL = 0, taxRatePct = 15,
-        cgtMethod = 'FLAT', filerStatus = null, unpriced = []
+        cgtMethod = 'FLAT', filerStatus = null, unpriced = [], cashWalk = null
     } = dashboard;
+
+    const [showCash, setShowCash] = useState(false);
 
     const money = (v, opts) => formatCurrency(v, currency, opts);
     const accountValue = totalValue + (cashTracked ? cashBalance : 0);
@@ -447,7 +449,38 @@ function Summary({ dashboard, currency }) {
         <div className="grid gap-3 sm:gap-4 lg:grid-cols-3">
             <Panel icon={Wallet} tint="blue" title="Account value" value={money(accountValue)}>
                 <Line label="Holdings" value={money(totalValue)} />
-                {cashTracked && <Line label="Cash" value={money(cashBalance)} />}
+                {cashTracked && (
+                    <Line label="Cash" value={money(cashBalance)}
+                        onClick={cashWalk ? () => setShowCash(v => !v) : undefined} />
+                )}
+                {/*
+                    Where the cash number came from, on request.
+
+                    A balance is one number and a broker statement is another,
+                    and when they disagree the screen said nothing about where
+                    the gap was. These six sums are what the balance is made of,
+                    so a difference can be walked to one line instead of guessed
+                    at - and the fees line is the one to read first, because a
+                    book with no commission slab records none at all.
+                */}
+                {cashTracked && showCash && cashWalk && (
+                    <div className="mt-2 space-y-1 border-l-2 border-hairline pl-3">
+                        <Line label="Deposits" value={money(cashWalk.deposits)} muted />
+                        <Line label="Withdrawals" value={`− ${money(cashWalk.withdrawals)}`} muted />
+                        <Line label="Spent buying" value={`− ${money(cashWalk.bought)}`} muted />
+                        <Line label="Received selling" value={money(cashWalk.sold)} muted />
+                        {cashWalk.dividends > 0 && <Line label="Dividends" value={money(cashWalk.dividends)} muted />}
+                        <Line label="Commission and charges" value={`− ${money(cashWalk.fees)}`} muted />
+                        {cashWalk.freeOfCharge > 0 && (
+                            <p className="pt-1 text-xs text-amber-600 dark:text-amber-400">
+                                {cashWalk.freeOfCharge} of {cashWalk.trades} fills recorded no
+                                commission. If your broker charged any, this balance is that much
+                                too high — set a commission slab on this portfolio and the trade
+                                forms will fill it in.
+                            </p>
+                        )}
+                    </div>
+                )}
                 <Line label="Cost of holdings" value={money(totalCost)} muted />
                 {/* The account value above is short by whatever these are worth.
                     Said here rather than nowhere, because a total that quietly
