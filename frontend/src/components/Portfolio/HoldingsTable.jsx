@@ -1,8 +1,17 @@
 import { useState, useEffect } from 'react';
-import { Search, ArrowUpDown, TrendingUp, TrendingDown, ChevronDown, ChevronRight } from 'lucide-react';
+import { Search, ArrowUpDown, TrendingUp, TrendingDown, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { formatCurrency, formatPercent, formatShares, getPnLColorClass } from '../../utils/portfolioUtils';
+
+/**
+ * What a column shows when there is no price behind it.
+ *
+ * A dash, every time, rather than a formatted zero. The reader can tell a
+ * missing number from a number that happens to be nothing, which is the whole
+ * difference between "we don't know" and "it's worthless".
+ */
+const NONE = <span className="text-ink-faint">—</span>;
 
 export default function HoldingsTable({ portfolioId, currency, onSelectSymbol, refreshKey = 0 }) {
     const [holdings, setHoldings] = useState([]);
@@ -49,10 +58,26 @@ export default function HoldingsTable({ portfolioId, currency, onSelectSymbol, r
         .filter(h => !h.closed && matches(h))
         .sort((a, b) => {
             const multiplier = sortDirection === 'asc' ? 1 : -1;
-            return (a[sortField] - b[sortField]) * multiplier;
+            // An unpriced row has no number in the priced columns, so it sorts
+            // to the bottom either way rather than pretending to be zero.
+            const x = a[sortField], y = b[sortField];
+            if (x == null && y == null) return 0;
+            if (x == null) return 1;
+            if (y == null) return -1;
+            return (x - y) * multiplier;
         });
 
-    const totals = filteredAndSorted.reduce((t, h) => ({
+    /**
+     * Totals cover what could be priced, and say so.
+     *
+     * A holding the feed cannot answer for arrives with null value and null
+     * P/L rather than zero, because zero is a valuation and this is the absence
+     * of one. Adding it in would have valued a held position at nothing and
+     * shown it down its entire cost - which is exactly what the US book did
+     * while there was no US price to be had.
+     */
+    const unpriced = filteredAndSorted.filter(h => !h.priced);
+    const totals = filteredAndSorted.filter(h => h.priced).reduce((t, h) => ({
         value: t.value + h.totalValue,
         cost: t.cost + h.costBasis,
         unrealized: t.unrealized + h.unrealizedPnL
@@ -91,6 +116,17 @@ export default function HoldingsTable({ portfolioId, currency, onSelectSymbol, r
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
                 />
             </div>
+
+            {unpriced.length > 0 && (
+                <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/50 dark:bg-amber-950/30">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                    <p className="text-sm text-amber-900 dark:text-amber-200">
+                        No live price for{' '}
+                        <b className="font-mono font-semibold">{unpriced.map(h => h.symbol).join(', ')}</b>.
+                        {' '}They are held, but left out of the value and gain below.
+                    </p>
+                </div>
+            )}
 
             {/* Phones get cards; eight columns of numbers do not survive a 390px screen. */}
             <div className="md:hidden space-y-3">
@@ -166,7 +202,14 @@ export default function HoldingsTable({ portfolioId, currency, onSelectSymbol, r
                             one, not the faintest - it carried no colour at all
                             and inherited its way to near-invisible in dark. */}
                         <tr className="border-t-2 border-hairline font-bold text-ink">
-                            <td className="pt-4" colSpan="4">Total</td>
+                            <td className="pt-4" colSpan="4">
+                                Total
+                                {unpriced.length > 0 && (
+                                    <span className="ml-2 font-normal text-xs text-amber-700 dark:text-amber-400">
+                                        of {filteredAndSorted.length - unpriced.length} priced, {unpriced.length} left out
+                                    </span>
+                                )}
+                            </td>
                             <td className="pt-4 tabular-nums">
                                 {formatCurrency(totals.value, currency)}
                             </td>
@@ -188,6 +231,8 @@ export default function HoldingsTable({ portfolioId, currency, onSelectSymbol, r
 }
 
 function HoldingCard({ holding, currency, onSelectSymbol }) {
+    const priced = holding.priced !== false;
+
     return (
         <div className={`rounded-card border border-hairline p-4 ${holding.closed ? 'opacity-60' : ''}`}>
             <div className="flex items-start justify-between gap-3">
@@ -211,12 +256,14 @@ function HoldingCard({ holding, currency, onSelectSymbol }) {
                 </div>
                 <div className="text-right shrink-0">
                     <div className="font-semibold text-gray-900 dark:text-white">
-                        {formatCurrency(holding.totalValue, currency)}
+                        {priced ? formatCurrency(holding.totalValue, currency) : NONE}
                     </div>
-                    <div className={`text-xs font-medium ${getPnLColorClass(holding.unrealizedPnL)}`}>
-                        {formatCurrency(holding.unrealizedPnL, currency, { signed: true })}
-                        {!holding.closed && <>{' · '}{formatPercent(holding.unrealizedPnLPct, 1, { signed: true })}</>}
-                    </div>
+                    {priced && (
+                        <div className={`text-xs font-medium ${getPnLColorClass(holding.unrealizedPnL)}`}>
+                            {formatCurrency(holding.unrealizedPnL, currency, { signed: true })}
+                            {!holding.closed && <>{' · '}{formatPercent(holding.unrealizedPnLPct, 1, { signed: true })}</>}
+                        </div>
+                    )}
                     {holding.realizedPnL !== 0 && (
                         <div className={`text-xs ${getPnLColorClass(holding.realizedPnL)}`}>
                             {formatCurrency(holding.realizedPnL, currency, { signed: true })} realized
@@ -225,8 +272,8 @@ function HoldingCard({ holding, currency, onSelectSymbol }) {
                 </div>
             </div>
             <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-3 pt-3 border-t border-hairline">
-                <span>Now {formatCurrency(holding.currentPrice, currency)}</span>
-                <span>{formatPercent(holding.weightPct, 1)} of book</span>
+                <span>{priced ? <>Now {formatCurrency(holding.currentPrice, currency)}</> : 'No price'}</span>
+                <span>{priced ? <>{formatPercent(holding.weightPct, 1)} of book</> : NONE}</span>
             </div>
         </div>
     );
@@ -249,6 +296,7 @@ function SortableHeader({ label, field, currentField, direction, onSort }) {
 }
 
 function HoldingRow({ holding, currency, onSelectSymbol }) {
+    const priced = holding.priced !== false;
     const isProfit = holding.unrealizedPnL >= 0;
 
     return (
@@ -266,6 +314,11 @@ function HoldingRow({ holding, currency, onSelectSymbol }) {
                             Closed
                         </span>
                     )}
+                    {!priced && !holding.closed && (
+                        <span className="px-1.5 py-0.5 text-xs rounded bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                            No price
+                        </span>
+                    )}
                 </div>
                 {holding.companyName && (
                     <div className="text-sm text-gray-600 dark:text-gray-400">{holding.companyName}</div>
@@ -276,27 +329,29 @@ function HoldingRow({ holding, currency, onSelectSymbol }) {
                 {formatCurrency(holding.avgCost, currency)}
             </td>
             <td className="py-3 text-gray-900 dark:text-white">
-                {formatCurrency(holding.currentPrice, currency)}
+                {priced ? formatCurrency(holding.currentPrice, currency) : NONE}
             </td>
             <td className="py-3 text-gray-900 dark:text-white">
-                {formatCurrency(holding.totalValue, currency)}
+                {priced ? formatCurrency(holding.totalValue, currency) : NONE}
             </td>
-            <td className={`py-3 font-semibold ${getPnLColorClass(holding.unrealizedPnL)}`}>
-                <div className="flex items-center gap-1">
-                    {isProfit ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-                    {formatCurrency(holding.unrealizedPnL, currency, { signed: true })}
-                </div>
+            <td className={`py-3 font-semibold ${priced ? getPnLColorClass(holding.unrealizedPnL) : ''}`}>
+                {priced ? (
+                    <div className="flex items-center gap-1">
+                        {isProfit ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                        {formatCurrency(holding.unrealizedPnL, currency, { signed: true })}
+                    </div>
+                ) : NONE}
                 {holding.realizedPnL !== 0 && (
                     <div className={`text-xs font-normal ${getPnLColorClass(holding.realizedPnL)}`}>
                         {formatCurrency(holding.realizedPnL, currency, { signed: true })} realized
                     </div>
                 )}
             </td>
-            <td className={`py-3 font-semibold ${getPnLColorClass(holding.unrealizedPnL)}`}>
-                {holding.closed ? '—' : formatPercent(holding.unrealizedPnLPct, 2, { signed: true })}
+            <td className={`py-3 font-semibold ${priced ? getPnLColorClass(holding.unrealizedPnL) : ''}`}>
+                {holding.closed || !priced ? NONE : formatPercent(holding.unrealizedPnLPct, 2, { signed: true })}
             </td>
             <td className="py-3 text-gray-600 dark:text-gray-400">
-                {formatPercent(holding.weightPct, 1)}
+                {priced ? formatPercent(holding.weightPct, 1) : NONE}
             </td>
         </tr>
     );

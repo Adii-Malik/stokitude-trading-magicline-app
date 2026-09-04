@@ -58,7 +58,9 @@ export default function SymbolDetail() {
                         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{data.symbol}</h1>
                         <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
                             {data.companyName}
-                            {data.currentPrice > 0 && <> · {formatCurrency(data.currentPrice, currency)}</>}
+                            {data.currentPrice > 0
+                                ? <> · {formatCurrency(data.currentPrice, currency)}</>
+                                : <span className="text-amber-600 dark:text-amber-400"> · no price</span>}
                         </p>
                     </div>
                 </div>
@@ -66,18 +68,25 @@ export default function SymbolDetail() {
                 <div className="grid gap-3 sm:gap-4 lg:grid-cols-3">
                     <Panel icon={Briefcase} tint={open ? 'blue' : 'gray'}
                         title={open ? 'Still held' : 'Position closed'}
-                        value={open ? formatCurrency(position.marketValue, currency) : '—'}>
+                        value={open && data.priced !== false ? formatCurrency(position.marketValue, currency) : '—'}>
                         {open ? (
                             <>
                                 <Line label="Shares" value={formatShares(position.quantity)} />
                                 <Line label="Average cost" value={formatCurrency(position.avgCost, currency)} />
                                 <Line label="Cost basis" value={formatCurrency(position.costBasis, currency)} />
-                                <Line
-                                    label="Unrealised"
-                                    value={`${formatCurrency(position.unrealizedPnL, currency, { signed: true })} · ${formatPercent(position.unrealizedPnLPct, 1, { signed: true })}`}
-                                    tone={getPnLColorClass(position.unrealizedPnL)}
-                                    strong
-                                />
+                                {/* Without a price there is no gain to state. A
+                                    formatted zero here read as break-even on a
+                                    position nobody had valued. */}
+                                {data.priced === false ? (
+                                    <Line label="Unrealised" value="no price to mark it against" muted />
+                                ) : (
+                                    <Line
+                                        label="Unrealised"
+                                        value={`${formatCurrency(position.unrealizedPnL, currency, { signed: true })} · ${formatPercent(position.unrealizedPnLPct, 1, { signed: true })}`}
+                                        tone={getPnLColorClass(position.unrealizedPnL)}
+                                        strong
+                                    />
+                                )}
                             </>
                         ) : (
                             <Line label="Shares" value="0 — nothing left in it" muted />

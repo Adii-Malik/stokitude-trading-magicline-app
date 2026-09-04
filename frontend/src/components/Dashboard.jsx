@@ -364,6 +364,22 @@ export default function Dashboard() {
                         <span className={book.realizedPnL >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>
                             <b className="font-mono font-semibold">{signed(book.realizedPnL)}</b> booked
                         </span>
+
+                        {/*
+                            The figure above is the whole account, and until this
+                            existed there was nothing to say when it wasn't. A US
+                            book had no price feed at all, so every holding valued
+                            at zero and the screen reported a fully invested
+                            account as all cash - confidently, with no asterisk.
+                            Naming the holdings makes the gap checkable.
+                        */}
+                        {book.unpriced?.length > 0 && (
+                            <span className="text-amber-600 dark:text-amber-400">
+                                excludes{' '}
+                                <b className="font-mono font-semibold">{book.unpriced.join(', ')}</b>
+                                {' '}· no price
+                            </span>
+                        )}
                     </div>
                 ) : (
                     <p className="mt-3 text-sm text-gray-400 dark:text-gray-500">
@@ -540,6 +556,9 @@ function sumBooks(a, b) {
         totalDividends: add('totalDividends'), totalFees: add('totalFees'),
         capitalGainsTax: add('capitalGainsTax'),
         holdingsCount: add('holdingsCount'), closedCount: add('closedCount'),
+        // Names, not a count: two books can each be missing a price and the
+        // reader wants to know which names, not that "2" of something is wrong.
+        unpriced: [...(a.unpriced || []), ...(b.unpriced || [])],
         // Values, so every weight is worked out once against the combined total.
         holdingValues: [...(a.holdingValues || []), ...(b.holdingValues || [])],
         // Sums add; the averages are taken after the totals stop growing.

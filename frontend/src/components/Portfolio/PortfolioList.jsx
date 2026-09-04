@@ -130,7 +130,7 @@ export default function PortfolioList() {
 }
 
 function PortfolioCard({ portfolio, onClick, onDelete, onEdit }) {
-    const { totalValue = 0, totalPnL = 0, totalPnLPct = 0 } = portfolio.dashboardCache || {};
+    const { totalValue = 0, totalPnL = 0, totalPnLPct = 0, unpricedCount = 0 } = portfolio.dashboardCache || {};
     const isProfit = totalPnL >= 0;
     const [showMenu, setShowMenu] = useState(false);
 
@@ -195,6 +195,13 @@ function PortfolioCard({ portfolio, onClick, onDelete, onEdit }) {
                         <div className="text-2xl font-bold text-gray-900 dark:text-white">
                             {formatCurrency(totalValue, portfolio.currency)}
                         </div>
+                        {/* A card that silently drops a position reads as a
+                            smaller book, not a partial one. */}
+                        {unpricedCount > 0 && (
+                            <div className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                                {unpricedCount} holding{unpricedCount === 1 ? '' : 's'} with no price, not counted
+                            </div>
+                        )}
                     </div>
 
                     <div className="flex items-center justify-between pt-3 border-t border-hairline">

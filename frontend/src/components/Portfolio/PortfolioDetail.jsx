@@ -412,7 +412,7 @@ function Summary({ dashboard, currency }) {
         unrealizedPnL = 0, realizedPnL = 0, totalDividends = 0,
         totalPnL = 0, totalPnLPct = 0, totalFees = 0,
         capitalGainsTax = 0, netRealizedPnL = 0, taxRatePct = 15,
-        cgtMethod = 'FLAT', filerStatus = null
+        cgtMethod = 'FLAT', filerStatus = null, unpriced = []
     } = dashboard;
 
     const money = (v, opts) => formatCurrency(v, currency, opts);
@@ -437,6 +437,12 @@ function Summary({ dashboard, currency }) {
                 <Line label="Holdings" value={money(totalValue)} />
                 {cashTracked && <Line label="Cash" value={money(cashBalance)} />}
                 <Line label="Cost of holdings" value={money(totalCost)} muted />
+                {/* The account value above is short by whatever these are worth.
+                    Said here rather than nowhere, because a total that quietly
+                    omits a position is worse than one that admits it. */}
+                {unpriced.length > 0 && (
+                    <Line label="No price, not counted" value={unpriced.join(', ')} muted />
+                )}
             </Panel>
 
             <Panel
