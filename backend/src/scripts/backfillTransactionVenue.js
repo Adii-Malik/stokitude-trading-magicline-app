@@ -21,6 +21,8 @@
  */
 import 'dotenv/config';
 import mongoose from 'mongoose';
+import { connectDB } from '../config/mongodb.js';
+import config from '../config/config.js';
 import Portfolio from '../models/Portfolio.js';
 import Transaction from '../models/Transaction.js';
 import { getMarket, marketOfExchange, currencyOf } from '../config/exchanges.js';
@@ -28,7 +30,9 @@ import { getMarket, marketOfExchange, currencyOf } from '../config/exchanges.js'
 const dry = process.argv.includes('--dry');
 
 async function main() {
-    await mongoose.connect(process.env.MONGODB_URI);
+    // Through the app's own config, so the script reaches whichever database
+    // the app is pointed at rather than guessing an environment variable name.
+    await connectDB(config.mongoUri);
 
     // Unscoped on purpose: a script runs outside any request and must see both.
     const books = await Portfolio.find().select('_id name market currency').lean();
