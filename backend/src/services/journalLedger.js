@@ -11,9 +11,10 @@
  * came to disagree about the same trade in the first place.
  */
 import Transaction from '../models/Transaction.js';
-import Stock from '../models/Stock.js';
 import Portfolio from '../models/Portfolio.js';
 import portfolioService from './portfolioService.js';
+import { pricesFor } from './quotes.js';
+import { marketOfExchange } from '../config/exchanges.js';
 
 const ENTERED = new Set(['open', 'closed']);
 
@@ -195,15 +196,36 @@ export function assertEditable(entry, incoming) {
 export async function hydrate(entries) {
     // Where an open trade stands, from the poller rather than from the trader.
     // This was a field on the form asking for a price the system already knows.
-    const symbols = [...new Set(entries.filter(e => !e.exitPrice && e.symbol).map(e => e.symbol))];
-    if (symbols.length) {
-        const stocks = await Stock.find({ symbol: { $in: symbols } })
-            .select('symbol currentPrice').lean();
-        const price = new Map(stocks.map(s => [s.symbol, s.currentPrice]));
-        for (const entry of entries) {
-            if (!entry.exitPrice && price.get(entry.symbol) > 0) {
-                entry.lastPrice = price.get(entry.symbol);
+    // Grouped by venue, because a symbol does not carry its market and the two
+    // boards are two different requests. This read Stock.currentPrice, which is
+    // stamped from PSX bars alone - so a US trade was never marked at all and
+    // sat at its entry price for as long as it stayed open.
+    const live = entries.filter(e => !e.exitPrice && e.symbol);
+    if (live.length) {
+        const byMarket = new Map();
+        for (const entry of live) {
+            const market = marketOfExchange(entry.exchange);
+            if (!byMarket.has(market)) byMarket.set(market, new Set());
+            byMarket.get(market).add(entry.symbol);
+        }
+
+        const priced = new Map();
+        await Promise.all([...byMarket].map(async ([market, symbols]) => {
+            try {
+                for (const [symbol, last] of await pricesFor([...symbols], market)) {
+                    priced.set(`${market}|${symbol}`, last);
+                }
+            } catch (error) {
+                // An unmarked open trade shows its entry price, which is what it
+                // showed before this existed. Losing the whole journal to it is
+                // not a trade-off worth making.
+                console.error(`Could not mark ${symbols.size} open ${market} trade(s):`, error.message);
             }
+        }));
+
+        for (const entry of live) {
+            const last = priced.get(`${marketOfExchange(entry.exchange)}|${entry.symbol}`);
+            if (last > 0) entry.lastPrice = last;
         }
     }
 

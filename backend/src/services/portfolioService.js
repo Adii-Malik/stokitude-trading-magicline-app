@@ -11,8 +11,89 @@ import Stock from '../models/Stock.js';
 import User from '../models/User.js';
 
 import CalculatorRegistry from './portfolio/calculators/CalculatorRegistry.js';
+import { pricesFor } from './quotes.js';
 import { cgtByTaxYear } from '../config/taxConfig.js';
-import { getMarket } from '../config/exchanges.js';
+import { getMarket, DEFAULT_MARKET } from '../config/exchanges.js';
+import { currentMarket } from '../config/marketStore.js';
+
+/**
+ * What the holdings are worth right now, for whichever board the book trades on.
+ *
+ * Every valuation here read Stock.currentPrice, and that column is written by
+ * one thing: the nightly job that stamps the last close off PSX daily bars.
+ * There are no US bars, so there was no US row to read, so every US holding
+ * priced at zero - and a zero price is arithmetically identical to having sold
+ * the position. The book reported itself as all cash and showed each name at a
+ * hundred percent loss, which is why the US screen looked empty rather than
+ * broken. Nothing said a price was missing, because nothing knew.
+ *
+ * quotesFor already asks TradingView for the right region and falls back to the
+ * warehouse, so PSX keeps the close it has always shown and US gets a price at
+ * all. A symbol it cannot answer for is absent from the map rather than zero,
+ * and every caller here treats absent as unpriced - never as worthless.
+ */
+async function bookPrices(symbols, market) {
+    const wanted = [...new Set(symbols.filter(Boolean))];
+    if (!wanted.length) return new Map();
+    try {
+        return await pricesFor(wanted, market || currentMarket() || DEFAULT_MARKET);
+    } catch (error) {
+        // A feed that is down must not empty the book. Nothing is priced, every
+        // holding says so, and the totals say what they are missing.
+        console.error(`Could not price ${wanted.length} holding(s):`, error.message);
+        return new Map();
+    }
+}
+
+/**
+ * One position as the screen reads it, priced or not.
+ *
+ * Unpriced is its own state here, and every figure derived from a price is null
+ * in it. Zero used to stand in, and zero is a number nothing downstream can
+ * question: it made a held position worth nothing and showed it down a hundred
+ * percent of its cost. Null cannot be mistaken for a valuation, and `priced`
+ * says so outright so a row renders as unknown rather than as a wipeout.
+ *
+ * Pure and exported for its own test, because the rule it enforces - absent is
+ * not zero - is the one that broke, and it broke silently.
+ *
+ * @param position the stored Position
+ * @param stock    the warehouse row, for the company name only
+ * @param price    the last price, or undefined when the feed had no answer
+ */
+export function shapeHolding(position, stock, price) {
+    const priced = price != null;
+    const marketValue = priced ? position.netShares * price : null;
+    const unrealizedPnL = priced ? marketValue - position.costBasis : null;
+
+    // Booked money is booked whether or not today has a price.
+    const settled = position.realizedPnL + position.dividendsReceived;
+    const totalPnL = priced ? unrealizedPnL + settled : null;
+    const pctOf = (value) => (priced && position.costBasis > 0 ? (value / position.costBasis) * 100 : null);
+
+    return {
+        symbol: position.symbol,
+        companyName: stock?.companyName || position.symbol,
+        quantity: position.netShares,
+        avgCost: position.avgCost,
+        priced,
+        currentPrice: priced ? price : null,
+        totalValue: marketValue,
+        costBasis: position.costBasis,
+        unrealizedPnL,
+        // Gain on shares still held; totalPnLPct mixes in sold ones.
+        unrealizedPnLPct: pctOf(unrealizedPnL),
+        realizedPnL: position.realizedPnL,
+        totalPnL,
+        totalPnLPct: pctOf(totalPnL),
+        dividendsReceived: position.dividendsReceived,
+        totalReturn: pctOf(totalPnL),
+        yieldOnCost: position.costBasis > 0 ? (position.dividendsReceived / position.costBasis) * 100 : 0,
+        weightPct: null, // A share of the book, so the caller fills it in.
+        firstPurchaseDate: position.firstPurchaseDate,
+        closed: position.netShares <= 0
+    };
+}
 
 /**
  * What a book's returns are measured against.
@@ -297,9 +378,7 @@ class PortfolioService {
                 .select('portfolioId type cashAmount executedAt').sort({ executedAt: 1 }).lean()
         ]);
 
-        const stocks = await Stock.find({ symbol: { $in: [...new Set(open.map(p => p.symbol))] } })
-            .select('symbol currentPrice').lean();
-        const priceOf = new Map(stocks.map(s => [s.symbol, s.currentPrice || 0]));
+        const priceOf = await bookPrices(open.map(p => p.symbol), portfolios[0].market);
 
         const group = (rows, key = 'portfolioId') => rows.reduce((acc, row) => {
             const k = String(row[key]);
@@ -312,12 +391,18 @@ class PortfolioService {
 
         return portfolios.map((portfolio) => {
             const id = String(portfolio._id);
-            let totalValue = 0, totalCost = 0, unrealizedPnL = 0;
+            let totalValue = 0, totalCost = 0, unrealizedPnL = 0, unpriced = 0;
 
             for (const position of positionsOf[id] || []) {
-                const marketValue = position.netShares * (priceOf.get(position.symbol) || 0);
-                totalValue += marketValue;
+                const price = priceOf.get(position.symbol);
                 totalCost += position.costBasis;
+
+                // Counted, not valued. Multiplying by zero would book the whole
+                // position as a loss and call the card's total complete.
+                if (price == null) { unpriced++; continue; }
+
+                const marketValue = position.netShares * price;
+                totalValue += marketValue;
                 unrealizedPnL += marketValue - position.costBasis;
             }
 
@@ -344,7 +429,9 @@ class PortfolioService {
                     unrealizedPnL,
                     realizedPnL,
                     totalDividends,
-                    holdingsCount: (positionsOf[id] || []).length
+                    holdingsCount: (positionsOf[id] || []).length,
+                    // How much of the count above the value leaves out.
+                    unpricedCount: unpriced
                 }
             };
         });
@@ -441,10 +528,11 @@ class PortfolioService {
         const portfolio = await this.getPortfolio(portfolioId, userId);
         symbol = String(symbol).toUpperCase();
 
-        const [transactions, position, stock] = await Promise.all([
+        const [transactions, position, stock, priceOf] = await Promise.all([
             Transaction.find({ portfolioId, symbol }).sort({ executedAt: 1 }).lean(),
             Position.findOne({ portfolioId, symbol }).lean(),
-            Stock.findOne({ symbol }).select('symbol companyName currentPrice').lean()
+            Stock.findOne({ symbol }).select('symbol companyName').lean(),
+            bookPrices([symbol], portfolio.market)
         ]);
 
         if (!transactions.length) {
@@ -454,10 +542,12 @@ class PortfolioService {
         }
 
         const sum = (rows, f) => rows.reduce((s, r) => s + (f(r) || 0), 0);
-        const currentPrice = stock?.currentPrice || 0;
+        const price = priceOf.get(symbol);
+        const priced = price != null;
+        const currentPrice = priced ? price : null;
         const quantity = position?.netShares || 0;
         const costBasis = position?.costBasis || 0;
-        const marketValue = quantity * currentPrice;
+        const marketValue = priced ? quantity * currentPrice : null;
 
         const fees = sum(transactions, t => (t.fees || 0) + (t.otherCharges || 0));
         const dividends = sum(transactions.filter(t => t.type === 'DIV'), t => t.dividendCash);
@@ -467,14 +557,15 @@ class PortfolioService {
             symbol,
             companyName: stock?.companyName || symbol,
             currency: portfolio.currency,
+            priced,
             currentPrice,
             position: {
                 quantity,
                 avgCost: position?.avgCost || 0,
                 costBasis,
                 marketValue,
-                unrealizedPnL: marketValue - costBasis,
-                unrealizedPnLPct: costBasis > 0 ? ((marketValue - costBasis) / costBasis) * 100 : 0,
+                unrealizedPnL: priced ? marketValue - costBasis : null,
+                unrealizedPnLPct: priced && costBasis > 0 ? ((marketValue - costBasis) / costBasis) * 100 : null,
                 firstPurchaseDate: position?.firstPurchaseDate || null
             },
             result: {
@@ -652,9 +743,10 @@ class PortfolioService {
             type: { $in: ['BUY', 'SELL', 'SPLIT', 'BONUS'] }
         }).sort({ executedAt: 1 });
 
-        // Get current stock price
-        const stock = await Stock.findOne({ symbol });
-        const currentPrice = stock?.currentPrice || 0;
+        // The snapshot stored on the position. Zero when the feed cannot answer,
+        // because the stored fields are numbers - the read paths recompute from
+        // a live quote and are the ones that report a holding as unpriced.
+        const currentPrice = (await bookPrices([symbol], portfolio.market)).get(symbol) || 0;
 
         // Calculate using appropriate calculator. Filer status is a property of
         // the taxpayer, so it comes off the owner rather than the portfolio.
@@ -720,9 +812,7 @@ class PortfolioService {
             bySymbol.get(symbol).push(tx);
         }
 
-        const stocks = await Stock.find({ symbol: { $in: [...bySymbol.keys()] } })
-            .select('symbol currentPrice').lean();
-        const priceOf = new Map(stocks.map(s => [s.symbol, s.currentPrice || 0]));
+        const priceOf = await bookPrices([...bySymbol.keys()], portfolio.market);
         const existing = new Map(positions.map(p => [p.symbol, p]));
         const calculator = CalculatorRegistry.get(portfolio.calculationMethod);
         const filerStatus = await this.getOwnerFilerStatus(portfolio);
@@ -760,59 +850,33 @@ class PortfolioService {
     /**
      * Get holdings (positions with current prices)
      */
-    async getHoldings(portfolioId, userId, { includeClosed = false, authorized = false } = {}) {
-        if (!authorized) await this.getPortfolio(portfolioId, userId);
+    async getHoldings(portfolioId, userId, { includeClosed = false, authorized = false, market = null } = {}) {
+        if (!authorized) market = (await this.getPortfolio(portfolioId, userId)).market;
 
         const query = { portfolioId };
         if (!includeClosed) query.netShares = { $gt: 0 };
         const positions = await Position.find(query).sort({ marketValue: -1 }).lean();
 
-        // One lookup for every symbol; per-position findOne was a round trip each.
-        const stocks = await Stock.find({ symbol: { $in: positions.map(p => p.symbol) } })
-            .select('symbol companyName currentPrice').lean();
+        const symbols = positions.map(p => p.symbol);
+        // The name is warehoused, the price is not. Both are asked for at once,
+        // and a name we do not hold falls back to the symbol as it always has.
+        const [stocks, priceOf] = await Promise.all([
+            Stock.find({ symbol: { $in: symbols } }).select('symbol companyName').lean(),
+            bookPrices(symbols, market)
+        ]);
         const bySymbol = new Map(stocks.map(s => [s.symbol, s]));
 
-        const holdings = [];
-        for (const position of positions) {
-            const stock = bySymbol.get(position.symbol);
-            const currentPrice = stock?.currentPrice || 0;
+        const holdings = positions.map(position =>
+            shapeHolding(position, bySymbol.get(position.symbol), priceOf.get(position.symbol)));
 
-            // Recalculate market value and unrealized P/L with current price
-            const marketValue = position.netShares * currentPrice;
-            const unrealizedPnL = marketValue - position.costBasis;
-
-            const totalPnL = unrealizedPnL + position.realizedPnL + position.dividendsReceived;
-            const totalPnLPct = position.costBasis > 0 ? (totalPnL / position.costBasis) * 100 : 0;
-
-            holdings.push({
-                symbol: position.symbol,
-                companyName: stock?.companyName || position.symbol,
-                quantity: position.netShares,
-                avgCost: position.avgCost,
-                currentPrice: currentPrice,
-                totalValue: marketValue,
-                costBasis: position.costBasis,
-                unrealizedPnL: unrealizedPnL,
-                // Gain on shares still held; totalPnLPct mixes in sold ones.
-                unrealizedPnLPct: position.costBasis > 0 ? (unrealizedPnL / position.costBasis) * 100 : 0,
-                realizedPnL: position.realizedPnL,
-                totalPnL,
-                totalPnLPct,
-                dividendsReceived: position.dividendsReceived,
-                totalReturn: position.costBasis > 0 ? (totalPnL / position.costBasis) * 100 : 0,
-                yieldOnCost: position.costBasis > 0 ? (position.dividendsReceived / position.costBasis) * 100 : 0,
-                weightPct: 0, // Calculated below
-                firstPurchaseDate: position.firstPurchaseDate,
-                closed: position.netShares <= 0
-            });
-        }
-
-        // Calculate weight percentages
-        const totalMarketValue = holdings.reduce((sum, h) => sum + h.totalValue, 0);
+        // Weights are a share of what could be valued. An unpriced holding has
+        // no share to state, so it gets null rather than a zero that would read
+        // as "none of the book".
+        const totalMarketValue = holdings.reduce((sum, h) => sum + (h.totalValue || 0), 0);
         holdings.forEach(h => {
-            h.weightPct = totalMarketValue > 0
+            h.weightPct = h.priced && totalMarketValue > 0
                 ? (h.totalValue / totalMarketValue) * 100
-                : 0;
+                : null;
         });
 
         return holdings;
@@ -843,7 +907,7 @@ class PortfolioService {
          * which walks the whole transaction ledger - accounted for 480ms of it.
          */
         const [holdings, booked, withDisposals, cash, filerStatus] = await Promise.all([
-            this.getHoldings(portfolioId, userId, { authorized: true }),
+            this.getHoldings(portfolioId, userId, { authorized: true, market: portfolio.market }),
 
             // Realized P/L and dividends outlive the position, so total them
             // across every position rather than only the open ones.
@@ -897,9 +961,14 @@ class PortfolioService {
         let totalCost = 0;
         let unrealizedPnL = 0;
 
+        // What the feed could not answer for. Named rather than counted: the one
+        // useful thing to say about a holding with no price is which one it is.
+        const unpriced = holdings.filter(h => !h.priced).map(h => h.symbol);
+
         for (const holding of holdings) {
-            totalValue += holding.totalValue; // Use totalValue (recalculated market value)
             totalCost += holding.costBasis;
+            if (!holding.priced) continue;
+            totalValue += holding.totalValue; // Use totalValue (recalculated market value)
             unrealizedPnL += holding.unrealizedPnL;
         }
 
@@ -933,8 +1002,10 @@ class PortfolioService {
         const capitalGainsTax = taxed ? (usesLotTax ? holdingPeriodCGT : flatCGT) : 0;
         const netRealizedPnL = realizedPnL - capitalGainsTax;
 
-        // Top 5 holdings by market value
+        // Top 5 holdings by market value. Unpriced ones cannot be ranked by a
+        // value they do not have, so they sort last rather than as zero.
         const topHoldings = holdings
+            .filter(h => h.priced)
             .sort((a, b) => b.totalValue - a.totalValue)
             .slice(0, 5)
             .map(h => ({
@@ -953,7 +1024,7 @@ class PortfolioService {
          * divides once. Symbol and number only - anything richer belongs to the
          * holdings endpoint.
          */
-        const holdingValues = holdings.map(h => ({ symbol: h.symbol, value: h.totalValue }));
+        const holdingValues = holdings.filter(h => h.priced).map(h => ({ symbol: h.symbol, value: h.totalValue }));
 
         /**
          * What booking a result has come to, over every name that has one.
@@ -1000,6 +1071,16 @@ class PortfolioService {
             cashBalance: cash.balance,
             cashTracked: cash.tracked,
             holdingsCount: holdings.length,
+            /**
+             * Which holdings the total above leaves out.
+             *
+             * Every figure here is stated as though it covered the whole book,
+             * and until this existed there was no way for a screen to know it
+             * did not. A caller that shows totalValue is expected to show this
+             * beside it - a value missing four names is a different number from
+             * the same value with nothing missing.
+             */
+            unpriced,
             closedCount,
             topHoldings,
             holdingValues,

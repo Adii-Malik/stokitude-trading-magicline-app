@@ -266,9 +266,11 @@ class AllocationEngineService {
         // Calculate current weights
         const holdingsMap = new Map(
             holdings.map(h => {
-                const weight = totalValue > 0 ? (h.totalValue / totalValue) * 100 : 0;
+                // A holding with no price has no weight to state, and folding a
+                // null in here would poison the whole allocation with NaN.
+                const weight = totalValue > 0 ? ((h.totalValue || 0) / totalValue) * 100 : 0;
                 return [h.symbol, {
-                    value: h.totalValue,
+                    value: h.totalValue || 0,
                     weight: weight,
                     shares: h.quantity,
                     currentPrice: h.currentPrice
@@ -406,7 +408,7 @@ class AllocationEngineService {
 
         for (const target of targets) {
             const holding = holdings.find(h => h.symbol === target.symbol);
-            const currentWeight = holding ? (holding.totalValue / totalValue) * 100 : 0;
+            const currentWeight = holding?.totalValue ? (holding.totalValue / totalValue) * 100 : 0;
             const drift = Math.abs(currentWeight - target.targetWeight);
 
             if (drift >= driftThreshold) {
