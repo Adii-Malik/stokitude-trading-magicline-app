@@ -41,7 +41,7 @@ export default class ResendProvider extends BaseProvider {
         }
 
         try {
-            const result = await this.resend.emails.send({
+            const { data, error } = await this.resend.emails.send({
                 from,
                 to,
                 subject,
@@ -49,12 +49,31 @@ export default class ResendProvider extends BaseProvider {
                 text
             });
 
-            // Resend returns { data: { id: '...' }, error: null }
-            const messageId = result?.data?.id || result?.id || 'no-id';
+            /**
+             * Resend's SDK does not throw on a rejected send.
+             *
+             * It resolves with { data: null, error: { name, message } }, and
+             * this only ever looked at the id - which fell back to the string
+             * 'no-id' and was returned as success. A send from an unverified
+             * domain came back "sent via Resend: no-id" and the notification
+             * was stamped delivered, which is the one thing this whole layer is
+             * careful not to do: a record that lies about delivery is worse
+             * than one that admits it.
+             *
+             * So the error is read, and an id is required. Thrown rather than
+             * returned, because every caller here already treats a throw as a
+             * failure to retry.
+             */
+            if (error) {
+                throw new Error(`${error.name || 'error'}: ${error.message || 'send rejected'}`);
+            }
+            if (!data?.id) {
+                throw new Error('accepted with no message id, so delivery cannot be confirmed');
+            }
 
             return {
                 success: true,
-                messageId: messageId,
+                messageId: data.id,
                 provider: this.getName()
             };
         } catch (error) {

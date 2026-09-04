@@ -303,7 +303,9 @@ Financial Reading Team
         console.log(`   Preview: ${result.previewUrl}`);
       }
 
-      return result;
+      // Stated, not implied. Every return from here carries `delivered`, so a
+      // caller reading it never has to know which branch produced the answer.
+      return { ...result, delivered: true };
 
     } catch (error) {
       console.error('❌ Email send failed:', error.message);
@@ -313,7 +315,7 @@ Financial Reading Team
       console.log(`   To: ${mailOptions.to}`);
       console.log(`   Subject: ${mailOptions.subject}`);
 
-      return { success: false, error: error.message };
+      return { success: false, delivered: false, error: error.message };
     }
   }
 }

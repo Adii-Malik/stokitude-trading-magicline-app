@@ -192,10 +192,19 @@ class NotificationService {
         notification.priority
       );
 
-      // Only a real send counts. With no provider configured the email service
-      // prints to the console and says so, and the record must agree with it.
-      if (result?.delivered === false) {
-        await this.stamp(notification, 'email', { error: 'No email provider configured' });
+      /**
+       * Only a real send counts.
+       *
+       * This asked `delivered === false`, which caught the console-only case
+       * and nothing else - a send the provider actually rejected comes back
+       * { success: false } with no `delivered` at all, sailed past this check
+       * and was stamped as sent. Both failures are the same failure to a reader
+       * of the record: the email did not arrive.
+       */
+      if (!result?.success || result.delivered === false) {
+        await this.stamp(notification, 'email', {
+          error: result?.error || 'No email provider configured'
+        });
         return;
       }
 

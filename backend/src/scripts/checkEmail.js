@@ -6,9 +6,10 @@
  * "is email working" cannot be answered by using the app; it has to be asked
  * directly, on the box the app runs on.
  *
- * The registry picks the first *configured* provider, which is worth seeing
- * before trusting it: a leftover EMAIL_USER wins over the RESEND_API_KEY you
- * just added, because Resend is only first among those that are configured.
+ * The registry picks the first *configured* provider, in the order Resend,
+ * SendGrid, Brevo, SMTP - so adding a Resend key silently takes over from SMTP
+ * settings that are still sitting in the file, and removing it hands them back.
+ * Worth seeing rather than assuming, in either direction.
  *
  * Outside production nothing is sent unless EMAIL_FORCE_SEND=true - the guard
  * that exists because a fifteen-minute level watcher on a dev database once put
