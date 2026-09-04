@@ -14,7 +14,11 @@ import Transaction from '../models/Transaction.js';
 import Portfolio from '../models/Portfolio.js';
 import portfolioService from './portfolioService.js';
 import { pricesFor } from './quotes.js';
-import { marketOfExchange } from '../config/exchanges.js';
+import { marketOfExchange, DEFAULT_MARKET } from '../config/exchanges.js';
+
+// The stamped column when it is there, derived from the venue when it is not.
+// Entries written before the market column existed have only the exchange.
+const marketOf = (entry) => entry.market || marketOfExchange(entry.exchange) || DEFAULT_MARKET;
 
 const ENTERED = new Set(['open', 'closed']);
 
@@ -196,15 +200,16 @@ export function assertEditable(entry, incoming) {
 export async function hydrate(entries) {
     // Where an open trade stands, from the poller rather than from the trader.
     // This was a field on the form asking for a price the system already knows.
-    // Grouped by venue, because a symbol does not carry its market and the two
-    // boards are two different requests. This read Stock.currentPrice, which is
-    // stamped from PSX bars alone - so a US trade was never marked at all and
-    // sat at its entry price for as long as it stayed open.
+    // Grouped by market, the same way the level handler does it, because a
+    // symbol does not say which board it trades on and the two are two separate
+    // requests. This read Stock.currentPrice, which is stamped from PSX bars
+    // alone - so a US trade was never marked at all and sat at its entry price
+    // for as long as it stayed open.
     const live = entries.filter(e => !e.exitPrice && e.symbol);
     if (live.length) {
         const byMarket = new Map();
         for (const entry of live) {
-            const market = marketOfExchange(entry.exchange);
+            const market = marketOf(entry);
             if (!byMarket.has(market)) byMarket.set(market, new Set());
             byMarket.get(market).add(entry.symbol);
         }
@@ -224,7 +229,7 @@ export async function hydrate(entries) {
         }));
 
         for (const entry of live) {
-            const last = priced.get(`${marketOfExchange(entry.exchange)}|${entry.symbol}`);
+            const last = priced.get(`${marketOf(entry)}|${entry.symbol}`);
             if (last > 0) entry.lastPrice = last;
         }
     }

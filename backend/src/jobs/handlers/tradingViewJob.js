@@ -39,17 +39,22 @@ export default async function tradingViewJob(context) {
       logger.info('TradingView update completed', summary);
 
       /**
-       * Fetching bars nobody reads the price from would be half a job. The
-       * poller that used to write currentPrice is off, so the close that just
-       * arrived is the price the portfolio values against - every holding, both
-       * P&L calculators, the ledger and the allocation engine read it.
+       * Fetching bars and not stamping the close would be half a job. This is
+       * the only writer of Stock.currentPrice, and it is PSX-only, because
+       * PsxDaily is what the engine fills.
        *
-       * This job used to check the journal's and the shortlist's levels too,
-       * because it was the job that produced the price they read. It no longer
-       * is: they read the live feed on their own fifteen-minute clock, and
-       * leaving a duplicate call here would have watched a stop once a day at
-       * five o'clock. What is left is one responsibility - the warehouse - and
-       * that is the whole job.
+       * That column is no longer what the app values against. It was, and being
+       * the sole owner of every price is how it came to misprice the whole US
+       * book at zero and hold NRL at 499.74 for three weeks: one nightly writer,
+       * one market, no way to tell a stale number from a live one. Valuation
+       * reads quotesFor now, which asks the scanner first. What is stamped here
+       * is the fallback underneath it - the last known close for when the feed
+       * cannot be reached, and the reason a PSX screen still has numbers on it
+       * when TradingView is down.
+       *
+       * The level checks left for the same reason. They hung here because this
+       * was the job that produced the price they read; it no longer is, and
+       * leaving them would have watched a stop once a day at five o'clock.
        */
       const prices = await stampPricesFromBars();
       logger.info('Prices taken from the last close', prices);
