@@ -13,7 +13,7 @@ import api from '../services/api';
  * complaint: that reading it meant working out, column by column, which part of
  * the app you were looking at.
  *
- *   every fact has one owner   Ideas, Journal or Portfolios - the three doors -
+ *   every fact has one owner   Research, Journal or Portfolios - the three doors -
  *                              and the detail below repeats that order, labelled.
  *                              Anything belonging to none of them is market
  *                              context and sits above the divider with the doors.
@@ -61,14 +61,19 @@ function Alert({ tone, icon: Icon, headline, detail, action, onAct }) {
         : 'bg-rose-500 hover:bg-rose-600 dark:bg-rose-400 dark:text-rose-950 dark:hover:bg-rose-300';
 
     return (
-        <div className={`flex flex-wrap items-center gap-4 rounded-xl border border-l-4 px-5 py-4 ${skin}`}>
+        <div className={`flex flex-wrap items-center gap-3 rounded-xl border border-l-4 px-4 py-4 sm:gap-4 sm:px-5 ${skin}`}>
             <Icon className={`h-5 w-5 shrink-0 ${ink}`} />
-            <div className="min-w-72 flex-1">
+            {/* min-w-72 here was 288px, and a 390px phone leaves this column
+                about 270 - so it wrapped to its own line and then overflowed the
+                card anyway. The minimum only exists to stop the headline and the
+                button sharing a cramped line on a wide screen, which is a
+                wide-screen problem. */}
+            <div className="min-w-0 flex-1 sm:min-w-72">
                 <p className="text-base text-gray-900 dark:text-white">{headline}</p>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{detail}</p>
             </div>
             <button type="button" onClick={onAct}
-                className={`rounded-lg px-4 py-2 text-sm font-semibold text-white transition ${button}`}>
+                className={`min-h-11 rounded-lg px-4 py-2 text-sm font-semibold text-white transition ${button}`}>
                 {action}
             </button>
         </div>
@@ -332,7 +337,7 @@ export default function Dashboard() {
 
     return (
         <div className="container mx-auto px-4 py-8">
-            <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+            <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800 sm:p-6">
                 <div className="flex flex-wrap items-baseline justify-between gap-4">
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
                         {greeting(now)}{firstName ? `, ${firstName}` : ''}
@@ -345,7 +350,11 @@ export default function Dashboard() {
                 </div>
 
                 {/* One number, big enough that nothing competes to be seen first. */}
-                <p className="mt-4 font-mono text-5xl font-semibold leading-none tracking-tight text-gray-900 dark:text-white">
+                {/* One number, and it has to fit. At text-5xl a monospace
+                    "PKR 12,345,678" is about 340px against roughly 310 of card
+                    on a 390px phone, so the book that most needs reading is the
+                    one that ran off the edge. */}
+                <p className="mt-4 font-mono text-4xl font-semibold leading-none tracking-tight text-gray-900 dark:text-white sm:text-5xl">
                     <span className="mr-2 text-lg font-medium text-gray-500 dark:text-gray-400">
                         {book?.currency || 'PKR'}
                     </span>
@@ -394,7 +403,7 @@ export default function Dashboard() {
                 )}
 
                 <div className="mt-6 grid gap-4 sm:grid-cols-3">
-                    <Door label="Ideas" hot={counts.due > 0}
+                    <Door label="Research" hot={counts.due > 0}
                         count={ideasLoaded ? watching || null : null}
                         detail={!ideasLoaded ? '' : !watching ? 'nothing flagged'
                             : counts.due
@@ -424,9 +433,9 @@ export default function Dashboard() {
             </div>
 
             {/* The same three subjects, in the same order, each answering its own question. */}
-            <div className="mt-4 rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+            <div className="mt-4 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800 sm:p-6">
                 <div className="grid gap-6 sm:grid-cols-3">
-                    <Pane label="Ideas" tone="border-violet-500 text-violet-600 dark:text-violet-400"
+                    <Pane label="Research" tone="border-violet-500 text-violet-600 dark:text-violet-400"
                         question="Is my filtering any good?"
                         rows={[
                             { key: 'traded', value: pct(screening.traded, 0), tone: toneOf(screening.traded) },

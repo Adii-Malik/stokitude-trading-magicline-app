@@ -1,5 +1,6 @@
 import { createContext, useState, useContext, useEffect } from 'react';
 import * as authAPI from '../services/auth';
+import * as push from '../services/push';
 
 const AuthContext = createContext(null);
 
@@ -41,6 +42,21 @@ export const AuthProvider = ({ children }) => {
       const response = await authAPI.getCurrentUser();
       setUser(response.data.user);
       setMarkets(response.data.markets || null);
+
+      /**
+       * Re-register this device's push subscription, once per launch.
+       *
+       * The browser and the server drift - a row deleted on a 410, an endpoint
+       * Apple rotated - and nothing noticed, because the only check anyone made
+       * was the browser asking itself. Re-sending what the browser holds repairs
+       * a missing server row before an alert is lost to it.
+       *
+       * Here rather than on the notification screen, because a device that has
+       * stopped receiving is exactly a device whose owner has no reason to go
+       * looking. Deliberately not awaited: it must never delay the app opening,
+       * and it fails silently by design.
+       */
+      push.sync();
     } catch (error) {
       console.error('Auth check failed:', error);
       localStorage.removeItem('token');

@@ -164,15 +164,25 @@ export default function NotificationBell() {
       >
         <Bell className="w-5 h-5" />
         {unreadCount > 0 && (
-          <span className="absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white bg-red-600 rounded-full min-w-[18px]">
+          <span className="absolute top-0 right-0 inline-flex min-w-5 items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white bg-red-600 rounded-full">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
       </button>
 
-      {/* Dropdown Panel */}
+      {/*
+        Dropdown panel. Anchored to the bell's right edge and grown leftwards,
+        which is the only direction there is room in - the bell sits at the
+        right of the header.
+
+        This carried both `right-0` and `-left-60` alongside a width. When left,
+        right and width are all set, width wins and right is ignored: the panel
+        started 240px left of the bell and ran 384px right from there, putting
+        its right edge about 80px past the screen. The cap meant to prevent that
+        was measuring the wrong axis.
+      */}
       {isOpen && (
-        <div className="absolute right-0 sm:right-0 -left-60 sm:left-auto mt-2 w-96 max-w-[calc(100vw-2rem)] bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50">
+        <div className="absolute right-0 mt-2 w-screen max-w-xs bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50 sm:w-96 sm:max-w-none">
           {/* Header */}
           <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">

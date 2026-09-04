@@ -10,23 +10,6 @@ import MarketSwitch from './MarketSwitch';
 import { useWatchlist } from '../contexts/WatchlistContext';
 import { UserProfileDropdown } from './common';
 
-/**
- * How many names are asking for you.
- *
- * Absent when the answer is none, rather than a zero: a badge that is always lit
- * is one you stop seeing. It appears only when a deadline you set has passed.
- */
-function Badge({ due }) {
-  if (!due) return null;
-  return (
-    <span title={`${due} name${due === 1 ? '' : 's'} want looking at`}
-      className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full
-                 bg-rose-500 px-1.5 text-[11px] font-bold tabular-nums text-white">
-      {due}
-    </span>
-  );
-}
-
 export default function Header({
   currentPage,
   onNavigateToDashboard,
@@ -45,23 +28,24 @@ export default function Header({
   const { user, isAdmin } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [ideasOpen, setIdeasOpen] = useState(false);
-  const ideas = useRef(null);
+  const [researchOpen, setResearchOpen] = useState(false);
+  const research = useRef(null);
   const { counts } = useWatchlist();
 
   /**
    * Finding and tracking are one job, so they share one menu - and the header
    * stops growing, which matters at 390px where it already had no room to spare.
    *
-   * "Ideas" rather than "Research", which named a category instead of the
-   * contents: the heatmap is where an idea comes from and the shortlist is the
-   * ones you kept. It also puts the nav in the order the work happens - an idea
-   * before the position it becomes - which is why it sits first after Home.
+   * "Research" names the work; "Ideas" named a thing, and nobody could say
+   * which thing from the nav bar. Both children are the same job done twice
+   * over - the heatmap is where a name is found, the shortlist is the ones you
+   * kept - and that job is research. It stays first after Home because the nav
+   * runs in the order the work happens: look before you buy.
    */
-  const inIdeas = currentPage === 'heatmap' || currentPage === 'watchlist';
+  const inResearch = currentPage === 'heatmap' || currentPage === 'watchlist';
 
   useEffect(() => {
-    const away = (e) => { if (ideas.current && !ideas.current.contains(e.target)) setIdeasOpen(false); };
+    const away = (e) => { if (research.current && !research.current.contains(e.target)) setResearchOpen(false); };
     document.addEventListener('mousedown', away);
     return () => document.removeEventListener('mousedown', away);
   }, []);
@@ -69,25 +53,38 @@ export default function Header({
   const handleNavigation = (navFunction) => {
     navFunction();
     setMobileMenuOpen(false); // Close mobile menu after navigation
-    setIdeasOpen(false);
+    setResearchOpen(false);
   };
 
   return (
     <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-lg sticky top-0 z-50">
       <div className="container mx-auto px-4 py-3">
         <div className="flex items-center justify-between">
-          {/* Logo/Brand */}
+          {/*
+            The mark, and on a phone it is the whole brand.
+
+            It was a bare cyan arrow on a dark bar: nothing said it was the way
+            home, nothing said it was a control at all, and the 24px glyph was
+            most of the tap target. A stray icon is not a logo.
+
+            So the glyph sits in a solid tile - a lockup that reads as a mark
+            rather than a leftover - with a real hit area and a hover state
+            behind it. The wordmark still stands down below sm, because with two
+            markets to switch between the bar wants the mark, the switch, the
+            theme, the bell and the menu inside 358px, and "Financ..." is worse
+            than no words at all.
+          */}
           <button
             onClick={() => handleNavigation(onNavigateToDashboard)}
-            className="flex items-center gap-2 hover:opacity-90 transition-opacity min-w-0"
+            aria-label="Financial Reading — go to Home"
+            className="flex min-h-11 min-w-0 items-center gap-2.5 rounded-lg px-1.5 transition hover:bg-gray-100 dark:hover:bg-gray-800"
           >
-            <TrendingUp className="w-6 h-6 text-cyan-500 shrink-0" />
-            {/* The wordmark stands down on a phone. With two markets to switch
-                between, the bar wants the mark, the switch, the theme, the bell
-                and the menu in 358px - the words were sliding under the market
-                switch. Truncating them to "Financ..." is worse than the logo
-                alone, which is what a phone header usually is. */}
-            <h1 className="hidden sm:block truncate text-base sm:text-lg font-bold text-gray-900 dark:text-white">Financial Reading</h1>
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-cyan-500 text-white shadow-sm">
+              <TrendingUp className="h-5 w-5" />
+            </span>
+            <h1 className="hidden truncate text-base font-bold text-gray-900 dark:text-white sm:block sm:text-lg">
+              Financial Reading
+            </h1>
           </button>
 
           {/* Desktop Navigation */}
@@ -104,26 +101,27 @@ export default function Header({
                 <span>Home</span>
               </button>
 
-              {/* The badge sits on the group, so the count is readable without
-                  opening it - the forgetting happens away from these screens,
-                  which is exactly why it cannot hide behind a click. */}
-              <div className="relative" ref={ideas}>
+              {/* No count on the group. A bare red number says something is
+                  wrong without saying what, and following it led to a screen
+                  that did not point at the name it meant - so it was a nag with
+                  no answer behind it. The line inside the menu says the same
+                  thing in words, next to the place it is about. */}
+              <div className="relative" ref={research}>
                 <button
-                  onClick={() => setIdeasOpen((o) => !o)}
+                  onClick={() => setResearchOpen((o) => !o)}
                   aria-haspopup="menu"
-                  aria-expanded={ideasOpen}
-                  className={`px-3 py-2 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${inIdeas
+                  aria-expanded={researchOpen}
+                  className={`px-3 py-2 rounded-lg font-medium transition-all flex items-center gap-2 text-sm ${inResearch
                     ? 'bg-cyan-500 text-white'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
                     }`}
                 >
                   <Compass className="w-4 h-4" />
-                  <span>Ideas</span>
-                  <Badge due={counts.due} />
-                  <ChevronDown className={`w-3.5 h-3.5 transition-transform ${ideasOpen ? 'rotate-180' : ''}`} />
+                  <span>Research</span>
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform ${researchOpen ? 'rotate-180' : ''}`} />
                 </button>
 
-                {ideasOpen && (
+                {researchOpen && (
                   <div role="menu"
                     className="absolute left-0 z-30 mt-1 w-60 overflow-hidden rounded-lg bg-white shadow-lg ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
                     <button role="menuitem" onClick={() => handleNavigation(onNavigateToHeatmap)}
@@ -319,7 +317,9 @@ export default function Header({
             >
               <Bookmark className="w-5 h-5" />
               <span className="flex-1 text-left">Shortlist</span>
-              <Badge due={counts.due} />
+              <span className="text-xs text-gray-400 dark:text-gray-500">
+                {counts.due ? `${counts.due} to look at` : 'all caught up'}
+              </span>
             </button>
 
             <button

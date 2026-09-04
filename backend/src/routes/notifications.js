@@ -281,6 +281,19 @@ router.get('/push/key', authenticate, (req, res) => {
   });
 });
 
+// GET /api/notifications/push/devices - what the server can actually reach
+router.get('/push/devices', authenticate, async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      data: await pushService.devicesFor(req.user._id, req.query.endpoint)
+    });
+  } catch (error) {
+    console.error('Error reading push devices:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // POST /api/notifications/push/subscribe - register this browser
 router.post('/push/subscribe', authenticate, async (req, res) => {
   try {

@@ -90,9 +90,33 @@ export async function subscribe(userId, subscription, userAgent) {
     );
 }
 
+/**
+ * What the server believes it can reach, for one account.
+ *
+ * The browser's own view - permission granted, a subscription object present -
+ * was the only thing the screen ever checked, and the two can disagree. A row
+ * deleted on a 410, a database restored, an endpoint Apple rotated: the browser
+ * still holds a subscription, the server has nothing, and the toggle reads on
+ * while every alert goes nowhere. Only the server can answer "is anything
+ * actually listening", so it is asked.
+ *
+ * `here` says whether this particular browser is one of them, because a laptop
+ * still registered is no comfort when the phone in your hand is not.
+ */
+export async function devicesFor(userId, endpoint) {
+    const subs = await PushSubscription.find({ userId, platform: 'web' })
+        .select('endpoint lastSeenAt').lean();
+    return {
+        count: subs.length,
+        here: Boolean(endpoint && subs.some(s => s.endpoint === endpoint)),
+        lastSeenAt: subs.reduce((latest, s) =>
+            (!latest || (s.lastSeenAt && s.lastSeenAt > latest) ? s.lastSeenAt : latest), null)
+    };
+}
+
 export async function unsubscribe(userId, endpoint) {
     const { deletedCount } = await PushSubscription.deleteOne({ userId, endpoint });
     return deletedCount > 0;
 }
 
-export default { isConfigured, vapidPublicKey, sendToUser, subscribe, unsubscribe };
+export default { isConfigured, vapidPublicKey, sendToUser, subscribe, devicesFor, unsubscribe };

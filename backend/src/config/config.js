@@ -3,8 +3,7 @@ const isProduction = process.env.NODE_ENV === 'production';
 
 /**
  * In production a missing secret must stop the boot. Falling back to a value
- * that is published in this repo would leave tokens forgeable and the admin
- * signup code public.
+ * that is published in this repo would leave every token forgeable.
  */
 function required(name, devFallback) {
   const value = process.env[name];
@@ -29,15 +28,9 @@ export default {
     .map(o => o.trim())
     .filter(Boolean),
 
-  // Smart cache configuration (prevent excessive scraping)
-  cacheDuration: parseInt(process.env.CACHE_DURATION) || 30 * 60 * 1000, // 30 minutes in milliseconds
-
   // JWT Authentication
   jwtSecret: required('JWT_SECRET', 'dev-only-insecure-jwt-secret'),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
-
-  // Admin signup code (required to create admin accounts)
-  adminSignupCode: required('ADMIN_SIGNUP_CODE', 'admin123'),
 
   // Email Configuration - Multi-Provider Support
   email: {

@@ -7,6 +7,7 @@ import {
 import { formatCurrency, formatPercent, getPnLColorClass } from '../../utils/portfolioUtils';
 import JournalList, { needsYou } from './JournalList';
 import JournalPane from './JournalPane';
+import { useMediaQuery, SPLIT_VIEW } from '../../hooks/useMediaQuery';
 import JournalEntryModal from './JournalEntryModal';
 import JournalSettingsModal from './JournalSettingsModal';
 import RiskCalculator from './RiskCalculator';
@@ -31,6 +32,8 @@ export default function JournalPage() {
     const [query, setQuery] = useState('');
 
     const [selectedId, setSelectedId] = useState(null);
+    // Whether the list and the pane are on screen together.
+    const split = useMediaQuery(SPLIT_VIEW);
     const [editing, setEditing] = useState(null);
     const [showModal, setShowModal] = useState(false);
     // Whether this visit is the act of closing a position, which is a task, or
@@ -87,13 +90,23 @@ export default function JournalPage() {
         return list;
     }, [inMarket, status, flagged]);
 
-    // Open on whatever most wants a decision, then on the newest thing. Never on
-    // an empty pane when there is something to show.
+    /**
+     * Open on whatever most wants a decision, then on the newest thing - but
+     * only where a list and a pane are on screen together.
+     *
+     * Below lg the pane *replaces* the list, and this ran there too: tapping
+     * "All trades" set selectedId to null, this effect saw nothing selected and
+     * immediately re-opened an entry. The back button did nothing, every time,
+     * and there was no way out of a trade once you had opened one. An empty
+     * pane is the thing to avoid on a split view; on a phone an empty pane is
+     * just the list, which is where you asked to be.
+     */
     useEffect(() => {
         if (!visible.length) { setSelectedId(null); return; }
+        if (!split) return;
         if (visible.some((e) => e._id === selectedId)) return;
         setSelectedId((visible.find(needsYou) || visible[0])._id);
-    }, [visible, selectedId]);
+    }, [visible, selectedId, split]);
 
     const selected = visible.find((e) => e._id === selectedId) || null;
     const bookOf = (id) => options?.portfolios?.find((p) => String(p._id) === String(id))?.name;
@@ -216,7 +229,13 @@ export default function JournalPage() {
                             <div className="max-h-[70vh] overflow-y-auto">
                                 <JournalList entries={visible} selectedId={selectedId}
                                     grouped={status === 'all' && !flagged}
-                                    onSelect={(e) => setSelectedId(e._id)}
+                                    // On a phone the pane replaces the list, so the
+                                    // page has to go back to the top or the trade
+                                    // opens somewhere below the fold.
+                                    onSelect={(e) => {
+                                        setSelectedId(e._id);
+                                        if (!split) window.scrollTo({ top: 0, behavior: 'instant' });
+                                    }}
                                     emptyHint={query ? 'Nothing matches that search.'
                                         : flagged ? 'Nothing has reached a level.'
                                             : status === 'open' ? 'No open trades. Switch to Closed or All to see your history.'

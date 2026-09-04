@@ -69,7 +69,7 @@ const INPUT = 'rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text
  * next to it. Filled for that one, outline for the alternative, quiet for
  * everything that only reveals something.
  */
-const BTN = 'inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold transition';
+const BTN = 'inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3.5 py-2 text-sm font-semibold transition';
 const PRIMARY = `${BTN} bg-cyan-500 text-white hover:bg-cyan-600 disabled:opacity-60 dark:bg-cyan-400 dark:text-cyan-950 dark:hover:bg-cyan-300`;
 const OUTLINE = `${BTN} border border-gray-300 font-medium text-gray-800 hover:border-cyan-500 hover:text-cyan-600 dark:border-gray-600 dark:text-gray-200 dark:hover:border-cyan-400 dark:hover:text-cyan-400`;
 const QUIET = 'inline-flex items-center gap-1 rounded-lg px-2 py-2 text-sm font-medium text-gray-400 transition hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-200';
@@ -598,6 +598,69 @@ function ListRow({ item, open, onExpand }) {
     );
 }
 
+/**
+ * The same row, for a screen seven columns will not fit on.
+ *
+ * The columns are fixed-width by design - they have to line up under a heading
+ * or the numbers are a guess - and they add up to 576px before the sector
+ * column gets a single pixel. On a 390px phone that is not a narrow table, it
+ * is a page that scrolls sideways with its headings overlapping each other.
+ *
+ * So phones get the same facts stacked, in the order they are asked for:
+ * which name, then what is happening to it, then what it costs now. Holdings
+ * already solved this the same way.
+ */
+function ListCard({ item, open, onExpand }) {
+    const looks = item.looks?.length || 0;
+    const level = item.trigger || item.invalidation;
+    const fired = hasFired(item);
+
+    return (
+        <button type="button" onClick={() => onExpand(open ? null : item.id)}
+            aria-expanded={open}
+            className={`flex w-full items-start gap-3 border-t px-4 py-3 text-left transition ${
+                open
+                    ? 'border-cyan-200 bg-cyan-50 dark:border-cyan-500/30 dark:bg-cyan-500/10'
+                    : 'border-gray-100 dark:border-gray-700/60'
+            }`}>
+            <ChevronDown className={`mt-1 h-4 w-4 shrink-0 transition ${
+                open ? 'rotate-0 text-cyan-600 dark:text-cyan-400' : '-rotate-90 text-gray-300 dark:text-gray-600'
+            }`} />
+
+            <div className="min-w-0 flex-1">
+                <div className="flex items-baseline justify-between gap-3">
+                    <span className="truncate font-mono text-sm font-bold text-gray-900 dark:text-white">
+                        {item.symbol}
+                    </span>
+                    <span className="shrink-0 font-mono text-base font-semibold text-gray-900 dark:text-white">
+                        {money(item.priceNow)}
+                    </span>
+                </div>
+
+                <p className="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400">{item.sector}</p>
+
+                {/* Labelled, because without a heading above them a row of bare
+                    numbers on a phone is unreadable. */}
+                <div className="mt-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-1 font-mono text-xs">
+                    <span className={looks
+                        ? 'text-gray-500 dark:text-gray-400'
+                        : 'font-semibold text-rose-600 dark:text-rose-400'}>
+                        {looks ? `${looks} look${looks === 1 ? '' : 's'} · ${daysIdle(item)}d ago` : 'never opened'}
+                    </span>
+                    {(fired || level) && (
+                        <span className={fired
+                            ? 'font-semibold text-rose-600 dark:text-rose-400'
+                            : 'text-cyan-600 dark:text-cyan-400'}>
+                            {fired ? `printed ${money(item.triggeredPrice)}`
+                                : `${item.trigger ? '▲' : '▼'} ${money(level.price)}`}
+                        </span>
+                    )}
+                </div>
+            </div>
+        </button>
+    );
+}
+
 /** The column names, once, so the row's numbers are not a guess. */
 function ListHead() {
     // Widths and gaps match ListRow exactly. They have to be read together, so
@@ -1046,7 +1109,7 @@ export default function WatchlistPage() {
     return (
         <div className="container mx-auto space-y-4 px-4 py-6">
             <div className="rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-                <div className="flex flex-wrap items-start justify-between gap-4 p-6 pb-4">
+                <div className="flex flex-wrap items-start justify-between gap-4 p-4 pb-4 sm:p-6">
                     <div>
                         <h1 className="flex items-center gap-3 text-2xl font-bold text-gray-900 dark:text-white">
                             <Bookmark className="h-7 w-7 text-cyan-600 dark:text-cyan-400" />
@@ -1058,17 +1121,20 @@ export default function WatchlistPage() {
                             you were looking at.
                         </p>
                     </div>
-                    <div className="flex items-center gap-3">
+                    {/* Wrapping as whole controls, not as broken words. Three
+                        items in a nowrap row on a phone shrank each one until
+                        "Add a name" ran onto two lines inside its own button. */}
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                         <AddByName onAdd={(hit) => flag({
                             symbol: hit.symbol, name: hit.name, sector: hit.sector, price: hit.close, perf: hit.perf
                         })} />
                         {counts.due > 0 && (
-                            <span className="rounded-full bg-rose-50 px-3 py-1 text-sm font-semibold text-rose-600 dark:bg-rose-900/30 dark:text-rose-400">
+                            <span className="whitespace-nowrap rounded-full bg-rose-50 px-3 py-1 text-sm font-semibold text-rose-600 dark:bg-rose-900/30 dark:text-rose-400">
                                 {counts.due} need{counts.due === 1 ? 's' : ''} you
                             </span>
                         )}
                         <button type="button" onClick={reload}
-                            className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700">
+                            className="flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700">
                             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
                         </button>
                     </div>
@@ -1127,12 +1193,18 @@ export default function WatchlistPage() {
                 <div className="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
                     {tab === 'queue' ? (
                         <div className="py-3">
-                            <ListHead />
+                            <div className="hidden md:block"><ListHead /></div>
                             {rows.map((item) => (
                                 <div key={item.id} className={expanded === item.id
                                     ? 'border-l-2 border-cyan-500 dark:border-cyan-400' : ''}>
-                                    <ListRow item={item} open={expanded === item.id}
-                                        onExpand={(id) => { setExpanded(id); setOpen(null); }} />
+                                    <div className="hidden md:block">
+                                        <ListRow item={item} open={expanded === item.id}
+                                            onExpand={(id) => { setExpanded(id); setOpen(null); }} />
+                                    </div>
+                                    <div className="md:hidden">
+                                        <ListCard item={item} open={expanded === item.id}
+                                            onExpand={(id) => { setExpanded(id); setOpen(null); }} />
+                                    </div>
                                     {expanded === item.id && (
                                         <div className="bg-cyan-50/40 dark:bg-cyan-500/5">
                                             <QueueRow item={item} open={open} setOpen={setOpen}

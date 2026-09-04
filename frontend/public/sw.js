@@ -60,6 +60,28 @@ self.addEventListener('fetch', (e) => {
  * entire point: a stop being reached at 11am is worth nothing if it needs the
  * tab to be open to be seen.
  */
+/**
+ * The browser replaced this device's subscription.
+ *
+ * Apple and the other push services rotate an endpoint from time to time, and
+ * when they do the old one is dead and the server is still holding it. Every
+ * alert then goes to an address nobody is at, gets a 410, and the row is
+ * deleted - so the phone goes quiet with no subscription left and nothing said.
+ *
+ * A worker cannot tell the server itself: the API wants a token that lives in
+ * the page's localStorage, which is not reachable from here. What it can do is
+ * take out a new subscription with the same key, so there is something live to
+ * report - and push.sync() sends it the next time the app is opened.
+ */
+self.addEventListener('pushsubscriptionchange', (e) => {
+    const key = e.oldSubscription?.options?.applicationServerKey;
+    if (!key) return;
+    e.waitUntil(
+        self.registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key })
+            .catch(() => { })
+    );
+});
+
 self.addEventListener('push', (e) => {
     // A push with no payload still has to show something. Browsers may drop a
     // subscription that receives a push and shows no notification.

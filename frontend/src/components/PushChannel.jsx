@@ -16,12 +16,27 @@ export default function PushChannel({ icon }) {
     const [enabled, setEnabled] = useState(false);
     const [busy, setBusy] = useState(false);
     const [ready, setReady] = useState(false);
+    // What the server can actually reach, which is a different question from
+    // what this browser is holding, and the only one that decides whether an
+    // alert arrives.
+    const [devices, setDevices] = useState(null);
 
     const blocked = push.blockedReason();
 
-    useEffect(() => {
-        push.isEnabled().then(setEnabled).catch(() => { }).finally(() => setReady(true));
-    }, []);
+    const refresh = () =>
+        Promise.all([push.isEnabled(), push.sync()])
+            .then(([on, seen]) => { setEnabled(on); setDevices(seen); })
+            .catch(() => { })
+            .finally(() => setReady(true));
+
+    useEffect(() => { refresh(); }, []);
+
+    /**
+     * The toggle says the browser is subscribed; this says the server has the
+     * subscription. They can disagree, and when they do every alert is written,
+     * counted and delivered nowhere - which looks exactly like a quiet week.
+     */
+    const unreachable = enabled && devices && !devices.here;
 
     const toggle = async () => {
         setBusy(true);
@@ -29,10 +44,12 @@ export default function PushChannel({ icon }) {
             if (enabled) {
                 await push.disable();
                 setEnabled(false);
+                setDevices(await push.sync());
                 toast.success('Push turned off on this device');
             } else {
                 await push.enable();
                 setEnabled(true);
+                setDevices(await push.sync());
                 toast.success('Push enabled on this device');
             }
         } catch (error) {
@@ -92,6 +109,13 @@ export default function PushChannel({ icon }) {
                 user can actually fix in two taps. */}
             {blocked && (
                 <p className="mt-2 ml-8 text-xs text-amber-600 dark:text-amber-400">{blocked}</p>
+            )}
+
+            {unreachable && (
+                <p className="mt-2 ml-8 text-xs text-amber-600 dark:text-amber-400">
+                    This device is switched on but the server has no record of it, so alerts
+                    are not reaching you. Turn it off and on again to re-register.
+                </p>
             )}
 
             {enabled && !blocked && (

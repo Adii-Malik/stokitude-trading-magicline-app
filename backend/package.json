@@ -10,7 +10,9 @@
     "create-admin": "node src/scripts/createSuperAdmin.js",
     "test": "node --test src",
     "purge-deleted-portfolios": "node src/scripts/purgeDeletedPortfolios.js",
-    "transfer-book": "node src/scripts/transferBook.js"
+    "transfer-book": "node src/scripts/transferBook.js",
+    "check-email": "node src/scripts/checkEmail.js",
+    "remove-user": "node src/scripts/removeUser.js"
   },
   "keywords": [
     "psx",
