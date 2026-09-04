@@ -222,7 +222,12 @@ export default function Dashboard() {
             const [ports, statsRes, openRes, boardRes] = await Promise.all([
                 api.get('/portfolios').catch(() => null),
                 api.get('/journal/stats').catch(() => null),
-                api.get('/journal', { params: { state: 'open' } }).catch(() => null),
+                // status, not state: the list endpoint filters on the derived
+                // status and silently ignores anything it does not know, so
+                // `state` asked for every trade ever written and the stop alert
+                // counted closed ones. limit, because the default page is 25 and
+                // a truncated page would understate the exposure without saying so.
+                api.get('/journal', { params: { status: 'open', limit: 200 } }).catch(() => null),
                 api.get('/heatmap/sectors').catch(() => null)
             ]);
 
