@@ -68,7 +68,6 @@ class EmailService {
     const resetUrl = `${config.email.frontendUrl}/reset-password?token=${resetToken}`;
 
     const mailOptions = {
-      from: `"${config.email.fromName}" <${config.email.fromEmail}>`,
       to: email,
       subject: 'Password Reset Request - Financial Reading',
       html: `
@@ -153,7 +152,6 @@ Financial Reading Team
     const loginUrl = `${config.email.frontendUrl}/login`;
 
     const mailOptions = {
-      from: `"${config.email.fromName}" <${config.email.fromEmail}>`,
       to: email,
       subject: 'Welcome to Financial Reading! 🎉',
       html: `
@@ -221,7 +219,6 @@ Financial Reading Team
     const priorityLabel = priorityLabels[priority] || priorityLabels.medium;
 
     const mailOptions = {
-      from: `"${config.email.fromName}" <${config.email.fromEmail}>`,
       to: email,
       subject: `${title} - Financial Reading`,
       html: `
@@ -280,7 +277,23 @@ Financial Reading Team
    * Generic send email method
    * Works with any configured provider
    */
-  async sendEmail(mailOptions) {
+  /** Who mail is from. One place, because it is one answer. */
+  get from() {
+    return `"${config.email.fromName}" <${config.email.fromEmail}>`;
+  }
+
+  async sendEmail(options) {
+    /**
+     * The sender is the service's, not the caller's.
+     *
+     * This exact line was copied at all three call sites, and anything that
+     * reached sendEmail without it - a script, a new notification type - was
+     * rejected by the provider with "Missing `from` field" at send time rather
+     * than caught here. It is configuration, and every caller had the same
+     * answer, so it belongs to the service.
+     */
+    const mailOptions = { from: this.from, ...options };
+
     // If not initialized, just log.
     //
     // `delivered: false` matters. This used to return success, so the caller
