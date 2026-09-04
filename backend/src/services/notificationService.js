@@ -240,14 +240,30 @@ class NotificationService {
    *
    * Both go to the entry's owner only. A journal is one person's record.
    */
-  async notifyJournalTarget(entry, target, price) {
+  /**
+   * What actually printed, said as what it is.
+   *
+   * Every one of these messages used to open "SYMBOL is at 518.00" while 518.00
+   * was the session *high* - the watcher takes the extreme that reached your
+   * level, on purpose, and the sentence then called it the current price. Two
+   * alerts about one stock read as the system contradicting itself when both
+   * were true: it traded up to 518 and later down to 488.
+   *
+   * `live` is honoured for the same reason. A warehoused close is a previous
+   * session with no range, so it never says "today".
+   */
+  printed({ price, dir, live }) {
+    return `${dir === 'above' ? 'High' : 'Low'} of ${price.toFixed(2)} ${live ? 'today' : 'at the last close'}`;
+  }
+
+  async notifyJournalTarget(entry, target, print) {
     return this.send({
       userId: entry.user,
       category: 'trade_plans',
       event: 'target_hit',
-      title: `🎉 Target ${target.level} reached: ${entry.symbol}`,
-      message: `${entry.symbol} hit ${price.toFixed(2)}, through your target ${target.level} of ${target.price.toFixed(2)}.`,
-      data: { journalEntryId: entry._id, symbol: entry.symbol, level: target.level, price },
+      title: `🎉 ${entry.symbol} hit target ${target.level}`,
+      message: `${this.printed(print)}, through your target of ${target.price.toFixed(2)}.`,
+      data: { journalEntryId: entry._id, symbol: entry.symbol, level: target.level, price: print.price },
       market: entry.market,
       priority: 'high',
       actionUrl: '/journal'
@@ -260,15 +276,14 @@ class NotificationService {
    * High, not urgent: this is a setup arriving, not a position going against
    * you. The difference decides whether the phone insists.
    */
-  async notifyWatchlistTrigger(entry, price) {
-    const dir = entry.trigger?.dir === 'below' ? 'down through' : 'up through';
+  async notifyWatchlistTrigger(entry, print) {
     return this.send({
       userId: entry.user,
       category: 'trade_plans',
       event: 'target_hit',
-      title: `\u{1F3AF} ${entry.symbol} reached ${entry.trigger?.price?.toFixed(2)}`,
-      message: `${entry.symbol} is at ${price.toFixed(2)}, ${dir} the level you were waiting for. From ${entry.sector}.`,
-      data: { watchlistId: entry._id, symbol: entry.symbol, price },
+      title: `\u{1F3AF} ${entry.symbol} crossed ${entry.trigger?.price?.toFixed(2)}`,
+      message: `${this.printed(print)} — the level you were waiting for.`,
+      data: { watchlistId: entry._id, symbol: entry.symbol, price: print.price },
       market: entry.market,
       priority: 'high',
       actionUrl: '/watchlist'
@@ -282,30 +297,30 @@ class NotificationService {
    * change is not something you discover weeks later wondering where a name
    * went.
    */
-  async notifyWatchlistInvalidated(entry, price) {
+  async notifyWatchlistInvalidated(entry, print) {
     return this.send({
       userId: entry.user,
       category: 'trade_plans',
       event: 'stop_loss_hit',
       title: `\u{1F5D1}\uFE0F ${entry.symbol} is off the shortlist`,
-      message: `${entry.symbol} is at ${price.toFixed(2)}, through the ${entry.invalidation?.price?.toFixed(2)} you said would kill the idea. Closed.`,
-      data: { watchlistId: entry._id, symbol: entry.symbol, price },
+      message: `${this.printed(print)}, through the ${entry.invalidation?.price?.toFixed(2)} you said would kill it.`,
+      data: { watchlistId: entry._id, symbol: entry.symbol, price: print.price },
       market: entry.market,
       priority: 'medium',
       actionUrl: '/watchlist'
     });
   }
 
-  async notifyJournalStop(entry, price) {
+  async notifyJournalStop(entry, print) {
     return this.send({
       userId: entry.user,
       category: 'trade_plans',
       event: 'stop_loss_hit',
       // Deliberately a question. The trade is not closed here, and pretending
       // otherwise would put a price in the journal the broker never filled.
-      title: `⚠️ Stop level reached: ${entry.symbol}`,
-      message: `${entry.symbol} is at ${price.toFixed(2)}, through your stop of ${entry.plannedStop.toFixed(2)}. Did you exit?`,
-      data: { journalEntryId: entry._id, symbol: entry.symbol, price },
+      title: `⚠️ ${entry.symbol} through your stop`,
+      message: `${this.printed(print)}, through your stop of ${entry.plannedStop.toFixed(2)}. Did you exit?`,
+      data: { journalEntryId: entry._id, symbol: entry.symbol, price: print.price },
       market: entry.market,
       priority: 'urgent',
       actionUrl: '/journal'

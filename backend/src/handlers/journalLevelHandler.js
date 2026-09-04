@@ -1,6 +1,7 @@
 import JournalEntry from '../models/JournalEntry.js';
 import notificationService from '../services/notificationService.js';
-import { pricesFor } from '../services/quotes.js';
+import { quotesFor } from '../services/quotes.js';
+import { reached, printFor } from '../services/watchlistLevels.js';
 
 /**
  * Journal Level Handler
@@ -18,24 +19,41 @@ import { pricesFor } from '../services/quotes.js';
  * @returns {{ stop: boolean, targets: number[] }} targets are indices into
  *          entry.targets.
  */
-export function levelsReached(entry, price) {
+/**
+ * Which of this trade's levels the session reached.
+ *
+ * Compared against the day's extremes, through the same `reached` the shortlist
+ * watcher uses. It compared the *last* price, which asks "is it there right now,
+ * at the moment the poll happened to run" - so a stop breached intraday and
+ * recovered before the next fifteen-minute run was never reported. On the one
+ * level with real money behind it, while the shortlist beside it was already
+ * being watched properly. One comparison for both now.
+ *
+ * A stop sits the far side of entry, so its side is the inverse of the trade's.
+ */
+export function levelsReached(entry, quote) {
     const out = { stop: false, targets: [] };
-    if (!price) return out;
 
-    const long = entry.direction !== 'short';
+    // A quote with no usable extremes reports nothing. It used to be `!price`,
+    // and a quote object is always truthy - without this every long in the book
+    // stops out the moment the feed answers with a zero.
+    if (!quote || !(quote.high > 0) || !(quote.low > 0)) return out;
 
     // Only an open trade has levels worth watching. The query in checkLevels
     // already excludes the rest; this keeps the rule true on its own.
     if (entry.state !== 'open') return out;
 
-    // The stop sits the far side of entry, so its comparison inverts.
+    const long = entry.direction !== 'short';
+    const stopSide = long ? 'below' : 'above';
+    const targetSide = long ? 'above' : 'below';
+
     out.stop = !entry.stopHit
         && entry.plannedStop != null
-        && (long ? price <= entry.plannedStop : price >= entry.plannedStop);
+        && reached({ price: entry.plannedStop, dir: stopSide }, quote);
 
     (entry.targets || []).forEach((target, i) => {
         if (target.isHit) return;
-        if (long ? price >= target.price : price <= target.price) out.targets.push(i);
+        if (reached({ price: target.price, dir: targetSide }, quote)) out.targets.push(i);
     });
 
     return out;
@@ -79,24 +97,24 @@ class JournalLevelHandler {
                 byMarket.get(market).push(entry);
             }
 
-            const priceOf = new Map();
+            const quoteOf = new Map();
             for (const [market, group] of byMarket) {
-                const prices = await pricesFor(group.map(e => e.symbol), market);
-                for (const [symbol, price] of prices) priceOf.set(symbol, price);
+                const quotes = await quotesFor(group.map(e => e.symbol), market);
+                for (const [symbol, quote] of quotes) quoteOf.set(symbol, quote);
             }
 
             let checked = 0, missing = 0;
             const dirty = [];
 
             for (const entry of entries) {
-                const price = priceOf.get(entry.symbol);
+                const quote = quoteOf.get(entry.symbol);
                 // Counted rather than ignored. A level that is never compared is
                 // indistinguishable from one that never printed, and silence was
                 // this handler's whole failure mode.
-                if (!price) { missing++; continue; }
+                if (!quote) { missing++; continue; }
                 checked++;
 
-                const updates = await this.apply(entry, price);
+                const updates = await this.apply(entry, quote);
                 if (updates.length) dirty.push(entry);
             }
 
@@ -120,9 +138,14 @@ class JournalLevelHandler {
      * A notification deliberately skipped - preferences off, user inactive -
      * counts as sent, because retrying that forever would never succeed.
      */
-    async apply(entry, price) {
-        const reached = levelsReached(entry, price);
+    async apply(entry, quote) {
+        const hit = levelsReached(entry, quote);
         const hitAt = new Date();
+
+        // The side each level was crossed from, so the message can name the
+        // extreme that got there rather than calling it the current price.
+        const long = entry.direction !== 'short';
+        const printOf = (price, dir) => printFor({ price, dir }, quote);
         const updates = [];
 
         const told = async (send, label) => {
@@ -139,16 +162,18 @@ class JournalLevelHandler {
 
         // Flagged, never acted on: closing the entry here would invent an exit
         // price the broker never gave.
-        if (reached.stop
-            && await told(() => notificationService.notifyJournalStop(entry, price), 'Stop level reached')) {
+        if (hit.stop
+            && await told(() => notificationService.notifyJournalStop(
+                entry, printOf(entry.plannedStop, long ? 'below' : 'above')), 'Stop level reached')) {
             entry.stopHit = true;
             entry.stopHitDate = hitAt;
         }
 
-        for (const i of reached.targets) {
+        for (const i of hit.targets) {
             const target = entry.targets[i];
             const sent = await told(
-                () => notificationService.notifyJournalTarget(entry, target, price),
+                () => notificationService.notifyJournalTarget(
+                    entry, target, printOf(target.price, long ? 'above' : 'below')),
                 `Target ${target.level} reached`
             );
             if (sent) {

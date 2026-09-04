@@ -44,9 +44,19 @@ export function reached(level, quote) {
     return level.dir === 'above' ? quote.high >= level.price : quote.low <= level.price;
 }
 
-/** The price to report: the extreme that actually got there. */
-export function printedAt(level, quote) {
-    return level?.dir === 'above' ? quote.high : quote.low;
+/**
+ * What to report about a level that printed: the extreme that got there, which
+ * side it came from, and whether it was a real session at all.
+ *
+ * All three, because the number alone was being described wrongly. "NRL is at
+ * 518.00" was the day's *high*, not where NRL is - the code took the right
+ * number and the sentence then claimed it was something else, which is the same
+ * class of mistake as the stale price it replaced. `live` matters for the same
+ * reason: a warehoused close has no session, so nothing may say "today" about it.
+ */
+export function printFor(level, quote) {
+    const dir = level?.dir === 'above' ? 'above' : 'below';
+    return { price: dir === 'above' ? quote.high : quote.low, dir, live: Boolean(quote.live) };
 }
 
 /**
@@ -109,7 +119,8 @@ export async function checkWatchlistLevels() {
             // The number you are told is the one that reached your level, not
             // wherever price happens to be by the time the poll ran.
             const level = verdict === 'invalidated' ? entry.invalidation : entry.trigger;
-            const price = printedAt(level, quote);
+            const print = printFor(level, quote);
+            const price = print.price;
 
             /**
              * The flag is written only once the owner has been told.
@@ -121,14 +132,14 @@ export async function checkWatchlistLevels() {
              */
             try {
                 if (verdict === 'invalidated') {
-                    await notificationService.notifyWatchlistInvalidated(entry, price);
+                    await notificationService.notifyWatchlistInvalidated(entry, print);
                     entry.state = 'invalidated';
                     entry.invalidatedAt = new Date();
                     entry.invalidatedPrice = price;
                     await entry.save();
                     invalidated += 1;
                 } else {
-                    await notificationService.notifyWatchlistTrigger(entry, price);
+                    await notificationService.notifyWatchlistTrigger(entry, print);
                     // The trigger has done its job. Leaving it armed would fire
                     // again every day until you happened to open the screen.
                     entry.trigger = null;
@@ -149,4 +160,4 @@ export async function checkWatchlistLevels() {
     }
 }
 
-export default { reached, printedAt, verdictFor, checkWatchlistLevels };
+export default { reached, printFor, verdictFor, checkWatchlistLevels };

@@ -1,7 +1,7 @@
 /** When a price you named counts as reached, and what it means. */
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { reached, printedAt, verdictFor } from './watchlistLevels.js';
+import { reached, printFor, verdictFor } from './watchlistLevels.js';
 
 const above = (price) => ({ price, dir: 'above' });
 const below = (price) => ({ price, dir: 'below' });
@@ -50,10 +50,22 @@ describe('reached', () => {
     });
 });
 
-describe('printedAt', () => {
+describe('printFor', () => {
     test('reports the extreme that got there, not where price ended up', () => {
-        assert.equal(printedAt(below(530), day(528.40, 552.10, 545)), 528.40);
-        assert.equal(printedAt(above(550), day(528.40, 552.10, 545)), 552.10);
+        assert.equal(printFor(below(530), day(528.40, 552.10, 545)).price, 528.40);
+        assert.equal(printFor(above(550), day(528.40, 552.10, 545)).price, 552.10);
+    });
+
+    test('carries the side, so the message can name the number correctly', () => {
+        // "NRL is at 518.00" was the day's high described as the current price.
+        assert.equal(printFor(above(550), day(528.40, 552.10)).dir, 'above');
+        assert.equal(printFor(below(530), day(528.40, 552.10)).dir, 'below');
+    });
+
+    test('a previous close is never a session, so it is not live', () => {
+        // Nothing built from this may say "today" about a warehoused close.
+        assert.equal(printFor(below(530), flat(499.74)).live, false);
+        assert.equal(printFor(below(530), day(528.40, 552.10)).live, true);
     });
 });
 
