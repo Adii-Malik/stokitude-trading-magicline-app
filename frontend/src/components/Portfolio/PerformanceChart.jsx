@@ -42,6 +42,13 @@ export default function PerformanceChart({ portfolioId, currency = 'PKR' }) {
 
     const summary = data?.summary;
     const comparable = (data?.comparison?.length || 0) > 1;
+    // A market with no warehoused bars has no curve, no drawdown and no index -
+    // and the three of those are a different thing from "no data yet", which is
+    // what this screen used to say while drawing a US book against KSE100.
+    // The index this book is measured against, named by its market rather than
+    // assumed: KSE100 was hardcoded here and in the route, so a book outside
+    // Pakistan was drawn against the Pakistani index.
+    const index = data?.benchmark?.symbol;
 
     return (
         <div className="bg-surface rounded-card shadow-card p-4 sm:p-6">
@@ -52,7 +59,7 @@ export default function PerformanceChart({ portfolioId, currency = 'PKR' }) {
                     {comparable && (
                         <div className="flex rounded-lg bg-gray-100 dark:bg-gray-700 p-0.5">
                             <ModeButton active={mode === 'value'} onClick={() => setMode('value')}>Value</ModeButton>
-                            <ModeButton active={mode === 'vs'} onClick={() => setMode('vs')}>vs KSE100</ModeButton>
+                            <ModeButton active={mode === 'vs'} onClick={() => setMode('vs')}>vs {index}</ModeButton>
                         </div>
                     )}
                     <div className="flex rounded-lg bg-gray-100 dark:bg-gray-700 p-0.5">
@@ -65,7 +72,8 @@ export default function PerformanceChart({ portfolioId, currency = 'PKR' }) {
                 </div>
             </div>
 
-            {summary && <Stats summary={summary} comparison={data?.comparison} currency={currency} />}
+            {summary && <Stats summary={summary} comparison={data?.comparison}
+                currency={currency} index={index} />}
 
             {loading && <Placeholder>Loading…</Placeholder>}
             {!loading && error && <Placeholder>{error}</Placeholder>}
@@ -98,7 +106,7 @@ export default function PerformanceChart({ portfolioId, currency = 'PKR' }) {
 
             {!loading && !comparable && data?.series?.length > 0 && (
                 <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
-                    Add a KSE100 stock with daily history to compare against the index.
+                    Add a {index} stock with daily history to compare against the index.
                 </p>
             )}
         </div>
@@ -109,7 +117,7 @@ export default function PerformanceChart({ portfolioId, currency = 'PKR' }) {
  * Only what the cards above do not already say. Value, cost and P/L live in
  * the portfolio summary; these three are the time-based measures.
  */
-function Stats({ summary, comparison, currency }) {
+function Stats({ summary, comparison, currency, index }) {
     const last = comparison?.[comparison.length - 1];
     const edge = last ? last.portfolio - last.benchmark : null;
 
@@ -136,11 +144,11 @@ function Stats({ summary, comparison, currency }) {
             />
             <Stat
                 icon={Activity}
-                label="vs KSE100"
+                label={`vs ${index}`}
                 value={edge != null ? `${edge >= 0 ? '+' : ''}${edge.toFixed(1)} pts` : '—'}
                 hint={edge != null
                     ? `you ${(last.portfolio - 100).toFixed(1)}%, index ${(last.benchmark - 100).toFixed(1)}%`
-                    : 'needs KSE100 history'}
+                    : `needs ${index} history`}
                 color={edge != null ? getPnLColorClass(edge) : ''}
             />
         </div>

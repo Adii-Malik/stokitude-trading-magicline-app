@@ -5,6 +5,7 @@ import { Panel, Line } from '../../ui/Panel';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { formatCurrency, formatPercent } from '../../utils/portfolioUtils';
+import { hasPriceHistory, hasFundamentals } from '../../utils/market';
 import HoldingsTable from './HoldingsTable';
 import PerformanceChart from './PerformanceChart';
 import TransactionList from './TransactionList';
@@ -201,7 +202,12 @@ export default function PortfolioDetail() {
 
                     <Summary dashboard={dashboard} currency={portfolio.currency} />
 
-                    <PerformanceChart portfolioId={id} currency={portfolio.currency} />
+                    {/* Nothing on a market with no bars: no curve, no drawdown,
+                        no index. Gated here rather than inside, so the request is
+                        never made and no panel appears and then vanishes. */}
+                    {hasPriceHistory(portfolio.market) && (
+                        <PerformanceChart portfolioId={id} currency={portfolio.currency} />
+                    )}
 
                     {/* Tabs */}
                     <div className="bg-surface rounded-card shadow-card border border-hairline">
@@ -224,11 +230,17 @@ export default function PortfolioDetail() {
                                         label="Tax"
                                     />
                                 )}
-                                <TabButton
-                                    active={activeTab === 'allocation'}
-                                    onClick={() => setActiveTab('allocation')}
-                                    label="SIP Allocation"
-                                />
+                                {/* The engine ranks on fundamentals, and those are
+                                    warehoused for PSX alone - so on any other market
+                                    it has no universe to draw from and the tab opens
+                                    on nothing. */}
+                                {hasFundamentals(portfolio.market) && (
+                                    <TabButton
+                                        active={activeTab === 'allocation'}
+                                        onClick={() => setActiveTab('allocation')}
+                                        label="SIP Allocation"
+                                    />
+                                )}
                             </nav>
                         </div>
 
@@ -254,7 +266,7 @@ export default function PortfolioDetail() {
                                     currency={portfolio.currency}
                                 />
                             )}
-                            {activeTab === 'allocation' && (
+                            {activeTab === 'allocation' && hasFundamentals(portfolio.market) && (
                                 <AllocationView portfolioId={id} currency={portfolio.currency} refreshKey={version} />
                             )}
                         </div>

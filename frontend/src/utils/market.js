@@ -13,4 +13,34 @@ export function landingFor(path) {
     return path;
 }
 
-export default { landingFor };
+/**
+ * Whether a market has a price history to draw.
+ *
+ * The engine warehouses PSX bars and nothing else, so a US book has no curve,
+ * no drawdown and no index to sit beside. Everything that needs those is not
+ * shown there at all rather than shown empty - a panel explaining what it
+ * cannot do still spends a section of the screen saying nothing.
+ *
+ * Kept here, next to landingFor, because both answer the same kind of question:
+ * what this market does and does not have.
+ */
+export function hasPriceHistory(market) {
+    return String(market || 'PK').toUpperCase() === 'PK';
+}
+
+/**
+ * Whether a market has the fundamentals the allocation engine scores on.
+ *
+ * Separate from hasPriceHistory on purpose, even though both are PK-only today.
+ * They are different facts about different collections - bars in psxdailies,
+ * ratios in stockfundamentals - and folding them into one flag is how the
+ * stocks list and the OHLCV history came to be treated as the same problem.
+ *
+ * With no fundamentals there is nothing to rank, so the engine has no universe
+ * and the screen has nothing to offer.
+ */
+export function hasFundamentals(market) {
+    return String(market || 'PK').toUpperCase() === 'PK';
+}
+
+export default { landingFor, hasPriceHistory, hasFundamentals };

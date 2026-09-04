@@ -9,6 +9,25 @@ import AverageCostCalculator from './calculators/AverageCostCalculator.js';
 
 const ratio = new AverageCostCalculator();
 
+/**
+ * Which markets have a daily history to replay, and what to compare it against.
+ *
+ * The whole of this file works by replaying the ledger against daily closes,
+ * and the only closes this app warehouses are PSX ones - the engine fills
+ * psxdailies and nothing else. A US book therefore has no bars for any symbol
+ * it holds, and the consequences were not an empty chart but a wrong one: every
+ * holding valued at zero, so the curve was cash alone, drawn against KSE100
+ * because that was the hardcoded default benchmark. A US portfolio was being
+ * measured against the Pakistani index on a line that ignored its holdings.
+ *
+ * So the market decides, and where there is no history the screen is told that
+ * rather than handed a series built out of zeroes.
+ */
+const HISTORY = {
+    PK: { bars: true, index: 'KSE100' },
+    US: { bars: false, index: null }
+};
+
 /** YYYY-MM-DD in UTC, the key everything joins on. */
 export const dayKey = (d) => new Date(d).toISOString().slice(0, 10);
 
@@ -257,11 +276,32 @@ export function rebase(series, benchmark, field = 'nav') {
     }));
 }
 
+/**
+ * A deposit dated after the first trade makes XIRR wildly overstate the return,
+ * because the money looks like it was only present for part of the period.
+ */
+function isLateCapital(transactions) {
+    const firstOf = (types) => transactions
+        .filter(t => types.includes(t.type) && t.executedAt)
+        .reduce((min, t) => !min || t.executedAt < min ? t.executedAt : min, null);
+    const firstCapital = firstOf(['DEPOSIT']);
+    const firstTrade = firstOf(['BUY', 'SELL']);
+    return Boolean(firstCapital && firstTrade && firstCapital > firstTrade);
+}
+
 /** Everything the performance endpoint needs, in one read. */
-export async function performance(portfolioId, { from, benchmark = 'KSE100' } = {}) {
+export async function performance(portfolioId, { from, market = 'PK', benchmark } = {}) {
     const id = new mongoose.Types.ObjectId(String(portfolioId));
+    const history = HISTORY[market] || HISTORY.PK;
+    benchmark = benchmark || history.index;
+
+    // Nothing to replay against, so nothing is returned but the reason. The
+    // screen does not render this panel on such a market at all; the endpoint
+    // still answers honestly rather than with a series built out of zeroes.
+    if (!history.bars) return empty(benchmark, market, false);
+
     const transactions = await Transaction.find({ portfolioId: id }).lean();
-    if (!transactions.length) return empty(benchmark);
+    if (!transactions.length) return empty(benchmark, market, true);
 
     const symbols = [...new Set(transactions.map(t => t.symbol).filter(Boolean))];
     const since = from
@@ -269,7 +309,7 @@ export async function performance(portfolioId, { from, benchmark = 'KSE100' } = 
         : new Date(Math.min(...transactions.map(t => new Date(t.executedAt))));
 
     const bars = await PsxDaily.find({
-        symbol: { $in: [...symbols, benchmark] },
+        symbol: { $in: [...symbols, benchmark].filter(Boolean) },
         date: { $gte: since }
     }).select('symbol date close').sort({ date: 1 }).lean();
 
@@ -289,19 +329,13 @@ export async function performance(portfolioId, { from, benchmark = 'KSE100' } = 
     const last = series[series.length - 1] || null;
     const capital = transactions.some(t => ['DEPOSIT', 'WITHDRAW'].includes(t.type));
 
-    // A deposit dated after the first trade makes XIRR wildly overstate the
-    // return, because the money looks like it was only present for part of it.
-    const firstOf = (types) => transactions
-        .filter(t => types.includes(t.type) && t.executedAt)
-        .reduce((min, t) => !min || t.executedAt < min ? t.executedAt : min, null);
-    const firstCapital = firstOf(['DEPOSIT']);
-    const firstTrade = firstOf(['BUY', 'SELL']);
-    const lateCapital = Boolean(firstCapital && firstTrade && firstCapital > firstTrade);
+    const lateCapital = isLateCapital(transactions);
 
     return {
         series,
         comparison: rebase(series, index),
         benchmark: { symbol: benchmark, available: index.length > 0 },
+        history: { available: true, market, reason: null },
         missingPrices,
         summary: {
             start: series[0]?.date || null,
@@ -322,11 +356,16 @@ export async function performance(portfolioId, { from, benchmark = 'KSE100' } = 
     };
 }
 
-function empty(benchmark) {
+function empty(benchmark, market = 'PK', bars = true) {
     return {
         series: [],
         comparison: [],
         benchmark: { symbol: benchmark, available: false },
+        history: {
+            available: bars,
+            market,
+            reason: bars ? null : 'No daily bars are stored for this market, so there is no curve to draw.'
+        },
         missingPrices: [],
         summary: {
             start: null, end: null, value: 0, cash: 0, total: 0, invested: 0,

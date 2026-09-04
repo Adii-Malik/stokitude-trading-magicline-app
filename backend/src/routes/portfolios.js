@@ -584,10 +584,14 @@ router.get('/:id/dashboard', async (req, res) => {
  */
 router.get('/:id/performance', async (req, res) => {
     try {
-        await portfolioService.getPortfolio(req.params.id, req.user._id);
+        const portfolio = await portfolioService.getPortfolio(req.params.id, req.user._id);
         const data = await performanceService.performance(req.params.id, {
             from: req.query.from,
-            benchmark: req.query.benchmark || 'KSE100'
+            // The book's own market picks both the history and the index. KSE100
+            // was hardcoded here, so a US book was drawn against the Pakistani
+            // index on a curve that valued its holdings at nothing.
+            market: portfolio.market,
+            benchmark: req.query.benchmark
         });
 
         res.json({ success: true, data });
