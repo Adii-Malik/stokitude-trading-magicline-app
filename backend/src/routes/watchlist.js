@@ -4,8 +4,6 @@ import JournalEntry from '../models/JournalEntry.js';
 import { authenticate } from '../middleware/auth.js';
 import { sectorPerformance } from '../services/sectorPerformance.js';
 import { currentMarket } from '../config/marketStore.js';
-import { quotesFor } from '../services/quotes.js';
-import { DEFAULT_MARKET } from '../config/exchanges.js';
 
 const router = express.Router();
 router.use(authenticate);
@@ -330,49 +328,18 @@ router.post('/:id/looks', async (req, res) => {
 
         // A level is only a level with both halves. Half of one is a typo, and
         // storing it would arm a watcher against a price with no direction.
-        const shape_ = (l) => (l && l.price != null && ['above', 'below'].includes(l.dir)
+        const level = (l) => (l && l.price != null && ['above', 'below'].includes(l.dir)
             ? { price: Number(l.price), dir: l.dir }
             : null);
 
-        /**
-         * Armed against the session as it stands right now.
-         *
-         * Recording where the market already was is what lets the watcher tell
-         * "price reached your level" from "price reached your level since you
-         * asked". Without it a level set outside market hours fires on the last
-         * closed session, which is the chart that was open while it was set.
-         *
-         * Asked of quotesFor rather than the board: the board carries closes
-         * and performance, never the session's extremes. A feed that cannot
-         * answer leaves these null, and null reads as the old behaviour - a
-         * level that might announce something you had already seen is a smaller
-         * failure than one that never fires.
-         */
-        const arm = (l, quote) => (l ? {
-            ...l,
-            armedAt: new Date(),
-            armedSession: quote?.session ?? null,
-            armedExtreme: quote ? (l.dir === 'above' ? quote.high : quote.low) : null
-        } : null);
+        const t = level(trigger);
+        const v = level(invalidation);
 
         /**
          * The look keeps the levels as they stood; the entry carries the live
          * ones. Passing null clears what was armed - which is how you say "never
          * mind" about a price you set last week without dropping the name.
          */
-        // Only when something is actually being armed, so an ordinary look with
-        // a note and a chart still costs no extra request.
-        const arming = shape_(trigger) || shape_(invalidation);
-        const entry = arming
-            ? await Watchlist.findOne({ _id: req.params.id, user: req.user._id }).select('symbol market').lean()
-            : null;
-        const armQuote = entry
-            ? (await quotesFor([entry.symbol], entry.market || DEFAULT_MARKET)).get(entry.symbol)
-            : null;
-
-        const t = arm(shape_(trigger), armQuote);
-        const v = arm(shape_(invalidation), armQuote);
-
         const doc = await Watchlist.findOneAndUpdate(
             { _id: req.params.id, user: req.user._id },
             {

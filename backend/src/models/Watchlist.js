@@ -43,29 +43,7 @@ const levelSchema = new mongoose.Schema({
     // Which way price has to go to mean something. Never inferred from where
     // price happens to be today: a trigger set below the market is a perfectly
     // ordinary thing to want, and guessing would silently invert it.
-    dir: { type: String, enum: ['above', 'below'], required: true },
-
-    /**
-     * Where the market already was when this level was armed.
-     *
-     * A session's high and low carry no timestamps, so "did price reach my
-     * level" and "did price reach my level since I asked" are different
-     * questions and only the first was answerable. A trigger set at half past
-     * four on a Sunday morning fired ten minutes later against Friday's high -
-     * reporting as news the number that was on the chart while it was being
-     * set, and doing it in the middle of the night.
-     *
-     * With the session and the extreme as they stood at arming, both questions
-     * can be answered exactly: inside the same session a level counts only once
-     * the extreme has moved past it, and a session that begins later is news in
-     * its own right. Absent on levels armed before this existed, which read as
-     * the old behaviour rather than as never firing.
-     */
-    armedAt: { type: Date, default: Date.now },
-    armedSession: { type: Date, default: null },
-    // The extreme on this level's own side - the high for an above, the low for
-    // a below. One number, because a level only ever looks one way.
-    armedExtreme: { type: Number, default: null }
+    dir: { type: String, enum: ['above', 'below'], required: true }
 }, { _id: false });
 
 const lookSchema = new mongoose.Schema({
