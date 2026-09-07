@@ -41,7 +41,30 @@ import { quotesFor } from './quotes.js';
  */
 export function reached(level, quote) {
     if (!level || !quote || level.price == null) return false;
-    return level.dir === 'above' ? quote.high >= level.price : quote.low <= level.price;
+
+    const above = level.dir === 'above';
+    const extreme = above ? quote.high : quote.low;
+    const past = above ? extreme >= level.price : extreme <= level.price;
+    if (!past) return false;
+
+    /**
+     * Reached, but was it reached *since you asked*?
+     *
+     * Inside the session the level was armed in, only movement past it counts.
+     * A level armed with the extreme already the far side of it is not news
+     * arriving, it is the chart you were looking at when you set it - which is
+     * how a trigger set at 04:35 on a Sunday announced Friday's high ten
+     * minutes later.
+     *
+     * A different session is news on its own terms, so the plain comparison
+     * stands. So does a level with no arming record - the ones written before
+     * this existed read as they always did, rather than falling silent.
+     */
+    const sameSession = level.armedSession && quote.session
+        && new Date(level.armedSession).getTime() === new Date(quote.session).getTime();
+    if (!sameSession || level.armedExtreme == null) return true;
+
+    return above ? level.armedExtreme < level.price : level.armedExtreme > level.price;
 }
 
 /**

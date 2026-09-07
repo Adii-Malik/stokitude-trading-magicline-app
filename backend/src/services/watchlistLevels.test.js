@@ -50,6 +50,62 @@ describe('reached', () => {
     });
 });
 
+describe('reached, since you asked', () => {
+    const friday = new Date('2026-09-04T04:30:00Z');
+    const monday = new Date('2026-09-07T04:30:00Z');
+
+    /** A session, with which session it is. */
+    const on = (session, low, high) => ({ last: high, high, low, session, live: true });
+
+    /** A level armed against a session, with the extreme as it stood then. */
+    const armed = (price, dir, session, extreme) =>
+        ({ price, dir, armedAt: new Date(), armedSession: session, armedExtreme: extreme });
+
+    test('does not report the chart you were looking at when you set it', () => {
+        // The real one: a trigger of 152 set on Sunday, when Friday's high was
+        // already 153.8, fired ten minutes later against Friday.
+        const level = armed(152, 'above', friday, 153.8);
+        assert.equal(reached(level, on(friday, 147, 153.8)), false);
+    });
+
+    test('but reports the same level the next session', () => {
+        // The suppression must last one session, not forever. This is the miss
+        // that would matter, so it is the assertion that matters.
+        const level = armed(152, 'above', friday, 153.8);
+        assert.equal(reached(level, on(monday, 149, 152.5)), true);
+    });
+
+    test('fires inside the session when the extreme moves past it', () => {
+        // Armed mid-session below the market's reach, then price gets there.
+        const level = armed(152, 'above', monday, 151.5);
+        assert.equal(reached(level, on(monday, 149, 153)), true);
+    });
+
+    test('a below-level works the same way round', () => {
+        const already = armed(90, 'below', friday, 88);
+        assert.equal(reached(already, on(friday, 88, 95)), false);
+        assert.equal(reached(already, on(monday, 89, 95)), true);
+
+        const waiting = armed(90, 'below', monday, 92);
+        assert.equal(reached(waiting, on(monday, 89, 95)), true);
+    });
+
+    test('a level with no arming record behaves as it always did', () => {
+        // Every level written before this existed. Reading them as "never fires"
+        // would silence the whole shortlist on deploy.
+        assert.equal(reached(above(88), day(80, 94)), true);
+        assert.equal(reached({ price: 152, dir: 'above', armedSession: friday, armedExtreme: null },
+            on(friday, 147, 153.8)), true);
+    });
+
+    test('a warehoused close has no session, so it cannot be judged on since', () => {
+        // flat() carries session: null. Suppressing on an unknown session would
+        // turn a stale feed into silence, which is the worse failure.
+        const level = armed(152, 'above', friday, 153.8);
+        assert.equal(reached(level, { ...flat(153.8), session: null }), true);
+    });
+});
+
 describe('printFor', () => {
     test('reports the extreme that got there, not where price ended up', () => {
         assert.equal(printFor(below(530), day(528.40, 552.10, 545)).price, 528.40);
