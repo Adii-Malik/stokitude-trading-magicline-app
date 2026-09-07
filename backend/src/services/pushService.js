@@ -35,6 +35,35 @@ export function vapidPublicKey() {
 const isGone = (status) => status === 404 || status === 410;
 
 /**
+ * How hard the push service is asked to try.
+ *
+ * Web Push urgency is a real instruction, not a label: at `normal` the service
+ * is allowed to hold a message back to spare the device's battery, and at
+ * `high` it is asked to wake it. This read `priority === 'urgent' ? 'high' :
+ * 'normal'`, which collapsed four priorities into two and put `high` on the
+ * same footing as an FYI - so a level printing, the one thing the watcher
+ * exists for, was handed to Apple as "deliver whenever convenient".
+ */
+export const URGENCY = { urgent: 'high', high: 'high', medium: 'normal', low: 'low' };
+
+/**
+ * How long the push service should keep trying.
+ *
+ * This was one hour, reasoned about a stop: "a stop that arrives an hour late
+ * is noise". The reasoning is backwards. A longer window does not produce more
+ * alerts, it produces the same alerts later - and a stop that blew at eleven
+ * and reaches you at one still tells you something you have to act on. What an
+ * hour actually bought was silence: a level that printed at 04:45 local, on a
+ * phone asleep on a nightstand, expired at Apple before the phone asked for it.
+ * The notification stayed in the app, so it was there to read in the morning
+ * with nothing having rung.
+ *
+ * A day, because every one of these is a fact about a price, and a price that
+ * printed yesterday still printed.
+ */
+export const TTL_SECONDS = 24 * 60 * 60;
+
+/**
  * Sends one notification to every device a user has registered.
  *
  * @returns {{ sent: number, gone: number, failed: number }}
@@ -51,9 +80,7 @@ export async function sendToUser(userId, payload) {
             await webpush.sendNotification(
                 { endpoint: sub.endpoint, keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth } },
                 body,
-                // A stop that arrives an hour late is noise. If the phone has
-                // been off longer than this, drop it rather than deliver it.
-                { TTL: 3600, urgency: payload.priority === 'urgent' ? 'high' : 'normal' }
+                { TTL: TTL_SECONDS, urgency: URGENCY[payload.priority] || 'normal' }
             );
             await PushSubscription.updateOne({ _id: sub._id }, { lastSeenAt: new Date() });
             return 'sent';
