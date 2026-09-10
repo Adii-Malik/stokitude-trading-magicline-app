@@ -30,16 +30,42 @@ export default function EditTransactionModal({ portfolioId, transaction, currenc
         setFormData({ ...formData, ...updates });
     };
 
+    /** A cleared number field is zero. It is only absent if it was never shown. */
+    const num = (v) => (v === '' || v == null ? 0 : parseFloat(v));
+
+    /**
+     * Only the fields this type actually owns.
+     *
+     * Built from the type rather than by dropping every blank, which is what
+     * it used to do: a blank could mean "belongs to another type, never shown"
+     * or "you just cleared it", and dropping both meant clearing a commission
+     * sent nothing at all. The save succeeded, the row came back unchanged,
+     * and there was no error to explain it.
+     *
+     * The type itself is not sent - the select is disabled, and changing what
+     * a transaction is would rewrite the position under it.
+     */
+    const payloadFor = ({ type, executedAt, notes, ...f }) => {
+        const common = { executedAt, notes };
+        if (['DEPOSIT', 'WITHDRAW'].includes(type)) return { ...common, cashAmount: num(f.cashAmount) };
+        if (type === 'DIV') return { ...common, dividendCash: num(f.dividendCash), dividendType: f.dividendType };
+        if (['BUY', 'SELL'].includes(type)) {
+            return {
+                ...common,
+                quantity: num(f.quantity), price: num(f.price),
+                fees: num(f.fees), otherCharges: num(f.otherCharges)
+            };
+        }
+        // SPLIT and BONUS have no editable numbers here, so the form shows the
+        // date and the note and that is all this may change.
+        return common;
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
 
         try {
-            // Blank fields belong to other types; sending them makes Mongoose
-            // cast '' to a number.
-            const payload = Object.fromEntries(
-                Object.entries(formData).filter(([, v]) => v !== '')
-            );
-            await api.put(`/portfolios/${portfolioId}/transactions/${transaction._id}`, payload);
+            await api.put(`/portfolios/${portfolioId}/transactions/${transaction._id}`, payloadFor(formData));
             toast.success('Transaction updated');
             onUpdated();
             onClose();
