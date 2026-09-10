@@ -179,21 +179,41 @@ function TransactionRow({ transaction, currency, onDelete, onEdit }) {
                 </div>
 
                 <div className="text-right shrink-0 whitespace-nowrap">
-                    {(['BUY', 'SELL'].includes(transaction.type)) && (
-                        <>
-                            <div className="font-semibold text-gray-900 dark:text-white">
-                                {formatCurrency(transaction.quantity * transaction.price, currency)}
-                            </div>
-                            <div className="text-xs text-gray-600 dark:text-gray-400">
-                                {formatShares(transaction.quantity)} @ {formatCurrency(transaction.price, currency)}
-                            </div>
-                            {transaction.fees > 0 && (
-                                <div className="text-xs text-gray-500 dark:text-gray-400">
-                                    Fees {formatCurrency(transaction.fees, currency)}
+                    {/**
+                      * The big number is what left or reached the account.
+                      *
+                      * It used to be quantity times price, printed directly above
+                      * a Fees line - so it looked like a total that included them
+                      * and was in fact the figure before them. And that Fees line
+                      * showed the commission alone, leaving CDC, SECP and CVT out
+                      * of a number the reader takes for everything the broker
+                      * took. The two together made the row impossible to check
+                      * against a contract note, which is the one thing it is for.
+                      *
+                      * Gross moves down to the line that already says how it was
+                      * arrived at, beside the shares and the price.
+                      */}
+                    {(['BUY', 'SELL'].includes(transaction.type)) && (() => {
+                        const gross = transaction.quantity * transaction.price;
+                        const charges = (transaction.fees || 0) + (transaction.otherCharges || 0);
+                        const buying = transaction.type === 'BUY';
+                        return (
+                            <>
+                                <div className="font-semibold text-gray-900 dark:text-white">
+                                    {formatCurrency(buying ? gross + charges : gross - charges, currency)}
                                 </div>
-                            )}
-                        </>
-                    )}
+                                <div className="text-xs text-gray-600 dark:text-gray-400">
+                                    {formatShares(transaction.quantity)} @ {formatCurrency(transaction.price, currency)}
+                                    {' = '}{formatCurrency(gross, currency)}
+                                </div>
+                                {charges > 0 && (
+                                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                                        {buying ? '+' : '−'} {formatCurrency(charges, currency)} charges
+                                    </div>
+                                )}
+                            </>
+                        );
+                    })()}
 
                     {transaction.type === 'DIV' && (
                         <div className="font-semibold text-green-600 dark:text-green-400">
