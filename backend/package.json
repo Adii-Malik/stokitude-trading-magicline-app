@@ -12,7 +12,8 @@
     "purge-deleted-portfolios": "node src/scripts/purgeDeletedPortfolios.js",
     "transfer-book": "node src/scripts/transferBook.js",
     "check-email": "node src/scripts/checkEmail.js",
-    "remove-user": "node src/scripts/removeUser.js"
+    "remove-user": "node src/scripts/removeUser.js",
+    "db:pull": "src/scripts/pullProd.sh"
   },
   "keywords": [
     "psx",
