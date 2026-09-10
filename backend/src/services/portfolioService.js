@@ -715,8 +715,13 @@ class PortfolioService {
             if (filters.to) query.executedAt.$lte = new Date(filters.to);
         }
 
+        // Newest first, and within a day the one entered last. The form stores
+        // a date with no time, so every trade from one contract note carries
+        // the same executedAt and the tie was broken by whatever order the
+        // collection happened to return - which put the row you just saved
+        // somewhere in the middle of today instead of at the top.
         const transactions = await Transaction.find(query)
-            .sort({ executedAt: -1 })
+            .sort({ executedAt: -1, createdAt: -1, _id: -1 })
             .limit(filters.limit || 100);
 
         return transactions;
