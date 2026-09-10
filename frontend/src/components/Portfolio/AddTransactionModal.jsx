@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import api from '../../services/api';
 import { SymbolInput } from '../../ui/SymbolInput';
@@ -95,8 +95,38 @@ export default function AddTransactionModal({ portfolioId, currency, commissionS
         setFormData({ ...formData, ...updates });
     };
 
+    /**
+     * Which button was pressed, read at submit time.
+     *
+     * A form has one onSubmit, and both buttons go through it so that "save and
+     * add another" gets the same required-field checks the browser already
+     * applies to the primary one. A ref rather than state because it is read in
+     * the handler the same tick it is written, and a re-render in between would
+     * be a chance for the two to disagree.
+     */
+    const addAnother = useRef(false);
+
+    /**
+     * What survives a save when you are entering several in a row.
+     *
+     * A contract note is a page of trades on one date, so the type and the date
+     * are the two things you would immediately retype. Everything that
+     * identifies the individual trade goes. The fee prefill is unfrozen too:
+     * left edited, the next symbol would inherit the brokerage of this one.
+     */
+    const clearForNext = () => {
+        setFormData(f => ({
+            ...f,
+            symbol: '', quantity: '', price: '', fees: '', otherCharges: '',
+            amount: '', notes: ''
+        }));
+        setFeeEdited(false);
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
+        const again = addAnother.current;
+        addAnother.current = false;
         if (overSelling) {
             toast.error(`You only own ${formatShares(ownedQty)} ${formData.symbol}`);
             return;
@@ -119,8 +149,13 @@ export default function AddTransactionModal({ portfolioId, currency, commissionS
                 };
 
             await api.post(`/portfolios/${portfolioId}/transactions`, payload);
-            toast.success('Transaction added successfully');
-            onAdded();
+            // Names what was saved, because with the form still open the toast
+            // is the only confirmation that the last one went in.
+            toast.success([formData.type, formData.symbol, 'added'].filter(Boolean).join(' '));
+            // The book has changed either way, so the screen behind is told
+            // either way; only whether this closes differs.
+            onAdded({ close: !again });
+            if (again) clearForNext();
         } catch (error) {
             toast.error(error.response?.data?.message || 'Failed to add transaction');
         } finally {
@@ -369,18 +404,30 @@ export default function AddTransactionModal({ portfolioId, currency, commissionS
                         />
                     </div>
 
-                    <div className="flex gap-3 pt-4">
+                    {/* Stacked on a phone: three buttons cannot share a row at
+                        390px without the labels wrapping mid-word. */}
+                    <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                            className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 sm:flex-1"
                         >
                             Cancel
+                        </button>
+                        {/* Same submit, so the browser still enforces the
+                            required fields; the ref says which one was pressed. */}
+                        <button
+                            type="submit"
+                            onClick={() => { addAnother.current = true; }}
+                            disabled={submitting || overSelling}
+                            className="px-4 py-2 border border-cyan-500 text-cyan-600 dark:text-cyan-400 rounded-lg hover:bg-cyan-50 dark:hover:bg-cyan-500/10 disabled:opacity-50 sm:flex-1"
+                        >
+                            Save &amp; add another
                         </button>
                         <button
                             type="submit"
                             disabled={submitting || overSelling}
-                            className="flex-1 px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 disabled:opacity-50"
+                            className="px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 disabled:opacity-50 sm:flex-1"
                         >
                             {submitting ? 'Adding...' : 'Add Transaction'}
                         </button>

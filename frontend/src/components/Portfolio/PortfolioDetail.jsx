@@ -5,12 +5,11 @@ import { Panel, Line } from '../../ui/Panel';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { formatCurrency, formatPercent } from '../../utils/portfolioUtils';
-import { hasPriceHistory, hasFundamentals } from '../../utils/market';
+import { hasPriceHistory } from '../../utils/market';
 import HoldingsTable from './HoldingsTable';
 import PerformanceChart from './PerformanceChart';
 import TransactionList from './TransactionList';
 import AddTransactionModal from './AddTransactionModal';
-import AllocationView from './AllocationView';
 import TaxYearReport from './TaxYearReport';
 
 export default function PortfolioDetail() {
@@ -230,17 +229,12 @@ export default function PortfolioDetail() {
                                         label="Tax"
                                     />
                                 )}
-                                {/* The engine ranks on fundamentals, and those are
-                                    warehoused for PSX alone - so on any other market
-                                    it has no universe to draw from and the tab opens
-                                    on nothing. */}
-                                {hasFundamentals(portfolio.market) && (
-                                    <TabButton
-                                        active={activeTab === 'allocation'}
-                                        onClick={() => setActiveTab('allocation')}
-                                        label="SIP Allocation"
-                                    />
-                                )}
+                                {/* SIP Allocation is not shown. The engine behind it
+                                    ranks on fundamentals that are stale, so the screen
+                                    was not being used - and its long label was the one
+                                    overflowing this row on a phone. AllocationView is
+                                    still here; showing it again is this tab and the
+                                    panel below. */}
                             </nav>
                         </div>
 
@@ -266,9 +260,6 @@ export default function PortfolioDetail() {
                                     currency={portfolio.currency}
                                 />
                             )}
-                            {activeTab === 'allocation' && hasFundamentals(portfolio.market) && (
-                                <AllocationView portfolioId={id} currency={portfolio.currency} refreshKey={version} />
-                            )}
                         </div>
                     </div>
 
@@ -279,8 +270,11 @@ export default function PortfolioDetail() {
                             commissionSlabs={portfolio.commissionSlabs}
                             charges={portfolio.charges}
                             onClose={() => setShowAddTransaction(false)}
-                            onAdded={() => {
-                                setShowAddTransaction(false);
+                            onAdded={({ close = true } = {}) => {
+                                // "Save & add another" keeps the form up, so it
+                                // asks not to be closed. The screen still
+                                // refreshes: the book changed either way.
+                                if (close) setShowAddTransaction(false);
                                 refresh();
                             }}
                         />
