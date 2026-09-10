@@ -48,10 +48,12 @@ export default function EditTransactionModal({ portfolioId, transaction, currenc
     const payloadFor = ({ type, executedAt, notes, ...f }) => {
         const common = { executedAt, notes };
         if (['DEPOSIT', 'WITHDRAW'].includes(type)) return { ...common, cashAmount: num(f.cashAmount) };
-        if (type === 'DIV') return { ...common, dividendCash: num(f.dividendCash), dividendType: f.dividendType };
+        if (type === 'DIV') {
+            return { ...common, symbol: f.symbol, dividendCash: num(f.dividendCash), dividendType: f.dividendType };
+        }
         if (['BUY', 'SELL'].includes(type)) {
             return {
-                ...common,
+                ...common, symbol: f.symbol,
                 quantity: num(f.quantity), price: num(f.price),
                 fees: num(f.fees), otherCharges: num(f.otherCharges)
             };

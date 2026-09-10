@@ -150,6 +150,18 @@ export function cashFrom(transactions) {
         charges += fees;
         walk.fees += fees;
 
+        /**
+         * A charge is cash out whatever row it sits on.
+         *
+         * Taken off here rather than inside the BUY and SELL branches, which is
+         * where it used to happen. A fee recorded against a dividend - PSX
+         * withholds on those - or against a deposit was counted into walk.fees
+         * and into the headline totalFees, and never taken off the balance. The
+         * walk exists so a gap against the broker can be traced to one of six
+         * sums, and those six did not add up to the number above them.
+         */
+        balance -= fees;
+
         if (tx.type === 'BUY' || tx.type === 'SELL') {
             trades++;
             if (fees === 0) freeOfCharge++;
@@ -163,10 +175,10 @@ export function cashFrom(transactions) {
                 balance -= cash; net -= cash; tracked = true;
                 walk.withdrawals += cash; break;
             case 'BUY':
-                balance -= (tx.quantity * tx.price) + fees;
+                balance -= tx.quantity * tx.price;
                 walk.bought += tx.quantity * tx.price; break;
             case 'SELL':
-                balance += (tx.quantity * tx.price) - fees;
+                balance += tx.quantity * tx.price;
                 walk.sold += tx.quantity * tx.price; break;
             case 'DIV':
                 balance += tx.dividendCash || 0;
@@ -728,8 +740,22 @@ class PortfolioService {
     }
 
     /**
-     * Update transaction
+     * What an edit is allowed to change.
+     *
+     * Listed rather than filtered, because the route hands this whole request
+     * bodies and the old code assigned every key of one straight onto the
+     * document. Anything the client happened to send - a stale `market`, a
+     * mistyped field, `createdAt` - was written with it. A transaction is a
+     * record of something that happened, so the set of things you can correct
+     * about it is small and knowable.
+     *
+     * `type` is not here: the form disables it, and changing what a transaction
+     * is would rewrite the position underneath it into something the ledger
+     * never saw. `portfolioId` is not here for the same reason, one book over.
      */
+    static EDITABLE = ['symbol', 'quantity', 'price', 'fees', 'otherCharges',
+        'cashAmount', 'dividendCash', 'dividendType', 'ratio', 'executedAt', 'notes', 'exchange'];
+
     async updateTransaction(transactionId, userId, updates) {
         const transaction = await Transaction.findById(transactionId);
 
@@ -743,16 +769,28 @@ class PortfolioService {
             throw new Error('Edit permission required');
         }
 
-        // Prevent changing portfolio or symbol (would mess up positions)
-        delete updates.portfolioId;
-        delete updates.symbol;
+        const allowed = {};
+        for (const field of PortfolioService.EDITABLE) {
+            if (updates[field] !== undefined) allowed[field] = updates[field];
+        }
 
         const oldSymbol = transaction.symbol;
-        Object.assign(transaction, updates);
+        Object.assign(transaction, allowed);
         await transaction.save();
 
-        // Rebuild position for affected symbol
+        /**
+         * Both symbols, when the correction was the symbol itself.
+         *
+         * The edit form has always shown an editable symbol and the service has
+         * always thrown the new value away, so fixing a ticker typed wrong meant
+         * deleting the row and entering it again - and the form said nothing
+         * about it. Rebuilding the name it left as well as the name it joined is
+         * the whole of what "would mess up positions" was avoiding.
+         */
         await this.updatePosition(transaction.portfolioId, oldSymbol);
+        if (transaction.symbol && transaction.symbol !== oldSymbol) {
+            await this.updatePosition(transaction.portfolioId, transaction.symbol);
+        }
 
         return transaction;
     }

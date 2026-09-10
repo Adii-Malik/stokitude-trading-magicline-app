@@ -175,16 +175,4 @@ transactionSchema.pre('save', function (next) {
     next();
 });
 
-// Virtual: Total cost/proceeds for BUY/SELL
-transactionSchema.virtual('totalAmount').get(function () {
-    if (this.type === 'BUY') {
-        return (this.quantity * this.price) + this.fees;
-    } else if (this.type === 'SELL') {
-        return (this.quantity * this.price) - this.fees;
-    } else if (this.type === 'DIV') {
-        return this.dividendCash;
-    }
-    return 0;
-});
-
 export default mongoose.model('Transaction', transactionSchema);

@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { formatCurrency, formatShares } from '../../utils/portfolioUtils';
 import EditTransactionModal from './EditTransactionModal';
 
-export default function TransactionList({ portfolioId, currency, onTransactionChange }) {
+export default function TransactionList({ portfolioId, currency, refreshKey, onTransactionChange }) {
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [typeFilter, setTypeFilter] = useState('ALL');
@@ -13,9 +13,13 @@ export default function TransactionList({ portfolioId, currency, onTransactionCh
     const [total, setTotal] = useState(0);
     const [limit, setLimit] = useState(200);
 
+    // refreshKey, because a transaction added from the header button lands in
+    // this list without this component hearing about it - the holdings table
+    // was already watching that counter and this one was not, so the row you
+    // had just saved was missing until you switched tabs and back.
     useEffect(() => {
         loadTransactions();
-    }, [portfolioId, limit]);
+    }, [portfolioId, limit, refreshKey]);
 
     const loadTransactions = async () => {
         try {

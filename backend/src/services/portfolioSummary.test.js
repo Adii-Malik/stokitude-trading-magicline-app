@@ -65,6 +65,20 @@ describe('what the cash balance is made of', () => {
         assert.equal(walk.freeOfCharge, 1);
     });
 
+    test('a charge on a dividend leaves the balance, as it leaves the account', () => {
+        // PSX withholds on dividends, so a DIV row can carry a charge. The
+        // balance used to subtract fees only inside the BUY and SELL branches,
+        // so this one was counted into walk.fees and never taken off - and the
+        // six parts no longer added up to the number they sit under, which is
+        // the only job the breakdown has.
+        const { balance, walk } = cashFrom([dep(1000), { type: 'DIV', dividendCash: 100, fees: 15 }]);
+        assert.equal(balance, 1085);
+        assert.equal(walk.fees, 15);
+        const rebuilt = walk.deposits - walk.withdrawals - walk.bought
+            + walk.sold + walk.dividends - walk.fees;
+        assert.equal(Math.round(rebuilt * 100) / 100, balance);
+    });
+
     test('a cash-only book has no trades to flag', () => {
         const { walk } = cashFrom([dep(500), wd(100)]);
         assert.deepEqual([walk.trades, walk.freeOfCharge], [0, 0]);

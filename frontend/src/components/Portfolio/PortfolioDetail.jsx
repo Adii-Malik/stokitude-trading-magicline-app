@@ -251,6 +251,7 @@ export default function PortfolioDetail() {
                                 <TransactionList
                                     portfolioId={id}
                                     currency={portfolio.currency}
+                                    refreshKey={version}
                                     onTransactionChange={refresh}
                                 />
                             )}
