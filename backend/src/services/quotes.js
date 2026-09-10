@@ -56,7 +56,7 @@ async function fromScanner(symbols, market) {
                     { left: 'type', operation: 'equal', right: 'stock' },
                     { left: 'name', operation: 'in_range', right: batch }
                 ],
-                columns: ['name', 'close', 'high', 'low'],
+                columns: ['name', 'close', 'high', 'low', 'time'],
                 range: [0, batch.length]
             })
         });
@@ -64,7 +64,7 @@ async function fromScanner(symbols, market) {
 
         const body = await res.json();
         for (const row of body.data || []) {
-            const [symbol, close, high, low] = row.d || [];
+            const [symbol, close, high, low, time] = row.d || [];
             if (symbol && close != null) {
                 out.set(String(symbol).toUpperCase(), {
                     last: close,
@@ -72,6 +72,17 @@ async function fromScanner(symbols, market) {
                     // back to the last price keeps every comparison defined.
                     high: high ?? close,
                     low: low ?? close,
+                    /**
+                     * Which session these extremes belong to.
+                     *
+                     * The high and the low carry no timestamps, so without this
+                     * there is no way to tell a price that printed after you
+                     * named a level from one that printed before. A trigger set
+                     * at half past four on a Sunday morning fired ten minutes
+                     * later against Friday's high - reporting, as news, the
+                     * number that was on the chart while it was being set.
+                     */
+                    session: time ? new Date(time * 1000) : null,
                     live: true
                 });
             }
@@ -133,7 +144,12 @@ export async function quotesFor(symbols = [], market = 'PK') {
         .lean();
     for (const s of stocks) {
         if (s.currentPrice != null) {
-            found.set(s.symbol, { last: s.currentPrice, high: s.currentPrice, low: s.currentPrice, live: false });
+            // No session either: a warehoused close cannot say when it printed,
+            // so nothing may reason about "since".
+            found.set(s.symbol, {
+                last: s.currentPrice, high: s.currentPrice, low: s.currentPrice,
+                session: null, live: false
+            });
         }
     }
 
