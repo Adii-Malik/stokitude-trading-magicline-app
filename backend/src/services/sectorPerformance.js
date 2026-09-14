@@ -22,15 +22,16 @@ const SCANNER = {
 };
 
 /** Every period, fetched together, so switching between them costs nothing. */
+// Rolling windows, not calendar ones. The scanner has no month-to-date column.
 export const PERIODS = [
     { id: 'change', label: 'Today', short: '1D' },
-    { id: 'Perf.W', label: '1 week', short: '1W' },
-    { id: 'Perf.1M', label: '1 month', short: '1M' },
-    { id: 'Perf.3M', label: '3 months', short: '3M' },
-    { id: 'Perf.6M', label: '6 months', short: '6M' },
+    { id: 'Perf.W', label: 'Past week', short: '1W' },
+    { id: 'Perf.1M', label: 'Past month', short: '1M' },
+    { id: 'Perf.3M', label: 'Past 3 months', short: '3M' },
+    { id: 'Perf.6M', label: 'Past 6 months', short: '6M' },
     { id: 'Perf.YTD', label: 'Year so far', short: 'YTD' },
-    { id: 'Perf.Y', label: '12 months', short: '1Y' },
-    { id: 'Perf.5Y', label: '5 years', short: '5Y' }
+    { id: 'Perf.Y', label: 'Past 12 months', short: '1Y' },
+    { id: 'Perf.5Y', label: 'Past 5 years', short: '5Y' }
 ];
 
 const TTL_MS = 5 * 60 * 1000;

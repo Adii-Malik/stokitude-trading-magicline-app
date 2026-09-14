@@ -11,15 +11,16 @@ export const BOARDS = {
     US: { label: 'the US market' }
 };
 
+// Rolling windows, not calendar ones - "past month" is 30 days back, not this month.
 export const TIMEFRAMES = [
     { id: 'change', label: 'Today', hint: 'since yesterday’s close' },
-    { id: 'Perf.W', label: '1 week' },
-    { id: 'Perf.1M', label: '1 month' },
-    { id: 'Perf.3M', label: '3 months' },
-    { id: 'Perf.6M', label: '6 months' },
-    { id: 'Perf.YTD', label: 'Year so far' },
-    { id: 'Perf.Y', label: '12 months' },
-    { id: 'Perf.5Y', label: '5 years' }
+    { id: 'Perf.W', label: 'Past week', hint: 'rolling 7 days, not this week' },
+    { id: 'Perf.1M', label: 'Past month', hint: 'rolling 30 days, not this month' },
+    { id: 'Perf.3M', label: 'Past 3 months' },
+    { id: 'Perf.6M', label: 'Past 6 months' },
+    { id: 'Perf.YTD', label: 'Year so far', hint: 'since 1 January' },
+    { id: 'Perf.Y', label: 'Past 12 months' },
+    { id: 'Perf.5Y', label: 'Past 5 years' }
 ];
 
 /** A month is long enough to be a trend and short enough to still be tradeable. */
