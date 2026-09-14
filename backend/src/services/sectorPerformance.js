@@ -12,7 +12,7 @@ import { currentMarket } from '../config/marketStore.js';
  *
  * So the numbers come from TradingView and the grouping comes from us: the PSX
  * sector already stored against every stock. Nothing is warehoused - the scanner
- * returns each company's performance over all eight periods in a single request,
+ * returns each company's performance over every period in a single request,
  * and a sector is that arithmetic over its members.
  */
 
@@ -22,20 +22,19 @@ const SCANNER = {
 };
 
 /** Every period, fetched together, so switching between them costs nothing. */
-// change|* is close-to-close from the period's start, so a gap always counts.
-// Perf.* rolls back N days and anchors on that day's open, which can skip one.
-// The scanner has no calendar column past a month.
+// change|1M is close-to-close from the month's start, so a gap always counts.
+// Perf.* rolls back N days off that day's open, which can skip one - hence the
+// day counts in the labels. The scanner has no calendar column past a month.
 export const PERIODS = [
     { id: 'change', label: 'Today', short: '1D' },
-    { id: 'change|1W', label: 'This week', short: 'WTD' },
+    { id: 'Perf.W', label: 'Last 7 days', short: '7D' },
     { id: 'change|1M', label: 'This month', short: 'MTD' },
-    { id: 'Perf.W', label: 'Past week', short: '1W' },
-    { id: 'Perf.1M', label: 'Past month', short: '1M' },
-    { id: 'Perf.3M', label: 'Past 3 months', short: '3M' },
-    { id: 'Perf.6M', label: 'Past 6 months', short: '6M' },
+    { id: 'Perf.1M', label: 'Last 30 days', short: '30D' },
+    { id: 'Perf.3M', label: 'Last 3 months', short: '3M' },
+    { id: 'Perf.6M', label: 'Last 6 months', short: '6M' },
     { id: 'Perf.YTD', label: 'Year so far', short: 'YTD' },
-    { id: 'Perf.Y', label: 'Past 12 months', short: '1Y' },
-    { id: 'Perf.5Y', label: 'Past 5 years', short: '5Y' }
+    { id: 'Perf.Y', label: 'Last 12 months', short: '1Y' },
+    { id: 'Perf.5Y', label: 'Last 5 years', short: '5Y' }
 ];
 
 const TTL_MS = 5 * 60 * 1000;

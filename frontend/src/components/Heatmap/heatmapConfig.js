@@ -11,18 +11,18 @@ export const BOARDS = {
     US: { label: 'the US market' }
 };
 
-// "This" is calendar and close-to-close; "past" rolls N days back from today.
+// Day counts for the rolling windows, so none of them can be heard as a
+// calendar period. "This month" is the only calendar one the scanner offers.
 export const TIMEFRAMES = [
     { id: 'change', label: 'Today', hint: 'since yesterday’s close' },
-    { id: 'change|1W', label: 'This week', hint: 'since last Friday’s close' },
+    { id: 'Perf.W', label: 'Last 7 days' },
     { id: 'change|1M', label: 'This month', hint: 'since last month’s close' },
-    { id: 'Perf.W', label: 'Past week', hint: 'rolling 7 days, not this week' },
-    { id: 'Perf.1M', label: 'Past month', hint: 'rolling 30 days, not this month' },
-    { id: 'Perf.3M', label: 'Past 3 months' },
-    { id: 'Perf.6M', label: 'Past 6 months' },
+    { id: 'Perf.1M', label: 'Last 30 days' },
+    { id: 'Perf.3M', label: 'Last 3 months' },
+    { id: 'Perf.6M', label: 'Last 6 months' },
     { id: 'Perf.YTD', label: 'Year so far', hint: 'since 1 January' },
-    { id: 'Perf.Y', label: 'Past 12 months' },
-    { id: 'Perf.5Y', label: 'Past 5 years' }
+    { id: 'Perf.Y', label: 'Last 12 months' },
+    { id: 'Perf.5Y', label: 'Last 5 years' }
 ];
 
 /** The month you are in, which is the month people mean when they ask. */
