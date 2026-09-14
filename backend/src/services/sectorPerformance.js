@@ -22,9 +22,13 @@ const SCANNER = {
 };
 
 /** Every period, fetched together, so switching between them costs nothing. */
-// Rolling windows, not calendar ones. Calendar ones are the scanner's change|1M / change|1W.
+// change|* is close-to-close from the period's start, so a gap always counts.
+// Perf.* rolls back N days and anchors on that day's open, which can skip one.
+// The scanner has no calendar column past a month.
 export const PERIODS = [
     { id: 'change', label: 'Today', short: '1D' },
+    { id: 'change|1W', label: 'This week', short: 'WTD' },
+    { id: 'change|1M', label: 'This month', short: 'MTD' },
     { id: 'Perf.W', label: 'Past week', short: '1W' },
     { id: 'Perf.1M', label: 'Past month', short: '1M' },
     { id: 'Perf.3M', label: 'Past 3 months', short: '3M' },

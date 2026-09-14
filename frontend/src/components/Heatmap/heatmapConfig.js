@@ -11,9 +11,11 @@ export const BOARDS = {
     US: { label: 'the US market' }
 };
 
-// Rolling windows, not calendar ones - "past month" is 30 days back, not this month.
+// "This" is calendar and close-to-close; "past" rolls N days back from today.
 export const TIMEFRAMES = [
     { id: 'change', label: 'Today', hint: 'since yesterday’s close' },
+    { id: 'change|1W', label: 'This week', hint: 'since last Friday’s close' },
+    { id: 'change|1M', label: 'This month', hint: 'since last month’s close' },
     { id: 'Perf.W', label: 'Past week', hint: 'rolling 7 days, not this week' },
     { id: 'Perf.1M', label: 'Past month', hint: 'rolling 30 days, not this month' },
     { id: 'Perf.3M', label: 'Past 3 months' },
@@ -23,8 +25,8 @@ export const TIMEFRAMES = [
     { id: 'Perf.5Y', label: 'Past 5 years' }
 ];
 
-/** A month is long enough to be a trend and short enough to still be tradeable. */
-export const DEFAULTS = { timeframe: 'Perf.1M' };
+/** The month you are in, which is the month people mean when they ask. */
+export const DEFAULTS = { timeframe: 'change|1M' };
 
 /**
  * The period, carried in the URL.

@@ -45,7 +45,9 @@ const SUB = 'text-xs font-semibold uppercase tracking-wider text-gray-400 dark:t
  * morning. A month is the horizon a swing book is actually traded on, and long
  * enough that a rotation shows up as one.
  */
-const MONTH = 'Perf.1M';
+// change|1M, not Perf.1M: the heatmap defaults to the same one, and the two
+// screens disagreeing about "the month" is worse than either answer.
+const MONTH = 'change|1M';
 
 /** Below this, a sector's median is one company wearing a sector's name. */
 const MIN_MEMBERS = 3;
