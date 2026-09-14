@@ -22,7 +22,7 @@ const SCANNER = {
 };
 
 /** Every period, fetched together, so switching between them costs nothing. */
-// Rolling windows, not calendar ones. The scanner has no month-to-date column.
+// Rolling windows, not calendar ones. Calendar ones are the scanner's change|1M / change|1W.
 export const PERIODS = [
     { id: 'change', label: 'Today', short: '1D' },
     { id: 'Perf.W', label: 'Past week', short: '1W' },
