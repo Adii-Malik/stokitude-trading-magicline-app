@@ -69,10 +69,13 @@ export const AuthProvider = ({ children }) => {
     try {
       setError(null);
       const response = await authAPI.login(email, password);
-      const { user, token } = response.data;
-      
+      const { user, token, markets } = response.data;
+
       localStorage.setItem('token', token);
       setUser(user);
+      // Without this the market switch stays hidden until the next full page
+      // load, which is when /auth/me finally supplies them.
+      setMarkets(markets || null);
       
       return { success: true };
     } catch (error) {
@@ -101,6 +104,7 @@ export const AuthProvider = ({ children }) => {
       if (token) {
         localStorage.setItem('token', token);
         setUser(user);
+        setMarkets(response.data.markets || null);
       }
       
       return { success: true };

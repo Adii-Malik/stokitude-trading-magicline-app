@@ -1,5 +1,5 @@
 import express from 'express';
-import { MARKET_CODES, MARKETS, marketOfCurrency } from '../config/exchanges.js';
+import { MARKET_CODES, MARKETS, marketOfCurrency, getMarket } from '../config/exchanges.js';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import config from '../config/config.js';
@@ -7,6 +7,22 @@ import { authenticate } from '../middleware/auth.js';
 import emailService from '../services/emailService.js';
 import Portfolio from '../models/Portfolio.js';
 import portfolioService from '../services/portfolioService.js';
+
+/** The markets this account holds books in, and which one it is scoped to. */
+async function marketsFor(user) {
+  const active = getMarket(user.activeMarket).code;
+  const books = await Portfolio.find({
+    $or: [{ owner: user._id }, { 'sharedWith.user': user._id }],
+    isActive: true
+  }).select('currency').unscoped().lean();
+  const held = [...new Set(books.map(b => marketOfCurrency(b.currency)))];
+  return {
+    active,
+    // The active one is always listed, even before its first book exists.
+    held: MARKET_CODES.filter(code => held.includes(code) || code === active)
+      .map(code => ({ code, name: MARKETS[code].name, currency: MARKETS[code].currency }))
+  };
+}
 
 const router = express.Router();
 
@@ -141,6 +157,9 @@ router.post('/login', async (req, res) => {
       message: 'Login successful',
       data: {
         user: user.toSafeObject(),
+        // Sent here as well as from /auth/me: the market switch reads these, and
+        // without them it has nothing to offer until the next full page load.
+        markets: await marketsFor(user),
         token
       }
     });
@@ -167,27 +186,9 @@ router.post('/logout', (req, res) => {
 // GET /api/auth/me - Get current user
 router.get('/me', authenticate, async (req, res) => {
   try {
-    // Which markets this user actually trades in, so the client can hide a
-    // switch that has only one option. Derived from the books rather than
-    // stored, because opening a US account is how you gain the US market.
-    const books = await Portfolio.find({
-      $or: [{ owner: req.user._id }, { 'sharedWith.user': req.user._id }],
-      isActive: true
-    }).select('currency').unscoped().lean();
-
-    const held = [...new Set(books.map(b => marketOfCurrency(b.currency)))];
-
     res.json({
       success: true,
-      data: {
-        user: req.user,
-        markets: {
-          active: req.market,
-          // The active one is always listed, even before its first book exists.
-          held: MARKET_CODES.filter(code => held.includes(code) || code === req.market)
-            .map(code => ({ code, name: MARKETS[code].name, currency: MARKETS[code].currency }))
-        }
-      }
+      data: { user: req.user, markets: await marketsFor(req.user) }
     });
   } catch (error) {
     console.error('❌ Error fetching user:', error);
