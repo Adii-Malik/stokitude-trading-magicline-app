@@ -417,7 +417,7 @@ function Summary({ dashboard, currency }) {
     const {
         totalValue = 0, totalCost = 0, cashBalance = 0, cashTracked,
         unrealizedPnL = 0, realizedPnL = 0, totalDividends = 0,
-        totalPnL = 0, totalFees = 0,
+        totalFees = 0,
         netTotalPnL = 0, netTotalPnLPct = 0,
         capitalGainsTax = 0, netRealizedPnL = 0, taxRatePct = 15,
         cgtMethod = 'FLAT', filerStatus = null, unpriced = [], cashWalk = null
@@ -437,9 +437,9 @@ function Summary({ dashboard, currency }) {
     // comes back null rather than a default, which is what says so.
     const taxed = filerStatus != null;
     const tiered = cgtMethod === 'HOLDING_PERIOD';
-    const cgtLabel = tiered
-        ? `Capital gains tax (holding-period, ${filerStatus === 'NON_FILER' ? 'non-filer' : 'filer'})`
-        : `Capital gains tax ${taxRatePct}%`;
+    const cgtNote = tiered
+        ? `by holding period, ${filerStatus === 'NON_FILER' ? 'non-filer' : 'filer'} rates`
+        : `flat ${taxRatePct}%`;
 
     return (
         <div className="grid gap-3 sm:gap-4 lg:grid-cols-3">
@@ -491,18 +491,15 @@ function Summary({ dashboard, currency }) {
                 tint={gain ? 'green' : 'amber'}
                 title={taxed ? 'Total P/L, after tax' : 'Total P/L'}
                 value={money(netTotalPnL, { signed: true })}
-                note={`${formatPercent(netTotalPnLPct)} on capital deployed`}
+                note={`${formatPercent(netTotalPnLPct)} on capital deployed${taxed ? ', after CGT' : ''}`}
                 tone={gain ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}
             >
-                {/* Every part of the answer in one column, tax included, so the
-                    headline needs nothing added to it or taken off it. */}
+                {/* Where the profit came from. What was taken out of it is the
+                    next card's job, and naming the tax twice was what made the
+                    two read like different answers. */}
                 <Line label="Unrealised on holdings" value={money(unrealizedPnL, { signed: true })} />
                 <Line label="Realised from sales" value={money(realizedPnL, { signed: true })} />
                 <Line label="Dividends received" value={money(totalDividends)} />
-                {taxed && <Line label="Capital gains tax" value={`− ${money(capitalGainsTax)}`} />}
-                {taxed && (
-                    <Line label="Before tax" value={money(totalPnL, { signed: true })} muted />
-                )}
             </Panel>
 
             <Panel icon={Receipt} tint="amber" title="What it cost"
@@ -514,14 +511,14 @@ function Summary({ dashboard, currency }) {
                     looked like realised minus both, which is not the figure at
                     the bottom - and anyone checking the arithmetic concluded the
                     number was wrong rather than the labelling. */}
-                <Line label="Commission" value={money(totalFees)}
+                <Line label="Commission paid" value={money(totalFees)}
                     note={bite !== null
                         ? `${bite.toFixed(0)}% of realised gains — already taken off`
                         : 'already taken off'} />
-                {taxed && <Line label={cgtLabel} value={money(capitalGainsTax)} />}
+                {taxed && <Line label="CGT deducted" value={money(capitalGainsTax)} note={cgtNote} />}
 
-                <Line label="In hand from sales" value={money(netRealizedPnL, { signed: true })}
-                    note={taxed ? 'realised, less tax' : 'realised, after commission'} strong />
+                <Line label="Kept from sales" value={money(netRealizedPnL, { signed: true })}
+                    note={taxed ? 'realised gains, less CGT' : 'realised gains, after commission'} strong />
             </Panel>
         </div>
     );
