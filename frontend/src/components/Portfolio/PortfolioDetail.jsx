@@ -417,9 +417,8 @@ function Summary({ dashboard, currency }) {
     const {
         totalValue = 0, totalCost = 0, cashBalance = 0, cashTracked,
         unrealizedPnL = 0, realizedPnL = 0, totalDividends = 0,
-        totalFees = 0,
-        netTotalPnL = 0, netTotalPnLPct = 0,
-        capitalGainsTax = 0, netRealizedPnL = 0, taxRatePct = 15,
+        totalPnL = 0, totalPnLPct = 0, totalFees = 0,
+        capitalGainsTax = 0, taxRatePct = 15,
         cgtMethod = 'FLAT', filerStatus = null, unpriced = [], cashWalk = null
     } = dashboard;
 
@@ -428,7 +427,7 @@ function Summary({ dashboard, currency }) {
     const money = (v, opts) => formatCurrency(v, currency, opts);
     const accountValue = totalValue + (cashTracked ? cashBalance : 0);
     const bite = totalFees > 0 && realizedPnL > 0 ? (totalFees / realizedPnL) * 100 : null;
-    const gain = netTotalPnL >= 0;
+    const gain = totalPnL >= 0;
 
     // FIFO portfolios get holding-period CGT (PSX tiers by holding length +
     // filer status); everything else falls back to the flat rate. Label the
@@ -489,9 +488,9 @@ function Summary({ dashboard, currency }) {
             <Panel
                 icon={TrendingUp}
                 tint={gain ? 'green' : 'amber'}
-                title={taxed ? 'Total P/L, after tax' : 'Total P/L'}
-                value={money(netTotalPnL, { signed: true })}
-                note={`${formatPercent(netTotalPnLPct)} on capital deployed${taxed ? ', after CGT' : ''}`}
+                title="Total P/L"
+                value={money(totalPnL, { signed: true })}
+                note={`${formatPercent(totalPnLPct)} on capital deployed`}
                 tone={gain ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}
             >
                 {/* Where the profit came from. What was taken out of it is the
@@ -505,20 +504,16 @@ function Summary({ dashboard, currency }) {
             <Panel icon={Receipt} tint="amber" title="What it cost"
                 value={money(totalFees + capitalGainsTax)}
                 tone="text-amber-600 dark:text-amber-400">
-                {/* Both are costs, but they land at different moments, and the
-                    column did not say so: commission is taken out when the sale
-                    is booked, tax comes off afterwards. Read straight down it
-                    looked like realised minus both, which is not the figure at
-                    the bottom - and anyone checking the arithmetic concluded the
-                    number was wrong rather than the labelling. */}
+                {/* The two land at different moments, and each note says which,
+                    because that is the only thing that explains the P/L beside it. */}
                 <Line label="Commission paid" value={money(totalFees)}
                     note={bite !== null
-                        ? `${bite.toFixed(0)}% of realised gains — already taken off`
-                        : 'already taken off'} />
-                {taxed && <Line label="CGT deducted" value={money(capitalGainsTax)} note={cgtNote} />}
-
-                <Line label="Kept from sales" value={money(netRealizedPnL, { signed: true })}
-                    note={taxed ? 'realised gains, less CGT' : 'realised gains, after commission'} strong />
+                        ? `${bite.toFixed(0)}% of realised gains — already inside the P/L`
+                        : 'already inside the P/L'} />
+                {taxed && (
+                    <Line label="CGT deducted" value={money(capitalGainsTax)}
+                        note={`${cgtNote} — not yet taken off the P/L`} />
+                )}
             </Panel>
         </div>
     );
