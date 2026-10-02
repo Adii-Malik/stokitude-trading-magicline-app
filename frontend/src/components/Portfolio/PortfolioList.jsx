@@ -130,8 +130,8 @@ export default function PortfolioList() {
 }
 
 function PortfolioCard({ portfolio, onClick, onDelete, onEdit }) {
-    const { totalValue = 0, totalPnL = 0, totalPnLPct = 0, unpricedCount = 0 } = portfolio.dashboardCache || {};
-    const isProfit = totalPnL >= 0;
+    const { totalValue = 0, netTotalPnL = 0, netTotalPnLPct = 0, unpricedCount = 0 } = portfolio.dashboardCache || {};
+    const isProfit = netTotalPnL >= 0;
     const [showMenu, setShowMenu] = useState(false);
 
     return (
@@ -206,11 +206,9 @@ function PortfolioCard({ portfolio, onClick, onDelete, onEdit }) {
 
                     <div className="flex items-center justify-between pt-3 border-t border-hairline">
                         <div>
-                            {/* Before tax, unlike the book's own card. Computing CGT per book
-    needs every disposal, which this list does not load. */}
-                            <div className="text-sm text-gray-600 dark:text-gray-400">P/L before tax</div>
-                            <div className={`text-lg font-semibold ${getPnLColorClass(totalPnL)}`}>
-                                {formatCurrency(totalPnL, portfolio.currency, { signed: true })}
+                            <div className="text-sm text-gray-600 dark:text-gray-400">P/L</div>
+                            <div className={`text-lg font-semibold ${getPnLColorClass(netTotalPnL)}`}>
+                                {formatCurrency(netTotalPnL, portfolio.currency, { signed: true })}
                             </div>
                         </div>
                         <div className="flex items-center gap-1">
@@ -219,8 +217,8 @@ function PortfolioCard({ portfolio, onClick, onDelete, onEdit }) {
                             ) : (
                                 <TrendingDown className="w-5 h-5 text-red-600 dark:text-red-400" />
                             )}
-                            <span className={`text-lg font-semibold ${getPnLColorClass(totalPnL)}`}>
-                                {formatPercent(totalPnLPct)}
+                            <span className={`text-lg font-semibold ${getPnLColorClass(netTotalPnL)}`}>
+                                {formatPercent(netTotalPnLPct)}
                             </span>
                         </div>
                     </div>

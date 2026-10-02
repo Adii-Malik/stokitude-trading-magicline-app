@@ -419,7 +419,7 @@ class PortfolioService {
 
         const ids = portfolios.map(p => p._id);
 
-        const [open, booked, movements] = await Promise.all([
+        const [open, booked, movements, lots] = await Promise.all([
             Position.find({ portfolioId: { $in: ids }, netShares: { $gt: 0 } })
                 .select('portfolioId symbol netShares costBasis').lean(),
             Position.aggregate([
@@ -433,7 +433,14 @@ class PortfolioService {
             // Only what moves the base. The full walk would carry every buy and
             // sell across every book to reach the same two figures.
             Transaction.find({ portfolioId: { $in: ids }, type: { $in: ['DEPOSIT', 'WITHDRAW'] } })
-                .select('portfolioId type cashAmount executedAt').sort({ executedAt: 1 }).lean()
+                .select('portfolioId type cashAmount executedAt').sort({ executedAt: 1 }).lean(),
+
+            // Only the three fields the tax-year walk reads. Without them the
+            // list showed a book's profit before tax while the book's own page
+            // showed it after, and the same card disagreed with itself by the
+            // size of the tax bill.
+            Position.find({ portfolioId: { $in: ids }, 'disposals.0': { $exists: true } })
+                .select('portfolioId disposals.gain disposals.cgtRate disposals.taxYear').lean()
         ]);
 
         const priceOf = await bookPrices(open.map(p => p.symbol), portfolios[0].market);
@@ -446,6 +453,11 @@ class PortfolioService {
         const positionsOf = group(open);
         const movementsOf = group(movements);
         const bookedOf = new Map(booked.map(b => [String(b._id), b]));
+        const disposalsOf = lots.reduce((acc, row) => {
+            const k = String(row.portfolioId);
+            (acc[k] = acc[k] || []).push(...(row.disposals || []));
+            return acc;
+        }, {});
 
         return portfolios.map((portfolio) => {
             const id = String(portfolio._id);
@@ -469,6 +481,21 @@ class PortfolioService {
             const cash = investedBase(movementsOf[id] || []);
             const totalPnL = unrealizedPnL + realizedPnL + totalDividends;
 
+            // The same three branches the book's own page runs - tiered where
+            // lots were tracked, flat where they were not, nothing where the
+            // market has no tax model - so the two cannot disagree.
+            const taxed = getMarket(portfolio.market).capitalGains;
+            const disposals = disposalsOf[id] || [];
+            const holdingPeriodCGT = Math.round(cgtByTaxYear(disposals)
+                .reduce((sum, y) => sum + y.tax, 0) * 100) / 100;
+            const flatCGT = realizedPnL > 0
+                ? (realizedPnL * (portfolio.taxRatePct ?? 15)) / 100
+                : 0;
+            const capitalGainsTax = taxed
+                ? (disposals.length > 0 ? holdingPeriodCGT : flatCGT)
+                : 0;
+            const netTotalPnL = Math.round((totalPnL - capitalGainsTax) * 100) / 100;
+
             // Same base as the dashboard: realized gains come from positions whose
             // cost is no longer in totalCost, so dividing by it credits them to
             // the open holdings.
@@ -483,7 +510,9 @@ class PortfolioService {
                     totalValue,
                     totalCost,
                     totalPnL,
-                    totalPnLPct: base > 0 ? (totalPnL / base) * 100 : 0,
+                    netTotalPnL,
+                    netTotalPnLPct: base > 0 ? (netTotalPnL / base) * 100 : 0,
+                    capitalGainsTax,
                     unrealizedPnL,
                     realizedPnL,
                     totalDividends,
