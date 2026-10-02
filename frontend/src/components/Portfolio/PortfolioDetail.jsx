@@ -437,7 +437,8 @@ function Summary({ dashboard, currency }) {
                 <Line label="Holdings" value={money(totalValue)} />
                 {cashTracked && (
                     <Line label="Cash" value={money(cashBalance)}
-                        onClick={cashWalk ? () => setShowCash(v => !v) : undefined} />
+                        onClick={cashWalk ? () => setShowCash(v => !v) : undefined}
+                        open={showCash} />
                 )}
                 {/*
                     Where the cash number came from, on request.
@@ -457,14 +458,6 @@ function Summary({ dashboard, currency }) {
                         <Line label="Received selling" value={money(cashWalk.sold)} muted />
                         {cashWalk.dividends > 0 && <Line label="Dividends" value={money(cashWalk.dividends)} muted />}
                         <Line label="Commission and charges" value={`− ${money(cashWalk.fees)}`} muted />
-                        {cashWalk.freeOfCharge > 0 && (
-                            <p className="pt-1 text-xs text-amber-600 dark:text-amber-400">
-                                {cashWalk.freeOfCharge} of {cashWalk.trades} fills recorded no
-                                commission. If your broker charged any, this balance is that much
-                                too high — set a commission slab on this portfolio and the trade
-                                forms will fill it in.
-                            </p>
-                        )}
                     </div>
                 )}
                 {/* The account value above is short by whatever these are worth.

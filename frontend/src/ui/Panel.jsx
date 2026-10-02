@@ -3,6 +3,8 @@
  * figure, and the rows that make it up. Raised and separated rather than
  * divided by hairlines, so a group reads as one object at a glance.
  */
+import { ChevronDown } from 'lucide-react';
+
 export function Panel({ icon: Icon, tint = 'cyan', title, value, note, tone, children }) {
     const t = TINTS[tint] || TINTS.cyan;
 
@@ -32,20 +34,31 @@ export function Panel({ icon: Icon, tint = 'cyan', title, value, note, tone, chi
     );
 }
 
-export function Line({ label, value, note, tone, muted, strong, onClick }) {
-    // A line that opens something is a button, so it can be reached by keyboard
-    // and reads as clickable rather than only behaving that way.
+export function Line({ label, value, note, tone, muted, strong, onClick, open }) {
+    // A line that opens something is a button with a chevron. The dotted
+    // underline it used to wear was the only hint, and nobody read it as one.
     const Label = onClick ? 'button' : 'span';
 
     return (
         <div className={`flex items-baseline justify-between gap-3 text-sm
                         ${strong ? 'pt-2 border-t border-hairline' : ''}`}>
             <Label
-                {...(onClick ? { type: 'button', onClick } : {})}
+                {...(onClick ? { type: 'button', onClick, 'aria-expanded': Boolean(open) } : {})}
                 className={`text-left ${muted ? 'text-ink-faint' : 'text-ink-muted'}
-                            ${onClick ? 'underline decoration-dotted underline-offset-4 hover:text-ink' : ''}`}>
-                {label}
-                {note && <span className="block text-xs text-ink-faint">{note}</span>}
+                            ${onClick ? `group -mx-1.5 -my-0.5 flex items-center gap-1 rounded-control
+                                         px-1.5 py-0.5 transition-colors hover:bg-surface-muted
+                                         hover:text-ink focus-visible:bg-surface-muted` : ''}`}>
+                <span className="block">
+                    {label}
+                    {note && <span className="block text-xs text-ink-faint">{note}</span>}
+                </span>
+                {onClick && (
+                    <ChevronDown
+                        aria-hidden="true"
+                        className={`h-3.5 w-3.5 shrink-0 text-ink-faint transition-transform
+                                    group-hover:text-ink ${open ? 'rotate-180' : ''}`}
+                    />
+                )}
             </Label>
             <span className={`shrink-0 tabular-nums ${strong ? 'font-semibold' : ''}
                              ${tone || (muted ? 'text-ink-faint' : 'text-ink')}`}>

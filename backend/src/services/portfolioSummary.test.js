@@ -57,14 +57,6 @@ describe('what the cash balance is made of', () => {
         assert.equal(balance, 889);
     });
 
-    test('counts fills that recorded no commission', () => {
-        // A book with no commission slab records zero fees on every fill, and
-        // the balance is too high by exactly what the broker actually charged.
-        const { walk } = cashFrom([dep(1000), { type: 'BUY', quantity: 10, price: 50 }, sell]);
-        assert.equal(walk.trades, 2);
-        assert.equal(walk.freeOfCharge, 1);
-    });
-
     test('a charge on a dividend leaves the balance, as it leaves the account', () => {
         // PSX withholds on dividends, so a DIV row can carry a charge. The
         // balance used to subtract fees only inside the BUY and SELL branches,
@@ -79,8 +71,9 @@ describe('what the cash balance is made of', () => {
         assert.equal(Math.round(rebuilt * 100) / 100, balance);
     });
 
-    test('a cash-only book has no trades to flag', () => {
-        const { walk } = cashFrom([dep(500), wd(100)]);
-        assert.deepEqual([walk.trades, walk.freeOfCharge], [0, 0]);
+    test('a cash-only book moves only on its deposits and withdrawals', () => {
+        const { balance, walk } = cashFrom([dep(500), wd(100)]);
+        assert.equal(balance, 400);
+        assert.deepEqual([walk.bought, walk.sold, walk.fees], [0, 0, 0]);
     });
 });

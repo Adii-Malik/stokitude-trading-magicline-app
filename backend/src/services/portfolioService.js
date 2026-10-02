@@ -134,15 +134,8 @@ export function cashFrom(transactions) {
      * nothing at all about where the 5.64 went. These are the six sums the
      * balance is made of, so the gap can be walked to one of them instead of
      * guessed at.
-     *
-     * `trades` counts the buys and sells, and `freeOfCharge` how many of them
-     * recorded no commission at all - a book whose fees total zero across a
-     * dozen fills is not a cheap broker, it is a portfolio with no commission
-     * slab configured, and the missing charges are exactly the kind of gap this
-     * is here to find.
      */
     const walk = { deposits: 0, withdrawals: 0, bought: 0, sold: 0, dividends: 0, fees: 0 };
-    let trades = 0, freeOfCharge = 0;
 
     for (const tx of transactions) {
         const fees = (tx.fees || 0) + (tx.otherCharges || 0);
@@ -161,11 +154,6 @@ export function cashFrom(transactions) {
          * sums, and those six did not add up to the number above them.
          */
         balance -= fees;
-
-        if (tx.type === 'BUY' || tx.type === 'SELL') {
-            trades++;
-            if (fees === 0) freeOfCharge++;
-        }
 
         switch (tx.type) {
             case 'DEPOSIT':
@@ -193,8 +181,7 @@ export function cashFrom(transactions) {
         walk: {
             deposits: round(walk.deposits), withdrawals: round(walk.withdrawals),
             bought: round(walk.bought), sold: round(walk.sold),
-            dividends: round(walk.dividends), fees: round(walk.fees),
-            trades, freeOfCharge
+            dividends: round(walk.dividends), fees: round(walk.fees)
         }
     };
 }
