@@ -1104,6 +1104,11 @@ class PortfolioService {
         const capitalGainsTax = taxed ? (usesLotTax ? holdingPeriodCGT : flatCGT) : 0;
         const netRealizedPnL = realizedPnL - capitalGainsTax;
 
+        // Everything, with the tax on it taken off: the one figure that answers
+        // "am I up" without the reader assembling it from three cards.
+        const netTotalPnL = Math.round((totalPnL - capitalGainsTax) * 100) / 100;
+        const netTotalPnLPct = base > 0 ? (netTotalPnL / base) * 100 : 0;
+
         // Top 5 holdings by market value. Unpriced ones cannot be ranked by a
         // value they do not have, so they sort last rather than as zero.
         const topHoldings = holdings
@@ -1154,6 +1159,8 @@ class PortfolioService {
             totalCost,
             totalPnL,
             totalPnLPct,
+            netTotalPnL,
+            netTotalPnLPct,
             unrealizedPnL,
             realizedPnL,
             totalDividends,

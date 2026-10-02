@@ -417,7 +417,8 @@ function Summary({ dashboard, currency }) {
     const {
         totalValue = 0, totalCost = 0, cashBalance = 0, cashTracked,
         unrealizedPnL = 0, realizedPnL = 0, totalDividends = 0,
-        totalPnL = 0, totalPnLPct = 0, totalFees = 0,
+        totalPnL = 0, totalFees = 0,
+        netTotalPnL = 0, netTotalPnLPct = 0,
         capitalGainsTax = 0, netRealizedPnL = 0, taxRatePct = 15,
         cgtMethod = 'FLAT', filerStatus = null, unpriced = [], cashWalk = null
     } = dashboard;
@@ -427,7 +428,7 @@ function Summary({ dashboard, currency }) {
     const money = (v, opts) => formatCurrency(v, currency, opts);
     const accountValue = totalValue + (cashTracked ? cashBalance : 0);
     const bite = totalFees > 0 && realizedPnL > 0 ? (totalFees / realizedPnL) * 100 : null;
-    const gain = totalPnL >= 0;
+    const gain = netTotalPnL >= 0;
 
     // FIFO portfolios get holding-period CGT (PSX tiers by holding length +
     // filer status); everything else falls back to the flat rate. Label the
@@ -488,14 +489,20 @@ function Summary({ dashboard, currency }) {
             <Panel
                 icon={TrendingUp}
                 tint={gain ? 'green' : 'amber'}
-                title="Total P/L"
-                value={money(totalPnL, { signed: true })}
-                note={`${formatPercent(totalPnLPct)} on capital deployed`}
+                title={taxed ? 'Total P/L, after tax' : 'Total P/L'}
+                value={money(netTotalPnL, { signed: true })}
+                note={`${formatPercent(netTotalPnLPct)} on capital deployed`}
                 tone={gain ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}
             >
+                {/* Every part of the answer in one column, tax included, so the
+                    headline needs nothing added to it or taken off it. */}
                 <Line label="Unrealised on holdings" value={money(unrealizedPnL, { signed: true })} />
                 <Line label="Realised from sales" value={money(realizedPnL, { signed: true })} />
                 <Line label="Dividends received" value={money(totalDividends)} />
+                {taxed && <Line label="Capital gains tax" value={`− ${money(capitalGainsTax)}`} />}
+                {taxed && (
+                    <Line label="Before tax" value={money(totalPnL, { signed: true })} muted />
+                )}
             </Panel>
 
             <Panel icon={Receipt} tint="amber" title="What it cost"

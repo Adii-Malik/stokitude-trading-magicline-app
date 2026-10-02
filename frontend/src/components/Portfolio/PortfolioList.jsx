@@ -206,7 +206,9 @@ function PortfolioCard({ portfolio, onClick, onDelete, onEdit }) {
 
                     <div className="flex items-center justify-between pt-3 border-t border-hairline">
                         <div>
-                            <div className="text-sm text-gray-600 dark:text-gray-400">P/L</div>
+                            {/* Before tax, unlike the book's own card. Computing CGT per book
+    needs every disposal, which this list does not load. */}
+                            <div className="text-sm text-gray-600 dark:text-gray-400">P/L before tax</div>
                             <div className={`text-lg font-semibold ${getPnLColorClass(totalPnL)}`}>
                                 {formatCurrency(totalPnL, portfolio.currency, { signed: true })}
                             </div>
