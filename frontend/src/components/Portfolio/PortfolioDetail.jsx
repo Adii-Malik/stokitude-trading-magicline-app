@@ -415,30 +415,21 @@ function TabButton({ active, onClick, label }) {
  */
 function Summary({ dashboard, currency }) {
     const {
-        totalValue = 0, totalCost = 0, cashBalance = 0, cashTracked,
-        unrealizedPnL = 0, realizedPnL = 0, totalDividends = 0,
-        totalPnL = 0, totalPnLPct = 0, totalFees = 0,
-        capitalGainsTax = 0, taxRatePct = 15,
-        cgtMethod = 'FLAT', filerStatus = null, unpriced = [], cashWalk = null
+        totalValue = 0, cashBalance = 0, cashTracked,
+        unrealizedPnL = 0, totalDividends = 0,
+        netTotalPnL = 0, netTotalPnLPct = 0, realizedAfterTax = 0, totalFees = 0,
+        capitalGainsTax = 0, filerStatus = null, unpriced = [], cashWalk = null
     } = dashboard;
 
     const [showCash, setShowCash] = useState(false);
 
     const money = (v, opts) => formatCurrency(v, currency, opts);
     const accountValue = totalValue + (cashTracked ? cashBalance : 0);
-    const bite = totalFees > 0 && realizedPnL > 0 ? (totalFees / realizedPnL) * 100 : null;
-    const gain = totalPnL >= 0;
+    const gain = netTotalPnL >= 0;
 
-    // FIFO portfolios get holding-period CGT (PSX tiers by holding length +
-    // filer status); everything else falls back to the flat rate. Label the
-    // row so the figure is not mistaken for a single blanket percentage.
     // No tax model for this market, so there is no tax to show. filerStatus
     // comes back null rather than a default, which is what says so.
     const taxed = filerStatus != null;
-    const tiered = cgtMethod === 'HOLDING_PERIOD';
-    const cgtNote = tiered
-        ? `by holding period, ${filerStatus === 'NON_FILER' ? 'non-filer' : 'filer'} rates`
-        : `flat ${taxRatePct}%`;
 
     return (
         <div className="grid gap-3 sm:gap-4 lg:grid-cols-3">
@@ -476,7 +467,6 @@ function Summary({ dashboard, currency }) {
                         )}
                     </div>
                 )}
-                <Line label="Cost of holdings" value={money(totalCost)} muted />
                 {/* The account value above is short by whatever these are worth.
                     Said here rather than nowhere, because a total that quietly
                     omits a position is worse than one that admits it. */}
@@ -489,31 +479,24 @@ function Summary({ dashboard, currency }) {
                 icon={TrendingUp}
                 tint={gain ? 'green' : 'amber'}
                 title="Total P/L"
-                value={money(totalPnL, { signed: true })}
-                note={`${formatPercent(totalPnLPct)} on capital deployed`}
+                value={money(netTotalPnL, { signed: true })}
+                note={`${formatPercent(netTotalPnLPct)} on capital deployed`}
                 tone={gain ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}
             >
-                {/* Where the profit came from. What was taken out of it is the
-                    next card's job, and naming the tax twice was what made the
-                    two read like different answers. */}
+                {/* Money you have, so the realised line is net of the tax on it
+                    and the label says so. The cost card lists the tax; it does
+                    not deduct it a second time. */}
                 <Line label="Unrealised on holdings" value={money(unrealizedPnL, { signed: true })} />
-                <Line label="Realised from sales" value={money(realizedPnL, { signed: true })} />
+                <Line label={taxed ? 'Realised from sales, after CGT' : 'Realised from sales'}
+                    value={money(realizedAfterTax, { signed: true })} />
                 <Line label="Dividends received" value={money(totalDividends)} />
             </Panel>
 
             <Panel icon={Receipt} tint="amber" title="What it cost"
                 value={money(totalFees + capitalGainsTax)}
                 tone="text-amber-600 dark:text-amber-400">
-                {/* The two land at different moments, and each note says which,
-                    because that is the only thing that explains the P/L beside it. */}
-                <Line label="Commission paid" value={money(totalFees)}
-                    note={bite !== null
-                        ? `${bite.toFixed(0)}% of realised gains — already inside the P/L`
-                        : 'already inside the P/L'} />
-                {taxed && (
-                    <Line label="CGT deducted" value={money(capitalGainsTax)}
-                        note={`${cgtNote} — not yet taken off the P/L`} />
-                )}
+                <Line label="Commission paid" value={money(totalFees)} />
+                {taxed && <Line label="CGT deducted" value={money(capitalGainsTax)} />}
             </Panel>
         </div>
     );

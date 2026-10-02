@@ -1103,6 +1103,14 @@ class PortfolioService {
         const usesLotTax = disposals.length > 0;
         const capitalGainsTax = taxed ? (usesLotTax ? holdingPeriodCGT : flatCGT) : 0;
 
+        // What a sale actually left you with, and the book's profit on that
+        // basis. Tax is netted into the realised line rather than shown as a
+        // deduction beside it: two figures for the same sales read as a
+        // contradiction, and only one of them is money you have.
+        const realizedAfterTax = Math.round((realizedPnL - capitalGainsTax) * 100) / 100;
+        const netTotalPnL = Math.round((totalPnL - capitalGainsTax) * 100) / 100;
+        const netTotalPnLPct = base > 0 ? (netTotalPnL / base) * 100 : 0;
+
 
         // Top 5 holdings by market value. Unpriced ones cannot be ranked by a
         // value they do not have, so they sort last rather than as zero.
@@ -1154,8 +1162,11 @@ class PortfolioService {
             totalCost,
             totalPnL,
             totalPnLPct,
+            netTotalPnL,
+            netTotalPnLPct,
             unrealizedPnL,
             realizedPnL,
+            realizedAfterTax,
             totalDividends,
             taxRatePct,
             capitalGainsTax,
